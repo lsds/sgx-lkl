@@ -1,0 +1,17 @@
+# Generate src/sign/cmdline.c/*.h by running:
+# gengetopt --input sgx_lkl_sign_options.ggo --output-dir ../src/sign
+
+package "sgx-lkl-sign"
+version "1.0"
+purpose "Use this program to sign libsgxlkl.so before loading it into an enclave via sgx-lkl-run."
+
+option "file" f "Path to libsgxlkl.so that should get signed." string required
+option "key" k "Path to enclave key file." string required
+option "stacksize" s "Size of the stack in bytes. Will be rounded up to align \
+  with the size of a page." long default="32768" optional
+option "heapsize" h "Size of the heap in bytes. If set to zero the heap will \
+  occupy the remaining space of the EPC. Setting this value to a value larger \
+  than the EPC is allowed but might result in EPC paging." long default="0" optional
+option "threads" t "Maximum number of enclave threads. This determines the number \
+  of TCS. This does not restrict the number of user-level threads used by an \
+  application." long default="8" optional
