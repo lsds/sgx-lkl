@@ -29,6 +29,8 @@ Install these with:
 sudo apt-get install make gcc bc python xutils-dev
 ```
 
+Compilation has been tested with version 5.4 of gcc. Older versions might lead to compilation and/or linking errors.
+
 ### Networking support
 
 In order for SGX-LKL application to send and receive packets via the network, a
