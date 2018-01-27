@@ -2,7 +2,7 @@
  * Lthread
  * Copyright (C) 2012, Hasan Alayli <halayli@gmail.com>
  * Copyright (C) 2016, 2017, 2018 Imperial College London
- * Copyright (C) 2016, 2017 TU Dresden
+ * Copyright (C) 2016, 2017 TU Dresden (under SCONE open source license)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
