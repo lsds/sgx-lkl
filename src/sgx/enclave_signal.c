@@ -18,6 +18,12 @@ static int handle_sigsegv(gprsgx_t *regs, void *arg);
 void __enclave_signal_handler(gprsgx_t *regs, enclave_signal_info_t *siginfo) {
     set_eh_handling(1);
 
+    struct lthread *lt = lthread_self();
+    // Remember old state of lthread
+    int lt_old_state = lt->attr.state;
+    // Pin lthread
+    lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
+
     int ret;
     switch (siginfo->signum) {
     case SIGSEGV:
@@ -29,6 +35,9 @@ void __enclave_signal_handler(gprsgx_t *regs, enclave_signal_info_t *siginfo) {
     default:
         ret = -1;
     }
+
+    // Restore lthread state
+    lt->attr.state = lt_old_state;
 
     if(ret != 0) {
         exit_enclave(SGXLKL_EXIT_TERMINATE, -1, get_exit_address(), UNUSED);
