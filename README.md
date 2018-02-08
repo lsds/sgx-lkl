@@ -119,7 +119,7 @@ To run applications with SGX-LKL, they need to be provided as part of a disk
 image. Since SGX-LKL is built on top of musl, applications are expected to be
 dynamically linked against musl. musl and glibc are not fully
 binary-compatible. Applications linked against glibc are therefore not
-gueranteed to work with SGX-LKL. The simplest way to run an application with
+guaranteed to work with SGX-LKL. The simplest way to run an application with
 SGX-LKL is to use prebuilt binaries for Alpine Linux, which uses musl as its C
 standard library.
 
