@@ -36,16 +36,16 @@
 #include <stdint.h>
 #include <poll.h>
 #include <pthread.h>
-#define DEFINE_LTHREAD (lthread_set_funcname(__func__))
-#define CLOCK_LTHREAD CLOCK_REALTIME
+#include <signal.h>
 
+#include "enclave_config.h"
+#include "hostmem.h"
 #include "locale_impl.h"
-#include <enclave_config.h>
 #include "queue.h"
 #include "tree.h"
-#include <hostmem.h>
-#include <signal.h> 
 
+#define DEFINE_LTHREAD (lthread_set_funcname(__func__))
+#define CLOCK_LTHREAD CLOCK_REALTIME
 
 typedef void *(*lthread_func)(void *);
 
@@ -100,6 +100,22 @@ struct lthread_attr {
 
 typedef void (* sig_handler) (int sig, siginfo_t *si, void *unused);
 
+/*
+ * a simple struct describing an existing futex. It is not safe to use malloc
+ * and/or free while holding the futex ticketlock as both malloc and free
+ * perform a futex system call themselves under certain circumstances which will
+ * result in a deadlock.
+ *
+ * We therefore have an fq field in the lthread struct.
+ */
+struct futex_q {
+    uint32_t futex_key;
+    uint64_t futex_deadline;
+    struct lthread *futex_lt;
+
+    SLIST_ENTRY(futex_q) entries;
+};
+
 struct lthread {
     struct cpu_ctx          ctx;            /* cpu ctx info */
     lthread_func            fun;            /* func lthread is running */
@@ -123,22 +139,19 @@ struct lthread {
     int err;                                /* errno value */
     char *dlerror_buf;
     int dlerror_flag;
-    void **dtv; 
-    void **dtv_copy; 
+    void **dtv;
+    void **dtv_copy;
     /* yield_cb_* are a callback to call after yield finished and it's arg */
     /* they are required to release futex lock on FUTEX_WAIT operation */
     /* and in sched_yield (see comment there) to avoid race among schedulers */
     void                    (*yield_cb)(void*);
     void                    *yield_cbarg;
+    struct futex_q fq;
     struct {
         volatile void *volatile head;
         long off;
         volatile void *volatile pending;
     } robust_list;
-    /* Signal handler for SIGSEGV -- Double indirection to because all lthreads 
-       need to point to this, but is set only once from a sigaction call inside a 
-       single lthread */ 
-    sig_handler * sigsegv_handler; 
 };
 
 RB_HEAD(lthread_rb_sleep, lthread);

@@ -28,21 +28,12 @@
 
 #include <futex.h>
 
-/* a simple struct describing an existing futex */
-struct futex_q {
-    uint32_t futex_key;
-    uint64_t futex_deadline;
-    struct lthread *futex_lt;
-
-    SLIST_ENTRY(futex_q) entries;
-};
-
 /* stores all the futex_q's */
 SLIST_HEAD(__futex_q_head, futex_q) futex_queues =
      SLIST_HEAD_INITIALIZER(futex_queues);
 
 /* for the total ordering of futex operations as mandated by POSIX */
-static volatile union ticketlock futex_q_lock;
+static union ticketlock futex_q_lock;
 
 /* number of threads sleeping on a futex, protected by futex_q_lock */
 static volatile int futex_sleepers;
@@ -79,12 +70,13 @@ futex_tick() {
     if (!local_futex_sleepers)
         return;
 
-    a_barrier();
-    if (ticket_trylock(&futex_q_lock) == EBUSY)
-        return;
-
     clock_gettime(CLOCK_LTHREAD, &ts);
     curr_usec = _lthread_timespec_to_usec(&ts);
+
+    a_barrier();
+
+    if (ticket_trylock(&futex_q_lock) == EBUSY)
+        return;
 
     SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp) {
         if (fq->futex_deadline && fq->futex_deadline <= curr_usec) {
@@ -92,7 +84,6 @@ futex_tick() {
             fq->futex_lt = NULL;
             a_fetch_add(&futex_sleepers, -1);
             SLIST_REMOVE(&futex_queues, fq, futex_q, entries);
-            free(fq);
             lt->err = FUTEX_EXPIRED;
             __scheduler_enqueue(lt);
         }
@@ -107,15 +98,18 @@ __futex_wait_new(uint32_t futex_key) {
     int rc;
     struct futex_q *fq;
 
-    fq = malloc(sizeof(*fq));
-    if (!fq) {
-        errno = ENOMEM;
-        return NULL;
-    }
+    /*
+     * It is not safe to use malloc and/or free while holding the futex
+     * ticketlock as both malloc and free perform a futex system call themselves
+     * under certain circumstances which will result in a deadlock.
+     *
+     * There should only ever be at most one fq per lthread. We therefore use an
+     * fq field in the lthread struct instead of dynamically allocating a new
+     * futex_q struct here.
+     */
+    fq = &lthread_self()->fq;
     fq->futex_key = futex_key;
     fq->futex_deadline = 0;
-
-    /* create the lthread ptr inside */
     fq->futex_lt = lthread_self();
 
     FUTEX_SGXLKL_VERBOSE("%s: created new futex_q in tid %d\n",
@@ -141,8 +135,7 @@ __do_futex_unlock(void *lock) {
 }
 
 static int
-__do_futex_sleep(struct futex_q *fq, const struct timespec *ts) {
-    struct timespec now;
+__do_futex_sleep(struct futex_q *fq, const struct timespec *ts, const struct timespec *now) {
     FUTEX_SGXLKL_VERBOSE("%s: about to sleep in tid %d on key 0x%x\n",
             __func__, lthread_self()->tid, fq->futex_key);
 
@@ -152,8 +145,7 @@ __do_futex_sleep(struct futex_q *fq, const struct timespec *ts) {
 
     /* set the deadline for wake up */
     if (ts) {
-        clock_gettime(CLOCK_LTHREAD, &now);
-        fq->futex_deadline = _lthread_timespec_to_usec(&now)
+        fq->futex_deadline = _lthread_timespec_to_usec(now)
                 + _lthread_timespec_to_usec(ts);
     }
 
@@ -166,7 +158,7 @@ __do_futex_sleep(struct futex_q *fq, const struct timespec *ts) {
 
 /* a FUTEX_WAIT operation */
 static int
-futex_wait(int *uaddr, int val, const struct timespec *ts) {
+futex_wait(int *uaddr, int val, const struct timespec *ts, const struct timespec *now) {
     /* XXX (lkurusa): this should be an atomic read */
     int r, rc;
     uint32_t futex_key;
@@ -189,7 +181,7 @@ futex_wait(int *uaddr, int val, const struct timespec *ts) {
             return -1;
 
         /* sleep on the FQ */
-        rc = __do_futex_sleep(fq, ts);
+        rc = __do_futex_sleep(fq, ts, now);
 
         FUTEX_SGXLKL_VERBOSE("%s: FUTEX_WAITING woke up, this is tid %d\n",
                 __func__, lthread_self()->tid);
@@ -218,10 +210,9 @@ futex_wake(int *uaddr, unsigned int num) {
         if (fq->futex_key == futex_key && w < num) {
             struct lthread *lt = fq->futex_lt;
             fq->futex_lt = NULL;
-            w ++;
+            w++;
             a_fetch_add(&futex_sleepers, -1);
             SLIST_REMOVE(&futex_queues, fq, futex_q, entries);
-            free(fq);
             lt->err = FUTEX_NONE;
             __scheduler_enqueue(lt);
         }
@@ -233,14 +224,14 @@ futex_wake(int *uaddr, unsigned int num) {
     return w;
 }
 
-int 
+int
 syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
                     int *uaddr2, int val3) {
     int rc;
     static int init = 1;
 
     if (init) {
-        memset(&futex_q_lock, 0, 8);
+        memset((void*) &futex_q_lock, 0, sizeof(union ticketlock));
         init = 0;
     }
 
@@ -248,10 +239,22 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
      * to have FUTEX_PRIVATE? */
     op &= ~(FUTEX_PRIVATE);
 
+    /* Get current time before acquiring the lock since clock_gettime performs
+     * a host system call which will make the lthread yield and potentially
+     * cause a deadlock. */
+    struct timespec now;
+    if(op == FUTEX_WAIT) {
+        clock_gettime(CLOCK_LTHREAD, &now);
+    }
+
     ticket_lock(&futex_q_lock);
     switch(op) {
         case FUTEX_WAIT:
-            rc = futex_wait(uaddr, val, timeout);
+            if (!lthread_current()) {
+                return 0;
+            }
+
+            rc = futex_wait(uaddr, val, timeout, &now);
             if (rc == 0 || (rc == -1 && errno == ETIMEDOUT))
                 goto ret_nounlock;
             break;

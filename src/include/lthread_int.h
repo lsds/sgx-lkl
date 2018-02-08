@@ -63,9 +63,7 @@ void        _lthread_desched_sleep(struct lthread *lt);
 int         _save_exec_state(struct lthread *lt);
 void print_timestamp(char *);
 
-static inline uint64_t
-_lthread_timespec_to_usec(struct timespec *ts)
-{
+static inline uint64_t _lthread_timespec_to_usec(const struct timespec *ts) {
     return (ts->tv_sec * 1000000) + ts->tv_nsec / 1000;
 }
 
