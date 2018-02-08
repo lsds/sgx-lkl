@@ -1,21 +1,6 @@
 /*
- * Copyright 2016, 2017, 2018 Imperial College London
- * Copyright 2016, 2017 TU Dresden (under SCONE open source license)
- * 
- * This file is part of SGX-LKL.
- * 
- * SGX-LKL is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * SGX-LKL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2016, 2017, 2018 Imperial College London (under GNU General Public License v3)
+ * Copyright 2016, 2017 TU Dresden (under SCONE source code license)
  */
 
 #define _LARGEFILE64_SOURCE     /* See feature_test_macros(7) */
@@ -43,7 +28,7 @@
 #define STRING_EEXTEND 0x00444E4554584545
 
 #ifdef DEBUG
-#define D 
+#define D
 #else
 #define D for(;0;)
 #endif
@@ -56,11 +41,11 @@ typedef struct {
     uint64_t zero;
     void*    hash;
     void*    signer;
-    void*    attributes;  
-    void*    token;       
+    void*    attributes;
+    void*    token;
 } gettoken_t;
 
-/* 
+/*
  * if changed, the same typedef must be updated accordingly in
  * sgx-lkl/src/include/enclave_config.h
  *
@@ -85,7 +70,7 @@ typedef struct {
     uint64_t thread_state;
     uint64_t eh_tcs_addr;
     uint64_t eh_exit_addr;
-    uint64_t eh_ursp; 
+    uint64_t eh_ursp;
     uint64_t eh_urbp;
     uint64_t eh_handling;
     jmp_buf  regs;
@@ -112,7 +97,7 @@ void* get_tcs_addr(int id) {
     return threads[id].addr;
 }
 int get_free_tcs_id() {
-    for (int i = 0; i < tcs_max; i++) 
+    for (int i = 0; i < tcs_max; i++)
         if (threads[i].busy == 0) {
             return i;
         }

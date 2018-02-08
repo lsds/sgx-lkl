@@ -1,21 +1,6 @@
 /*
- * Copyright 2016, 2017, 2018 Imperial College London
- * Copyright 2016, 2017 TU Dresden (under SCONE open source license)
- * 
- * This file is part of SGX-LKL.
- * 
- * SGX-LKL is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * SGX-LKL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2016, 2017, 2018 Imperial College London (under GNU General Public License v3)
+ * Copyright 2016, 2017 TU Dresden (under SCONE source code license)
  */
 
 #ifdef SGXLKL_HW
@@ -53,7 +38,7 @@ void __enclave_signal_handler(gprsgx_t *regs, enclave_signal_info_t *siginfo) {
 }
 
 static int handle_sigsegv(gprsgx_t *regs, void *arg) {
-    siginfo_t si; 
+    siginfo_t si;
     memcpy(&si, arg, sizeof(siginfo_t));
 
     // We have to map the zero page in order to support position-dependent
@@ -64,8 +49,8 @@ static int handle_sigsegv(gprsgx_t *regs, void *arg) {
         si.si_code = SEGV_MAPERR;
     }
 
-    struct lthread *lt; 
-    lt = ((struct schedctx *)regs->fsbase)->sched.current_lthread; 
+    struct lthread *lt;
+    lt = ((struct schedctx *)regs->fsbase)->sched.current_lthread;
 
     ucontext_t u;
     u.uc_mcontext.gregs[REG_RDI] = regs->rdi;
@@ -87,7 +72,7 @@ static int handle_sigsegv(gprsgx_t *regs, void *arg) {
 
     (*segv_handler)(si.si_signo, &si, &u);
 
-    /* Restore the register values to the changed values */ 
+    /* Restore the register values to the changed values */
 
     regs->rdi = u.uc_mcontext.gregs[REG_RDI];
     regs->rsi = u.uc_mcontext.gregs[REG_RSI];
@@ -107,10 +92,10 @@ static int handle_sigsegv(gprsgx_t *regs, void *arg) {
     regs->r15 = u.uc_mcontext.gregs[REG_R15];
 
     return 0;
-} 
+}
 
 static int handle_sigill(gprsgx_t *regs, void *arg) {
-    uint64_t ts = (uint64_t) arg; 
+    uint64_t ts = (uint64_t) arg;
     uint64_t tcs_addr, exit_addr, ursp, urbp, ssa_start, exit;
     /* cpuid opcode: 0fa2 */
     if (((unsigned char*)(regs->rip))[0] == 0x0f && ((unsigned char*)(regs->rip))[1] == 0xa2) {
@@ -143,7 +128,7 @@ static int handle_sigill(gprsgx_t *regs, void *arg) {
         regs->rip += 2;
 
         return 0;
-    } 
+    }
 
     /* Unhandled illegal instruction */
     return -1;

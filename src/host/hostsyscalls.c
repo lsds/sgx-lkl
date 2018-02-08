@@ -1,21 +1,6 @@
 /*
- * Copyright 2016, 2017, 2018 Imperial College London
- * Copyright 2016, 2017 TU Dresden (under SCONE open source license)
- * 
- * This file is part of SGX-LKL.
- * 
- * SGX-LKL is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * SGX-LKL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2016, 2017, 2018 Imperial College London (under GNU General Public License v3)
+ * Copyright 2016, 2017 TU Dresden (under SCONE source code license)
  */
 
 #define WANT_REAL_ARCH_SYSCALLS
@@ -475,11 +460,11 @@ int host_syscall_SYS_munlockall() {
 int host_syscall_SYS_mprotect(void * addr, size_t len, int prot) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;
-    Arena *a = NULL; 
+    Arena *a = NULL;
 
     sc = getsyscallslot(&a);
-    if(!(sc && a)) 
-        return 0; 
+    if(!(sc && a))
+        return 0;
     sc->syscallno = SYS_mprotect;
 
     sc->arg1 = (uintptr_t)addr;
@@ -491,7 +476,7 @@ int host_syscall_SYS_mprotect(void * addr, size_t len, int prot) {
     if (sc->arg6) errno = sc->arg6;
     arena_free(a);
     sc->status = 0;
-    return (int)__syscall_return_value; 
+    return (int)__syscall_return_value;
 }
 
 int host_syscall_SYS_rt_sigaction(int signum, struct sigaction * act, struct sigaction * oldact, unsigned long nsig) {
@@ -508,13 +493,13 @@ int host_syscall_SYS_rt_sigaction(int signum, struct sigaction * act, struct sig
     sc->arg1 = (uintptr_t)signum;
     struct sigaction * val2;
     val2 = arena_alloc(a, len2);
-    if (act != NULL && val2 != NULL) 
-    { 
+    if (act != NULL && val2 != NULL)
+    {
         memcpy(val2, act, len2);
         sc->arg2 = (uintptr_t)val2;
-    } else { 
-        sc->arg2 = (uintptr_t)NULL;             
-    } 
+    } else {
+        sc->arg2 = (uintptr_t)NULL;
+    }
     struct sigaction * val3;
     val3 = arena_alloc(a, len3);
     sc->arg3 = (uintptr_t)val3;

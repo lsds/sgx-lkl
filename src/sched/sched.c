@@ -2,7 +2,7 @@
  * Lthread
  * Copyright (C) 2012, Hasan Alayli <halayli@gmail.com>
  * Copyright (C) 2016, 2017, 2018 Imperial College London
- * Copyright (C) 2016, 2017 TU Dresden (under SCONE open source license)
+ * Copyright (C) 2016, 2017 TU Dresden
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,7 +50,7 @@
 #include "hostmem.h"
 #include "pthread_impl.h"
 #include "hostqueues.h"
-#include "sgxlkl_debug.h" 
+#include "sgxlkl_debug.h"
 #include "stdio_impl.h"
 #include "hostsyscallclient.h"
 #include "ticketlock.h"
@@ -255,7 +255,7 @@ void _lthread_desched_sleep(struct lthread *lt) {
         lt->attr.state &= CLEARBIT(LT_ST_EXPIRED);
         nsleepers--;
     }
-    
+
    ticket_unlock(&sleeplock);
 
    SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_desched_sleep() TICKET_UNLOCK lock=SLEEPLOCK tid=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid);
@@ -273,9 +273,9 @@ static void _lthread_resume_expired(struct timespec *now) {
     if (nsleepers == 0) {
         return;
     }
-    
+
     ticket_lock(&sleeplock);
-    
+
     SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_resume_expired() TICKET_LOCK lock=SLEEPLOCK tid=NULL\n", (lthread_self() ? lthread_self()->tid : 0));
 
     curr_usec = _lthread_timespec_to_usec(now);
@@ -296,7 +296,7 @@ static void _lthread_resume_expired(struct timespec *now) {
     ticket_unlock(&sleeplock);
 
     SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_resume_expired() TICKET_UNLOCK lock=SLEEPLOCK tid=NULL\n", (lthread_self() ? lthread_self()->tid : 0));
-} 
+}
 
 static void _lthread_lock(struct lthread *lt) {
     int state, newstate;
@@ -334,7 +334,7 @@ void _lthread_free(struct lthread *lt) {
         lt->cancelbuf = lt->cancelbuf->__next;
         f(x);
     }
-    if(lthread_self() != NULL) 
+    if(lthread_self() != NULL)
         lthread_rundestructors(lt);
     if (lt->itls != 0) {
         munmap(lt->itls, lt->itlssz);
@@ -420,7 +420,6 @@ int _lthread_resume(struct lthread *lt) {
 static inline void _lthread_madvise(struct lthread *lt) {
     size_t current_stack = ((uintptr_t)lt->attr.stack + lt->attr.stack_size) - (uintptr_t)lt->ctx.esp;
     /* make sure function did not overflow stack, we can't recover from that */
-    if(current_stack > lt->attr.stack_size) 
 	assert(current_stack <= lt->attr.stack_size);
     lt->attr.last_stack_size = current_stack;
 }

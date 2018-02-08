@@ -1,21 +1,6 @@
 /*
- * Copyright 2016, 2017, 2018 Imperial College London
- * Copyright 2016, 2017 TU Dresden (under SCONE open source license)
- * 
- * This file is part of SGX-LKL.
- * 
- * SGX-LKL is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * SGX-LKL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2016, 2017, 2018 Imperial College London (under GNU General Public License v3)
+ * Copyright 2016, 2017 TU Dresden (under SCONE source code license)
  */
 
 #ifdef SGXLKL_HW
@@ -35,7 +20,7 @@ enclave_parms_t* get_enclave_parms() {
     return ret;
 }
 
-/* 
+/*
  * Do not delete. This is required to prevent the thread-local variable to be
  * removed during optimization.
  */

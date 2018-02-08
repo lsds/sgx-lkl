@@ -1,21 +1,6 @@
 /*
- * Copyright 2016, 2017, 2018 Imperial College London
- * Copyright 2016, 2017 TU Dresden (under SCONE open source license)
- * 
- * This file is part of SGX-LKL.
- * 
- * SGX-LKL is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * SGX-LKL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright 2016, 2017, 2018 Imperial College London (under GNU General Public License v3)
+ * Copyright 2016, 2017 TU Dresden (under SCONE source code license)
  */
 
 #define _GNU_SOURCE
@@ -204,7 +189,7 @@ static size_t parse_heap_env(const char *var, size_t def, size_t max) {
     return r;
 }
 
-/* find tls phdr inside the shared library that we dlopened; 
+/* find tls phdr inside the shared library that we dlopened;
    HW version should do this inside the enclave */
 struct dliterdata {
     const char *name;
@@ -447,9 +432,9 @@ void* enclave_thread(void* parm) {
                                     }
             case SGXLKL_EXIT_DORESUME: {
                                            eresume(my_tcs_id);
-                                       }    
+                                       }
         }
-    } 
+    }
 
 done:
     return 0;
@@ -469,7 +454,7 @@ void forward_signal(int signum, void *handler_arg) {
 reenter:
     enter_enclave(my_tcs_id, call_id, arg, ret);
     switch (ret[0]) {
-        case SGXLKL_EXIT_CPUID: 
+        case SGXLKL_EXIT_CPUID:
             {
                 unsigned int* reg = (unsigned int*)ret[1];
                 do_cpuid(reg);
@@ -479,7 +464,7 @@ reenter:
         case SGXLKL_EXIT_DORESUME:
             {
                 return;
-            }    
+            }
         case SGXLKL_EXIT_TERMINATE:
             {
                 int exit_code = (int)ret[1];
@@ -533,7 +518,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if(argc <= 2) {
         usage(argv[0]);
         exit(1);
-    } 
+    }
     hd = argv[1];
 
     const size_t pagesize = sysconf(_SC_PAGESIZE);
@@ -568,7 +553,7 @@ int main(int argc, char *argv[], char *envp[]) {
     backoff_maxpause = parseenv("SGXLKL_SSPINS", 100, ULONG_MAX);
     backoff_factor = parseenv("SGXLKL_SSLEEP", 4000, ULONG_MAX);
 
-    /* Determine path of libsgxlkl.so (lkl + musl) */	
+    /* Determine path of libsgxlkl.so (lkl + musl) */
     ssize_t q, pathlen = 1024;
     /* SGXLKL_SO_PATH is relative to path of sgx-lkl-run. */
     char *libsgxlkl_rel = __stringify(SGXLKL_SO_PATH);
@@ -589,7 +574,7 @@ int main(int argc, char *argv[], char *envp[]) {
         return -1;
     }
     else if (q > pathlen - strlen(libsgxlkl_rel) - 1) {
-        fprintf(stderr, "Provided libsgxlkl.so path was too long.\n");
+        fprintf(stderr, "Provided libsgxlkl.so path is too long.\n");
         return -1;
     }
 
@@ -613,7 +598,7 @@ int main(int argc, char *argv[], char *envp[]) {
     int lkl_lib_fd;
     struct stat lkl_lib_stat;
     if(!(lkl_lib_fd = open(libsgxlkl, O_RDWR))) {
-        return -1; 
+        return -1;
     }
 
     if(fstat(lkl_lib_fd, &lkl_lib_stat) == -1) {
@@ -718,7 +703,7 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.argc = argc - 1;
     encl.argv = (argv + 1);
 
-    // Find aux vector (after envp vector)        
+    // Find aux vector (after envp vector)
     for(auxvp = envp; *auxvp; auxvp++);
     encl.auxv = (Elf64_auxv_t*) (++auxvp);
 
