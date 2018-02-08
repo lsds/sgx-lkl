@@ -1,12 +1,12 @@
 [submodule "lkl"]
 	path = lkl
-	url = git@github.com:lkl/linux.git
+	url = https://github.com/lkl/linux.git
 [submodule "host-musl"]
 	path = host-musl
 	url = git://git.musl-libc.org/musl
 [submodule "openssl"]
 	path = openssl
-	url = git@github.com:openssl/openssl.git
+	url = https://github.com/openssl/openssl.git
 [submodule "sgx-lkl-musl"]
 	path = sgx-lkl-musl
-	url = git@github.com:lsds/sgx-lkl-musl.git
+	url = https://github.com/lsds/sgx-lkl-musl.git
