@@ -27,6 +27,8 @@
 #define STRING_ECREATE 0x0045544145524345
 #define STRING_EEXTEND 0x00444E4554584545
 
+#define BASE_ADDR_UNDEFINED -1
+
 #ifdef DEBUG
 #define D
 #else
@@ -76,9 +78,9 @@ typedef struct {
     jmp_buf  regs;
 } enclave_parms_t;
 
-static int   sgxfd    = 0;
-static uintptr_t ubase = 0;
-static size_t    esize = 0;
+static uintptr_t ubase = BASE_ADDR_UNDEFINED;
+static int sgxfd = 0;
+static size_t esize = 0;
 static volatile size_t heap_size = 0;
 static sha256_context ctx;
 
@@ -1041,7 +1043,7 @@ void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp, in
 
 __attribute__((destructor))
     void destructor() {
-        if (ubase)
+        if (ubase != BASE_ADDR_UNDEFINED)
             destroy_enclave((unsigned long)ubase);
 
         if (sgxfd)
