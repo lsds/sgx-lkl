@@ -59,6 +59,10 @@ static const char* DEFAULT_IPV4_GW = "10.0.1.254";
 static const int   DEFAULT_IPV4_MASK = 24;
 static const char* DEFAULT_HOSTNAME = "lkl";
 
+// Is set to 1 when terminating the enclave to prevent concurrent threads from
+// trying to reenter.
+static int __state_exiting = 0;
+
 extern void eresume(uint64_t tcs_id);
 
 #define STANDALONE
@@ -408,10 +412,11 @@ void* enclave_thread(void* parm) {
     uint64_t ret[2];
     int exit_code = 0;
     my_tcs_id = args->tcs_id;
-    while (1) {
+    while (!__state_exiting) {
         enter_enclave(args->tcs_id, args->call_id, args->args, ret);
         switch (ret[0]) {
             case SGXLKL_EXIT_TERMINATE:
+		__state_exiting = 1;
                 exit_code = ret[1];
                 exit(exit_code);
             case SGXLKL_EXIT_CPUID: {
@@ -452,6 +457,7 @@ void forward_signal(int signum, void *handler_arg) {
     siginfo.arg = handler_arg;
     arg = &siginfo;
 reenter:
+    if (__state_exiting) return;
     enter_enclave(my_tcs_id, call_id, arg, ret);
     switch (ret[0]) {
         case SGXLKL_EXIT_CPUID:
@@ -467,6 +473,7 @@ reenter:
             }
         case SGXLKL_EXIT_TERMINATE:
             {
+                __state_exiting = 1;
                 int exit_code = (int)ret[1];
                 exit(exit_code);
             }
