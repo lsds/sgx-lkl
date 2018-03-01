@@ -39,7 +39,10 @@ typedef struct {
     uintptr_t arg4;
     uintptr_t arg5;
     uintptr_t arg6;
-    uintptr_t syscallno;
+    union {
+        uintptr_t syscallno; // Set at request time
+        uintptr_t ret_val; // Set at response time
+    };
     uintptr_t status;
 } syscall_t __attribute__((aligned(64)));
 

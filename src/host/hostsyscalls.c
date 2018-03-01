@@ -28,8 +28,7 @@ int host_syscall_SYS_close(int fd) {
     sc->syscallno = SYS_close;
     sc->arg1 = (uintptr_t)fd;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -57,8 +56,7 @@ int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg) {
     if (len == 0) { sc->arg3 = (uintptr_t)arg; }
     else {val = arena_alloc(a, len); if (arg != 0) memcpy(val, (void*)arg, len); sc->arg3 = (uintptr_t)val;}
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     if (len > 0 && arg != 0) {memcpy((void*)arg, val, len);}
     arena_free(a);
     sc->status = 0;
@@ -85,8 +83,7 @@ int host_syscall_SYS_poll(struct pollfd * fds, nfds_t nfds, int timeout) {
     sc->arg2 = (uintptr_t)nfds;
     sc->arg3 = (uintptr_t)timeout;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val1 != NULL && fds != NULL) memcpy(fds, val1, len1);
     arena_free(a);
     sc->status = 0;
@@ -101,7 +98,6 @@ void host_syscall_SYS_exit_group(int status) {
     sc->syscallno = SYS_exit_group;
     sc->arg1 = (uintptr_t)status;
     threadswitch((syscall_t*) sc);
-    if (sc->arg6) errno = sc->arg6;
     sc->status = 0;
 }
 
@@ -113,7 +109,6 @@ void host_syscall_SYS_exit(int status) {
     sc->syscallno = SYS_exit;
     sc->arg1 = (uintptr_t)status;
     threadswitch((syscall_t*) sc);
-    if (sc->arg6) errno = sc->arg6;
     sc->status = 0;
 }
 
@@ -125,8 +120,7 @@ int host_syscall_SYS_fdatasync(int fd) {
     sc->syscallno = SYS_fdatasync;
     sc->arg1 = (uintptr_t)fd;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -179,8 +173,7 @@ int host_syscall_SYS_ioctl(int fd, unsigned long request, void * arg) {
     sc->arg2 = (uintptr_t)request;
     sc->arg3 = (uintptr_t)val3;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (len3!= 0 && val3 != NULL && arg != NULL) memcpy(arg, val3, len3);
     arena_free(a);
     sc->status = 0;
@@ -197,8 +190,7 @@ off_t host_syscall_SYS_lseek(int fd, off_t offset, int whence) {
     sc->arg2 = (uintptr_t)offset;
     sc->arg3 = (uintptr_t)whence;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (off_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (off_t)sc->ret_val;
     sc->status = 0;
     return (off_t)__syscall_return_value;
 }
@@ -216,8 +208,7 @@ int host_syscall_SYS_pipe(int pipefd[2]) {
     val1 = arena_alloc(a, len1);
     sc->arg1 = (uintptr_t)val1;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val1 != NULL && pipefd != NULL) memcpy(pipefd, val1, len1);
     arena_free(a);
     sc->status = 0;
@@ -238,8 +229,7 @@ int host_syscall_SYS_pipe2(int pipefd[2], int flags) {
     sc->arg1 = (uintptr_t)val1;
     sc->arg2 = (uintptr_t)flags;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val1 != NULL && pipefd != NULL) memcpy(pipefd, val1, len1);
     arena_free(a);
     sc->status = 0;
@@ -262,8 +252,7 @@ ssize_t host_syscall_SYS_pread64(int fd, void * buf, size_t count, off_t offset)
     sc->arg3 = (uintptr_t)count;
     sc->arg4 = (uintptr_t)offset;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     if (val2 != NULL && buf != NULL) memcpy(buf, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -287,8 +276,7 @@ ssize_t host_syscall_SYS_pwrite64(int fd, const void * buf, size_t count, off_t 
     sc->arg3 = (uintptr_t)count;
     sc->arg4 = (uintptr_t)offset;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -309,8 +297,7 @@ ssize_t host_syscall_SYS_read(int fd, void * buf, size_t count) {
     sc->arg2 = (uintptr_t)val2;
     sc->arg3 = (uintptr_t)count;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     if (val2 != NULL && buf != NULL) memcpy(buf, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -334,8 +321,7 @@ ssize_t host_syscall_SYS_readv(int fd, struct iovec * iov, int iovcnt) {
     sc->arg2 = (uintptr_t)val2;
     sc->arg3 = (uintptr_t)iovcnt;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     for(size_t i = 0; i < iovcnt; i++) {deepcopyiovec(&iov[i], &val2[i]);}
     arena_free(a);
     sc->status = 0;
@@ -358,8 +344,7 @@ ssize_t host_syscall_SYS_write(int fd, const void * buf, size_t count) {
     sc->arg2 = (uintptr_t)val2;
     sc->arg3 = (uintptr_t)count;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -383,8 +368,7 @@ ssize_t host_syscall_SYS_writev(int fd, const struct iovec * iov, int iovcnt) {
     sc->arg2 = (uintptr_t)val2;
     sc->arg3 = (uintptr_t)iovcnt;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -409,8 +393,7 @@ ssize_t host_syscall_SYS_preadv(int fd, struct iovec * iov, int iovcnt, off_t of
     sc->arg4 = (uintptr_t)offset;
     sc->arg5 = (uintptr_t)ofs32;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     for(size_t i = 0; i < iovcnt; i++) {deepcopyiovec(&iov[i], &val2[i]);}
     arena_free(a);
     sc->status = 0;
@@ -437,8 +420,7 @@ ssize_t host_syscall_SYS_pwritev(int fd, const struct iovec * iov, int iovcnt, o
     sc->arg4 = (uintptr_t)offset;
     sc->arg5 = (uintptr_t)ofs32;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (ssize_t)sc->ret_val;
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -451,8 +433,7 @@ int host_syscall_SYS_munlockall() {
     sc = getsyscallslot(&a);
     sc->syscallno = SYS_munlockall;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -472,8 +453,7 @@ int host_syscall_SYS_mprotect(void * addr, size_t len, int prot) {
     sc->arg3 = (uintptr_t)prot;
 
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     arena_free(a);
     sc->status = 0;
     return (int)__syscall_return_value;
@@ -505,8 +485,7 @@ int host_syscall_SYS_rt_sigaction(int signum, struct sigaction * act, struct sig
     sc->arg3 = (uintptr_t)val3;
     sc->arg4 = (uintptr_t)nsig;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val3 != NULL && oldact != NULL) memcpy(oldact, val3, len3);
     arena_free(a);
     sc->status = 0;
@@ -527,8 +506,7 @@ int host_syscall_SYS_rt_sigpending(sigset_t * set, unsigned long nsig) {
     sc->arg1 = (uintptr_t)val1;
     sc->arg2 = (uintptr_t)nsig;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val1 != NULL && set != NULL) memcpy(set, val1, len1);
     arena_free(a);
     sc->status = 0;
@@ -556,8 +534,7 @@ int host_syscall_SYS_rt_sigprocmask(int how, void * set, sigset_t * oldset, unsi
     sc->arg3 = (uintptr_t)val3;
     sc->arg4 = (uintptr_t)nsig;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val3 != NULL && oldset != NULL) memcpy(oldset, val3, len3);
     arena_free(a);
     sc->status = 0;
@@ -579,8 +556,7 @@ int host_syscall_SYS_rt_sigsuspend(const sigset_t * mask, unsigned long nsig) {
     sc->arg1 = (uintptr_t)val1;
     sc->arg2 = (uintptr_t)nsig;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     arena_free(a);
     sc->status = 0;
     return (int)__syscall_return_value;
@@ -620,8 +596,7 @@ int host_syscall_SYS_rt_sigtimedwait(const sigset_t * set, siginfo_t * info, con
     sc->arg3 = (uintptr_t)val3;
     sc->arg4 = (uintptr_t)nsig;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (info != NULL) {
         if (val2 != NULL && info != NULL) memcpy(info, val2, len2);
     }
@@ -639,8 +614,7 @@ int host_syscall_SYS_tkill(int tid, int sig) {
     sc->arg1 = (uintptr_t)tid;
     sc->arg2 = (uintptr_t)sig;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -664,8 +638,7 @@ int host_syscall_SYS_nanosleep(const struct timespec * req, struct timespec * re
     val2 = arena_alloc(a, len2);
     sc->arg2 = (uintptr_t)val2;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val2 != NULL && rem != NULL) memcpy(rem, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -686,8 +659,7 @@ int host_syscall_SYS_clock_getres(clockid_t clk_id, struct timespec * res) {
     val2 = arena_alloc(a, len2);
     sc->arg2 = (uintptr_t)val2;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val2 != NULL && res != NULL) memcpy(res, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -708,8 +680,7 @@ int host_syscall_SYS_clock_gettime(clockid_t clk_id, struct timespec * tp) {
     val2 = arena_alloc(a, len2);
     sc->arg2 = (uintptr_t)val2;
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = (int)sc->ret_val;
     if (val2 != NULL && tp != NULL) memcpy(tp, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -722,8 +693,7 @@ int host_syscall_SYS_gettid() {
     sc = getsyscallslot(NULL);
     sc->syscallno = SYS_gettid;
     threadswitch((syscall_t*)sc);
-    __syscall_return_value = sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -740,8 +710,7 @@ void *host_syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int 
     sc->arg5 = (uintptr_t)fd;
     sc->arg6 = (uintptr_t)offset;
     threadswitch((syscall_t*)sc);
-    __syscall_return_value = sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (void *)__syscall_return_value;
 }
@@ -757,8 +726,7 @@ void *host_syscall_SYS_mremap(void *old_addr, size_t old_size, size_t new_size, 
     sc->arg4 = (uintptr_t)flags;
     sc->arg5 = (uintptr_t)new_addr;
     threadswitch((syscall_t*)sc);
-    __syscall_return_value = sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (void *)__syscall_return_value;
 }
@@ -771,8 +739,7 @@ int host_syscall_SYS_munmap(void *addr, size_t length) {
     sc->arg1 = (uintptr_t)addr;
     sc->arg2 = (uintptr_t)length;
     threadswitch((syscall_t*)sc);
-    __syscall_return_value = sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -786,28 +753,24 @@ int host_syscall_SYS_msync(void *addr, size_t length, int flags) {
     sc->arg2 = (uintptr_t)length;
     sc->arg3 = (uintptr_t)flags;
     threadswitch((syscall_t*)sc);
-    __syscall_return_value = sc->syscallno;
-    if (sc->arg6) errno = sc->arg6;
+    __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
 }
 
 int host_syscall_SYS_sigaltstack(const stack_t * ss, stack_t * oss) {
     /* Currently not supported */
-    errno = ENOSYS;
-    return -1;
+    return -ENOSYS;
 }
 
 int host_syscall_SYS_kill(pid_t pid, int sig) {
     /* Currently not supported */
-    errno = ENOSYS;
-    return -1;
+    return -ENOSYS;
 }
 
 uintptr_t host_syscall_SYS_brk(int inc) {
     /* Currently not supported */
-    errno = ENOSYS;
-    return -1;
+    return -ENOSYS;
 }
 
 int host_syscall_SYS_munlock(const void * addr, size_t len) {

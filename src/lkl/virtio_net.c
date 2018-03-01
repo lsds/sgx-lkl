@@ -53,10 +53,10 @@ static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 
 	do {
 		ret = host_syscall_SYS_writev(nd_fd->fd, iov, cnt);
-	} while (ret == -1 && errno == EINTR);
+	} while (ret == -EINTR);
 
 	if (ret < 0) {
-		if (errno != EAGAIN) {
+		if (ret != -EAGAIN) {
 			perror("write to fd netdev fails");
 		} else {
 			char tmp;
@@ -77,10 +77,10 @@ static int sgxlkl_fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 
 	do {
 		ret = host_syscall_SYS_readv(nd_fd->fd, iov, cnt);
-	} while (ret == -1 && errno == EINTR);
+	} while (ret == -EINTR);
 
 	if (ret < 0) {
-		if (errno != EAGAIN) {
+		if (ret != -EAGAIN) {
 			perror("virtio net fd read");
 		} else {
 			char tmp;
@@ -116,7 +116,7 @@ static int sgxlkl_fd_net_poll(struct lkl_netdev *nd)
 
 	do {
 		ret = host_syscall_SYS_poll(pfds, 2, -1);
-	} while (ret == -1 && errno == EINTR);
+	} while (ret =-EINTR);
 
 	if (ret < 0) {
 		perror("virtio net fd poll");

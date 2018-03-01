@@ -208,13 +208,7 @@ static inline void do_syscall(syscall_t *sc) {
     register long r9 __asm__("r9") = sc->arg6;
     __asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(sc->arg1), "S"(sc->arg2),
             "d"(sc->arg3), "r"(r10), "r"(r8), "r"(r9) : "rcx", "r11", "memory");
-    if (ret > -4096UL) {
-        sc->arg6 = -ret;
-        sc->syscallno = -1;
-    } else {
-        sc->syscallno = ret;
-        sc->arg6 = 0;
-    }
+    sc->ret_val = ret;
 }
 
 void *host_syscall_thread(void *v) {
@@ -228,10 +222,9 @@ void *host_syscall_thread(void *v) {
         for (s = 0; !mpmc_dequeue(&conf->syscallq, &u.ptr);) {s = backoff(s);}
         i = u.i;
         if (scall[i].syscallno == SYS_clock_gettime) {
-            scall[i].arg6 = 0;
-            scall[i].syscallno = clock_gettime(scall[i].arg1, (struct timespec *)scall[i].arg2);
-            if (scall[i].syscallno != 0) {
-                scall[i].arg6 = errno;
+            scall[i].ret_val = clock_gettime(scall[i].arg1, (struct timespec *)scall[i].arg2);
+            if (scall[i].ret_val != 0) {
+                scall[i].ret_val = -errno;
             }
         } else {
             do_syscall((syscall_t*)&scall[i]);

@@ -11,7 +11,7 @@
 
 void arena_new(Arena *a, size_t sz) {
     a->mem = host_syscall_SYS_mmap(0, sz, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
-    if (a->mem == MAP_FAILED)
+    if (a->mem < 0)
         a_crash();
     a->size = sz;
 }
@@ -20,7 +20,7 @@ syscall_t *arena_ensure(Arena *a, size_t sz, syscall_t *sc) {
     if (a->size < sz) {
         void *newmem;
         newmem = host_syscall_SYS_mremap(a->mem, a->size, sz, MREMAP_MAYMOVE, 0);
-        if (newmem != MAP_FAILED) {
+        if (newmem >= 0) {
             a->mem = newmem;
             a->size = sz;
         } else {
