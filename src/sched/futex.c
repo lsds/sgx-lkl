@@ -250,9 +250,7 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
     ticket_lock(&futex_q_lock);
     switch(op) {
         case FUTEX_WAIT:
-            if (!lthread_current()) {
-                return 0;
-            }
+            assert(lthread_self());
 
             rc = futex_wait(uaddr, val, timeout, &now);
             if (rc == 0 || (rc == -1 && errno == ETIMEDOUT))
