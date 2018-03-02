@@ -30,7 +30,6 @@
 #include <stdarg.h>
 
 #include "lkl_host.h"
-#include "ticketlock.h"
 
 #if DEBUG
 
@@ -38,8 +37,6 @@ extern int sgxlkl_verbose;
 extern int sgxlkl_trace_thread;
 extern int sgxlkl_trace_mmap;
 extern int sgxlkl_trace_syscall;
-
-static union ticketlock printlock = { 0 };
 
 #define SGXLKL_VERBOSE(x, ...) if (sgxlkl_verbose) {sgxlkl_debug_printf("[  SGX-LKL   ] " x, ##__VA_ARGS__);}
 #define SGXLKL_TRACE_THREAD(x, ...) if (sgxlkl_trace_thread) {sgxlkl_debug_printf("[   THREAD   ] " x, ##__VA_ARGS__);}
@@ -70,9 +67,10 @@ static int sgxlkl_debug_vprintf(const char *fmt, va_list args) {
 
     vsnprintf(buffer, n + 1, fmt, args);
 
-    ticket_lock(&printlock);
-    write(LKL_STDOUT_FILENO, buffer, n);
-    ticket_unlock(&printlock);
+    size_t curr_index = 0;
+    while (curr_index < n) {
+        curr_index += write(LKL_STDOUT_FILENO, buffer + curr_index, n - curr_index);
+    }
 
     if (buffer != (char*) &buf) {
         free(buffer);

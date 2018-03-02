@@ -63,6 +63,9 @@ static const char* DEFAULT_HOSTNAME = "lkl";
 // trying to reenter.
 static int __state_exiting = 0;
 
+static pthread_spinlock_t __stdout_print_lock = {0};
+static pthread_spinlock_t __stderr_print_lock = {0};
+
 extern void eresume(uint64_t tcs_id);
 
 #define STANDALONE
@@ -214,6 +217,7 @@ static inline void do_syscall(syscall_t *sc) {
 void *host_syscall_thread(void *v) {
     enclave_config_t *conf = v;
     volatile syscall_t *scall = conf->syscallpage;
+    pthread_spinlock_t* curr_print_lock = NULL;
     size_t i;
     unsigned s;
     union {void *ptr; size_t i;} u;
@@ -221,6 +225,18 @@ void *host_syscall_thread(void *v) {
     while (1) {
         for (s = 0; !mpmc_dequeue(&conf->syscallq, &u.ptr);) {s = backoff(s);}
         i = u.i;
+        /* Acquire ticket lock if the system call writes to stdout or stderr to prevent mangling of concurrent writes */
+        if (scall[i].syscallno == SYS_write) {
+            int fd = (int) scall[i].arg1;
+            if (fd == STDOUT_FILENO) {
+                pthread_spin_lock(&__stdout_print_lock);
+                curr_print_lock = &__stdout_print_lock;
+            } else if (fd == STDERR_FILENO) {
+                pthread_spin_lock(&__stderr_print_lock);
+                curr_print_lock = &__stderr_print_lock;
+            }
+        }
+
         if (scall[i].syscallno == SYS_clock_gettime) {
             scall[i].ret_val = clock_gettime(scall[i].arg1, (struct timespec *)scall[i].arg2);
             if (scall[i].ret_val != 0) {
@@ -229,13 +245,21 @@ void *host_syscall_thread(void *v) {
         } else {
             do_syscall((syscall_t*)&scall[i]);
         }
+
+        /* Release ticket lock if previously acquired */
+        if (curr_print_lock) {
+            pthread_spin_unlock(curr_print_lock);
+            curr_print_lock = NULL;
+        }
+
         if (scall[i].status == 1) {
-            /* this was submitted by scheduler, no need to push anything to queue */
+            /* This was submitted by the scheduler or a pinned thread, no need to push anything to queue */
             __atomic_store_n(&scall[i].status, 2, __ATOMIC_RELEASE);
         } else {
             for (s = 0; !mpmc_enqueue(&conf->returnq, u.ptr);) {s = backoff(s);}
         }
     }
+
     return NULL;
 }
 
@@ -680,6 +704,13 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 #endif
 
+    /* Initialize print spin locks */
+    if (pthread_spin_init(&__stdout_print_lock, PTHREAD_PROCESS_PRIVATE) ||
+        pthread_spin_init(&__stderr_print_lock, PTHREAD_PROCESS_PRIVATE) ) {
+        fprintf(stderr, "Could not initialize print spin locks.\n");
+        return -1;
+    }
+
     /* Launch system call threads */
     for (i = 0; i < ntsyscall; i++) {
         pthread_create(&ts[i], NULL, host_syscall_thread, &encl);
@@ -752,5 +783,6 @@ int main(int argc, char *argv[], char *envp[]) {
     for (i = 0; i < ntsyscall; i++) {
         pthread_join(ts[i], &_retval);
     }
+
     return 0;
 }
