@@ -126,6 +126,7 @@ static void usage(char* prog) {
     printf("SGXLKL_VERBOSE: Print information about the SGX-lKL start up process as well as kernel messages.\n");
     printf("SGXLKL_TRACE_MMAP: Print detailed information about in-enclave mmap/munmap operations.\n");
     printf("SGXLKL_TRACE_SYSCALL: Print detailed information about in-enclave system calls.\n");
+    printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
     printf("SGXLKL_TRACE_THREAD: Print detailed information about in-enclave user level thread scheduling.\n");
 }
 

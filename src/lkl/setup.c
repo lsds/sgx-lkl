@@ -38,6 +38,7 @@
 int sethostname(const char *, size_t);
 
 int sgxlkl_trace_syscall = 0;
+int sgxlkl_trace_host_syscall = 0;
 int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
@@ -594,6 +595,9 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	if (get_env_bool("SGXLKL_TRACE_SYSCALL", 0))
 		sgxlkl_trace_syscall = 1;
+
+	if (get_env_bool("SGXLKL_TRACE_HOST_SYSCALL", 0))
+		sgxlkl_trace_host_syscall = 1;
 
 	if (get_env_bool("SGXLKL_TRACE_MMAP", 0))
 		sgxlkl_trace_mmap = 1;
