@@ -33,7 +33,7 @@ SLIST_HEAD(__futex_q_head, futex_q) futex_queues =
      SLIST_HEAD_INITIALIZER(futex_queues);
 
 /* for the total ordering of futex operations as mandated by POSIX */
-static union ticketlock futex_q_lock;
+static struct ticketlock futex_q_lock;
 
 /* number of threads sleeping on a futex, protected by futex_q_lock */
 static volatile int futex_sleepers;
@@ -131,7 +131,7 @@ _lthread_timespec_to_usec_safe(struct timespec *ts) {
 
 static void
 __do_futex_unlock(void *lock) {
-    ticket_unlock((union ticketlock *) lock);
+    ticket_unlock((struct ticketlock *) lock);
 }
 
 static int
@@ -231,7 +231,7 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
     static int init = 1;
 
     if (init) {
-        memset((void*) &futex_q_lock, 0, sizeof(union ticketlock));
+        memset((void*) &futex_q_lock, 0, sizeof(struct ticketlock));
         init = 0;
     }
 

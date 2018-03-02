@@ -29,7 +29,7 @@
 #include "ticketlock.h"
 #include "sgxlkl_debug.h"
 
-static union ticketlock mmaplock;
+static struct ticketlock mmaplock;
 
 static void* mmap_bitmap;
 static void* mmap_base; // First page that can be mmap'ed.

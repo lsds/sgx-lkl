@@ -27,7 +27,7 @@ static size_t nthreads = 0;
 static uint8_t *freeslots;
 /* maps index into array of syscall slots S to lthread */
 static struct lthread **slotlthreads;
-static union ticketlock slotslock;
+static struct ticketlock slotslock;
 
 syscall_t *getsyscallslot(Arena **a) {
     struct lthread_sched *sch = lthread_get_sched();

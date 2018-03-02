@@ -84,7 +84,7 @@ RB_GENERATE(lthread_rb_sleep, lthread, sleep_node, _lthread_sleep_cmp);
 
 static int spawned_lthreads = 1;
 
-static union ticketlock sleeplock;
+static struct ticketlock sleeplock;
 int _lthread_sleeprb_inited = 0;
 struct lthread_rb_sleep _lthread_sleeping;
 
@@ -420,7 +420,7 @@ int _lthread_resume(struct lthread *lt) {
 static inline void _lthread_madvise(struct lthread *lt) {
     size_t current_stack = ((uintptr_t)lt->attr.stack + lt->attr.stack_size) - (uintptr_t)lt->ctx.esp;
     /* make sure function did not overflow stack, we can't recover from that */
-	assert(current_stack <= lt->attr.stack_size);
+    assert(current_stack <= lt->attr.stack_size);
     lt->attr.last_stack_size = current_stack;
 }
 
