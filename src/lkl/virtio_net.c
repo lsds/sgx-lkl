@@ -116,7 +116,7 @@ static int sgxlkl_fd_net_poll(struct lkl_netdev *nd)
 
 	do {
 		ret = host_syscall_SYS_poll(pfds, 2, -1);
-	} while (ret =-EINTR);
+	} while (ret == -EINTR);
 
 	if (ret < 0) {
 		perror("virtio net fd poll");
