@@ -37,7 +37,7 @@ CFLAGS_C99FSE = -std=c99 -nostdinc -ffreestanding -fexcess-precision=standard -f
 
 CFLAGS_MUSL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_SGX) $(MUSL_CFLAGS)
 CFLAGS_MUSL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_MUSL_ALL += -I$(SGX_LKL_MUSL)/src/internal -I$(SGX_LKL_MUSL_BUILD)/include -I$(OPENSSL_BUILD)/include/ -I$(SGX_LKL_MUSL)/arch/$(ARCH)
+CFLAGS_MUSL_ALL += -I$(SGX_LKL_MUSL)/src/internal -I$(SGX_LKL_MUSL_BUILD)/include -I$(SGX_LKL_MUSL)/arch/$(ARCH)
 
 all: builddirs $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run
 

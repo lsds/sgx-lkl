@@ -582,10 +582,6 @@ void __lkl_start_init(enclave_config_t* encl)
 	// Overwrite function pointers from LKL's posix-host.c with ours
 	lkl_host_ops = sgxlkl_host_ops;
 	lkl_dev_blk_ops = sgxlkl_dev_plaintext_blk_ops;
-#ifndef NO_OPENSSL
-	if (encl->disk_enc)
-		lkl_dev_blk_ops = sgxlkl_dev_cipher_blk_ops;
-#endif
 
 	// LKL setup and boot can be disabled by env during tests
 	// (in which case no LKL syscall must be thrown by Musl!)

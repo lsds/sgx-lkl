@@ -1,6 +1,6 @@
 include config.mak
 
-.PHONY: host-musl lkl openssl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key
+.PHONY: host-musl lkl sgx-lkl-musl-config sgx-lkl-musl sgx-lkl tools clean enclave-debug-key
 
 # boot memory reserved for LKL/kernel (in MB)
 BOOT_MEM=12 # Default in LKL is 64
@@ -48,21 +48,10 @@ lkl ${LIBLKL}: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defco
 	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; # struct lkl_iovec already exists
 	+${MAKE} headers_install -C ${LKL} ARCH=lkl INSTALL_HDR_PATH=${LKL_BUILD}/
 
-# OpenSSL's static library and include/ header directory
-openssl ${LIBCRYPTO}: ${HOST_MUSL_CC} | ${OPENSSL}/.git ${OPENSSL_BUILD}
-	cd ${OPENSSL}; [ -f Makefile ] || CC=${HOST_MUSL_CC} ./config \
-		--prefix=${OPENSSL_BUILD}/ \
-		--openssldir=${OPENSSL_BUILD}/openssl/ \
-		threads no-zlib no-shared
-	sed -i 's/^CFLAG=/CFLAG= -fPIC /' ${OPENSSL}/Makefile
-	+CC=${HOST_MUSL_CC} ${MAKE} -C ${OPENSSL} depend
-	+CC=${HOST_MUSL_CC} ${MAKE} -C ${OPENSSL}
-	+CC=${HOST_MUSL_CC} ${MAKE} -C ${OPENSSL} install
-
 tools: ${TOOLS_OBJ}
 
 # Generic tool rule (doesn't actually depend on lkl_lib, but on LKL headers)
-${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LIBCRYPTO} ${LKL_LIB} | ${TOOLS_BUILD}
+${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${MY_CFLAGS} -I${LKL_BUILD}/include/ -o $@ $< ${MY_LDFLAGS}
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
@@ -78,12 +67,10 @@ sgx-lkl-musl-config:
 		--lkllib=${LIBLKL} \
 		--sgxlklheaderdir=${PWD}/src/include \
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/libsgxlkl.a \
-		--opensslheaderdir=${OPENSSL_BUILD}/include/ \
-		--openssllib=${LIBCRYPTO} \
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
 
-sgx-lkl-musl: ${LIBLKL} ${LIBCRYPTO} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
@@ -102,21 +89,19 @@ $(ENCLAVE_DEBUG_KEY):
 enclave-debug-key: $(ENCLAVE_DEBUG_KEY)
 
 # Build directories (one-shot after git clone or clean)
-${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD} ${OPENSSL_BUILD}:
+${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_MUSL_BUILD} ${SGX_LKL_MUSL_BUILD}:
 	@mkdir -p $@
 
 # Submodule initialisation (one-shot after git clone)
-${HOST_MUSL}/.git ${LKL}/.git ${OPENSSL}/.git ${SGX_LKL_MUSL}/.git:
+${HOST_MUSL}/.git ${LKL}/.git ${SGX_LKL_MUSL}/.git:
 	[ "$(FORCE_SUBMODULES_VERSION)" = "true" ] || git submodule update --init $($@:.git=)
 
 clean:
 	rm -rf ${BUILD_DIR}
 	+${MAKE} -C ${HOST_MUSL} distclean || true
 	+${MAKE} -C ${SGX_LKL_MUSL} distclean || true
-	+${MAKE} -C ${OPENSSL} clean || true
 	+${MAKE} -C ${LKL} clean || true
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C src LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)" clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGX_LKL_MUSL}/config.mak
-	rm -f ${OPENSSL}/Makefile

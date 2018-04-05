@@ -17,9 +17,6 @@ TOOLS ?= ${ROOT_DIR}/tools
 TOOLS_BUILD ?= $(BUILD_DIR)/tools
 TOOLS_SRC ?= $(wildcard $(TOOLS)/*.c)
 TOOLS_OBJ ?= $(addprefix $(TOOLS_BUILD)/, $(notdir $(TOOLS_SRC:.c=)))
-OPENSSL ?= ${ROOT_DIR}/openssl
-OPENSSL_BUILD ?= ${BUILD_DIR}/openssl
-LIBCRYPTO ?= ${OPENSSL_BUILD}/lib/libcrypto.a
 LKL ?= $(ROOT_DIR)/lkl
 LKL_BUILD ?= ${BUILD_DIR}/lkl
 LIBLKL ?= ${LKL_BUILD}/lib/liblkl.a
@@ -33,8 +30,8 @@ LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/
 # Location of enclave debug key (used for signing the enclave)
 ENCLAVE_DEBUG_KEY=${BUILD_DIR}/config/enclave_debug.key
 
-MY_CFLAGS ?= -std=c11 -Wall -Wextra -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -I${OPENSSL_BUILD}/include/
-MY_LDFLAGS ?= -L${OPENSSL_BUILD}/lib -lcrypto
+MY_CFLAGS ?= -std=c11 -Wall -Wextra -Werror -isystem ${SGX_LKL_MUSL}/src/internal/
+MY_LDFLAGS ?=
 
 DEBUG ?= false
 
