@@ -32,6 +32,10 @@
 #include <pthread.h>
 #endif
 
+/* Mode (SIM/HW) */
+#define SGXLKL_HW_MODE  0
+#define SGXLKL_SIM_MODE 1
+
 typedef struct {
     uintptr_t arg1;
     uintptr_t arg2;
@@ -78,6 +82,7 @@ typedef struct enclave_config {
     long sysconf_nproc_onln;
     ring_buff_handle_t shm_enc_to_out_q;
     ring_buff_handle_t shm_out_to_enc_q;
+    int mode; /* SGXLKL_HW_MODE or SGXLKL_SIM_MODE */
 } enclave_config_t;
 
 enum SlotState { DONE, WRITTEN };

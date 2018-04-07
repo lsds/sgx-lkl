@@ -11,3 +11,6 @@ tests/60-iozone/iozone
 *.class
 *.log
 .gdb_history
+gdb/ptrace/*.o
+gdb/ptrace/*.so
+gdb/sgx-lkl-gdb

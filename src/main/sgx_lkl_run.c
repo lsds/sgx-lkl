@@ -566,6 +566,12 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     hd = argv[1];
 
+#ifdef SGXLKL_HW
+    encl.mode = SGXLKL_HW_MODE;
+#else
+    encl.mode = SGXLKL_SIM_MODE;
+#endif /* SGXLKL_HW */
+
     const size_t pagesize = sysconf(_SC_PAGESIZE);
     ecs = sizeof(encl) + (pagesize - (sizeof(encl)%pagesize));
     memset(&sa, 0, sizeof(struct sigaction));

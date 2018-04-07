@@ -171,3 +171,38 @@ SGXLKL_TAP=sgxlkl_tap0 SGXLKL_VERBOSE=1 ../../../build/sgx-lkl-run ./sgxlkl-mini
 The readme file in `apps/miniroot` contains more detailed information on how to
 build custom disk images.
 
+
+Debugging SGX-LKL (applications)
+---------------------------------
+
+SGX-LKL provides a wrapper around gdb. To build it, run `setup.sh` in the `gdb`
+subdirectory. This will create the wrapper `sgx-lkl-gdb`. sgx-lkl-gdb
+automatically loads the SGX-LKL gdb plugin which ensures that debug symbols (if
+available) are loaded correctly. In addition, when running in HW mode,
+sgx-lkl-gdb uses the corresponding SGX debug instructions to read from and
+write to enclave memory. Example:
+
+```
+SGXLKL_TAP=sgxlkl_tap0 SGXLKL_VERBOSE=1 ../../gdb/sgx-lkl-gdb --args ../../build/sgx-lkl-run ./alpine-rootfs.img /usr/bin/redis-server --bind 10.0.1.1
+```
+
+Note: SGX-LKL should be built in debug mode for full gdb support:
+
+```
+# HW debug mode
+make DEBUG=true
+
+# Sim debug mode
+make sim DEBUG=true
+```
+
+Also note that SGX-LKL does support applications that use the `CPUID` and
+`RDTSC` instructions. However, since `CPUID` and `RDTSC` are not permitted
+within SGX enclaves, gdb will catch resulting SIGILL signals and pause
+execution by default. SGX-LKL handles these signals transparently. Continue
+with `c`/`continue` or instruct gdb not to stop for `SIGILL` signals (`handle
+SIGILL nostop`). Be careful though as this includes `SIGILL` signals caused by
+other illegal instructions. Similarly, for applications that define their own
+signal handler for `SIGSEGV` signals, gdb will pause execution. When
+continuing, SGX-LKL will pass on the signal to the in-enclave signal handler
+registered by the application.
