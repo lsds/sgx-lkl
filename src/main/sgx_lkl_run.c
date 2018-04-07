@@ -68,8 +68,6 @@ static pthread_spinlock_t __stderr_print_lock = {0};
 
 extern void eresume(uint64_t tcs_id);
 
-#define STANDALONE
-
 #ifdef SGXLKL_HW
 char* init_sgx();
 int   get_tcs_num();
@@ -85,6 +83,22 @@ typedef struct {
 
 __thread int my_tcs_id;
 #endif
+
+#define VERSION "1.0.0"
+#ifdef DEBUG
+#define DEBUG_INFO "DEBUG"
+#else
+#define DEBUG_INFO ""
+#endif /* DEBUG */
+#ifdef SGXLKL_HW
+#define SGX_MODE "Hardware Mode"
+#else
+#define SGX_MODE "Simulation Mode"
+#endif /* SGXLKL_HW */
+
+static void version() {
+    printf("SGX-LKL version %s %s %s\n", VERSION, SGX_MODE, DEBUG_INFO);
+}
 
 static void usage(char* prog) {
     printf("Usage: %s path/to/encl/file/system path/to/executable <args>\n", prog);
@@ -128,6 +142,7 @@ static void usage(char* prog) {
     printf("SGXLKL_TRACE_SYSCALL: Print detailed information about in-enclave system calls.\n");
     printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
     printf("SGXLKL_TRACE_THREAD: Print detailed information about in-enclave user level thread scheduling.\n");
+    printf("\n%s --version to print version information.\n", prog);
 }
 
 void *calloc(size_t nmemb, size_t size);
@@ -540,7 +555,12 @@ int main(int argc, char *argv[], char *envp[]) {
     schparam.sched_priority = 10;
     int sfd = -1;
 
-    if(argc <= 2) {
+    if (argc >= 2 && (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))) {
+        version();
+        exit(0);
+    }
+
+    if (argc <= 2) {
         usage(argv[0]);
         exit(1);
     }

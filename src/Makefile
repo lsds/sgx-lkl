@@ -30,6 +30,10 @@ else
   CFLAGS_SGX =
 endif
 
+ifeq ($(DEBUG),true)
+  CFLAGS_SGX += -DDEBUG
+endif
+
 # Copied from sgx-lkl-musl/config.mak after ./configure
 # TODO: Do not hardcode cflags here
 CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -include vis.h -fPIC -DNO_CRYPTSETUP
