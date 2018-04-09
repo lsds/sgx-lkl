@@ -37,8 +37,8 @@
 
 int sethostname(const char *, size_t);
 
-int sgxlkl_trace_syscall = 0;
-int sgxlkl_trace_host_syscall = 0;
+int sgxlkl_trace_lkl_syscall = 0;
+int sgxlkl_trace_internal_syscall = 0;
 int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
@@ -474,10 +474,12 @@ static void lkl_poststart_disks(enclave_config_t* encl, int disk_dev_id)
 		char new_dev_str[] = {"/mnt/vda/dev/"};
 
 #ifndef NO_CRYPTSETUP
-		int lkl_trace_syscall_bak = sgxlkl_trace_syscall;
+		int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
+		int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
-		if (lkl_strace && (getenv("SGXLKL_HD_VERITY") != NULL || encl->disk_enc)) {
-			sgxlkl_trace_syscall = 0;
+		if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) && (getenv("SGXLKL_HD_VERITY") != NULL || encl->disk_enc)) {
+			sgxlkl_trace_lkl_syscall = 0;
+			sgxlkl_trace_internal_syscall = 0;
 			SGXLKL_VERBOSE("Disk encryption/integrity requested: temporarily disabling lkl_strace\n");
 		}
 
@@ -494,9 +496,10 @@ static void lkl_poststart_disks(enclave_config_t* encl, int disk_dev_id)
 			dev_str = dev_str_enc;
 		}
 
-		if (lkl_trace_syscall_bak && !sgxlkl_trace_syscall) {
+		if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) && (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
 			SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
-			sgxlkl_trace_syscall = lkl_trace_syscall_bak;
+			sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
+			sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
 		}
 #endif
 
@@ -589,11 +592,16 @@ void __lkl_start_init(enclave_config_t* encl)
 	if (!lkl_needed)
 		return;
 
-	if (get_env_bool("SGXLKL_TRACE_SYSCALL", 0))
-		sgxlkl_trace_syscall = 1;
+	if (get_env_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
+		sgxlkl_trace_lkl_syscall = 1;
 
-	if (get_env_bool("SGXLKL_TRACE_HOST_SYSCALL", 0))
-		sgxlkl_trace_host_syscall = 1;
+	if (get_env_bool("SGXLKL_TRACE_INTERNAL_SYSCALL", 0))
+		sgxlkl_trace_internal_syscall = 1;
+
+	if (get_env_bool("SGXLKL_TRACE_SYSCALL", 0)) {
+		sgxlkl_trace_lkl_syscall = 1;
+		sgxlkl_trace_internal_syscall = 1;
+        }
 
 	if (get_env_bool("SGXLKL_TRACE_MMAP", 0))
 		sgxlkl_trace_mmap = 1;

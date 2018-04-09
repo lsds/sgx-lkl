@@ -51,6 +51,27 @@
 #define __merge(a, b) a(b)
 #define __stringify(X) __merge(str, X)
 
+#if DEBUG
+
+#include "sgxlkl_host_debug.h"
+
+#define MAX_SYSCALL_NUMBER 512
+#define MAX_EXIT_REASON_NUMBER 16
+
+static unsigned long _enclave_exit_stats[MAX_EXIT_REASON_NUMBER] = {0};
+static const char* const _enclave_exit_reasons[] = {
+    "TERMINATE",
+    "SYSCALL",
+    "ERROR",
+    "SLEEP",
+    "CPUID",
+    "DORESUME"
+};
+
+static unsigned long _host_syscall_stats[MAX_SYSCALL_NUMBER];
+
+#endif /* DEBUG */
+
 // One first empty block for bootloaders, and offset in second block
 #define EXT4_MAGIC_OFFSET (1024 + 0x38)
 
@@ -139,9 +160,12 @@ static void usage(char* prog) {
     printf("\n## Debugging ##\n");
     printf("SGXLKL_VERBOSE: Print information about the SGX-lKL start up process as well as kernel messages.\n");
     printf("SGXLKL_TRACE_MMAP: Print detailed information about in-enclave mmap/munmap operations.\n");
-    printf("SGXLKL_TRACE_SYSCALL: Print detailed information about in-enclave system calls.\n");
-    printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
     printf("SGXLKL_TRACE_THREAD: Print detailed information about in-enclave user level thread scheduling.\n");
+    printf("SGXLKL_TRACE_SYSCALL: Print detailed information about all system calls.\n");
+    printf("SGXLKL_TRACE_LKL_SYSCALL: Print detailed information about in-enclave system calls handled by LKL.\n");
+    printf("SGXLKL_TRACE_INTERNAL_SYSCALL: Print detailed information about in-enclave system calls not handled by LKL (in particular mmap/mremap/munmap and futex).\n");
+    printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
+    printf("SGXLKL_PRINT_HOST_SYSCALL_STATS: Print statistics on the number of host system calls and enclave exits.\n");
     printf("\n%s --version to print version information.\n", prog);
 }
 
@@ -241,6 +265,12 @@ void *host_syscall_thread(void *v) {
     while (1) {
         for (s = 0; !mpmc_dequeue(&conf->syscallq, &u.ptr);) {s = backoff(s);}
         i = u.i;
+
+#ifdef DEBUG
+        long syscallno = scall[i].syscallno;
+        __sync_fetch_and_add(&_host_syscall_stats[syscallno], 1);
+#endif /* DEBUG */
+
         /* Acquire ticket lock if the system call writes to stdout or stderr to prevent mangling of concurrent writes */
         if (scall[i].syscallno == SYS_write) {
             int fd = (int) scall[i].arg1;
@@ -267,6 +297,14 @@ void *host_syscall_thread(void *v) {
             pthread_spin_unlock(curr_print_lock);
             curr_print_lock = NULL;
         }
+
+#ifdef DEBUG
+        if (parseenv("SGXLKL_TRACE_SYSCALL", 0, 1) || parseenv("SGXLKL_TRACE_HOST_SYSCALL", 0, 1)) {
+            pthread_spin_lock(&__stdout_print_lock);
+            log_host_syscall(syscallno, scall[i].ret_val, scall[i].arg1, scall[i].arg2, scall[i].arg3, scall[i].arg4, scall[i].arg5, scall[i].arg6);
+            pthread_spin_unlock(&__stdout_print_lock);
+        }
+#endif /* DEBUG */
 
         if (scall[i].status == 1) {
             /* This was submitted by the scheduler or a pinned thread, no need to push anything to queue */
@@ -447,30 +485,36 @@ void* enclave_thread(void* parm) {
     my_tcs_id = args->tcs_id;
     while (!__state_exiting) {
         enter_enclave(args->tcs_id, args->call_id, args->args, ret);
+#ifdef DEBUG
+        __sync_fetch_and_add(&_enclave_exit_stats[ret[0]], 1);
+#endif /* DEBUG */
         switch (ret[0]) {
-            case SGXLKL_EXIT_TERMINATE:
-		__state_exiting = 1;
+            case SGXLKL_EXIT_TERMINATE: {
+                __state_exiting = 1;
                 exit_code = ret[1];
                 exit(exit_code);
+            }
             case SGXLKL_EXIT_CPUID: {
-                                        unsigned int* reg = (unsigned int*)ret[1];
-                                        do_cpuid(reg);
-                                        args->call_id = SGXLKL_ENTER_SYSCALL_RESUME;
-                                        break;
-                                    }
+                unsigned int* reg = (unsigned int*)ret[1];
+                do_cpuid(reg);
+                args->call_id = SGXLKL_ENTER_SYSCALL_RESUME;
+                break;
+            }
             case SGXLKL_EXIT_SLEEP: {
-                                        struct timespec sleep = {0, ret[1]};
-                                        nanosleep(&sleep, NULL);
-                                        args->call_id = SGXLKL_ENTER_SYSCALL_RESUME;
-                                        break;
-                                    }
+                struct timespec sleep = {0, ret[1]};
+                nanosleep(&sleep, NULL);
+                args->call_id = SGXLKL_ENTER_SYSCALL_RESUME;
+                break;
+            }
             case SGXLKL_EXIT_ERROR: {
-                                        fprintf(stderr, "error inside enclave, error code: %lu \n", ret[1]);
-                                        exit(-1);
-                                    }
+                fprintf(stderr, "error inside enclave, error code: %lu \n", ret[1]);
+                exit(-1);
+            }
             case SGXLKL_EXIT_DORESUME: {
-                                           eresume(my_tcs_id);
-                                       }
+                eresume(my_tcs_id);
+            }
+            default:
+                fprintf(stderr, "Unexpected exit reason from signal handler.\n");
         }
     }
 
@@ -492,24 +536,24 @@ void forward_signal(int signum, void *handler_arg) {
 reenter:
     if (__state_exiting) return;
     enter_enclave(my_tcs_id, call_id, arg, ret);
+#ifdef DEBUG
+    __sync_fetch_and_add(&_enclave_exit_stats[ret[0]], 1);
+#endif /* DEBUG */
     switch (ret[0]) {
-        case SGXLKL_EXIT_CPUID:
-            {
-                unsigned int* reg = (unsigned int*)ret[1];
-                do_cpuid(reg);
-                call_id = SGXLKL_ENTER_SYSCALL_RESUME;
-                goto reenter;
-            }
-        case SGXLKL_EXIT_DORESUME:
-            {
-                return;
-            }
-        case SGXLKL_EXIT_TERMINATE:
-            {
-                __state_exiting = 1;
-                int exit_code = (int)ret[1];
-                exit(exit_code);
-            }
+        case SGXLKL_EXIT_CPUID: {
+            unsigned int* reg = (unsigned int*)ret[1];
+            do_cpuid(reg);
+            call_id = SGXLKL_ENTER_SYSCALL_RESUME;
+            goto reenter;
+        }
+        case SGXLKL_EXIT_DORESUME: {
+            return;
+        }
+        case SGXLKL_EXIT_TERMINATE: {
+            __state_exiting = 1;
+            int exit_code = (int)ret[1];
+            exit(exit_code);
+        }
         default:
             fprintf(stderr, "Unexpected exit reason from signal handler.\n");
             //TODO: Other exit reasons (possible for SIGSEGV)
@@ -534,6 +578,26 @@ void sigsegv_handler(int sig, siginfo_t *si, void *unused) {
 void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf) {
     __asm__ volatile ( "nop" : : "m" (conf) );
 }
+
+#ifdef DEBUG
+void print_host_syscall_stats() {
+    printf("Enclave exits: \n");
+    printf("Calls      Exit reason          No.\n");
+    for (int i = 0; i < MAX_EXIT_REASON_NUMBER; i++) {
+        if(_enclave_exit_stats[i]) {
+            printf("%10lu %20s %d\n", _enclave_exit_stats[i],  (i < sizeof(_enclave_exit_reasons)) ? _enclave_exit_reasons[i] : "UNKNOWN", i);
+        }
+    }
+
+    printf("Host syscalls: \n");
+    printf("Calls      Syscall              No.\n");
+    for (int i = 0; i < MAX_SYSCALL_NUMBER; i++) {
+        if(_host_syscall_stats[i]) {
+            printf("%10lu %20s %d\n", _host_syscall_stats[i],  (i < sizeof(_syscall_names)) ? _syscall_names[i] : "UNKNOWN", i);
+        }
+    }
+}
+#endif /* DEBUG */
 
 int main(int argc, char *argv[], char *envp[]) {
     void *sq, *rq;
@@ -572,6 +636,12 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.mode = SGXLKL_SIM_MODE;
 #endif /* SGXLKL_HW */
 
+#ifdef DEBUG
+    if (parseenv("SGXLKL_PRINT_HOST_SYSCALL_STATS", 0, 1)) {
+        atexit(&print_host_syscall_stats);
+    }
+#endif /* DEBUG */
+
     const size_t pagesize = sysconf(_SC_PAGESIZE);
     ecs = sizeof(encl) + (pagesize - (sizeof(encl)%pagesize));
     memset(&sa, 0, sizeof(struct sigaction));
@@ -599,7 +669,7 @@ int main(int argc, char *argv[], char *envp[]) {
         perror("sigaction");
         return -1;
     }
-#endif
+#endif /* SGXLKL_HW */
 
     backoff_maxpause = parseenv("SGXLKL_SSPINS", 100, ULONG_MAX);
     backoff_factor = parseenv("SGXLKL_SSLEEP", 4000, ULONG_MAX);
@@ -813,3 +883,4 @@ int main(int argc, char *argv[], char *envp[]) {
 
     return 0;
 }
+

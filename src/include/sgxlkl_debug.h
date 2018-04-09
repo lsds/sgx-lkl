@@ -32,7 +32,6 @@
 #include "lkl_host.h"
 
 #define SGXLKL_LKL_SYSCALL      1
-#define SGXLKL_HOST_SYSCALL     2
 #define SGXLKL_INTERNAL_SYSCALL 3
 
 #if DEBUG
@@ -40,15 +39,14 @@
 extern int sgxlkl_verbose;
 extern int sgxlkl_trace_thread;
 extern int sgxlkl_trace_mmap;
-extern int sgxlkl_trace_syscall;
-extern int sgxlkl_trace_host_syscall;
+extern int sgxlkl_trace_lkl_syscall;
+extern int sgxlkl_trace_internal_syscall;
 
 #define SGXLKL_VERBOSE(x, ...) if (sgxlkl_verbose) {sgxlkl_debug_printf("[    SGX-LKL   ] " x, ##__VA_ARGS__);}
 #define SGXLKL_TRACE_THREAD(x, ...) if (sgxlkl_trace_thread) {sgxlkl_debug_printf("[    THREAD    ] " x, ##__VA_ARGS__);}
 #define SGXLKL_TRACE_MMAP(x, ...) if (sgxlkl_trace_mmap) {sgxlkl_debug_printf("[     MMAP     ] " x, ##__VA_ARGS__);}
-#define SGXLKL_TRACE_SYSCALL(type, x, ...) if ((sgxlkl_trace_syscall &&  type != SGXLKL_HOST_SYSCALL) || (sgxlkl_trace_host_syscall && type == SGXLKL_HOST_SYSCALL)) { \
+#define SGXLKL_TRACE_SYSCALL(type, x, ...) if ((sgxlkl_trace_lkl_syscall &&  type == SGXLKL_LKL_SYSCALL) || (sgxlkl_trace_internal_syscall &&  type == SGXLKL_INTERNAL_SYSCALL)) { \
                                                         sgxlkl_debug_printf(type == SGXLKL_LKL_SYSCALL ? "[  LKL SYSCALL ] " x : \
-                                                                            type == SGXLKL_HOST_SYSCALL ? "[ HOST SYSCALL ] " x : \
                                                                             "[INTRNL SYSCALL] " x, ##__VA_ARGS__);}
 
 #define LKL_STDOUT_FILENO 1
