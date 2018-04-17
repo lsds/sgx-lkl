@@ -152,6 +152,18 @@ To run the HelloWorld java program on top of SGX-LKL inside an enclave, run
 JVM arguments in order to reduce its memory footprint. It can be found in the
 `<sgx-lkl>/tools` directory.
 
+If the application runs successfully, you should see an output like this:
+
+```
+OpenJDK 64-Bit Server VM warning: Can't detect initial thread stack location - find_vma failed
+Hello world!
+```
+
+Note: The warning is caused by the fact that the JVM is trying to receive
+information about the process's virtual memory regions from `/proc/self/maps`.
+While SGX-LKL generally supports the `/proc` file system in-enclave,
+`/proc/self/maps` is currently not populated by SGX-LKL. This does not affect
+the functionality of the JVM.
 
 ### Running applications from the Alpine Linux repository
 
