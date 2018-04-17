@@ -126,7 +126,7 @@ standard library.
 ### JVM
 
 A simple Java HelloWorld example application is available in
-`apps/jvm/helloworld`. To build the disk image, run
+`apps/jvm/helloworld-java`. To build the disk image, run
 
 ```
     make
