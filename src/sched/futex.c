@@ -19,7 +19,6 @@
 
 #include <stdio.h>
 #include <hostqueues.h>
-#include <errno.h>
 #include <time.h>
 #include <lthread.h>
 #include <atomic.h>
@@ -153,7 +152,7 @@ __do_futex_sleep(struct futex_q *fq, const struct timespec *ts, const struct tim
     _lthread_yield_cb(lthread_self(), __do_futex_unlock, &futex_q_lock);
 
     /* we woke up, check lt->err for the reason */
-    return lthread_self()->err == FUTEX_EXPIRED ? (errno = ETIMEDOUT, -1) : 0;
+    return lthread_self()->err == FUTEX_EXPIRED ? -ETIMEDOUT : 0;
 }
 
 /* a FUTEX_WAIT operation */
@@ -189,8 +188,7 @@ futex_wait(int *uaddr, int val, const struct timespec *ts, const struct timespec
         /* we were woken up */
         return rc;
     } else {
-        errno = EAGAIN;
-        return -1;
+        return -EAGAIN;
     }
 }
 
@@ -253,7 +251,7 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
             assert(lthread_self());
 
             rc = futex_wait(uaddr, val, timeout, &now);
-            if (rc == 0 || (rc == -1 && errno == ETIMEDOUT))
+            if (rc == 0 || rc == -ETIMEDOUT)
                 goto ret_nounlock;
             break;
         case FUTEX_WAKE:
@@ -261,8 +259,7 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
             break;
         default:
             FUTEX_SGXLKL_VERBOSE("%s: futex invalid op: %d\n", __func__, op);
-            errno = ENOSYS;
-            rc = -1;
+            rc = -ENOSYS;
     }
 
     ticket_unlock(&futex_q_lock);
