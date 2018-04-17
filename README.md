@@ -31,7 +31,7 @@ Install these with:
 sudo apt-get install make gcc bc python xutils-dev
 ```
 
-Compilation has been tested with version 5.4 of gcc. Older versions might lead 
+Compilation has been tested with version 5.4 of gcc. Older versions might lead
 to compilation and/or linking errors.
 
 ### Networking support
@@ -89,7 +89,7 @@ To build sgx-lkl in hardware mode run:
     make
 ```
 
-### Simulation mode 
+### Simulation mode
 
 To build sgx-lkl in simulation mode run:
 
@@ -126,7 +126,14 @@ standard library.
 ### JVM
 
 A simple Java HelloWorld example application is available in
-`apps/jvm/helloworld-java`. To build the disk image, run
+`apps/jvm/helloworld-java`. Building the example requires `curl` and a Java 8
+compiler on the host system. On Ubuntu 16.04, you can install these by running
+
+```
+sudo apt-get install curl openjdk-8-jdk
+```
+
+To build the disk image, run
 
 ```
     make
