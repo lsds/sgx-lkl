@@ -3,7 +3,7 @@
 	url = https://github.com/lkl/linux.git
 [submodule "host-musl"]
 	path = host-musl
-	url = git://git.musl-libc.org/musl
+	url = https://github.com/lsds/musl.git
 [submodule "sgx-lkl-musl"]
 	path = sgx-lkl-musl
 	url = https://github.com/lsds/sgx-lkl-musl.git
