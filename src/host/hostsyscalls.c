@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/syscall.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <sys/ioctl.h>
 
@@ -58,6 +59,27 @@ int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg) {
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
     if (len > 0 && arg != 0) {memcpy((void*)arg, val, len);}
+    arena_free(a);
+    sc->status = 0;
+    return (int)__syscall_return_value;
+}
+
+int host_syscall_SYS_fstat(int fd, struct stat *buf) {
+    volatile syscall_t *sc;
+    volatile intptr_t __syscall_return_value;
+    Arena *a = NULL;
+    sc = getsyscallslot(&a);
+    size_t len2;
+    len2 = sizeof(*buf);
+    sc = arena_ensure(a, len2, (syscall_t*) sc);
+    sc->syscallno = SYS_fstat;
+    sc->arg1 = (uintptr_t)fd;
+    struct stat * val2;
+    val2 = arena_alloc(a, len2);
+    sc->arg2 = (uintptr_t)val2;
+    threadswitch((syscall_t*) sc);
+    __syscall_return_value = (int)sc->ret_val;
+    if (val2 != NULL && buf != NULL) memcpy(buf, val2, len2);
     arena_free(a);
     sc->status = 0;
     return (int)__syscall_return_value;

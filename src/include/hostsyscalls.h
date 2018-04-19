@@ -26,6 +26,7 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <poll.h>
 #include "hostmem.h"
 
@@ -41,6 +42,7 @@ void host_syscall_SYS_exit(int status);
 void host_syscall_SYS_exit_group(int status);
 int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg);
 int host_syscall_SYS_fdatasync(int fd);
+int host_syscall_SYS_fstat(int fd, struct stat *buf);
 pid_t host_syscall_SYS_gettid(void);
 int host_syscall_SYS_ioctl(int fd, unsigned long request, void *arg);
 off_t host_syscall_SYS_lseek(int fd, off_t offset, int whence);
