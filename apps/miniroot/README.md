@@ -24,7 +24,7 @@ Running
 Using Redis as an example running on top of SGX-LKL:
 
 ```sh
-SGXLKL_TAP=sgxlkl_tap0 SGXLKL_VERBOSE=1 ../../build/sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
+SGXLKL_TAP=sgxlkl_tap0 ../../build/sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
 ```
 
 Once you see the ASCII-art Redis logo, you can talk to Redis using:
