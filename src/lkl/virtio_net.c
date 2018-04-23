@@ -57,13 +57,14 @@ static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 
 	if (ret < 0) {
 		if (ret != -EAGAIN) {
-			perror("write to fd netdev fails");
+			fprintf(stderr, "[SGX-LKL] Write to virtio net fd failed: %s", strerror(-ret));
 		} else {
 			char tmp;
 
 			nd_fd->poll_tx = 1;
-			if (host_syscall_SYS_write(nd_fd->pipe[1], &tmp, 1) <= 0)
-				perror("virtio net fd pipe write");
+			int pipe_ret = host_syscall_SYS_write(nd_fd->pipe[1], &tmp, 1);
+			if (pipe_ret <= 0)
+				fprintf(stderr, "[SGX-LKL] Write to virtio net fd pipe failed: %s", strerror(-pipe_ret));
 		}
 	}
 	return ret;
@@ -81,14 +82,15 @@ static int sgxlkl_fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt)
 
 	if (ret < 0) {
 		if (ret != -EAGAIN) {
-			perror("virtio net fd read");
+			fprintf(stderr, "[SGX-LKL] Read from virtio net fd failed: %s", strerror(-ret));
 		} else {
 			char tmp;
 
 			nd_fd->poll_rx = 1;
 //TODO write?
-			if (host_syscall_SYS_write(nd_fd->pipe[1], &tmp, 1) < 0)
-				perror("virtio net fd pipe write");
+			int pipe_ret = host_syscall_SYS_write(nd_fd->pipe[1], &tmp, 1);
+			if (pipe_ret < 0)
+				fprintf(stderr, "[SGX-LKL] Write to virtio net fd pipe failed: %s", strerror(-pipe_ret));
 		}
 	}
 	return ret;
@@ -119,7 +121,7 @@ static int sgxlkl_fd_net_poll(struct lkl_netdev *nd)
 	} while (ret == -EINTR);
 
 	if (ret < 0) {
-		perror("virtio net fd poll");
+		fprintf(stderr, "[SGX-LKL] Poll from virtio net fd failed: %s", strerror(-ret));
 		return 0;
 	}
 
@@ -133,7 +135,7 @@ static int sgxlkl_fd_net_poll(struct lkl_netdev *nd)
 		if (ret == 0)
 			return LKL_DEV_NET_POLL_HUP;
 		if (ret < 0)
-			perror("virtio net fd pipe read");
+			fprintf(stderr, "[SGX-LKL] Read from virtio net fd failed: %s", strerror(-ret));
 	}
 
 	ret = 0;
@@ -184,22 +186,23 @@ struct lkl_netdev* sgxlkl_register_netdev_fd(int fd)
 
 	nd = malloc(sizeof(*nd));
 	if (!nd) {
-		fprintf(stderr, "fdnet: failed to allocate memory\n");
-		/* TODO: propagate the error state, maybe use errno for that? */
+		fprintf(stderr, "[SGX-LKL] Failed to allocate memory for LKL netdev struct: %s\n", strerror(errno));
 		return NULL;
 	}
 
 	memset(nd, 0, sizeof(*nd));
 
 	nd->fd = fd;
-	if (host_syscall_SYS_pipe(nd->pipe) < 0) {
-		perror("pipe");
+	int ret = host_syscall_SYS_pipe(nd->pipe);
+	if (ret < 0) {
+		fprintf(stderr, "[SGX-LKL] virtio net pipe call failed: %s", strerror(-ret));
 		free(nd);
 		return NULL;
 	}
 
-	if (host_syscall_SYS_fcntl(nd->pipe[0], F_SETFL, O_NONBLOCK) < 0) {
-		perror("fnctl");
+	ret = host_syscall_SYS_fcntl(nd->pipe[0], F_SETFL, O_NONBLOCK);
+	if (ret < 0) {
+		fprintf(stderr, "[SGX-LKL] virtio net fnctl call failed: %s", strerror(-ret));
 		host_syscall_SYS_close(nd->pipe[0]);
 		host_syscall_SYS_close(nd->pipe[1]);
 		free(nd);
