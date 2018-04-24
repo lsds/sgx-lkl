@@ -48,6 +48,7 @@
 #endif /* _POSIX_SEMAPHORES */
 
 #define LKL_STDOUT_FILENO 1
+#define NSEC_PER_SEC 1000000000L
 
 static void panic(void) {
     // Even a simple print or abort(0) uses syscalls.
@@ -136,7 +137,6 @@ static void sem_up(struct lkl_sem *sem) {
         WARN_PTHREAD(pthread_cond_signal(&sem->cond));
     WARN_PTHREAD(pthread_mutex_unlock(&sem->lock));
 #endif /* _POSIX_SEMAPHORES */
-
 }
 
 static void sem_down(struct lkl_sem *sem) {
@@ -269,38 +269,67 @@ static unsigned long long time_ns(void) {
     return 1e9*ts.tv_sec + ts.tv_nsec;
 }
 
-typedef volatile struct sgx_lkl_timer {
+typedef struct sgx_lkl_timer {
     void (*callback_fn)(void*);
     void *callback_arg;
     unsigned long long delay_ns;
     unsigned long long next_delay_ns;
     pthread_t thread;
+    pthread_mutex_t mtx;
+    pthread_cond_t cv;
     int armed;
 } sgx_lkl_timer;
 
 static void* timer_callback(void *_timer) {
     sgx_lkl_timer *timer = (sgx_lkl_timer*)_timer;
-    if (timer == NULL || timer->callback_fn == NULL || timer->thread == 0) {
-        fprintf(stderr, "WARN: timer_callback() called with NULL\n");
+    int rc,res;
+
+    struct timespec timeout;
+    if (timer == NULL || timer->callback_fn == NULL) {
+        fprintf(stderr, "WARN: timer_callback() called with unitialised timer.\n");
         pthread_exit(NULL);
     }
-    while (timer->delay_ns > 0) {
-        int res = usleep(timer->delay_ns / 1000);
-        if (res != 0) {
-            fprintf(stderr, "WARN: usleep(n*1000) returned %d in timer\n",
-                res);
-            panic();
+
+    pthread_mutex_lock(&timer->mtx);
+    do {
+restart:
+        if (timer->delay_ns <= 0) break;
+        timeout.tv_sec = timer->delay_ns / NSEC_PER_SEC;
+        timeout.tv_nsec = timer->delay_ns % NSEC_PER_SEC;
+        if (!timer->armed) {
+            break;
         }
-        if (timer->armed) {
+        rc = pthread_cond_timedwait(&timer->cv, &timer->mtx, &timeout);
+        if (rc == ETIMEDOUT) {
             timer->callback_fn(timer->callback_arg);
-            if (timer->next_delay_ns > 0) {
+            // If the callback function itself resets the timer,
+            // timer->next_delay_ns will be non-zero.
+            if (timer->armed && timer->next_delay_ns) {
                 timer->delay_ns = timer->next_delay_ns;
                 timer->next_delay_ns = 0;
+                goto restart;
             }
         } else {
-            pthread_exit(NULL);
+            /* Timer was stopped */
+            if (!timer->armed) {
+                break;
+            }
+
+            /* timer_set_oneshot was called while sleeping. */
+            goto restart;
+
         }
-    }
+        if (!timer->armed)
+            break;
+
+        rc = pthread_cond_wait(&timer->cv, &timer->mtx);
+    } while (timer->armed);
+
+    pthread_mutex_unlock(&timer->mtx);
+
+    WARN_PTHREAD(pthread_cond_destroy(&timer->cv));
+    WARN_PTHREAD(pthread_mutex_destroy(&timer->mtx));
+    pthread_exit(NULL);
 }
 
 static void *timer_alloc(void (*fn)(void *), void *arg) {
@@ -319,37 +348,59 @@ static void *timer_alloc(void (*fn)(void *), void *arg) {
 
 static int timer_set_oneshot(void *_timer, unsigned long ns) {
     sgx_lkl_timer *timer = (sgx_lkl_timer*)_timer;
+
     // Overwrite settings if timer was already armed
     int armed = a_swap(&(timer->armed), 1);
-    // Can't use a lock, which would have to be allocated, and
-    // two allocations could occur at the same time.
     if (armed == 1) {
-        timer->next_delay_ns = ns;
+        if (timer->thread == lthread_self()) {
+            // timer_set_oneshot is executed as part of the current timer's
+            // callback. Do not try to acquire the lock we are already holding.
+            if (timer->next_delay_ns) {
+                fprintf(stderr, "next_delay_ns already set.");
+                panic();
+            }
+            timer->next_delay_ns = ns;
+        } else {
+            timer->delay_ns = ns;
+            WARN_PTHREAD(pthread_mutex_lock(&timer->mtx));
+            WARN_PTHREAD(pthread_cond_signal(&timer->cv));
+            WARN_PTHREAD(pthread_mutex_unlock(&timer->mtx));
+        }
+
         return 0;
     }
+
     int res = 0;
     timer->armed = 1;
     timer->delay_ns = ns;
     timer->next_delay_ns = 0;
+    pthread_mutex_init(&timer->mtx,NULL);
+    pthread_cond_init(&timer->cv,NULL);
     res = pthread_create(&(timer->thread), NULL, &timer_callback,
         (void*)timer);
+
     if (res != 0) {
-        fprintf(stderr, "Error: pthread_create(timerfn) returned %d\n",
-            res);
+        fprintf(stderr, "Error: pthread_create(timerfn) returned %d\n", res);
         panic();
     }
+
     return 0;
 }
 
 static void timer_free(void *_timer) {
-    volatile sgx_lkl_timer *timer = (sgx_lkl_timer*)_timer;
+    sgx_lkl_timer *timer = (sgx_lkl_timer*)_timer;
     if (timer == NULL) {
         fprintf(stderr, "WARN: timer_free() called with NULL\n");
         panic();
     }
+
     int res = 0;
     if (timer->armed) {
+        WARN_PTHREAD(pthread_mutex_lock(&timer->mtx));
         timer->armed = 0;
+        WARN_PTHREAD(pthread_cond_signal(&timer->cv));
+        WARN_PTHREAD(pthread_mutex_unlock(&timer->mtx));
+
         a_barrier();
         void *exit_val = NULL;
         res = pthread_join(timer->thread, &exit_val);
