@@ -37,7 +37,7 @@
 
 // #include <sys/systm.h>
 
-#define	BIT(nr)			(1UL << (nr))
+#define	BIT_VAL(nr)			(1UL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else

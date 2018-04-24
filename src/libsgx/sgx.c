@@ -582,7 +582,7 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
     threads = malloc(sizeof(enclave_thread_t) * tcsp);
     tcs_max  = tcsp;
 
-    uint64_t tls_vaddr = 1, tls_filesz = 0, tls_memsz = 0;
+    uint64_t tls_vaddr = 0, tls_filesz = 0, tls_memsz = 0;
     get_tls_info(p, &tls_vaddr, &tls_filesz, &tls_memsz);
 
     uint64_t* tls_start = (uint64_t*)get_section_address(p, ".tdata");

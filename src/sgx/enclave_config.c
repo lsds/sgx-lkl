@@ -13,8 +13,7 @@
 /* we need this initializer for signer to find this struct in the TLS image */
 static __thread enclave_parms_t enclave_parms = {.base = 0xbaadf00ddeadbabe};
 
-__attribute__((inline))
-enclave_parms_t* get_enclave_parms() {
+inline enclave_parms_t* get_enclave_parms() {
     enclave_parms_t* ret;
     __asm("movq %%fs:16,%0\n" : "=r"(ret) : : );
     return ret;
@@ -29,17 +28,20 @@ void* never_called() {
 }
 
 void* get_exit_address() {
-    if (get_enclave_parms()->eh_handling) return (void*)get_enclave_parms()->eh_exit_addr;
-    return (void*)get_enclave_parms()->exit_addr;
+    if (get_enclave_parms()->eh_handling)
+        return (void*) get_enclave_parms()->eh_exit_addr;
+    return (void*) get_enclave_parms()->exit_addr;
 }
 
 uint64_t get_ursp() {
-    if (get_enclave_parms()->eh_handling) return (void*)get_enclave_parms()->eh_ursp;
+    if (get_enclave_parms()->eh_handling)
+        return get_enclave_parms()->eh_ursp;
     return get_enclave_parms()->ursp;
 }
 
 uint64_t get_urbp() {
-    if (get_enclave_parms()->eh_handling) return (void*)get_enclave_parms()->eh_urbp;
+    if (get_enclave_parms()->eh_handling)
+        return get_enclave_parms()->eh_urbp;
     return get_enclave_parms()->urbp;
 }
 
@@ -107,9 +109,9 @@ void ocall_cpuid(unsigned int* request) {
     Arena *a = NULL;
     getsyscallslot(&a);
     size_t len = sizeof(*request) * 4;
-    unsigned int* req = arena_alloc(a, len) ;
+    void* req = arena_alloc(a, len) ;
     if (req != NULL) memcpy(req, request, len);
-    leave_enclave(SGXLKL_EXIT_CPUID, req);
+    leave_enclave(SGXLKL_EXIT_CPUID, (uint64_t) req);
     if (req != NULL) memcpy(request, req, len);
     arena_free(a);
 }
