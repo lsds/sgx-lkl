@@ -36,7 +36,7 @@ to compilation and/or linking errors.
 
 ### Networking support
 
-In order for SGX-LKL application to send and receive packets via the network, a
+In order for SGX-LKL applications to send and receive packets via the network, a
 TAP interface is needed on the host. Create it as follows:
 
 ```
@@ -46,8 +46,8 @@ sudo ip addr add dev sgxlkl_tap0 10.0.1.254/24
 ```
 
 SGX-LKL will use the IP address `10.0.1.1` by default. To change it, set the
-environment variable `SGXLKL_IP4`. The name of the TAP interface is be set
-using the environment variable `SGXLKL_TAP` respectively.
+environment variable `SGXLKL_IP4`. The name of the TAP interface is set
+using the environment variable `SGXLKL_TAP`.
 
 The interface can be removed again by running the following command:
 
@@ -150,7 +150,10 @@ To run the HelloWorld java program on top of SGX-LKL inside an enclave, run
 
 `sgx-lkl-java` is a simple wrapper around `sgx-lkl-run` which sets some common
 JVM arguments in order to reduce its memory footprint. It can be found in the
-`<sgx-lkl>/tools` directory.
+`<sgx-lkl>/tools` directory. For more complex applications, SGX-LKL or JVM
+arguments might have to be adjusted, e.g. to increase the enclave size or the
+size of the JVM heap/metaspace/code cache size, or to enable networking support
+by providing a TAP/TUN interface via `SGXLKL_TAP`.
 
 If the application runs successfully, you should see an output like this:
 
