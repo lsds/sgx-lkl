@@ -404,20 +404,21 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     }
 
     // Open tap device FD
-    if (tapstr == NULL || strlen(tapstr) == 0)
+    if (tapstr == NULL || strlen(tapstr) == 0) {
+        if (parseenv("SGXLKL_VERBOSE", 0, 1))
+            printf("[    SGX-LKL   ] No tap device specified, networking will not be available.\n");
         return;
+    }
     struct ifreq ifr;
     strncpy(ifr.ifr_name, tapstr, IFNAMSIZ);
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
     int fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
     if (fd == -1) {
-        fprintf(stderr, "Error: TUN network devices unavailable\n");
-        perror("open(\"/dev/net/tun\")");
+        perror("[    SGX-LKL   ] Error: TUN network device unavailable, open(\"/dev/net/tun\ failed");
         exit(2);
     }
     if (ioctl(fd, TUNSETIFF, &ifr) == -1) {
-        fprintf(stderr, "Error: tap device %s unavailable\n", tapstr);
-        perror("ioctl(/dev/net/tun, TUNSETIFF)");
+        fprintf(stderr, "[    SGX-LKL   ] Error: Tap device %s unavailable, ioctl(/dev/net/tun, TUNSETIFF) failed: %s\n", tapstr, strerror(errno));
         exit(3);
     }
 
@@ -429,7 +430,7 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
             gw4str = DEFAULT_IPV4_GW;
     }
     if (inet_pton(AF_INET, ip4str, &ip4) != 1) {
-        fprintf(stderr, "Error: invalid IPv4 address  %s\n", ip4str);
+        fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 address %s\n", ip4str);
         exit(4);
     }
 
@@ -437,14 +438,14 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     struct in_addr gw4 = { 0 };
     if (gw4str != NULL && strlen(gw4str)>0 &&
             inet_pton(AF_INET, gw4str, &gw4) != 1) {
-        fprintf(stderr, "Error: invalid IPv4 gateway %s\n", ip4str);
+        fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 gateway %s\n", ip4str);
         exit(5);
     }
 
     // Read IPv4 mask str if there is one
     int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
     if (mask4 < 1 || mask4 > 32) {
-        fprintf(stderr, "Error: invalid IPv4 mask %s\n", mask4str);
+        fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 mask %s\n", mask4str);
         exit(6);
     }
 
