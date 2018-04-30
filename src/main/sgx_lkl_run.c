@@ -79,6 +79,11 @@ static const char* DEFAULT_IPV4_ADDR = "10.0.1.1";
 static const char* DEFAULT_IPV4_GW = "10.0.1.254";
 static const int   DEFAULT_IPV4_MASK = 24;
 static const char* DEFAULT_HOSTNAME = "lkl";
+/* The default heap size will only be used if no heap size is specified and
+ * either we are in simulation mode, or we are in HW mode and a key is provided
+ * via SGXLKL_KEY.
+ */
+static const size_t DEFAULT_HEAP_SIZE = 200 * 1024 * 1024;
 
 // Is set to 1 when terminating the enclave to prevent concurrent threads from
 // trying to reenter.
@@ -130,8 +135,6 @@ static void usage(char* prog) {
     printf("## General ##\n");
     printf("SGXLKL_CMDLINE: Linux kernel command line.\n");
     printf("SGXLKL_SIGPIPE: Set to 1 to enable delivery of SIGPIPE.\n");
-    printf("SGXLKL_NOLKL:\n");
-    printf("SGXLKL_NOLKLHALT:\n");
     printf("\n## Scheduling ##\n");
     printf("SGXLKL_ESLEEP: Sleep timeout in the scheduler (in ns).\n");
     printf("SGXLKL_ESPINS: Number of spins inside scheduler before sleeping begins.\n");
@@ -158,7 +161,7 @@ static void usage(char* prog) {
     printf("SGXLKL_SHMEM_FILE: Name of the file to be used for shared memory between the enclave and the outside.\n");
     printf("SGXLKL_SHMEM_SIZE: Size of the file to be used for shared memory between the enclave and the outside.\n");
     printf("\n## Debugging ##\n");
-    printf("SGXLKL_VERBOSE: Print information about the SGX-lKL start up process as well as kernel messages.\n");
+    printf("SGXLKL_VERBOSE: Print information about the SGX-LKL start up process as well as kernel messages.\n");
     printf("SGXLKL_TRACE_MMAP: Print detailed information about in-enclave mmap/munmap operations.\n");
     printf("SGXLKL_TRACE_THREAD: Print detailed information about in-enclave user level thread scheduling.\n");
     printf("SGXLKL_TRACE_SYSCALL: Print detailed information about all system calls.\n");
@@ -167,6 +170,7 @@ static void usage(char* prog) {
     printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
     printf("SGXLKL_PRINT_HOST_SYSCALL_STATS: Print statistics on the number of host system calls and enclave exits.\n");
     printf("\n%s --version to print version information.\n", prog);
+    printf("%s --help to print this help.\n", prog);
 }
 
 void *calloc(size_t nmemb, size_t size);
@@ -414,11 +418,11 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
     int fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
     if (fd == -1) {
-        perror("[    SGX-LKL   ] Error: TUN network device unavailable, open(\"/dev/net/tun\ failed");
+        perror("[    SGX-LKL   ] Error: TUN network device unavailable, open(\"/dev/net/tun\") failed");
         exit(2);
     }
     if (ioctl(fd, TUNSETIFF, &ifr) == -1) {
-        fprintf(stderr, "[    SGX-LKL   ] Error: Tap device %s unavailable, ioctl(/dev/net/tun, TUNSETIFF) failed: %s\n", tapstr, strerror(errno));
+        fprintf(stderr, "[    SGX-LKL   ] Error: Tap device %s unavailable, ioctl(\"/dev/net/tun\"), TUNSETIFF) failed: %s\n", tapstr, strerror(errno));
         exit(3);
     }
 
@@ -625,10 +629,11 @@ int main(int argc, char *argv[], char *envp[]) {
         exit(0);
     }
 
-    if (argc <= 2) {
+    if (argc <= 2 || (argc >= 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))) {
         usage(argv[0]);
         exit(1);
     }
+
     hd = argv[1];
 
 #ifdef SGXLKL_HW
@@ -710,7 +715,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 #ifndef SGXLKL_HW
     /* initialize heap and system call pages */
-    encl.heapsize = parseenv("SGXLKL_HEAP", 4096*200000, ULONG_MAX);
+    encl.heapsize = parseenv("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX);
     encl.heap = mmap((void*) 0x400000, encl.heapsize, PROT_EXEC|PROT_READ|PROT_WRITE, mmapflags | MAP_FIXED, -1, 0);
     if (encl.heap == MAP_FAILED) {
         return -1;
@@ -729,7 +734,13 @@ int main(int argc, char *argv[], char *envp[]) {
     char* enclave_start = mmap(0, lkl_lib_stat.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, lkl_lib_fd, 0);
 
     init_sgx();
-    if (getenv("SGXLKL_HEAP")) enclave_update_heap(enclave_start, parse_heap_env("SGXLKL_HEAP", 4096*200000, ULONG_MAX), getenv("SGXLKL_KEY"));
+    if (getenv("SGXLKL_HEAP") || getenv("SGXLKL_KEY")) {
+        if (!getenv("SGXLKL_KEY")) {
+            fprintf(stderr, "[    SGX-LKL   ] Error: Heap size but no enclave signing key specified. Please specify a signing key via SGXLKL_KEY.\n");
+            return -1;
+        }
+        enclave_update_heap(enclave_start, parse_heap_env("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX), getenv("SGXLKL_KEY"));
+    }
     create_enclave_mem(enclave_start, 0);
 #endif
     encl.maxsyscalls = parseenv("SGXLKL_MAX_USER_THREADS", 256, 100000);
