@@ -136,7 +136,7 @@ sudo apt-get install curl openjdk-8-jdk
 To build the disk image, run
 
 ```
-    make
+make
 ```
 
 This will compile the HelloWorld Java example, create a disk image with an
@@ -187,11 +187,61 @@ the example `buildenv.sh` file in `apps/miniroot`), redis-server can be
 launched as follows:
 
 ```
-SGXLKL_TAP=sgxlkl_tap0 SGXLKL_VERBOSE=1 ../../../build/sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
+SGXLKL_TAP=sgxlkl_tap0 ../../../build/sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
 ```
 
 The readme file in `apps/miniroot` contains more detailed information on how to
 build custom disk images.
+
+### Configuring SGX-LKL
+
+#### Enclave size
+
+With SGX, the enclave size is fixed at creation/initialization time. By
+default, SGX-LKL uses a heap size that will fit into the EPC (together with
+SGX-LKL itself). However, for many applications this might be insufficient. In
+order to increase the size of the heap, use the `SGXLKL_HEAP` parameter:
+
+```
+SGXLKL_TAP=sgxlkl_tap0 SGXLKL_HEAP=200M SGXLKL_KEY=../../../build/config/enclave_debug.key ../../../build/sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
+
+```
+
+Whenever `SGXLKL_HEAP` is specified, it is also necessary to specify
+`SGXLKL_KEY` which will be discussed in the next section.
+
+Note that due to the limited Enclave Page Cache (EPC) size, performance might
+degrade for applications with a large memory footprint due to paging between
+the EPC and regular DRAM.
+
+#### Enclave signing
+
+Every enclave must be signed by its owner before it can be deployed. Without a
+signature, it is not possible to initialize and run an SGX enclave. As seen in
+the example above, a key can be specified via the `SGXLKL_KEY` parameter.
+During the build process of SGX-LKL, a default 3072-bit RSA development/debug
+key pair is generated. The corresponding key file is stored at
+`build/config/enclave_debug.key`. This key is also used to generate a default
+signature which is embedded into the SGX-LKL library and is used in case
+`SGXLKL_HEAP` is not set. Anytime `SGXLKL_HEAP` is set or a custom key should
+be used, `SGXLKL_KEY` must point to a valid key file. To generate a new key
+(file), the `tools/gen_enclave_key.sh` script can be used:
+
+```
+tools/gen_enclave_key.sh <path-to-new-key-file>
+```
+
+#### Other configuration options
+
+SGX-LKL has a number of other configuration options for e.g. configuring the
+in-enclave scheduling, network configuration, or debugging/tracing. To see all
+options, run
+
+```
+./build/sgx-lkl-run --help
+```
+
+Note that for the debugging options to have an effect, SGX-LKL must be built with `DEBUG=true`.
 
 
 Debugging SGX-LKL (applications)
@@ -205,7 +255,7 @@ sgx-lkl-gdb uses the corresponding SGX debug instructions to read from and
 write to enclave memory. Example:
 
 ```
-SGXLKL_TAP=sgxlkl_tap0 SGXLKL_VERBOSE=1 ../../gdb/sgx-lkl-gdb --args ../../build/sgx-lkl-run ./alpine-rootfs.img /usr/bin/redis-server --bind 10.0.1.1
+SGXLKL_TAP=sgxlkl_tap0 ../../gdb/sgx-lkl-gdb --args ../../build/sgx-lkl-run ./alpine-rootfs.img /usr/bin/redis-server --bind 10.0.1.1
 ```
 
 Note: SGX-LKL should be built in debug mode for full gdb support:
