@@ -84,7 +84,7 @@ sgx-lkl: sgx-lkl-musl-config
 
 $(ENCLAVE_DEBUG_KEY):
 	@mkdir -p $(dir $@ )
-	tools/gen_enclave_debug_key.sh $@
+	tools/gen_enclave_key.sh $@
 
 enclave-debug-key: $(ENCLAVE_DEBUG_KEY)
 
