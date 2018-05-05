@@ -757,6 +757,18 @@ int main(int argc, char *argv[], char *envp[]) {
     newmpmcq(&encl.syscallq, sqs, sq);
     newmpmcq(&encl.returnq, rqs, rq);
 
+    // retrieve and save vDSO parameters
+    uint64_t vdso_base = 0;
+    for(auxvp = envp; *auxvp; auxvp++);
+    for (auxvp = auxvp + 1; *auxvp; auxvp += 2)
+        if (auxvp[0] == AT_SYSINFO_EHDR) {
+            vdso_base = auxvp[1];
+            break;
+        }
+    /* TODO(lkurusa): getauxval returns the wrong address, probably a size issue */
+    /* uint64_t vdso_base = (uint64_t) getauxval(AT_SYSINFO_EHDR); */
+    encl.vvar = (char *) (vdso_base - 0x3000ULL);
+
     // Get network and hard-drive parameters
     register_hd(&encl, hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
