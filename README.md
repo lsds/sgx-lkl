@@ -193,6 +193,16 @@ SGXLKL_TAP=sgxlkl_tap0 ../../../build/sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/
 The readme file in `apps/miniroot` contains more detailed information on how to
 build custom disk images.
 
+### Cross-compiling applications for SGX-LKL
+
+For applications with a complex build process and/or a larger set of dependencies it is easiest to use the unmodified binaries from the Alpine Linux repository as described in the previous section. However, it is also possible to cross-compile applications on non-musl based Linux distributions (e.g. Ubuntu) and create a minimal disk image that only contains the application and its dependencies. An example of how to cross-compile a C application and create the corresponding disk image can be found in `apps/helloworld`. To build the disk image and execute the application with SGX-LKL run
+
+```
+make sgxlkl-disk.img
+../../build/sgx-lkl-run sgxlkl-disk.img /app/helloworld
+```
+
+
 ### Configuring SGX-LKL
 
 #### Enclave size

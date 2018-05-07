@@ -22,8 +22,7 @@ sim: all
 host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 	cd ${HOST_MUSL}; [ -f config.mak ] || CFLAGS="$(MUSL_CFLAGS)" ./configure \
 		$(MUSL_CONFIGURE_OPTS) \
-		--prefix=${HOST_MUSL_BUILD} \
-		--disable-shared
+		--prefix=${HOST_MUSL_BUILD}
 	+${MAKE} -C ${HOST_MUSL} CFLAGS="$(MUSL_CFLAGS)" install
 	ln -fs ${LINUX_HEADERS_INC}/linux/ ${HOST_MUSL_BUILD}/include/linux
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm
@@ -52,7 +51,7 @@ tools: ${TOOLS_OBJ}
 
 # Generic tool rule (doesn't actually depend on lkl_lib, but on LKL headers)
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
-	${HOST_MUSL_CC} ${MY_CFLAGS} -I${LKL_BUILD}/include/ -o $@ $< ${MY_LDFLAGS}
+	${HOST_MUSL_CC} ${MY_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $< ${MY_LDFLAGS}
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
 ${LKL_SGXMUSL_HEADERS}: ${LKL_BUILD}/include/lkl/%.h: ${TOOLS_BUILD}/lkl_%
