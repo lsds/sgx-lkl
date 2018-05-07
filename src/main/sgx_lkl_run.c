@@ -153,7 +153,7 @@ static void usage(char* prog) {
     printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
     printf("\n## Disk ##\n");
     printf("SGXLKL_HD_VERITY: Volume hash for the provided file system image.\n");
-    printf("SGXLKL_HD_RW: Set to 1 to mount the file system as writable (Default: 0 (read-only)).\n");
+    printf("SGXLKL_HD_RO: Set to 1 to mount the file system as read-only.\n");
     printf("\n## Memory ##\n");
     printf("SGXLKL_HEAP: Total heap size (in bytes) available in the enclave. This includes memory used by the kernel.\n");
     printf("SGXLKL_STACK_SIZE: Stack size of in-enclave user-level threads.\n");

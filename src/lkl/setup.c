@@ -615,7 +615,7 @@ void __lkl_start_init(enclave_config_t* encl)
 	if (get_env_bool("SGXLKL_MMAP_FILE_SUPPORT", 0))
 		sgxlkl_mmap_file_support = 1;
 
-	encl->disk_ro = get_env_bool("SGXLKL_HD_RW", 0) == 0;
+	encl->disk_ro = get_env_bool("SGXLKL_HD_RO", 0) == 1;
 
 	// Register hard drive if given one
 	int disk_dev_id = -1;
