@@ -131,7 +131,6 @@ class LthreadBacktrace(gdb.Command):
         gdb.execute('set $rbp = %s'%old_fp)
         gdb.execute('set $rsp = %s'%old_sp)
         gdb.execute('set $rip = %s'%old_ip)
-        gdb.flush()
 
         return False
 
