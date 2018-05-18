@@ -285,6 +285,7 @@ static void* timer_callback(void *_timer) {
     int rc,res;
 
     struct timespec timeout;
+    struct timespec now;
     if (timer == NULL || timer->callback_fn == NULL) {
         fprintf(stderr, "WARN: timer_callback() called with unitialised timer.\n");
         pthread_exit(NULL);
@@ -294,8 +295,9 @@ static void* timer_callback(void *_timer) {
     do {
 restart:
         if (timer->delay_ns <= 0) break;
-        timeout.tv_sec = timer->delay_ns / NSEC_PER_SEC;
-        timeout.tv_nsec = timer->delay_ns % NSEC_PER_SEC;
+        clock_gettime(CLOCK_REALTIME, &now);
+        timeout.tv_sec = now.tv_sec + (timer->delay_ns / NSEC_PER_SEC);
+        timeout.tv_nsec = now.tv_nsec + (timer->delay_ns % NSEC_PER_SEC);
         if (!timer->armed) {
             break;
         }
