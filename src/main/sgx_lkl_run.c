@@ -135,7 +135,7 @@ static void usage(char* prog) {
     printf("## General ##\n");
     printf("SGXLKL_CMDLINE: Linux kernel command line.\n");
     printf("SGXLKL_SIGPIPE: Set to 1 to enable delivery of SIGPIPE.\n");
-    printf("\n## Scheduling ##\n");
+    printf("\n## Scheduling & Host system calls ##\n");
     printf("SGXLKL_ESLEEP: Sleep timeout in the scheduler (in ns).\n");
     printf("SGXLKL_ESPINS: Number of spins inside scheduler before sleeping begins.\n");
     printf("SGXLKL_ETHREADS: Number of enclave threads.\n");
@@ -144,6 +144,7 @@ static void usage(char* prog) {
     printf("SGXLKL_REAL_TIME_PRIO: Set to 1 to use realtime priority for enclave threads.\n");
     printf("SGXLKL_SSPINS: Number of spins inside host syscall threads before sleeping begins.\n");
     printf("SGXLKL_SSLEEP: Sleep timeout in the syscall threads (in ns).\n");
+    printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls.\n");
     printf("\n## Network ##\n");
     printf("SGXLKL_TAP: Tap for LKL to use as a network interface.\n");
     printf("SGXLKL_IP4: IPv4 address to assign to LKL (Default: %s).\n", DEFAULT_IPV4_ADDR);
@@ -757,17 +758,22 @@ int main(int argc, char *argv[], char *envp[]) {
     newmpmcq(&encl.syscallq, sqs, sq);
     newmpmcq(&encl.returnq, rqs, rq);
 
-    // retrieve and save vDSO parameters
-    uint64_t vdso_base = 0;
-    for(auxvp = envp; *auxvp; auxvp++);
-    for (auxvp = auxvp + 1; *auxvp; auxvp += 2)
-        if (auxvp[0] == AT_SYSINFO_EHDR) {
-            vdso_base = auxvp[1];
-            break;
+    if (parseenv("SGXLKL_GETTIME_VDSO", 0, 1)) {
+        // Retrieve and save vDSO parameters
+        /* TODO(lkurusa): getauxval returns the wrong address, probably a size issue */
+        /* uint64_t vdso_base = (uint64_t) getauxval(AT_SYSINFO_EHDR); */
+        uint64_t vdso_base = 0;
+        for (auxvp = envp; *auxvp; auxvp++);
+        for (auxvp = auxvp + 1; *auxvp; auxvp += 2) {
+            if (auxvp[0] == AT_SYSINFO_EHDR) {
+                vdso_base = auxvp[1];
+                break;
+            }
         }
-    /* TODO(lkurusa): getauxval returns the wrong address, probably a size issue */
-    /* uint64_t vdso_base = (uint64_t) getauxval(AT_SYSINFO_EHDR); */
-    encl.vvar = (char *) (vdso_base - 0x3000ULL);
+        encl.vvar = (char *) (vdso_base - 0x3000ULL);
+    } else {
+        encl.vvar = 0;
+    }
 
     // Get network and hard-drive parameters
     register_hd(&encl, hd);
