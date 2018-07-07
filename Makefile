@@ -18,6 +18,8 @@ all: sgx-lkl-musl sgx-lkl
 sim: HW_MODE=no
 sim: all
 
+MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+
 # Vanilla Musl compiler
 host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 	cd ${HOST_MUSL}; [ -f config.mak ] || CFLAGS="$(MUSL_CFLAGS)" ./configure \
@@ -64,7 +66,7 @@ sgx-lkl-musl-config:
 		--prefix=${SGX_LKL_MUSL_BUILD} \
 		--lklheaderdir=${LKL_BUILD}/include/ \
 		--lkllib=${LIBLKL} \
-		--sgxlklheaderdir=${PWD}/src/include \
+		--sgxlklheaderdir=${MAKE_ROOT}/src/include \
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/libsgxlkl.a \
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
