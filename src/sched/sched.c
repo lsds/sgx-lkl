@@ -200,6 +200,7 @@ void lthread_run(void) {
     const int maxspins = 500;
     struct timespec sleeptime = {0, sleeptime_ns};
     int spins = maxspins;
+    int dequeued;
     size_t i;
     struct mpmcq *retq = __return_queue;
     /* scheduler not initiliazed, and no lthreads where created */
@@ -208,20 +209,24 @@ void lthread_run(void) {
     }
     for (;;) {
         /* start by checking if a sleeping thread needs to wakeup */
-        while (mpmc_dequeue(retq, (void *)&s)) {
-            lt = slottolthread(s);
-            //if (lt == 0) {a_crash();}
-            pauses = sleepspins;
-            SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (wakeup sleeping thread) \n", lt->tid);
-            _lthread_resume(lt);
-        }
-        while (mpmc_dequeue(&__scheduler_queue, (void **)&lt)) {
-            //if (lt == 0) {a_crash();}
-            pauses = sleepspins;
-            a_dec(&schedqueuelen);
-            SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (dequeue sched queue) \n", lt->tid);
-            _lthread_resume(lt);
-        }
+        do {
+            dequeued = 0;
+            if (mpmc_dequeue(retq, (void *)&s)) {
+                dequeued++;
+                lt = slottolthread(s);
+                //if (lt == 0) {a_crash();}
+                pauses = sleepspins;
+                SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (wakeup sleeping thread) \n", lt->tid);
+                _lthread_resume(lt);
+            }
+            if (mpmc_dequeue(&__scheduler_queue, (void **)&lt)) {
+                dequeued++;
+                pauses = sleepspins;
+                a_dec(&schedqueuelen);
+                SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (dequeue sched queue) \n", lt->tid);
+                _lthread_resume(lt);
+            }
+        } while (dequeued);
         if (spins <= 0) {
                 lthread_sched_wake();
                 spins = maxspins;
