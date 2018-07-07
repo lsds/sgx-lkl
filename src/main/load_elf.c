@@ -39,11 +39,13 @@
 #include <elf.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <load_elf.h>
 
@@ -60,9 +62,9 @@ void load_elf(char* file_to_map, encl_map_info* result) {
     Elf64_Ehdr *hdr;
     Elf64_Phdr *pdr, *interp = 0;
     int i, anywhere;
-    void *text_segment = 0;
+    void *text_segment = 0, *segment_base = 0;
     void *entry_point = 0;
-    unsigned long initial_vaddr = 0;
+    unsigned long initial_vaddr = 0, load_segments_size;
     unsigned int mapflags = MAP_PRIVATE|MAP_ANONYMOUS;
 
     mapped = map_file(file_to_map, &sb);
@@ -76,9 +78,16 @@ void load_elf(char* file_to_map, encl_map_info* result) {
     pdr = (Elf64_Phdr *)((unsigned long)hdr + hdr->e_phoff);
 
     for (i = 0; i < hdr->e_phnum; ++i) {
-        if (pdr[i].p_type == PT_LOAD && pdr[i].p_vaddr == 0) {
-            anywhere = 1;  /* map it anywhere, like ld.so, or PIC code. */
-            break;
+        if (pdr[i].p_type == PT_LOAD) {
+            if (!anywhere && pdr[i].p_vaddr == 0) {
+                anywhere = 1;  /* map it anywhere, like ld.so, or PIC code. */
+            } else if (!anywhere && !segment_base) {
+                segment_base = (void*) pdr[i].p_vaddr;
+            }
+
+            // Determine total in-memory size of all loadable sections:
+            // Virtual address/Offset plus memory size of last loadable segment.
+            load_segments_size = (unsigned long) ((void*) pdr[i].p_vaddr - segment_base) + pdr[i].p_memsz;
         }
     }
 
@@ -120,7 +129,15 @@ void load_elf(char* file_to_map, encl_map_info* result) {
         if (!anywhere && initial_vaddr == 0)
             initial_vaddr = pdr->p_vaddr;
 
-        rounded_len = (unsigned long)pdr->p_memsz + ((unsigned long)pdr->p_vaddr % 0x1000);
+        // If this is the first allocation, mmap memory for all segments to
+        // ensure that later MAP_FIXED mmap calls for subsequent segments do
+        // not overlap with unrelated previously mapped regions.
+        if (!text_segment) {
+            rounded_len = load_segments_size;
+        } else {
+            rounded_len = (unsigned long)pdr->p_memsz + ((unsigned long)pdr->p_vaddr % 0x1000);
+        }
+
         rounded_len = ROUNDUP(rounded_len, 0x1000);
 
         segment = mmap(
@@ -160,7 +177,10 @@ void load_elf(char* file_to_map, encl_map_info* result) {
         if (pdr->p_flags & PF_X)
             protflags |= PROT_EXEC;
 
-        mprotect(segment, rounded_len, protflags | PROT_WRITE /* TODO: force writable */);
+        if (mprotect(segment, rounded_len, protflags | PROT_WRITE /* TODO: force writable */)) {
+            fprintf(stderr, "WARNING: Could not mprotect loaded segment: %s\n",
+                    strerror(errno));
+        }
     }
 
     result->base = text_segment;
