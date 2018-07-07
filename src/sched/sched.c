@@ -189,17 +189,11 @@ void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_) {
         RB_INIT(&_lthread_sleeping);
 }
 
-static void  __attribute__((noinline)) lthread_sched_wake() {
-    futex_tick();
-}
-
 void lthread_run(void) {
     const struct lthread_sched *const sched = lthread_get_sched();
     struct lthread *lt = NULL;
     size_t s, pauses = sleepspins;
-    const int maxspins = 500;
     struct timespec sleeptime = {0, sleeptime_ns};
-    int spins = maxspins;
     int dequeued;
     size_t i;
     struct mpmcq *retq = __return_queue;
@@ -227,13 +221,11 @@ void lthread_run(void) {
                 _lthread_resume(lt);
             }
         } while (dequeued);
-        if (spins <= 0) {
-                lthread_sched_wake();
-                spins = maxspins;
-        }
+
+        futex_tick();
+
         if (pauses == 0) {
             pauses = sleepspins;
-            spins = 0;
 #ifndef SGXLKL_HW
             lthread_scall(SYS_nanosleep, (long)&sleeptime, (long)NULL, 0L);
 #else
@@ -241,7 +233,6 @@ void lthread_run(void) {
 #endif
         }
         pauses--;
-        spins--;
     }
 }
 
