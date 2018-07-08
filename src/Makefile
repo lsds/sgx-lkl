@@ -92,7 +92,7 @@ MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
 
 $(MAIN_OBJS): $(LIB_SGX_LKL_BUILD)/main/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) -ggdb3 -DSGXLKL_SO_PATH=$(SGXLKL_SO_PATH) -c -o $@ $<
+	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) -ggdb3 -DSGXLKL_SO_PATH=$(SGXLKL_SO_PATH) -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
 	$(AR) rc $@ $(MAIN_OBJS)

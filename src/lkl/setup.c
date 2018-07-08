@@ -18,6 +18,7 @@
  */
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +36,8 @@
 #include "libdevmapper.h"
 #endif
 
+#define BIT(x) (1ULL << x)
+
 int sethostname(const char *, size_t);
 
 int sgxlkl_trace_lkl_syscall = 0;
@@ -42,7 +45,9 @@ int sgxlkl_trace_internal_syscall = 0;
 int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
+int sgxlkl_use_tap_offloading = 0;
 int sgxlkl_mmap_file_support = 0;
+int sgxlkl_mtu = 0;
 
 #ifndef NO_CRYPTSETUP
 static const char* lkl_encryption_key = "FOO";
@@ -59,15 +64,16 @@ int get_env_bool(const char *name, int def)
 		return (strncmp(env, "1", 1) == 0);
 }
 
-static unsigned long long get_env_bytes(const char *name, unsigned long long def)
+static unsigned long long get_env_bytes(const char *name, unsigned long long def, unsigned long long max)
 {
 	char *env = getenv(name);
 	if (env == NULL)
 		return def;
 	char *suffix = NULL;
+	errno = 0;
 	unsigned long long res = strtoul(env, &suffix, 10);
-	if (res == 0) {
-		fprintf(stderr, "Error: unable to parse RAM argument\n");
+	if (errno) {
+		fprintf(stderr, "Error: unable to parse %s argument: %s\n", name, strerror(errno));
 		exit(1);
 	}
 	if (suffix == NULL || *suffix == '\0')
@@ -86,6 +92,9 @@ static unsigned long long get_env_bytes(const char *name, unsigned long long def
 		fprintf(stderr, "Error: unable to parse RAM unit\n");
 		exit(2);
 	}
+
+	if (res > max)
+		res = max;
 	return res;
 }
 
@@ -118,12 +127,26 @@ static int lkl_prestart_net(enclave_config_t* encl)
 		.mac = mac,
 		.offload= 0,
 	};
+
+	if (sgxlkl_use_tap_offloading) {
+		netdev->has_vnet_hdr = 1;
+		// Host and guest can handle partial checksums
+		netdev_args.offload = BIT(LKL_VIRTIO_NET_F_CSUM) | BIT(LKL_VIRTIO_NET_F_GUEST_CSUM);
+		// Host and guest can handle TSOv4
+		netdev_args.offload |= BIT(LKL_VIRTIO_NET_F_HOST_TSO4) | BIT(LKL_VIRTIO_NET_F_GUEST_TSO4);
+		// Host and guest can handle TSOv6
+		netdev_args.offload |= BIT(LKL_VIRTIO_NET_F_HOST_TSO6) | BIT(LKL_VIRTIO_NET_F_GUEST_TSO6);
+		// Host can merge receive buffers
+		netdev_args.offload |= BIT(LKL_VIRTIO_NET_F_MRG_RXBUF);
+	}
+
 	int net_dev_id = lkl_netdev_add(netdev, &netdev_args);
 	if (net_dev_id < 0) {
 		fprintf(stderr, "Error: unable to register netdev, %s\n",
 			lkl_strerror(net_dev_id));
 		exit(net_dev_id);
 	}
+
 	return net_dev_id;
 }
 
@@ -571,6 +594,11 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id)
 				exit(res);
 			}
 		}
+
+		if (sgxlkl_mtu) {
+			lkl_if_set_mtu(ifidx, sgxlkl_mtu);
+		}
+
 	}
 	res = lkl_if_up(1);
 	if (res < 0) {
@@ -611,6 +639,11 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	if (get_env_bool("SGXLKL_HOSTNET", 0))
 		sgxlkl_use_host_network = 1;
+
+	if (get_env_bool("SGXLKL_TAP_OFFLOAD", 0))
+		sgxlkl_use_tap_offloading = 1;
+
+	sgxlkl_mtu = get_env_bytes("SGXLKL_TAP_MTU", 0, INT_MAX);
 
 	if (get_env_bool("SGXLKL_MMAP_FILE_SUPPORT", 0))
 		sgxlkl_mmap_file_support = 1;
@@ -662,12 +695,15 @@ void __lkl_start_init(enclave_config_t* encl)
 	// Set environment variable to export SHMEM address to the application.
 	// Note: Due to how putenv() works, we need to allocate the environment
 	// variable on the heap and we must _not_ free it (man putenv, section NOTES)
+	char *shm_common = malloc(64);
 	char *shm_enc_to_out_addr = malloc(64);
 	char *shm_out_to_enc_addr = malloc(64);
 
 	// Set address of ring buffer to env, so that enclave process can access it directly
-	snprintf(shm_enc_to_out_addr, 64, "SGXLKL_SHMEM_ENC_TO_OUT=%p", encl->shm_enc_to_out_q);
-	snprintf(shm_out_to_enc_addr, 64, "SGXLKL_SHMEM_OUT_TO_ENC=%p", encl->shm_out_to_enc_q);
+	snprintf(shm_common, 64, "SGXLKL_SHMEM_COMMON=%p", encl->shm_common);
+	snprintf(shm_enc_to_out_addr, 64, "SGXLKL_SHMEM_ENC_TO_OUT=%p", encl->shm_enc_to_out);
+	snprintf(shm_out_to_enc_addr, 64, "SGXLKL_SHMEM_OUT_TO_ENC=%p", encl->shm_out_to_enc);
+	putenv(shm_common);
 	putenv(shm_enc_to_out_addr);
 	putenv(shm_out_to_enc_addr);
 

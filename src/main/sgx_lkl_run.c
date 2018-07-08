@@ -38,6 +38,8 @@
 #include "enclave_config.h"
 #include "load_elf.h"
 
+#include "lkl/linux/virtio_net.h"
+
 #ifdef SGXLKL_HW
 #include "enclave_signal.h"
 #endif /* SGXLKL_HW */
@@ -147,6 +149,8 @@ static void usage(char* prog) {
     printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls.\n");
     printf("\n## Network ##\n");
     printf("SGXLKL_TAP: Tap for LKL to use as a network interface.\n");
+    printf("SGXLKL_TAP_OFFLOAD: Set to 1 to enable partial checksum support, TSOv4, TSOv6, and mergeable receive buffers for the TAP interface.\n");
+    printf("SGXLKL_TAP_MTU: Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).\n");
     printf("SGXLKL_IP4: IPv4 address to assign to LKL (Default: %s).\n", DEFAULT_IPV4_ADDR);
     printf("SGXLKL_GW4: IPv4 gateway to assign to LKL (Default: %s).\n", DEFAULT_IPV4_GW);
     printf("SGXLKL_MASK4: CIDR mask for LKL to use (Default: %d).\n", DEFAULT_IPV4_MASK);
@@ -417,6 +421,13 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     struct ifreq ifr;
     strncpy(ifr.ifr_name, tapstr, IFNAMSIZ);
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+
+    int vnet_hdr_sz = 0;
+    if (parseenv("SGXLKL_TAP_OFFLOAD", 0, 1)) {
+        ifr.ifr_flags |= IFF_VNET_HDR;
+        vnet_hdr_sz = sizeof(struct lkl_virtio_net_hdr_v1);
+    }
+
     int fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
     if (fd == -1) {
         perror("[    SGX-LKL   ] Error: TUN network device unavailable, open(\"/dev/net/tun\") failed");
@@ -425,6 +436,23 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     if (ioctl(fd, TUNSETIFF, &ifr) == -1) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Tap device %s unavailable, ioctl(\"/dev/net/tun\"), TUNSETIFF) failed: %s\n", tapstr, strerror(errno));
         exit(3);
+    }
+
+    if (vnet_hdr_sz && ioctl(fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0) {
+        fprintf(stderr, "failed to TUNSETVNETHDRSZ: /dev/net/tun: %s\n", strerror(errno));
+        close(fd);
+        exit(1);
+    }
+
+    int offload_flags = 0;
+    if (parseenv("SGXLKL_TAP_OFFLOAD", 0, 1)) {
+        offload_flags = TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_CSUM;
+    }
+
+    if (ioctl(fd, TUNSETOFFLOAD, offload_flags) != 0) {
+        fprintf(stderr, "failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
+        close(fd);
+        exit(1);
     }
 
     // Read IPv4 addr if there is one
