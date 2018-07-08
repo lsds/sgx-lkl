@@ -55,6 +55,27 @@ The interface can be removed again by running the following command:
 sudo ip tuntap del dev sgxlkl_tap0 mode tap
 ```
 
+If you require your application to be reachable from/reach other hosts,
+additional `iptable` rules to forward corresponding traffic might be needed.
+For example, for redis which listens on port 6379 by default:
+
+
+```
+# Forward traffic from host's public interface port 60321 to SGX-LKL port 6379
+sudo iptables -t nat -I PREROUTING -p tcp -d `hostname -i` --dport 60321 -j DNAT --to-destination 10.0.1.1:6379
+sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
+
+sudo sysctl -w net.ipv4.ip_forward=1
+```
+
+If SGX-LKL should be allowed to access the internet or other networks,
+masquerading might be needed:
+
+```
+sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
+```
+
 ### SGX HW support
 
 SGX-LKL supports non-PIE binaries, but in order to do so needs to be able to
