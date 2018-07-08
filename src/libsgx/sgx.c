@@ -29,11 +29,11 @@
 
 #define BASE_ADDR_UNDEFINED -1
 
-#ifdef DEBUG
-#define D
-#else
+//#ifdef DEBUG
+//#define D
+//#else
 #define D for(;0;)
-#endif
+//#endif
 
 void cmd_sign(sigstruct_t* sigstruct, char *key);
 static uintptr_t get_symbol_address(char* elf, char* name);
@@ -92,6 +92,10 @@ typedef struct {
 static enclave_thread_t* threads;
 static int tcs_max  = 0;
 
+#if DEBUG
+unsigned long hw_exceptions = 0;
+#endif /* DEBUG */
+
 typedef int (*process_func_t)(uint64_t, uint64_t, uint64_t, const void* p);
 
 void* get_tcs_addr(int id) {
@@ -112,6 +116,9 @@ int get_tcs_num() {
 }
 
 static void exception() {
+#if DEBUG
+    __sync_fetch_and_add(&hw_exceptions, 1);
+#endif /* DEBUG */
     asm(
             ".byte 0x0f \n"
             ".byte 0x01 \n"

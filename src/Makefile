@@ -69,7 +69,7 @@ $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a: $(LIBSGX_OBJS)
 	ranlib $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
 
 $(LIBSGX_OBJS): $(LIB_SGX_LKL_BUILD)/libsgx/%.o: libsgx/%.c
-	$(CC) -ggdb3 -O3 -c --std=gnu11 -Ilibsgx/include $< -o $@
+	$(CC) -ggdb3 -O3 -c --std=gnu11 -Ilibsgx/include  $(CFLAGS_SGX) $< -o $@
 
 # sgx_lkl_sign ----
 

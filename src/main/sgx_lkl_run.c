@@ -72,6 +72,7 @@ static const char* const _enclave_exit_reasons[] = {
 
 static unsigned long _host_syscall_stats[MAX_SYSCALL_NUMBER];
 
+extern unsigned long hw_exceptions;
 #endif /* DEBUG */
 
 // One first empty block for bootloaders, and offset in second block
@@ -624,7 +625,9 @@ void print_host_syscall_stats() {
         }
     }
 
-    printf("Host syscalls: \n");
+    printf("\nHardware exceptions: %lu\n", hw_exceptions);
+
+    printf("\nHost syscalls: \n");
     printf("Calls      Syscall              No.\n");
     for (int i = 0; i < MAX_SYSCALL_NUMBER; i++) {
         if(_host_syscall_stats[i]) {
