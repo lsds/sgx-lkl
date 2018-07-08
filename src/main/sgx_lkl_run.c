@@ -789,26 +789,13 @@ int main(int argc, char *argv[], char *envp[]) {
     if (shm_file != 0 && strlen(shm_file) > 0 && shm_len > 0) {
         char shm_file_enc_to_out[strlen(shm_file)+4];
         char shm_file_out_to_enc[strlen(shm_file)+4];
+
         snprintf(shm_file_enc_to_out, strlen(shm_file)+4, "%s-eo", shm_file);
         snprintf(shm_file_out_to_enc, strlen(shm_file)+4, "%s-oe", shm_file);
 
-        // Create ringbuffer inside shared memory
-        encl.shm_enc_to_out_q = register_shm(shm_file, ring_buff_struct_size() * 2);
-        encl.shm_out_to_enc_q = (ring_buff_handle_t) (((char*)encl.shm_enc_to_out_q) + ring_buff_struct_size());
-
-        ring_buff_attr_t attr_enc_to_out, attr_out_to_enc;
-
-        attr_enc_to_out.buff = register_shm(shm_file_enc_to_out, shm_len);
-        attr_enc_to_out.size = shm_len;
-        if(ring_buff_create(&attr_enc_to_out, &encl.shm_enc_to_out_q) != RING_BUFF_ERR_OK) {
-            return -1;
-        }
-
-        attr_out_to_enc.buff = register_shm(shm_file_out_to_enc, shm_len);
-        attr_out_to_enc.size = shm_len;
-        if(ring_buff_create(&attr_out_to_enc, &encl.shm_out_to_enc_q) != RING_BUFF_ERR_OK) {
-            return -1;
-        }
+        encl.shm_common = register_shm(shm_file, shm_len);
+        encl.shm_enc_to_out = register_shm(shm_file_enc_to_out, shm_len);
+        encl.shm_out_to_enc = register_shm(shm_file_out_to_enc, shm_len);
     }
 
     /* get system call thread number */

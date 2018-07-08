@@ -80,8 +80,9 @@ typedef struct enclave_config {
     unsigned backoff_maxpause;
     long sysconf_nproc_conf;
     long sysconf_nproc_onln;
-    ring_buff_handle_t shm_enc_to_out_q;
-    ring_buff_handle_t shm_out_to_enc_q;
+    void *shm_common;
+    void *shm_enc_to_out;
+    void *shm_out_to_enc;
     int mode; /* SGXLKL_HW_MODE or SGXLKL_SIM_MODE */
     void *vvar;
 } enclave_config_t;
