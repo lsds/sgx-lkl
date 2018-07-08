@@ -71,6 +71,7 @@ static const char* const _enclave_exit_reasons[] = {
 };
 
 static unsigned long _host_syscall_stats[MAX_SYSCALL_NUMBER];
+static int _sigint_handling = 0;
 
 extern unsigned long hw_exceptions;
 #endif /* DEBUG */
@@ -617,6 +618,11 @@ void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf)
 
 #ifdef DEBUG
 void print_host_syscall_stats() {
+    // If we are exiting from the SIGINT handler, we already printed the
+    // syscall stats.
+    if (_sigint_handling)
+        return;
+
     printf("Enclave exits: \n");
     printf("Calls      Exit reason          No.\n");
     for (int i = 0; i < MAX_EXIT_REASON_NUMBER; i++) {
@@ -634,6 +640,23 @@ void print_host_syscall_stats() {
             printf("%10lu %20s %d\n", _host_syscall_stats[i],  (i < sizeof(_syscall_names)) ? _syscall_names[i] : "UNKNOWN", i);
         }
     }
+}
+
+void stats_sigint_handler(int signo) {
+        if (_sigint_handling)
+            return;
+
+        print_host_syscall_stats();
+
+        _sigint_handling = 1;
+        char response[2];
+        fprintf(stderr, "\nDo you want to quit (continue execution otherwise)? [y/n]");
+        scanf("%1s", &response[0]);
+        if (response[0] == 'y' || response[0] == 'Y') {
+            exit(0);
+        }
+
+        _sigint_handling = 0;
 }
 #endif /* DEBUG */
 
@@ -675,15 +698,22 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.mode = SGXLKL_SIM_MODE;
 #endif /* SGXLKL_HW */
 
-#ifdef DEBUG
-    if (parseenv("SGXLKL_PRINT_HOST_SYSCALL_STATS", 0, 1)) {
-        atexit(&print_host_syscall_stats);
-    }
-#endif /* DEBUG */
-
     const size_t pagesize = sysconf(_SC_PAGESIZE);
     ecs = sizeof(encl) + (pagesize - (sizeof(encl)%pagesize));
     memset(&sa, 0, sizeof(struct sigaction));
+
+#ifdef DEBUG
+    if (parseenv("SGXLKL_PRINT_HOST_SYSCALL_STATS", 0, 1)) {
+        atexit(&print_host_syscall_stats);
+        sa.sa_flags = SA_SIGINFO;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_handler = stats_sigint_handler;
+        if (sigaction(SIGINT, &sa, NULL) == -1) {
+            perror("Failed to register SIGINT handler\n");
+            return -1;
+        }
+    }
+#endif /* DEBUG */
 
     /* ignore sigpipe? */
     if (parseenv("SGXLKL_SIGPIPE", 0, ULONG_MAX) == 0) {
@@ -697,7 +727,7 @@ int main(int argc, char *argv[], char *envp[]) {
     sigemptyset(&sa.sa_mask);
     sa.sa_sigaction = sigill_handler;
     if (sigaction(SIGILL, &sa, NULL) == -1) {
-        perror("sigaction");
+        perror("Failed to register SIGILL handler\n");
         return -1;
     }
 
@@ -705,7 +735,7 @@ int main(int argc, char *argv[], char *envp[]) {
     sigemptyset(&sa.sa_mask);
     sa.sa_sigaction = sigsegv_handler;
     if (sigaction(SIGSEGV, &sa, NULL) == -1) {
-        perror("sigaction");
+        perror("Failed to register SIGSEGV handler\n");
         return -1;
     }
 #endif /* SGXLKL_HW */
