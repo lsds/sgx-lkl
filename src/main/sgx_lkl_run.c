@@ -428,20 +428,21 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     }
 
     // Read IPv4 addr if there is one
-    struct in_addr ip4 = { 0 };
     if (ip4str == NULL) {
         ip4str = DEFAULT_IPV4_ADDR;
-        if (gw4str == NULL)
-            gw4str = DEFAULT_IPV4_GW;
     }
+    struct in_addr ip4 = { 0 };
     if (inet_pton(AF_INET, ip4str, &ip4) != 1) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 address %s\n", ip4str);
         exit(4);
     }
 
     // Read IPv4 gateway if there is one
+    if (gw4str == NULL) {
+        gw4str = DEFAULT_IPV4_GW;
+    }
     struct in_addr gw4 = { 0 };
-    if (gw4str != NULL && strlen(gw4str)>0 &&
+    if (gw4str != NULL && strlen(gw4str) > 0 &&
             inet_pton(AF_INET, gw4str, &gw4) != 1) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 gateway %s\n", ip4str);
         exit(5);
