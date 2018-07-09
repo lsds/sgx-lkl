@@ -74,7 +74,7 @@ enum lthread_st {
     LT_ST_CANCELLED,    /* lthread has been cancelled */
     LT_ST_CANCELSTATE,    /* lthread cancellation has been disabled */
     LT_ST_CANCEL_DISABLED,     /* lthread cancellation has been deferred */
-    LT_ST_PINNED,	/* lthread pinned to ethread */
+    LT_ST_PINNED, /* lthread pinned to ethread */
 };
 
 struct lthread_tls {
@@ -178,7 +178,7 @@ typedef struct lthread *lthread_t;
 extern "C" {
 #endif
 
-    void    lthread_sched_global_init(size_t sleepspins, size_t sleeptime_ns);
+    void    lthread_sched_global_init(size_t sleepspins, size_t sleeptime_ns, size_t futex_wake_spins);
     int     lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *lthread_func, void *arg);
     void    lthread_cancel(struct lthread *lt);
     void    lthread_run(void);

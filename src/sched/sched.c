@@ -92,6 +92,7 @@ static size_t nsleepers = 0;
 
 static size_t sleepspins = 500000000;
 static size_t sleeptime_ns = 1600;
+static size_t futex_wake_spins = 500;
 static volatile int schedqueuelen = 0;
 
 #if DEBUG
@@ -183,9 +184,10 @@ void __schedqueue_inc() {
     a_inc(&schedqueuelen);
 }
 
-void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_) {
+void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_, size_t futex_wake_spins_) {
         sleepspins = sleepspins_;
         sleeptime_ns = sleeptime_ns_;
+        futex_wake_spins = futex_wake_spins_;
         RB_INIT(&_lthread_sleeping);
 }
 
@@ -194,6 +196,7 @@ void lthread_run(void) {
     struct lthread *lt = NULL;
     size_t s, pauses = sleepspins;
     struct timespec sleeptime = {0, sleeptime_ns};
+    int spins = futex_wake_spins;
     int dequeued;
     size_t i;
     struct mpmcq *retq = __return_queue;
@@ -222,17 +225,22 @@ void lthread_run(void) {
             }
         } while (dequeued);
 
-        futex_tick();
+        spins--;
+        if (spins <= 0) {
+                futex_tick();
+                spins = futex_wake_spins;
+        }
 
+        pauses--;
         if (pauses == 0) {
             pauses = sleepspins;
+            spins = 0;
 #ifndef SGXLKL_HW
             lthread_scall(SYS_nanosleep, (long)&sleeptime, (long)NULL, 0L);
 #else
             leave_enclave(SGXLKL_EXIT_SLEEP, sleeptime_ns);
 #endif
         }
-        pauses--;
     }
 }
 
