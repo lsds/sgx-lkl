@@ -53,6 +53,8 @@
 #define __merge(a, b) a(b)
 #define __stringify(X) __merge(str, X)
 
+extern char __sgxlklrun_text_segment_start;
+
 #if DEBUG
 
 #include "sgxlkl_host_debug.h"
@@ -102,7 +104,7 @@ extern void eresume(uint64_t tcs_id);
 char* init_sgx();
 int   get_tcs_num();
 void  enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
-uint64_t create_enclave_mem(char* p, char* einit_path);
+uint64_t create_enclave_mem(char* p, char* einit_path, int base_zero, void *base_zero_max);
 void     enclave_update_heap(void *p, size_t new_heap, char* key_path);
 
 typedef struct {
@@ -112,11 +114,19 @@ typedef struct {
 } args_t;
 
 __thread int my_tcs_id;
-#endif
+#else /* SGXLKL_HW */
+/* By default non-PIE Linux binaries expect their text segment to be mapped to
+ * address 0x400000. However, we use the first few pages of the enclave heap
+ * for the mmap bitmap containing metadata about mapped/unmapped pages.
+ * Therefore, we map the enclave at a lower address to ensure that 0x400000 is
+ * available when the executable is mapped.
+ */
+#define SIM_NON_PIE_ENCL_MMAP_OFFSET 0x200000
+#endif /* SGXLKL_HW */
 
 #define VERSION "1.0.0"
 #ifdef DEBUG
-#define DEBUG_INFO "DEBUG"
+#define DEBUG_INFO " DEBUG"
 #else
 #define DEBUG_INFO ""
 #endif /* DEBUG */
@@ -127,7 +137,7 @@ __thread int my_tcs_id;
 #endif /* SGXLKL_HW */
 
 static void version() {
-    printf("SGX-LKL version %s %s %s\n", VERSION, SGX_MODE, DEBUG_INFO);
+    printf("SGX-LKL version %s %s%s\n", VERSION, SGX_MODE, DEBUG_INFO);
 }
 
 static void usage(char* prog) {
@@ -139,6 +149,7 @@ static void usage(char* prog) {
     printf("## General ##\n");
     printf("SGXLKL_CMDLINE: Linux kernel command line.\n");
     printf("SGXLKL_SIGPIPE: Set to 1 to enable delivery of SIGPIPE.\n");
+    printf("SGXLKL_NON_PIE: Set to 1 when running applications not compiled as position-independent. In this case the size of the enclave is limited to the available space at the beginning of the address space.\n");
     printf("\n## Scheduling & Host system calls ##\n");
     printf("SGXLKL_ESLEEP: Sleep timeout in the scheduler (in ns).\n");
     printf("SGXLKL_ESPINS: Number of spins inside scheduler before sleeping begins.\n");
@@ -673,6 +684,7 @@ int main(int argc, char *argv[], char *envp[]) {
     int i, r, rtprio;
     void *_retval;
     int mmapflags = MAP_PRIVATE|MAP_ANONYMOUS;
+    int encl_mmap_flags;
     struct sigaction sa;
     pthread_attr_t eattr;
     cpu_set_t set;
@@ -778,8 +790,16 @@ int main(int argc, char *argv[], char *envp[]) {
 
 #ifndef SGXLKL_HW
     /* initialize heap and system call pages */
-    encl.heapsize = parseenv("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX);
-    encl.heap = mmap((void*) 0x400000, encl.heapsize, PROT_EXEC|PROT_READ|PROT_WRITE, mmapflags | MAP_FIXED, -1, 0);
+    encl.heapsize = parse_heap_env("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX);
+    encl_mmap_flags = mmapflags;
+    if (parseenv("SGXLKL_NON_PIE", 0, 1)) {
+        if ((char*) SIM_NON_PIE_ENCL_MMAP_OFFSET + encl.heapsize > &__sgxlklrun_text_segment_start) {
+            fprintf(stderr, "[    SGX-LKL   ] Error: SGXLKL_HEAP must be smaller than %lu bytes to not overlap with sgx-lkl-run when SGXLKL_NON_PIE is set to 1.\n", (size_t) (&__sgxlklrun_text_segment_start - SIM_NON_PIE_ENCL_MMAP_OFFSET));
+            return -1;
+        }
+        encl_mmap_flags |= MAP_FIXED;
+    }
+    encl.heap = mmap((void*) SIM_NON_PIE_ENCL_MMAP_OFFSET, encl.heapsize, PROT_EXEC|PROT_READ|PROT_WRITE, encl_mmap_flags, -1, 0);
     if (encl.heap == MAP_FAILED) {
         return -1;
     }
@@ -804,7 +824,7 @@ int main(int argc, char *argv[], char *envp[]) {
         }
         enclave_update_heap(enclave_start, parse_heap_env("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX), getenv("SGXLKL_KEY"));
     }
-    create_enclave_mem(enclave_start, 0);
+    create_enclave_mem(enclave_start, 0, parseenv("SGXLKL_NON_PIE", 0, 1), &__sgxlklrun_text_segment_start);
 #endif
     encl.maxsyscalls = parseenv("SGXLKL_MAX_USER_THREADS", 256, 100000);
 
@@ -824,7 +844,7 @@ int main(int argc, char *argv[], char *envp[]) {
         // Retrieve and save vDSO parameters
         /* TODO(lkurusa): getauxval returns the wrong address, probably a size issue */
         /* uint64_t vdso_base = (uint64_t) getauxval(AT_SYSINFO_EHDR); */
-        uint64_t vdso_base = 0;
+        char *vdso_base = 0;
         for (auxvp = envp; *auxvp; auxvp++);
         for (auxvp = auxvp + 1; *auxvp; auxvp += 2) {
             if (auxvp[0] == AT_SYSINFO_EHDR) {

@@ -46,12 +46,8 @@ int      add_page(uint64_t base, uint64_t offset, uint64_t prot, const void* pag
 /* High-level API */
 void     enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcs, int get_token);
 uint64_t create_enclave(char* path, char* einit_path);
-uint64_t create_enclave_mem(char* p, char* einit_path);
+uint64_t create_enclave_mem(char* p, char* einit_path, int base_zero, void *base_zero_max);
 void     enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
 int      get_free_tcs_id();
 int      get_tcs_num();
-
-/* Debug functions */
-uint64_t create_enclave_debug(char* path);
-int      enter_enclave_debug(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
 #endif

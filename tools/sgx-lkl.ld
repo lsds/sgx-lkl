@@ -6,7 +6,7 @@ SEARCH_DIR("=/usr/x86_64-pc-linux-gnu/lib64"); SEARCH_DIR("=/usr/lib64/binutils/
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  . = SEGMENT_START("text-segment", 0x40000000) + SIZEOF_HEADERS;
+  PROVIDE (__sgxlklrun_text_segment_start = SEGMENT_START("text-segment", 0x40000000)); . = SEGMENT_START("text-segment", 0x40000000) + SIZEOF_HEADERS;
   .note.gnu.build-id : { *(.note.gnu.build-id) }
   .hash           : { *(.hash) }
   .gnu.hash       : { *(.gnu.hash) }

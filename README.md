@@ -76,29 +76,6 @@ masquerading might be needed:
 sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
 ```
 
-### SGX HW support
-
-SGX-LKL supports non-PIE binaries, but in order to do so needs to be able to
-map to address 0x0 of the virtual address space. Non-PIE Linux binaries by
-default expect their `.text` segments to be mapped at address 0x400000. SGX
-requires the base address to be naturally aligned to the enclave size.
-Therefore, it is not possible to use 0x400000 as base address in cases where
-the enclave is larger than 4 MB (0x400000 bytes). Instead, the enclaves needs
-to be mapped to address 0x0 to adhere to the alignment requirement. By default,
-Linux does not allow fixed mappings at address 0x0. To permit this, run:
-
-```
-    sysctl -w vm.mmap_min_addr="0"
-```
-
-To change the system configuration permanently use:
-
-```
-    echo "vm.mmap_min_addr = 0" > /etc/sysctl.d/mmap_min_addr.conf
-    /etc/init.d/procps restart
-```
-
-
 Building SGX-LKL
 ----------------
 
@@ -216,13 +193,50 @@ build custom disk images.
 
 ### Cross-compiling applications for SGX-LKL
 
-For applications with a complex build process and/or a larger set of dependencies it is easiest to use the unmodified binaries from the Alpine Linux repository as described in the previous section. However, it is also possible to cross-compile applications on non-musl based Linux distributions (e.g. Ubuntu) and create a minimal disk image that only contains the application and its dependencies. An example of how to cross-compile a C application and create the corresponding disk image can be found in `apps/helloworld`. To build the disk image and execute the application with SGX-LKL run
+For applications with a complex build process and/or a larger set of
+dependencies it is easiest to use the unmodified binaries from the Alpine Linux
+repository as described in the previous section. However, it is also possible
+to cross-compile applications on non-musl based Linux distributions (e.g.
+Ubuntu) and create a minimal disk image that only contains the application and
+its dependencies. An example of how to cross-compile a C application and create
+the corresponding disk image can be found in `apps/helloworld`. To build the
+disk image and execute the application with SGX-LKL run
 
 ```
 make sgxlkl-disk.img
 ../../build/sgx-lkl-run sgxlkl-disk.img /app/helloworld
 ```
 
+### Support for non-PIE binaries
+
+SGX-LKL supports non-PIE binaries, but in order to do so needs to be able to
+map to address 0x0 of the virtual address space. Non-PIE Linux binaries by
+default expect their `.text` segments to be mapped at address 0x400000. SGX
+requires the base address to be naturally aligned to the enclave size.
+Therefore, it is not possible to use 0x400000 as base address in cases where
+the enclave is larger than 4 MB (0x400000 bytes). Instead, the enclaves needs
+to be mapped to address 0x0 to adhere to the alignment requirement. By default,
+Linux does not allow fixed mappings at address 0x0. To permit this, run:
+
+```
+    sysctl -w vm.mmap_min_addr="0"
+```
+
+To change the system configuration permanently use:
+
+```
+    echo "vm.mmap_min_addr = 0" > /etc/sysctl.d/mmap_min_addr.conf
+    /etc/init.d/procps restart
+```
+
+By default, SGX-LKL maps the enclave at an arbitrary free space in memory. To
+run a non-PIE binary and map the enclave at the beginning of the address space,
+use `SGXLKL_NON_PIE=1`, e.g.:
+
+```
+    cd apps/helloworld
+    SGXLKL_NON_PIE=1 ../../build/sgx-lkl-run sgxlkl-disk.img app/helloworld
+```
 
 ### Configuring SGX-LKL
 
