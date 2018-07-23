@@ -719,7 +719,7 @@ typedef void (*lthread_destructor_func)(void*);
 
 static unsigned global_count = 0;
 
-int pthread_key_create(pthread_key_t *k, void (*destructor)(void*)) {
+int lthread_key_create(pthread_key_t *k, void (*destructor)(void*)) {
     struct lthread_tls_destructors *d;
     d = calloc(1, sizeof(struct lthread_tls_destructors));
     if (d == NULL) {
@@ -732,7 +732,7 @@ int pthread_key_create(pthread_key_t *k, void (*destructor)(void*)) {
     return 0;
 }
 
-int pthread_key_delete(pthread_key_t key) {
+int lthread_key_delete(pthread_key_t key) {
     struct lthread_tls_destructors *d, *d_tmp;
     LIST_FOREACH_SAFE (d, &lthread_destructors, tlsdestr_next, d_tmp) {
         if (d->key == key) {
