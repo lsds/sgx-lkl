@@ -713,8 +713,6 @@ void __lkl_start_init(enclave_config_t* encl)
 
 	// Set hostname (provided through SGXLKL_HOSTNAME)
 	sethostname(encl->hostname, strlen(encl->hostname));
-
-    SGXLKL_VERBOSE("Completed __lkl_start_init\n");
 }
 
 void __lkl_exit()

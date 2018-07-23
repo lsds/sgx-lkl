@@ -927,8 +927,8 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
 
     __gdb_hook_starter_ready(&encl);
-    encl.argc = argc - 1;
-    encl.argv = (argv + 1);
+    encl.argc = argc - 2;
+    encl.argv = (argv + 2);
 
     // Find aux vector (after envp vector)
     for(auxvp = envp; *auxvp; auxvp++);
