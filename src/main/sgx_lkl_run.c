@@ -642,7 +642,10 @@ void print_host_syscall_stats() {
         }
     }
 
-    printf("\nHardware exceptions: %lu\n", hw_exceptions);
+// Commented out for now as any additional computation in the AEX handler seems
+// to lead to deadlocks while running under gdb in HW mode and potentially
+// under other circumstances as well.
+//    printf("\nHardware exceptions: %lu\n", hw_exceptions);
 
     printf("\nHost syscalls: \n");
     printf("Calls      Syscall              No.\n");

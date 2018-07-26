@@ -117,7 +117,10 @@ int get_tcs_num() {
 
 static void exception() {
 #if DEBUG
-    __sync_fetch_and_add(&hw_exceptions, 1);
+// Commented out for now as any additional computation in this function seems
+// to lead to deadlocks while running under gdb in HW mode and potentially
+// under other circumstances as well.
+//    __sync_fetch_and_add(&hw_exceptions, 1);
 #endif /* DEBUG */
     asm(
             ".byte 0x0f \n"
