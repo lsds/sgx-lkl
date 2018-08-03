@@ -420,6 +420,14 @@ static void *register_shm(char* path, size_t len) {
 
 static void register_net(enclave_config_t* encl, const char* tapstr, const char* ip4str,
         const char* mask4str, const char* gw4str, const char* hostname) {
+    // Set hostname
+    if(hostname) {
+        strncpy(encl->hostname, hostname, sizeof(encl->hostname));
+    } else {
+        strncpy(encl->hostname, DEFAULT_HOSTNAME, sizeof(encl->hostname));
+    }
+    encl->hostname[sizeof(encl->hostname) - 1] = '\0';
+
     if (encl->net_fd != 0) {
         fprintf(stderr, "Error: multiple network interfaces not supported yet\n");
         exit(1);
@@ -495,14 +503,6 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
         fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 mask %s\n", mask4str);
         exit(6);
     }
-
-    // Read hostname if there is one
-    if(hostname) {
-        strncpy(encl->hostname, hostname, sizeof(encl->hostname));
-    } else {
-        strncpy(encl->hostname, DEFAULT_HOSTNAME, sizeof(encl->hostname));
-    }
-    encl->hostname[sizeof(encl->hostname) - 1] = '\0';
 
     encl->net_fd = fd;
     encl->net_ip4 = ip4;
