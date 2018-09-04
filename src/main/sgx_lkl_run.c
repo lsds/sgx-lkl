@@ -349,18 +349,17 @@ static int is_disk_encrypted(int fd) {
     return !(magic[0] == 0x53 && magic[1] == 0xEF);
 }
 
-static void register_hd(enclave_config_t* encl, char* path) {
+static void register_hd(enclave_config_t* encl, char* path, int readonly) {
     if (encl->disk_fd != 0) {
-        fprintf(stderr, "Error: multiple disks not supported yet\n");
+        fprintf(stderr, "Error: Multiple disks not supported yet\n");
         exit(1);
     }
     if (path == NULL || strlen(path) == 0)
         return;
 
-    int fd = open(path, encl->disk_ro ? O_RDONLY : O_RDWR);
+    int fd = open(path, readonly ? O_RDONLY : O_RDWR);
     if (fd == -1) {
-        fprintf(stderr, "Error: unable to open disk file %s\n", path);
-        perror("open()");
+        fprintf(stderr, "Unable to open disk file %s for %s access: %s\n", path, readonly ? "read" : "read/write", strerror(errno));
         exit(2);
     }
     int flags = fcntl(fd, F_GETFL);
@@ -374,6 +373,7 @@ static void register_hd(enclave_config_t* encl, char* path) {
         exit(4);
     }
     encl->disk_fd = fd;
+    encl->disk_ro = readonly;
     encl->disk_enc = is_disk_encrypted(fd);
 }
 
@@ -861,7 +861,8 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Get network and hard-drive parameters
-    register_hd(&encl, hd);
+    register_hd(&encl, hd, parseenv("SGXLKL_HD_RO", 0, 1));
+
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
 
     set_sysconf_params(&encl);
