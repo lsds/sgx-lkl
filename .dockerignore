@@ -1,0 +1,10 @@
+**
+!/build/**
+!/apps/jvm/helloworld-java/**
+!/tools/**
+**/*.o
+**/*.h
+**/*.c
+**/*.a
+**/*.lo
+**/*.cmd

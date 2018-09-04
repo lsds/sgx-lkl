@@ -76,8 +76,8 @@ masquerading might be needed:
 sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
 ```
 
-Building SGX-LKL
-----------------
+Building SGX-LKL manually
+-------------------------
 
 ### Hardware mode
 
@@ -85,6 +85,7 @@ To build sgx-lkl in hardware mode run:
 
 ```
     make
+    make sgx-lkl-sign    # this signs the SGX-LKL enclave library as a debug enclave
 ```
 
 ### Simulation mode
@@ -107,6 +108,32 @@ make DEBUG=true
 make sim DEBUG=true
 ```
 
+
+Building SGX-LKL using Docker
+-----------------------------
+
+Building SGX-LKL using Docker requires at least Docker version 17 to include 
+multi-stage build support. There is a script `sgx-lkl-docker.sh` to build 
+SGX-LKL inside a Docker container independently of the host environment:
+
+```
+./sgx-lkl-docker.sh build -s   # this builds SGX-LKL in sim mode
+```
+
+After SGX-LKL has been built, it is possible to deploy the container with the 
+Java HelloWorld example on the local (or a remote) machine:
+
+```
+./sgx-lkl-docker.sh deploy-jvm-helloworld -s
+```
+
+(Deployment on a remote Docker machine requires `docker-machine` to be set up.)
+
+A list of options can be obtained with:
+
+```
+./sgx-lkl-docker.sh -h
+```
 
 Running applications with SGX-LKL
 ---------------------------------
