@@ -292,7 +292,11 @@ uint64_t ecreate(size_t npages, int ssaSize, const void* sigstruct, void* basead
     parms.src = (__u64)&secs;
     int ret = ioctl(sgxfd, SGX_IOC_ENCLAVE_CREATE, &parms);
     if (ret) {
-        perror("Error while creating enclave");
+        if (errno == EINVAL) {
+        fprintf(stderr, "Invalid argument error while creating enclave. Please ensure the enclave library has been signed, e.g. via 'make sgx-lkl-sign'.\n");
+        } else {
+            perror("Error while creating enclave");
+        }
         exit(EXIT_FAILURE);
     }
     esize = secs.size;
