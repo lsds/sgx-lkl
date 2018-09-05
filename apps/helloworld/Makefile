@@ -20,7 +20,7 @@ clean:
 	rm -f $(DISK) $(PROG)
 
 $(PROG): $(PROG_C)
-	../../build/host-musl/bin/musl-gcc -o $@ $(PROG_C)
+	../../build/host-musl/bin/musl-gcc -fno-pie -no-pie -o $@ $(PROG_C)
 
 $(PROG_PIE): $(PROG_C)
 	../../build/host-musl/bin/musl-gcc -fPIE -pie -o $@ $(PROG_C)

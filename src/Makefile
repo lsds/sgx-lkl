@@ -80,7 +80,7 @@ $(LIB_SGX_LKL_BUILD)/sign/%.o: sign/%.c
 	$(CC) -ggdb3 -O3 -c --std=gnu11 -Ilibsgx/include $< -o $@
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(addprefix $(LIB_SGX_LKL_BUILD)/sign/,$(SIGN_OBJS)) $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
-	$(CC) -ggdb3 -O3 --std=gnu11 -Ilibsgx/include $^ -o $@
+	$(CC) -ggdb3 -O3 --std=gnu11 -fno-pie -no-pie -Ilibsgx/include $^ -o $@
 
 # sgx-lkl-run ----
 
