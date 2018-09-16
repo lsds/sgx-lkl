@@ -160,6 +160,8 @@ static void usage(char* prog) {
     printf("SGXLKL_SSPINS: Number of spins inside host syscall threads before sleeping begins.\n");
     printf("SGXLKL_SSLEEP: Sleep timeout in the syscall threads (in ns).\n");
     printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls.\n");
+    printf("SGXLKL_ETHREADS_AFF: Specifies the CPU core affinity for enclave threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
+    printf("SGXLKL_STHREADS_AFF: Specifies the CPU core affinity for system call threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
     printf("\n## Network ##\n");
     printf("SGXLKL_TAP: Tap for LKL to use as a network interface.\n");
     printf("SGXLKL_TAP_OFFLOAD: Set to 1 to enable partial checksum support, TSOv4, TSOv6, and mergeable receive buffers for the TAP interface.\n");
@@ -519,6 +521,63 @@ void set_sysconf_params(enclave_config_t *conf) {
 
 }
 
+/* Parses the string provided as config for CPU affinity specifications. The
+ * specification must consist of a comma-separated list of core IDs. It can
+ * contain ranges. For example, "0-2,4" is a valid specification.
+ * This function will allocate an array of all specified core IDs and stores
+ * it's address at **cores. The number of valid array entries is stored at
+ * cores_len.
+ *
+ * The memory allocated for the array should be free'd by the caller.
+ */
+void parse_cpu_affinity_params(char *config, int **cores, size_t *cores_len) {
+    *cores = NULL;
+    *cores_len = 0;
+
+    if (!config || !strlen(config)) {
+        return;
+    }
+
+    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
+    // For simplicitly we allocate an array of size nproc to hold all cores
+    // that are to be used. When the affinity is set to use a subset of cores,
+    // *cores_len will reflect this.
+    *cores = malloc(sizeof(int)*nproc);
+
+    char *curr_ptr = config;
+    long val = 0, range_start = -1;
+    while (*curr_ptr && *cores_len < nproc) {
+        switch (*curr_ptr) {
+        case '0' ... '9': {
+            // strtol will advance curr_ptr to the next non-digit character.
+            val = strtol(curr_ptr, &curr_ptr, 10);
+            if (val < 0 || val >= nproc) {
+                fprintf(stderr, "[    SGX-LKL   ] Invalid CPU affinity range: %s, value %lu is larger or equal than the number of available cores (%lu).\n", config, val, nproc);
+                return;
+            } else if (range_start < 0) {
+                (*cores)[(*cores_len)++] = (int) val;
+            } else { // Range (range_start has already been added)
+                for (; val > range_start && *cores_len < nproc; val--) {
+                    (*cores)[(*cores_len)++] = (int) val;
+                }
+                range_start = -1;
+            }
+            break;
+        }
+        case ',':
+            curr_ptr++;
+            break;
+        case '-':
+            range_start = val;
+            curr_ptr++;
+            break;
+        default:
+            fprintf(stderr, "[    SGX-LKL   ] Invalid CPU affinity range: %s\n", config);
+            return;
+        }
+    }
+}
+
 #ifdef SGXLKL_HW
 void do_cpuid(unsigned int* reg) {
     __asm__ __volatile__ ("cpuid":\
@@ -693,7 +752,8 @@ int main(int argc, char *argv[], char *envp[]) {
     cpu_set_t set;
     struct sched_param schparam = {0};
     schparam.sched_priority = 10;
-    int sfd = -1;
+    int *ethreads_cores, *sthreads_cores;
+    size_t ethreads_cores_len, sthreads_cores_len;
 
     if (argc >= 2 && (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))) {
         version();
@@ -911,9 +971,20 @@ int main(int argc, char *argv[], char *envp[]) {
         return -1;
     }
 
+    parse_cpu_affinity_params(getenv("SGXLKL_STHREADS_AFFINITY"), &sthreads_cores, &sthreads_cores_len);
+    parse_cpu_affinity_params(getenv("SGXLKL_ETHREADS_AFFINITY"), &ethreads_cores, &ethreads_cores_len);
+
     /* Launch system call threads */
     for (i = 0; i < ntsyscall; i++) {
-        pthread_create(&ts[i], NULL, host_syscall_thread, &encl);
+        pthread_attr_init(&eattr);
+        CPU_ZERO(&set);
+        if (sthreads_cores_len) {
+            CPU_SET(sthreads_cores[i % sthreads_cores_len] , &set);
+        } else {
+            CPU_SET(i%(nproc - 1), &set);
+        }
+        pthread_attr_setaffinity_np(&eattr, sizeof(set), &set);
+        pthread_create(&ts[i], &eattr, host_syscall_thread, &encl);
         pthread_setname_np(ts[i], "HOST_SYSCALL");
     }
 
@@ -953,11 +1024,14 @@ int main(int argc, char *argv[], char *envp[]) {
 #endif
     for (i = 0; i < ntenclave; i++) {
         pthread_attr_init(&eattr);
-#ifdef __USE_GNU
         CPU_ZERO(&set);
-        CPU_SET(i%(nproc - 1), &set);
+        if (ethreads_cores_len) {
+            CPU_SET(ethreads_cores[i % ethreads_cores_len] , &set);
+        } else {
+            CPU_SET(i%(nproc - 1), &set);
+        }
         pthread_attr_setaffinity_np(&eattr, sizeof(set), &set);
-#endif /* __USE_GNU */
+
         if (rtprio) {
             pthread_attr_setschedpolicy(&eattr, SCHED_FIFO);
             pthread_attr_setschedparam(&eattr, &schparam);
