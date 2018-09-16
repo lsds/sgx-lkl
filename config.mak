@@ -30,7 +30,7 @@ LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/
 # Location of enclave debug key (used for signing the enclave)
 ENCLAVE_DEBUG_KEY=${BUILD_DIR}/config/enclave_debug.key
 
-MY_CFLAGS ?= -std=c11 -Wall -Wextra -Werror -isystem ${SGX_LKL_MUSL}/src/internal/
+MY_CFLAGS ?= -std=c11 -Wall -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y
 MY_LDFLAGS ?=
 
 DEBUG ?= false

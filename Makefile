@@ -42,13 +42,15 @@ lkl ${LIBLKL}: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} src/lkl/override/defco
 	# Disable loading of kernel symbols for debugging/panics
 	grep -q -F 'CONFIG_KALLSYMS=n' ${LKL}/arch/lkl/defconfig || echo 'CONFIG_KALLSYMS=n' >> ${LKL}/arch/lkl/defconfig
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
-		ALL_PROGRAMS="" ALL_LIBRARIES=${LKL}/tools/lkl/liblkl.a libraries_install
+		${LKL}/tools/lkl/liblkl.a
+	mkdir -p ${LKL_BUILD}/lib
+	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
-		headers_install
-	#TODO: apply before makes, and to the entire ${LKL} folder?
+		TARGETS="" headers_install
 	# Bugfix, prefix symbol that collides with musl's one
 	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct ipc_perm/struct lkl_ipc_perm/' {} \;
-	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; # struct lkl_iovec already exists
+	# Bugfix, lkl_host.h redefines struct iovec in older versions of LKL.
+	grep "CONFIG_AUTO_LKL_POSIX_HOST" ${LKL_BUILD}/include/lkl_host.h > /dev/null && find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; || true # struct lkl_iovec already exists
 	+${MAKE} headers_install -C ${LKL} ARCH=lkl INSTALL_HDR_PATH=${LKL_BUILD}/
 
 tools: ${TOOLS_OBJ}

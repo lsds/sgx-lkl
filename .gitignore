@@ -4,7 +4,6 @@ results/
 tests/60-iozone/*.o
 tests/60-iozone/iozone
 *.csv
-*.json
 *.img
 *.tmp
 *.tar.gz
