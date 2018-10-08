@@ -349,7 +349,7 @@ static inline void log_host_syscall(long n, long res, long arg1, long arg2, long
     if (res < 0)
         snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", strerror(res));
 
-    printf("[ HOST SYSCALL ] [tid=???] %s\t%ld\t(%ld, %ld, %ld, %ld, %ld, %ld) = %ld%s\n", name, n,
+    printf("[ HOST SYSCALL ] [tid=???] %s\t%ld\t(%lx, %lx, %lx, %lx, %lx, %lx) = %lx%s\n", name, n,
             arg1, arg2, arg3, arg4, arg5, arg6, res, errmsg);
 }
 
