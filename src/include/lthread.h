@@ -154,6 +154,11 @@ struct lthread {
     } robust_list;
 };
 
+struct lthread_queue {
+    struct lthread *lt;
+    struct lthread_queue *next;
+};
+
 RB_HEAD(lthread_rb_sleep, lthread);
 
 LIST_HEAD(lthread_l, lthread);

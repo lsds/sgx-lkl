@@ -97,6 +97,8 @@ static volatile int schedqueuelen = 0;
 
 #if DEBUG
 int thread_count = 1;
+struct lthread_queue *__active_lthreads = NULL;
+struct lthread_queue *__active_lthreads_tail = NULL;
 #endif
 
 int _switch(struct cpu_ctx *new_ctx, struct cpu_ctx *cur_ctx);
@@ -211,7 +213,6 @@ void lthread_run(void) {
             if (mpmc_dequeue(retq, (void *)&s)) {
                 dequeued++;
                 lt = slottolthread(s);
-                //if (lt == 0) {a_crash();}
                 pauses = sleepspins;
                 SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (wakeup sleeping thread) \n", lt->tid);
                 _lthread_resume(lt);
@@ -227,8 +228,8 @@ void lthread_run(void) {
 
         spins--;
         if (spins <= 0) {
-                futex_tick();
-                spins = futex_wake_spins;
+            futex_tick();
+            spins = futex_wake_spins;
         }
 
         pauses--;
@@ -365,6 +366,32 @@ void _lthread_free(struct lthread *lt) {
     if (a_fetch_add(&libc.threads_minus_1, -1) == 0) {
         libc.threads_minus_1 = 0;
     }
+
+#if DEBUG
+    if (__active_lthreads != NULL && __active_lthreads->lt == lt) {
+        if (__active_lthreads_tail == __active_lthreads) {
+            __active_lthreads_tail == NULL;
+        }
+        struct lthread_queue *new_head = __active_lthreads->next;
+        free (__active_lthreads);
+        __active_lthreads = new_head;
+    } else {
+        struct lthread_queue *ltq = __active_lthreads;
+        while (ltq != NULL) {
+            if (ltq->next != NULL && ltq->next->lt == lt) {
+                if (ltq->next == __active_lthreads_tail) {
+                    __active_lthreads_tail = ltq;
+                }
+                struct lthread_queue *next_ltq = ltq->next->next;
+                free(ltq->next);
+                ltq->next = next_ltq;
+                break;
+            }
+            ltq = ltq->next;
+        }
+    }
+#endif /* DEBUG */
+
     free(lt);
     lt = 0;
 }
@@ -418,6 +445,7 @@ int _lthread_resume(struct lthread *lt) {
     if (lt->yield_cb) {
         lt->yield_cb(lt->yield_cbarg);
     }
+
     return (0);
 }
 
@@ -535,6 +563,18 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
     }
 
     SGXLKL_TRACE_THREAD("[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+
+#if DEBUG
+    struct lthread_queue *new_ltq = (struct lthread_queue*) malloc(sizeof(struct lthread_queue));
+    new_ltq->lt = lt;
+    new_ltq->next = NULL;
+    if (__active_lthreads_tail) {
+        __active_lthreads_tail->next = new_ltq;
+    } else {
+        __active_lthreads = new_ltq;
+    }
+    __active_lthreads_tail = new_ltq;
+#endif /* DEBUG */
 
     __scheduler_enqueue(lt);
     return 0;

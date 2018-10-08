@@ -180,6 +180,39 @@ class LthreadStats(gdb.Command):
         return enqueue_pos - dequeue_pos
 
 
+class LogAllLts(gdb.Command):
+    """
+        Do a backtrace of all active lthreads.
+        Param: Depth of backtrace (optional)
+    """
+    def __init__(self):
+        super(LogAllLts, self).__init__("bt-lts", gdb.COMMAND_USER)
+
+    def invoke(self, arg, from_tty):
+        argv = gdb.string_to_argv(arg)
+        if argv and len(argv) > 0:
+            btdepth = argv[0]
+        else:
+            btdepth = ""
+
+        ltq = gdb.execute('p/x __active_lthreads', to_string=True).split('=')[1].strip()
+
+        curr_time = int(time.mktime(datetime.datetime.now().timetuple()))
+        no = 1
+        while(int(ltq, 16) != 0):
+            lt = gdb.execute('p/x ((struct lthread_queue*)%s)->lt'%ltq, to_string=True).split('=')[1].strip()
+            lt_tid = gdb.execute('p/d ((struct lthread_queue*)%s)->lt->tid'%ltq, to_string=True).split('=')[1].strip()
+            lt_name = gdb.execute('p/s ((struct lthread_queue*)%s)->lt->funcname'%ltq, to_string=True).split('=')[1].strip().split(',')[0]
+            gdb.write('#%3d Lthread: TID: %3s, Addr: %s, Name: %s\n'%(no, lt_tid, lt, lt_name))
+            gdb.execute('lthread-bt %s %s'%(lt, btdepth))
+            gdb.write('\n')
+            gdb.flush()
+
+            ltq = gdb.execute('p/x ((struct lthread_queue*)%s)->next'%ltq, to_string=True).split('=')[1].strip()
+            no = no + 1
+
+        return False
+
 class LogFxWaiters(gdb.Command):
     """
         Do a backtrace of all lthreads waiting on a futex
@@ -332,6 +365,7 @@ if __name__ == '__main__':
     StarterExecBreakpoint()
     LthreadBacktrace()
     LthreadStats()
+    LogAllLts()
     LogFxWaiters()
     LogSchedQueueTids()
     LogSyscallBacktraces()
