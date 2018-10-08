@@ -160,8 +160,8 @@ static void usage(char* prog) {
     printf("SGXLKL_SSPINS: Number of spins inside host syscall threads before sleeping begins.\n");
     printf("SGXLKL_SSLEEP: Sleep timeout in the syscall threads (in ns).\n");
     printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls.\n");
-    printf("SGXLKL_ETHREADS_AFF: Specifies the CPU core affinity for enclave threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
-    printf("SGXLKL_STHREADS_AFF: Specifies the CPU core affinity for system call threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
+    printf("SGXLKL_ETHREADS_AFFINITY: Specifies the CPU core affinity for enclave threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
+    printf("SGXLKL_STHREADS_AFFINITY: Specifies the CPU core affinity for system call threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
     printf("\n## Network ##\n");
     printf("SGXLKL_TAP: Tap for LKL to use as a network interface.\n");
     printf("SGXLKL_TAP_OFFLOAD: Set to 1 to enable partial checksum support, TSOv4, TSOv6, and mergeable receive buffers for the TAP interface.\n");
@@ -981,7 +981,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (sthreads_cores_len) {
             CPU_SET(sthreads_cores[i % sthreads_cores_len] , &set);
         } else {
-            CPU_SET(i%(nproc - 1), &set);
+            CPU_SET(i%nproc, &set);
         }
         pthread_attr_setaffinity_np(&eattr, sizeof(set), &set);
         pthread_create(&ts[i], &eattr, host_syscall_thread, &encl);
@@ -1028,7 +1028,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (ethreads_cores_len) {
             CPU_SET(ethreads_cores[i % ethreads_cores_len] , &set);
         } else {
-            CPU_SET(i%(nproc - 1), &set);
+            CPU_SET(i%nproc, &set);
         }
         pthread_attr_setaffinity_np(&eattr, sizeof(set), &set);
 
