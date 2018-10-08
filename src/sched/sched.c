@@ -529,7 +529,11 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
     lt->robust_list.head = &lt->robust_list.head;
     a_inc(&libc.threads_minus_1);
 
-    // thread_printf("[MUSL-THREAD ] thread create: TOTAL: %zuKB, USED: %zuKB, FREE: %zuKB, ALLOCATED: %zuKB%s%s\n", total/1024, used/1024, free/1024, requested/1024, mfixed, rv);
+    // Inherit name from parent
+    if (lthread_self() && lthread_self()->funcname) {
+        lthread_set_funcname(lt, lthread_self()->funcname);
+    }
+
     SGXLKL_TRACE_THREAD("[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
 
     __scheduler_enqueue(lt);
