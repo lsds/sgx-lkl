@@ -49,6 +49,8 @@ int sgxlkl_use_tap_offloading = 0;
 int sgxlkl_mmap_file_support = 0;
 int sgxlkl_mtu = 0;
 
+struct lkl_disk root_disk;
+
 #ifndef NO_CRYPTSETUP
 static const char* lkl_encryption_key = "FOO";
 #endif
@@ -101,11 +103,10 @@ static unsigned long long get_env_bytes(const char *name, unsigned long long def
 static int lkl_prestart_disks(enclave_config_t* encl)
 {
 	int fd = encl->disk_fd;
-	struct lkl_disk disk;
         /* Set ops to NULL to use platform default ops */
-	disk.ops = NULL;
-	disk.fd = encl->disk_fd;
-	int disk_dev_id = lkl_disk_add(&disk);
+	root_disk.ops = NULL;
+	root_disk.fd = encl->disk_fd;
+	int disk_dev_id = lkl_disk_add(&root_disk);
 	if (disk_dev_id < 0) {
 		fprintf(stderr, "Error: unable to register disk, %s\n",
 			lkl_strerror(disk_dev_id));
@@ -614,12 +615,6 @@ void __lkl_start_init(enclave_config_t* encl)
 	lkl_host_ops = sgxlkl_host_ops;
 	lkl_dev_blk_ops = sgxlkl_dev_plaintext_blk_ops;
 
-	// LKL setup and boot can be disabled by env during tests
-	// (in which case no LKL syscall must be thrown by Musl!)
-	int lkl_needed = !get_env_bool("SGXLKL_NOLKL", 0);
-	if (!lkl_needed)
-		return;
-
 	if (get_env_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
 		sgxlkl_trace_lkl_syscall = 1;
 
@@ -717,14 +712,17 @@ void __lkl_start_init(enclave_config_t* encl)
 
 void __lkl_exit()
 {
-	int lkl_booted = !get_env_bool("SGXLKL_NOLKL", 0);
-	int lkl_halt = !get_env_bool("SGXLKL_NOLKLHALT", 0);
-	if (lkl_booted && lkl_halt) {
-		long res = lkl_sys_halt();
-		if (res < 0) {
-			fprintf(stderr, "Error: LKL halt, %s\n",
-				lkl_strerror(res));
-			exit(res);
-		}
+	long res = lkl_disk_remove(root_disk);
+	if (res < 0) {
+		fprintf(stderr, "Error: LKL remove disk, %s\n",
+			lkl_strerror(res));
+		exit(res);
+	}
+
+	res = lkl_sys_halt();
+	if (res < 0) {
+		fprintf(stderr, "Error: LKL halt, %s\n",
+			lkl_strerror(res));
+		exit(res);
 	}
 }
