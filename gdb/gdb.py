@@ -64,6 +64,7 @@ class StarterExecBreakpoint(gdb.Breakpoint):
             gdb.execute('set __gdb_load_debug_symbols_alive = 1')
             self.inited = True
             LoadLibraryBreakpoint()
+            LoadLibraryFromFileBreakpoint()
 
         return False
 
@@ -95,6 +96,24 @@ class LoadLibraryBreakpoint(gdb.Breakpoint):
 
         atexit.register(os.unlink, fn)
         return False
+
+
+class LoadLibraryFromFileBreakpoint(gdb.Breakpoint):
+    LDSO_LOAD_LIBRARY_FROM_FILE = '__gdb_hook_load_debug_symbols_from_file'
+
+    def __init__(self):
+        super(LoadLibraryFromFileBreakpoint, self).__init__(self.LDSO_LOAD_LIBRARY_FROM_FILE, internal=True)
+
+    def stop(self):
+        uintptr_t = gdb.lookup_type('uintptr_t')
+        libpath = gdb.execute('printf "%s", libpath', to_string=True)
+        base_addr = int(gdb.parse_and_eval('dso->base').cast(uintptr_t))
+
+        gdb.write('Loading symbols at base 0x%x...\n' % (int(base_addr)))
+        add_symbol_file(libpath, int(base_addr))
+
+        return False
+
 
 class LthreadBacktrace(gdb.Command):
     """
@@ -133,6 +152,7 @@ class LthreadBacktrace(gdb.Command):
         gdb.execute('set $rip = %s'%old_ip)
 
         return False
+
 
 class LthreadStats(gdb.Command):
     """
@@ -212,6 +232,7 @@ class LogAllLts(gdb.Command):
 
         return False
 
+
 class LogFxWaiters(gdb.Command):
     """
         Do a backtrace of all lthreads waiting on a futex
@@ -242,6 +263,7 @@ class LogFxWaiters(gdb.Command):
 
         return False
 
+
 class LogSchedQueueTids(gdb.Command):
     """
         Print thread id of each lthread in scheduler queue.
@@ -265,6 +287,7 @@ class LogSchedQueueTids(gdb.Command):
 
         gdb.write('\nScheduler queue lthreads:\n'+tw.fill(str(tids))+'\n')
         gdb.flush()
+
 
 class LogSyscallBacktraces(gdb.Command):
     """
@@ -291,7 +314,7 @@ class LogSyscallBacktraces(gdb.Command):
     def print_bts_for_queue(self, queue, btdepth):
         enqueue_pos = int(gdb.execute('p %s->enqueue_pos'%queue, to_string=True).split('=')[1].strip())
         dequeue_pos = int(gdb.execute('p %s->dequeue_pos'%queue, to_string=True).split('=')[1].strip())
-        if (enqueue_pos < dequeue_pos): raise Exception("Logic error: %d < %d"%(enqueue_pos, dequeue_pos)) 
+        if (enqueue_pos < dequeue_pos): raise Exception("Logic error: %d < %d"%(enqueue_pos, dequeue_pos))
 
         buffer_mask = int(gdb.execute('p %s->buffer_mask'%queue, to_string=True).split('=')[1].strip())
 
@@ -306,6 +329,7 @@ class LogSyscallBacktraces(gdb.Command):
                 gdb.write('Queue entry without associated lthread...\n')
 
         gdb.flush()
+
 
 class LogSyscallTids(gdb.Command):
     """
