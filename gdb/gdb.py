@@ -197,7 +197,6 @@ class LogAllLts(gdb.Command):
 
         ltq = gdb.execute('p/x __active_lthreads', to_string=True).split('=')[1].strip()
 
-        curr_time = int(time.mktime(datetime.datetime.now().timetuple()))
         no = 1
         while(int(ltq, 16) != 0):
             lt = gdb.execute('p/x ((struct lthread_queue*)%s)->lt'%ltq, to_string=True).split('=')[1].strip()
