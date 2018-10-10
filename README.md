@@ -17,21 +17,22 @@ with minimal or no modifications and minimal reliance on the host OS.
 Prerequisites
 ---------------------------------
 
-SGX-LKL has been tested on Ubuntu 16.04. To run SGX-LKL in SGX enclaves, the
-Intel SGX driver (available at https://github.com/01org/linux-sgx-driver and
-https://01.org/intel-software-guard-extensions/downloads) is required. We
-have tested SGX-LKL with driver versions 1.9 and 2.0. SGX-LKL also provides
-a simulation mode for which no SGX-enabled CPU is needed. Furthermore the
+SGX-LKL has been tested on Ubuntu 16.04 and 18.04. To run SGX-LKL in SGX
+enclaves, the Intel SGX driver (available at
+https://github.com/01org/linux-sgx-driver and
+https://01.org/intel-software-guard-extensions/downloads) is required. We have
+tested SGX-LKL with driver versions 1.9 and 2.0. SGX-LKL also provides a
+simulation mode for which no SGX-enabled CPU is needed. Furthermore the
 following packages are required to build SGX-LKL:
-`make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`).
+`make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`, `flex`.
 
 Install these with:
 
 ```
-sudo apt-get install make gcc bc python xutils-dev
+sudo apt-get install make gcc bc python xutils-dev bison flex
 ```
 
-Compilation has been tested with version 5.4 of gcc. Older versions might lead
+Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions might lead
 to compilation and/or linking errors.
 
 ### Networking support
@@ -104,6 +105,7 @@ To build sgx-lkl with debug symbols and without compiler optimizations run
 ```
 # HW mode
 make DEBUG=true
+make sgx-lkl-sign
 # Sim mode
 make sim DEBUG=true
 ```
@@ -112,15 +114,15 @@ make sim DEBUG=true
 Building SGX-LKL using Docker
 -----------------------------
 
-Building SGX-LKL using Docker requires at least Docker version 17 to include 
-multi-stage build support. There is a script `sgx-lkl-docker.sh` to build 
+Building SGX-LKL using Docker requires at least Docker version 17 to include
+multi-stage build support. There is a script `sgx-lkl-docker.sh` to build
 SGX-LKL inside a Docker container independently of the host environment:
 
 ```
-./sgx-lkl-docker.sh build -s   # this builds SGX-LKL in sim mode
+./sgx-lkl-docker.sh build -s   # This builds SGX-LKL in simulation mode
 ```
 
-After SGX-LKL has been built, it is possible to deploy the container with the 
+After SGX-LKL has been built, it is possible to deploy the container with the
 Java HelloWorld example on the local (or a remote) machine:
 
 ```
@@ -152,7 +154,7 @@ standard library.
 
 A simple Java HelloWorld example application is available in
 `apps/jvm/helloworld-java`. Building the example requires `curl` and a Java 8
-compiler on the host system. On Ubuntu 16.04, you can install these by running
+compiler on the host system. On Ubuntu, you can install these by running
 
 ```
 sudo apt-get install curl openjdk-8-jdk
@@ -335,6 +337,7 @@ Note: SGX-LKL should be built in debug mode for full gdb support:
 ```
 # HW debug mode
 make DEBUG=true
+make sgx-lkl-sign
 
 # Sim debug mode
 make sim DEBUG=true
