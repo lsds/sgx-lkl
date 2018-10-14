@@ -60,7 +60,7 @@ to_futex_key(int *uaddr) {
 void
 futex_tick() {
     struct futex_q *fq, *tmp;
-    uint64_t curr_usec;
+    uint64_t curr_usec_real, curr_usec_mntc;
     struct timespec ts;
     int local_futex_sleepers;
 
@@ -69,8 +69,10 @@ futex_tick() {
     if (!local_futex_sleepers)
         return;
 
-    clock_gettime(CLOCK_LTHREAD, &ts);
-    curr_usec = _lthread_timespec_to_usec(&ts);
+    clock_gettime(CLOCK_REALTIME, &ts);
+    curr_usec_real = _lthread_timespec_to_usec(&ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    curr_usec_mntc = _lthread_timespec_to_usec(&ts);
 
     a_barrier();
 
@@ -78,7 +80,9 @@ futex_tick() {
         return;
 
     SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp) {
-        if (fq->futex_deadline && fq->futex_deadline <= curr_usec) {
+        if (fq->futex_deadline &&
+          ((fq->clock = CLOCK_REALTIME && fq->futex_deadline <= curr_usec_real) ||
+           (fq->clock = CLOCK_MONOTONIC && fq->futex_deadline <= curr_usec_mntc))) {
             struct lthread *lt = fq->futex_lt;
             fq->futex_lt = NULL;
             a_fetch_add(&futex_sleepers, -1);
@@ -93,7 +97,7 @@ futex_tick() {
 
 /* constructs a new futex_q */
 static struct futex_q *
-__futex_wait_new(uint32_t futex_key) {
+__futex_wait_new(uint32_t futex_key, uint32_t bitset) {
     int rc;
     struct futex_q *fq;
 
@@ -108,7 +112,9 @@ __futex_wait_new(uint32_t futex_key) {
      */
     fq = &lthread_self()->fq;
     fq->futex_key = futex_key;
+    fq->futex_bitset = bitset;
     fq->futex_deadline = 0;
+    fq->clock = CLOCK_MONOTONIC;
     fq->futex_lt = lthread_self();
 
     FUTEX_SGXLKL_VERBOSE("%s: created new futex_q in tid %d\n",
@@ -134,7 +140,7 @@ __do_futex_unlock(void *lock) {
 }
 
 static int
-__do_futex_sleep(struct futex_q *fq, const struct timespec *ts, const struct timespec *now) {
+__do_futex_sleep(struct futex_q *fq, const struct timespec *ts, const clock_t clock, const struct timespec *now) {
     FUTEX_SGXLKL_VERBOSE("%s: about to sleep in tid %d on key 0x%x\n",
             __func__, lthread_self()->tid, fq->futex_key);
 
@@ -144,6 +150,7 @@ __do_futex_sleep(struct futex_q *fq, const struct timespec *ts, const struct tim
 
     /* set the deadline for wake up */
     if (ts) {
+        fq->clock = clock;
         fq->futex_deadline = _lthread_timespec_to_usec(now)
                 + _lthread_timespec_to_usec(ts);
     }
@@ -157,7 +164,7 @@ __do_futex_sleep(struct futex_q *fq, const struct timespec *ts, const struct tim
 
 /* a FUTEX_WAIT operation */
 static int
-futex_wait(int *uaddr, int val, const struct timespec *ts, const struct timespec *now) {
+futex_wait(int *uaddr, int val, uint32_t bitset, const struct timespec *ts, const clock_t clock, const struct timespec *now) {
     /* XXX (lkurusa): this should be an atomic read */
     int r, rc;
     uint32_t futex_key;
@@ -175,12 +182,12 @@ futex_wait(int *uaddr, int val, const struct timespec *ts, const struct timespec
     if (r == val) {
         struct futex_q *fq;
         /* it doesn't, so create it */
-        fq = __futex_wait_new(futex_key);
+        fq = __futex_wait_new(futex_key, bitset);
         if (!fq)
             return -1;
 
         /* sleep on the FQ */
-        rc = __do_futex_sleep(fq, ts, now);
+        rc = __do_futex_sleep(fq, ts, clock, now);
 
         FUTEX_SGXLKL_VERBOSE("%s: FUTEX_WAITING woke up, this is tid %d\n",
                 __func__, lthread_self()->tid);
@@ -194,7 +201,7 @@ futex_wait(int *uaddr, int val, const struct timespec *ts, const struct timespec
 
 /* a FUTEX_WAKE operation */
 static int
-futex_wake(int *uaddr, unsigned int num) {
+futex_wake(int *uaddr, unsigned int num, uint32_t bitset) {
     uint32_t futex_key;
     struct futex_q *fq, *tmp;
     unsigned int w = 0;
@@ -205,7 +212,7 @@ futex_wake(int *uaddr, unsigned int num) {
             __func__, lthread_current()->tid, futex_key, num);
 
     SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp) {
-        if (fq->futex_key == futex_key && w < num) {
+        if (fq->futex_key == futex_key && fq->futex_bitset & bitset && w < num) {
             struct lthread *lt = fq->futex_lt;
             fq->futex_lt = NULL;
             w++;
@@ -253,6 +260,7 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
                     int *uaddr2, int val3) {
     int rc;
     static int init = 1;
+    uint32_t bitset = FUTEX_BITSET_MATCH_ANY;
 
     if (init) {
         memset((void*) &futex_q_lock, 0, sizeof(struct ticketlock));
@@ -262,29 +270,54 @@ syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout,
     /* Ignore FUTEX_PRIVATE. We are single-process anyway. */
     op &= ~(FUTEX_PRIVATE);
 
+    if ((op & FUTEX_CLOCK_REALTIME) && !(op & (FUTEX_WAIT | FUTEX_WAIT_BITSET))) {
+       return -ENOSYS;
+    }
+
     /* Get current time before acquiring the lock since clock_gettime performs
      * a host system call which will make the lthread yield and potentially
      * cause a deadlock. */
-    struct timespec now;
+    clock_t clock = op & FUTEX_CLOCK_REALTIME ? CLOCK_REALTIME : CLOCK_MONOTONIC;
+    op &= ~(FUTEX_CLOCK_REALTIME);
+    /* The deadline is computed as now + timeout. For absolute values, set now
+     * to 0. */
+    struct timespec now = {0};
+    /* With FUTEX_WAKE, timeout is interpreted as relative, with others as
+     * absolute */
     if(op == FUTEX_WAIT) {
-        clock_gettime(CLOCK_LTHREAD, &now);
+        clock_gettime(clock, &now);
     }
 
     ticket_lock(&futex_q_lock);
     switch(op) {
+        case FUTEX_WAIT_BITSET:
+            if (val3 == 0) {
+                rc = -EINVAL;
+                break;
+            }
+            bitset = (uint32_t) val3;
+            /* Fall through to FUTEX_WAIT */
         case FUTEX_WAIT:
             assert(lthread_self());
 
-            rc = futex_wait(uaddr, val, timeout, &now);
+            rc = futex_wait(uaddr, val, bitset, timeout, clock, &now);
             if (rc == 0 || rc == -ETIMEDOUT)
                 goto ret_nounlock;
             break;
+        case FUTEX_WAKE_BITSET:
+            if (val3 == 0) {
+                rc = -EINVAL;
+                break;
+            }
+            bitset = (uint32_t) val3;
+            /* Fall through to FUTEX_WAKE */
         case FUTEX_WAKE:
-            rc = futex_wake(uaddr, val);
+            rc = futex_wake(uaddr, val, bitset);
             break;
         case FUTEX_CMP_REQUEUE:
             if (*uaddr != val3) {
-               rc == -EAGAIN;
+                rc == -EAGAIN;
+                break;
             }
             /* Fall through to FUTEX_REQUEUE */
         case FUTEX_REQUEUE:
