@@ -5,6 +5,7 @@
 VOLUME_MOUNTS=$PWD:/sgx-lkl
 SSH_AGENT_WORKAROUND=
 DEBUG=1
+LOGIN=
 SIM=unknown
 REMOTE_MACHINE=
 SGX_DOCKER="--device=/dev/isgx --device=/dev/gsgx -v /var/run/aesmd:/var/run/aesmd"
@@ -13,14 +14,15 @@ SGX_LKL_SIGN="build/sgx-lkl-sign -t 8 -k build/config/enclave_debug.key -f build
 function usage() {
     echo "Usage:"
     echo "`basename $0`  -h|-?                                        Display this help message."
-    echo "                   build                  <-s|-h> [-r]          Build SGX-LKL in simulation (-s) or SGX hardware mode (-h)"
+    echo "                   build                  <-s|-h> [-r] [-l]     Build SGX-LKL in simulation (-s) or SGX hardware mode (-h)"
     echo "                                                                  -r: compiles in release mode without debug symbols"
+    echo "                                                                  -l: do not build automatically but login to container"
     echo "                   deploy-jvm-helloworld <-s|-h> [-m machine]   Deploy JVM HelloWorld with SGX-LKL in simulatiuon (-s) or SGX hardware mode (-h)"
     echo "                                                                  -m  machine: deploy on remote Docker machine not localhost"
 }
 
-function parse_params() {
-    while getopts ":shrm:" opt; do
+function parse_params() {    
+    while getopts ":shrlm:" opt; do
         case ${opt} in
             s)
                 SIM=sim
@@ -30,6 +32,9 @@ function parse_params() {
                 ;;
             r)
                 DEBUG=0
+                ;;
+            l)
+                LOGIN=1
                 ;;
             m)
                 REMOTE_MACHINE=${OPTARG}
@@ -66,11 +71,17 @@ function build-sgx_lkl() {
     fi
 
     docker build --target builder -t lsds/sgx-lkl:build --build-arg UID=`id -u $USER` --build-arg GID=`id -g $USER` .
-    docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "cd /sgx-lkl && make ${SIM} DEBUG=${DEBUG}"
+
+    BUILD_CMD="cd /sgx-lkl && make ${SIM} DEBUG=${DEBUG}"
+    if [ ${LOGIN} ]; then
+        BUILD_CMD="/bin/bash"
+    fi
+
+    docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "${BUILD_CMD}"
 }
 
 function deploy-jvm-helloworld() {
-    echo -n Deploying JVM HelloWorld with SGX-LKL on machine
+    echo -n Deploying JVM HelloWorld with SGX-LKL on machine 
     [[ ${REMOTE_MACHINE} ]] && echo -n " '${REMOTE_MACHINE}' " || echo -n " 'localhost' "
     echo -n in
     [[ ${SIM} ]] && echo -n " simulation " || echo -n " hardware "

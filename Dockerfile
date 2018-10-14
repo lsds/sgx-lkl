@@ -13,8 +13,7 @@ RUN apt-get update && apt-get install -y \
   sudo \
   git
 
-RUN groupadd -g ${GID} user && \
-    useradd --create-home -u ${UID} -g ${GID} -s /bin/bash user && \
+RUN useradd --create-home -u ${UID} -s /bin/bash user && \
     adduser user sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
