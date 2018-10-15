@@ -17,12 +17,12 @@
  * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef ENCLAVE_MMAN_H
-#define ENCLAVE_MMAN_H
+#ifndef ENCLAVE_MEM_H
+#define ENCLAVE_MEM_H
 
 void enclave_mman_init(void *base, size_t num_pages);
 void* enclave_mmap(void *addr, size_t length, int mmap_fixed);
 int enclave_munmap(void *addr, size_t length);
 void* enclave_mremap(void *old_addr, size_t old_length, void *new_addr, size_t new_length, int mremap_fixed);
 
-#endif /* ENCLAVE_MMAN_H */
+#endif /* ENCLAVE_MEM_H */

@@ -12,12 +12,14 @@
 #include <stdio.h>
 #include <sched.h>
 
+#define _GNU_SOURCE
+#include <sys/mman.h>
+
 #include "lthread.h"
-#include "hostqueues.h"
 #include "pthread_impl.h"
 #include "ticketlock.h"
 
-#include "hostsyscallclient.h"
+#include "hostcall_interface.h"
 
 static syscall_t* S;
 
@@ -28,6 +30,69 @@ static uint8_t *freeslots;
 /* maps index into array of syscall slots S to lthread */
 static struct lthread **slotlthreads;
 static struct ticketlock slotslock;
+
+struct mpmcq *__syscall_queue;
+struct mpmcq *__return_queue;
+
+void arena_new(Arena *a, size_t sz) {
+    a->mem = host_syscall_SYS_mmap(0, sz, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+    if (a->mem < 0)
+        a_crash();
+    a->size = sz;
+}
+
+syscall_t *arena_ensure(Arena *a, size_t sz, syscall_t *sc) {
+    if (a->size < sz) {
+        void *newmem;
+        newmem = host_syscall_SYS_mremap(a->mem, a->size, sz, MREMAP_MAYMOVE, 0);
+        if (newmem >= 0) {
+            a->mem = newmem;
+            a->size = sz;
+        } else {
+            a_crash();
+        }
+        return getsyscallslot(NULL);
+    }
+    return sc;
+}
+
+void *arena_alloc(Arena *a, size_t sz) {
+    if (sz == 0) {
+        return NULL;
+    }
+    void *ret = (void*)(a->mem + a->allocated);
+    a->allocated += sz;
+    return ret;
+}
+
+void arena_free(Arena *a) {
+    a->allocated = 0;
+}
+
+void arena_destroy(Arena *a) {
+    if (a->mem != 0) {
+        host_syscall_SYS_munmap(a->mem, a->size);
+        a->mem = 0;
+        a->size = 0;
+    }
+}
+
+size_t deepsizeiovec(const struct iovec *dst) {
+    return sizeof(*dst) + dst->iov_len;
+}
+
+int deepinitiovec(Arena *a, struct iovec *dst, const struct iovec *src) {
+    dst->iov_len = src->iov_len;
+    dst->iov_base = arena_alloc(a, src->iov_len);
+    return 1;
+}
+
+void deepcopyiovec(struct iovec *dst, const struct iovec *src) {
+    if (dst->iov_len != src->iov_len) {*(int *)NULL = 0;}
+    memcpy(dst->iov_base, src->iov_base, src->iov_len);
+    dst->iov_len = src->iov_len;
+}
+
 
 syscall_t *getsyscallslot(Arena **a) {
     struct lthread_sched *sch = lthread_get_sched();

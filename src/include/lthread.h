@@ -40,13 +40,16 @@
 #include <time.h>
 
 #include "enclave_config.h"
-#include "hostmem.h"
+#include "hostcall_interface.h"
 #include "locale_impl.h"
+#include "atomic.h"
 #include "queue.h"
 #include "tree.h"
 
 #define DEFINE_LTHREAD (lthread_set_funcname(__func__))
 #define CLOCK_LTHREAD CLOCK_REALTIME
+
+struct mpmcq __scheduler_queue;
 
 typedef void *(*lthread_func)(void *);
 
@@ -203,6 +206,12 @@ extern "C" {
     struct lthread* lthread_self(void);
     int     lthread_setcancelstate(int, int*);
     void    lthread_set_expired(struct lthread *lt);
+
+    static inline void __scheduler_enqueue(struct lthread *lt) {
+        if (!lt) {a_crash();}
+        for (;!mpmc_enqueue(&__scheduler_queue, lt);) a_spin();
+    }
+
 #ifdef __cplusplus
 }
 #endif

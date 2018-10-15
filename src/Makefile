@@ -47,17 +47,18 @@ all: builddirs $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/
 
 builddirs:
 	mkdir -p $(LIB_SGX_LKL_BUILD)/libsgx
-	mkdir -p $(LIB_SGX_LKL_BUILD)/sign
+	mkdir -p $(LIB_SGX_LKL_BUILD)/sgx_sign
 	mkdir -p $(LIB_SGX_LKL_BUILD)/main
 	mkdir -p $(LIB_SGX_LKL_BUILD)/sgxlkl
 
 clean:
 	rm -rf $(LIB_SGX_LKL_BUILD)/libsgx
-	rm -rf $(LIB_SGX_LKL_BUILD)/sign
+	rm -rf $(LIB_SGX_LKL_BUILD)/sgx_sign
 	rm -rf $(LIB_SGX_LKL_BUILD)/main
 	rm -rf $(LIB_SGX_LKL_BUILD)/sgxlkl
 	rm -rf $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign
 	rm -rf $(LIB_SGX_LKL_BUILD)/sgx-lkl-run
+	rm -rf $(LIB_SGX_LKL_BUILD)/libsgx.so
 
 # libsgx ----
 
@@ -73,13 +74,13 @@ $(LIBSGX_OBJS): $(LIB_SGX_LKL_BUILD)/libsgx/%.o: libsgx/%.c
 
 # sgx_lkl_sign ----
 
-SIGN_SRCS = sgx_lkl_sign.c cmdline.c
+SIGN_SRCS = sgx_lkl_sign.c sgx_lkl_sign_cmdline.c
 SIGN_OBJS = $(SIGN_SRCS:.c=.o)
 
-$(LIB_SGX_LKL_BUILD)/sign/%.o: sign/%.c
+$(LIB_SGX_LKL_BUILD)/sgx_sign/%.o: sgx_sign/%.c
 	$(CC) -ggdb3 -O3 -c --std=gnu11 -Ilibsgx/include $< -o $@
 
-$(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(addprefix $(LIB_SGX_LKL_BUILD)/sign/,$(SIGN_OBJS)) $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
+$(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(addprefix $(LIB_SGX_LKL_BUILD)/sgx_sign/,$(SIGN_OBJS)) $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
 	$(CC) -ggdb3 -O3 --std=gnu11 -fno-pie -no-pie -Ilibsgx/include $^ -o $@
 
 # sgx-lkl-run ----

@@ -17,8 +17,8 @@
  * along with SGX-LKL.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HOSTSYSCALLS_H
-#define HOSTSYSCALLS_H
+#ifndef HOSTCALLS_H
+#define HOSTCALLS_H
 #define _GNU_SOURCE
 #define _BSD_SOURCE
 
@@ -27,8 +27,10 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <poll.h>
-#include "hostmem.h"
+
+#include "hostcall_interface.h"
 
 /* 
  * hostsyscalls.c must include ksigaction.h before including this header.
@@ -87,4 +89,4 @@ void *syscall_SYS_mremap(void *old_address, size_t old_size, size_t new_size, in
 int syscall_SYS_msync(void *addr, size_t length, int flags);
 int syscall_SYS_munmap(void *addr, size_t length);
 
-#endif /* HOSTSYSCALLS_H */
+#endif /* HOSTCALLS_H */

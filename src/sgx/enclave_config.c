@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "enclave_config.h"
-#include "hostsyscallclient.h"
+#include "hostcall_interface.h"
 
 /* we need this initializer for signer to find this struct in the TLS image */
 static __thread enclave_parms_t enclave_parms = {.base = 0xbaadf00ddeadbabe};

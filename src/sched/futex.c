@@ -18,7 +18,6 @@
  */
 
 #include <stdio.h>
-#include <hostqueues.h>
 #include <time.h>
 #include <lthread.h>
 #include <atomic.h>

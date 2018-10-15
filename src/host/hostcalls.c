@@ -5,7 +5,7 @@
 
 #define WANT_REAL_ARCH_SYSCALLS
 #include "ksigaction.h"
-#include "hostsyscalls.h"
+#include "hostcalls.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -17,9 +17,10 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
-#include "hostsyscallclient.h"
-#include <hostmem.h>
+#include "atomic.h"
+#include "hostcall_interface.h"
 
 int host_syscall_SYS_close(int fd) {
     volatile syscall_t *sc;

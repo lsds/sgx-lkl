@@ -24,8 +24,8 @@
 #include <sys/mman.h>
 
 #include "bitops.h"
-#include "enclave_mman.h"
-#include "hostsyscalls.h"
+#include "enclave_mem.h"
+#include "hostcalls.h"
 #include "ticketlock.h"
 #include "sgxlkl_debug.h"
 

@@ -23,7 +23,7 @@
 
 #include <getopt.h>
 
-#include "cmdline.h"
+#include "sgx_lkl_sign_cmdline.h"
 
 const char *gengetopt_args_info_purpose = "Use this program to sign libsgxlkl.so before loading it into an enclave via\nsgx-lkl-run.";
 

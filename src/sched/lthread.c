@@ -47,12 +47,10 @@
 #include <lthread.h>
 #include "libc.h"
 #include "lthread_int.h"
-#include "hostmem.h"
 #include "pthread_impl.h"
-#include "hostqueues.h"
 #include "sgxlkl_debug.h"
 #include "stdio_impl.h"
-#include "hostsyscallclient.h"
+#include "hostcall_interface.h"
 #include "ticketlock.h"
 #include "tree.h"
 
