@@ -4,18 +4,19 @@
  */
 
 #include <stdlib.h>
-#include <polarssl/sha256.h>
-#include <polarssl/rsa.h>
+#include <string.h>
+#include <mbedtls/sha256.h>
+#include <mbedtls/rsa.h>
 #include "sgx.h"
 
-void rsa_sign(rsa_context *ctx, rsa_sig_t sig,
+void rsa_sign(mbedtls_rsa_context *ctx, rsa_sig_t sig,
         unsigned char *bytes, int len) {
     // generate hash for current sigstruct
     unsigned char hash[32];
-    sha256(bytes, len, hash, 0);
+    mbedtls_sha256(bytes, len, hash, 0);
     // make signature
-    int ret = rsa_pkcs1_sign(ctx, NULL, NULL, RSA_PRIVATE,
-            POLARSSL_MD_SHA256, 32, hash,
+    int ret = mbedtls_rsa_pkcs1_sign(ctx, NULL, NULL, MBEDTLS_RSA_PRIVATE,
+            MBEDTLS_MD_SHA256, 32, hash,
             (unsigned char *)sig);
     if (ret)
         printf("failed to sign\n");
@@ -45,7 +46,7 @@ void load_bytes_from_str(uint8_t *key, char *bytes, size_t size) {
     }
 }
 
-rsa_context *load_rsa_keys(char *conf, uint8_t *pubkey, uint8_t *seckey, int bits) {
+mbedtls_rsa_context *load_rsa_keys(char *conf, uint8_t *pubkey, uint8_t *seckey, int bits) {
     FILE *fp = fopen(conf, "r");
     if (!fp) {
         fprintf(stderr, "failed to locate %s\n", conf);
@@ -103,33 +104,33 @@ rsa_context *load_rsa_keys(char *conf, uint8_t *pubkey, uint8_t *seckey, int bit
     memcpy(pubkey, pk, bytes);
     memcpy(seckey, sk, bytes);
 
-    rsa_context *ctx = malloc(sizeof(rsa_context));
+    mbedtls_rsa_context *ctx = malloc(sizeof(mbedtls_rsa_context));
     if (!ctx)
         printf( "failed to allocate rsa ctx");
 
-    rsa_init(ctx, RSA_PKCS_V15, 0);
+    mbedtls_rsa_init(ctx, MBEDTLS_RSA_PKCS_V15, 0);
 
     // setup ctx
-    mpi_read_binary(&ctx->N, pubkey, bytes);
-    mpi_read_binary(&ctx->D, seckey, bytes);
-    mpi_read_binary(&ctx->P, p, bytes);
-    mpi_read_binary(&ctx->Q, q, bytes);
-    mpi_read_binary(&ctx->E, e, bytes);
+    mbedtls_mpi_read_binary(&ctx->N, pubkey, bytes);
+    mbedtls_mpi_read_binary(&ctx->D, seckey, bytes);
+    mbedtls_mpi_read_binary(&ctx->P, p, bytes);
+    mbedtls_mpi_read_binary(&ctx->Q, q, bytes);
+    mbedtls_mpi_read_binary(&ctx->E, e, bytes);
 
     int ret;
-    mpi P1, Q1, H;
-    mpi_init(&P1);
-    mpi_init(&Q1);
-    mpi_init(&H);
-    MPI_CHK(mpi_sub_int(&P1, &ctx->P, 1));
-    MPI_CHK(mpi_sub_int(&Q1, &ctx->Q, 1));
-    MPI_CHK(mpi_mul_mpi(&H, &P1, &Q1));
-    MPI_CHK(mpi_inv_mod(&ctx->D , &ctx->E, &H));
-    MPI_CHK(mpi_mod_mpi(&ctx->DP, &ctx->D, &P1));
-    MPI_CHK(mpi_mod_mpi(&ctx->DQ, &ctx->D, &Q1));
-    MPI_CHK(mpi_inv_mod(&ctx->QP, &ctx->Q, &ctx->P));
+    mbedtls_mpi P1, Q1, H;
+    mbedtls_mpi_init(&P1);
+    mbedtls_mpi_init(&Q1);
+    mbedtls_mpi_init(&H);
+    MBEDTLS_MPI_CHK(mbedtls_mpi_sub_int(&P1, &ctx->P, 1));
+    MBEDTLS_MPI_CHK(mbedtls_mpi_sub_int(&Q1, &ctx->Q, 1));
+    MBEDTLS_MPI_CHK(mbedtls_mpi_mul_mpi(&H, &P1, &Q1));
+    MBEDTLS_MPI_CHK(mbedtls_mpi_inv_mod(&ctx->D , &ctx->E, &H));
+    MBEDTLS_MPI_CHK(mbedtls_mpi_mod_mpi(&ctx->DP, &ctx->D, &P1));
+    MBEDTLS_MPI_CHK(mbedtls_mpi_mod_mpi(&ctx->DQ, &ctx->D, &Q1));
+    MBEDTLS_MPI_CHK(mbedtls_mpi_inv_mod(&ctx->QP, &ctx->Q, &ctx->P));
 
-    ctx->len = mpi_size(&ctx->N);
+    ctx->len = mbedtls_mpi_size(&ctx->N);
 cleanup:
     return ctx;
 }
@@ -138,7 +139,7 @@ void cmd_sign(sigstruct_t* sigstruct, char *key) {
     rsa_sig_t sign;
     rsa_key_t pubkey;
     rsa_key_t seckey;
-    rsa_context *ctx;
+    mbedtls_rsa_context *ctx;
 
     sigstruct_t sig2;
     memcpy(&sig2, sigstruct, sizeof(*sigstruct));
@@ -164,39 +165,39 @@ void cmd_sign(sigstruct_t* sigstruct, char *key) {
     memset(q1, 0, 384);
     memset(q2, 0, 384);
 
-    mpi Q1, Q2, S, M, T1, T2, R;
-    mpi_init(&Q1);
-    mpi_init(&Q2);
-    mpi_init(&S);
-    mpi_init(&M);
-    mpi_init(&T1);
-    mpi_init(&T2);
-    mpi_init(&R);
+    mbedtls_mpi Q1, Q2, S, M, T1, T2, R;
+    mbedtls_mpi_init(&Q1);
+    mbedtls_mpi_init(&Q2);
+    mbedtls_mpi_init(&S);
+    mbedtls_mpi_init(&M);
+    mbedtls_mpi_init(&T1);
+    mbedtls_mpi_init(&T2);
+    mbedtls_mpi_init(&R);
 
     // q1 = signature ^ 2 / modulus
-    mpi_read_binary(&S, sign, 384);
-    mpi_read_binary(&M, pubkey, 384);
-    mpi_mul_mpi(&T1, &S, &S);
-    mpi_div_mpi(&Q1, &R, &T1, &M);
+    mbedtls_mpi_read_binary(&S, sign, 384);
+    mbedtls_mpi_read_binary(&M, pubkey, 384);
+    mbedtls_mpi_mul_mpi(&T1, &S, &S);
+    mbedtls_mpi_div_mpi(&Q1, &R, &T1, &M);
 
     // q2 = (signature ^ 3 - q1 * signature * modulus) / modulus
-    mpi_init(&R);
-    mpi_mul_mpi(&T1, &T1, &S);
-    mpi_mul_mpi(&T2, &Q1, &S);
-    mpi_mul_mpi(&T2, &T2, &M);
-    mpi_sub_mpi(&Q2, &T1, &T2);
-    mpi_div_mpi(&Q2, &R, &Q2, &M);
+    mbedtls_mpi_init(&R);
+    mbedtls_mpi_mul_mpi(&T1, &T1, &S);
+    mbedtls_mpi_mul_mpi(&T2, &Q1, &S);
+    mbedtls_mpi_mul_mpi(&T2, &T2, &M);
+    mbedtls_mpi_sub_mpi(&Q2, &T1, &T2);
+    mbedtls_mpi_div_mpi(&Q2, &R, &Q2, &M);
 
-    mpi_write_binary(&Q1, q1, 384);
-    mpi_write_binary(&Q2, q2, 384);
+    mbedtls_mpi_write_binary(&Q1, q1, 384);
+    mbedtls_mpi_write_binary(&Q2, q2, 384);
 
-    mpi_free(&Q1);
-    mpi_free(&Q2);
-    mpi_free(&S);
-    mpi_free(&M);
-    mpi_free(&T1);
-    mpi_free(&T2);
-    mpi_free(&R);
+    mbedtls_mpi_free(&Q1);
+    mbedtls_mpi_free(&Q2);
+    mbedtls_mpi_free(&S);
+    mbedtls_mpi_free(&M);
+    mbedtls_mpi_free(&T1);
+    mbedtls_mpi_free(&T2);
+    mbedtls_mpi_free(&R);
 
     memcpy(sigstruct, &sig2, sizeof(*sigstruct));
 

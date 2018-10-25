@@ -17,8 +17,8 @@
 #include <limits.h>
 #include "libsgx.h"
 #include "elf.h"
-#include <polarssl/sha256.h>
-#include <polarssl/rsa.h>
+#include <mbedtls/sha256.h>
+#include <mbedtls/rsa.h>
 #include <errno.h>
 #include <setjmp.h>
 #include "isgx_user.h"
@@ -82,7 +82,7 @@ static uintptr_t ubase = BASE_ADDR_UNDEFINED;
 static int sgxfd = 0;
 static size_t esize = 0;
 static volatile size_t heap_size = 0;
-static sha256_context ctx;
+static mbedtls_sha256_context ctx;
 
 typedef struct {
     int   busy;
@@ -170,7 +170,7 @@ static char* get_init_token(sigstruct_t* sig) {
     req.token  = malloc(304);
     req.attributes = &sig->attributes;
 
-    sha256(sig->modulus, 384, req.signer, 0);
+    mbedtls_sha256(sig->modulus, 384, req.signer, 0);
     rdi = 0;
     rsi = (uint64_t)&req;
     eenter(tcsaddr, &rdi, &rsi);
@@ -284,7 +284,7 @@ uint64_t ecreate(size_t npages, int ssaSize, const void* sigstruct, void* basead
     memcpy(&secs.isvsvn,     &sig->isvSvn, 2);
     memcpy(secs.mrEnclave,   sig->enclaveHash, 32);
     unsigned char mrSigner[32];
-    sha256(sig->modulus, 384, mrSigner, 0);
+    mbedtls_sha256(sig->modulus, 384, mrSigner, 0);
     memcpy(secs.mrSigner, mrSigner, 32);
     secs.attributes.xfrm = 0x7;
 
@@ -335,7 +335,7 @@ measure_page(uint64_t base, uint64_t offset, uint64_t prot, const void* page) {
     tmp_update_field[0] = STRING_EADD;
     tmp_update_field[1] = offset;
     memcpy(&tmp_update_field[2], &secinfo, 48);
-    sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
+    mbedtls_sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
 
     if ((prot & PAGE_NOEXTEND) == PAGE_NOEXTEND)
         return 0;
@@ -344,13 +344,13 @@ measure_page(uint64_t base, uint64_t offset, uint64_t prot, const void* page) {
         memset(&tmp_update_field[0], 0, 64);
         tmp_update_field[0] = STRING_EEXTEND;
         tmp_update_field[1] = offset + 256*i;
-        sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
+        mbedtls_sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
 
         unsigned char *cast_page = (unsigned char *)page + i * 256;
-        sha256_update(&ctx, (unsigned char *)(&cast_page[0]),   64);
-        sha256_update(&ctx, (unsigned char *)(&cast_page[64]),  64);
-        sha256_update(&ctx, (unsigned char *)(&cast_page[128]), 64);
-        sha256_update(&ctx, (unsigned char *)(&cast_page[192]), 64);
+        mbedtls_sha256_update(&ctx, (unsigned char *)(&cast_page[0]),   64);
+        mbedtls_sha256_update(&ctx, (unsigned char *)(&cast_page[64]),  64);
+        mbedtls_sha256_update(&ctx, (unsigned char *)(&cast_page[128]), 64);
+        mbedtls_sha256_update(&ctx, (unsigned char *)(&cast_page[192]), 64);
     }
 
     return 0;
@@ -939,16 +939,16 @@ void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     fill_enclave_parms(p, heap_offset, stack_offset, init_offset, ossa_offset, tcsp, new_heap * PAGE_SIZE, stack * PAGE_SIZE);
 
     unsigned char hash[32];
-    sha256_init(&ctx);
-    sha256_starts(&ctx, 0);
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx, 0);
     uint64_t tmp_update_field[8];
     memset(&tmp_update_field[0], 0, 64);
     tmp_update_field[0] = STRING_ECREATE;
     memcpy((unsigned char*)&tmp_update_field[1], &ssaFrameSize, 4);
     memcpy((unsigned char*)&tmp_update_field[1] + 4, &size, 8);
-    sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
+    mbedtls_sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
     process_pages(p, 0, new_heap, stack, tcsp, nssa, &measure_page);
-    sha256_finish(&ctx, (unsigned char*)hash);
+    mbedtls_sha256_finish(&ctx, (unsigned char*)hash);
 
     sigstruct_t *s = (sigstruct_t*)get_section_address(p, ".note.sigstruct");
     memcpy(s->enclaveHash, hash, 32);
@@ -1016,16 +1016,16 @@ void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp, in
     D printf("stack start %lx, enclave size %lx\n", heap_offset + heap * PAGE_SIZE, size);
 
     unsigned char hash[32];
-    sha256_init(&ctx);
-    sha256_starts(&ctx, 0);
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx, 0);
     uint64_t tmp_update_field[8];
     memset(&tmp_update_field[0], 0, 64);
     tmp_update_field[0] = STRING_ECREATE;
     memcpy((unsigned char*)&tmp_update_field[1], &ssaFrameSize, 4);
     memcpy((unsigned char*)&tmp_update_field[1] + 4, &size, 8);
-    sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
+    mbedtls_sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
     process_pages(p, 0, heap, stack, tcsp, nssa, &measure_page);
-    sha256_finish(&ctx, (unsigned char*)hash);
+    mbedtls_sha256_finish(&ctx, (unsigned char*)hash);
 
     unsigned char header [16] = SIG_HEADER1;
     unsigned char header2[16] = SIG_HEADER2;

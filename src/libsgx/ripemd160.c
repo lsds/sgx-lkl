@@ -1,57 +1,53 @@
 /*
  *  RIPE MD-160 implementation
  *
- *  Copyright (C) 2014-2014, Brainspark B.V.
+ *  Copyright (C) 2006-2015, ARM Limited, All Rights Reserved
+ *  SPDX-License-Identifier: Apache-2.0
  *
- *  This file is part of PolarSSL (http://www.polarssl.org)
- *  Lead Maintainer: Paul Bakker <polarssl_maintainer at polarssl.org>
+ *  Licensed under the Apache License, Version 2.0 (the "License"); you may
+ *  not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- *  All rights reserved.
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 
 /*
  *  The RIPEMD-160 algorithm was designed by RIPE in 1996
- *  http://homes.esat.kuleuven.be/~bosselae/ripemd160.html
+ *  http://homes.esat.kuleuven.be/~bosselae/mbedtls_ripemd160.html
  *  http://ehash.iaik.tugraz.at/wiki/RIPEMD-160
  */
 
-#if !defined(POLARSSL_CONFIG_FILE)
-#include "polarssl/config.h"
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
 #else
-#include POLARSSL_CONFIG_FILE
+#include MBEDTLS_CONFIG_FILE
 #endif
 
-#if defined(POLARSSL_RIPEMD160_C)
+#if defined(MBEDTLS_RIPEMD160_C)
 
-#include "polarssl/ripemd160.h"
+#include "mbedtls/ripemd160.h"
+#include "mbedtls/platform_util.h"
 
-#if defined(POLARSSL_FS_IO) || defined(POLARSSL_SELF_TEST)
-#include <stdio.h>
-#endif
-
-#if defined(POLARSSL_SELF_TEST)
 #include <string.h>
-#endif
 
-#if defined(POLARSSL_PLATFORM_C)
-#include "polarssl/platform.h"
+#if defined(MBEDTLS_SELF_TEST)
+#if defined(MBEDTLS_PLATFORM_C)
+#include "mbedtls/platform.h"
 #else
-#define polarssl_printf printf
-#endif
+#include <stdio.h>
+#define mbedtls_printf printf
+#endif /* MBEDTLS_PLATFORM_C */
+#endif /* MBEDTLS_SELF_TEST */
+
+#if !defined(MBEDTLS_RIPEMD160_ALT)
 
 /*
  * 32-bit integer manipulation macros (little endian)
@@ -67,37 +63,38 @@
 #endif
 
 #ifndef PUT_UINT32_LE
-#define PUT_UINT32_LE(n,b,i)                            \
-{                                                       \
-    (b)[(i)    ] = (unsigned char) ( (n)       );       \
-    (b)[(i) + 1] = (unsigned char) ( (n) >>  8 );       \
-    (b)[(i) + 2] = (unsigned char) ( (n) >> 16 );       \
-    (b)[(i) + 3] = (unsigned char) ( (n) >> 24 );       \
+#define PUT_UINT32_LE(n,b,i)                                    \
+{                                                               \
+    (b)[(i)    ] = (unsigned char) ( ( (n)       ) & 0xFF );    \
+    (b)[(i) + 1] = (unsigned char) ( ( (n) >>  8 ) & 0xFF );    \
+    (b)[(i) + 2] = (unsigned char) ( ( (n) >> 16 ) & 0xFF );    \
+    (b)[(i) + 3] = (unsigned char) ( ( (n) >> 24 ) & 0xFF );    \
 }
 #endif
 
-/* Implementation that should never be optimized out by the compiler */
-static void polarssl_zeroize( void *v, size_t n ) {
-    volatile unsigned char *p = v; while( n-- ) *p++ = 0;
-}
-
-void ripemd160_init( ripemd160_context *ctx )
+void mbedtls_ripemd160_init( mbedtls_ripemd160_context *ctx )
 {
-    memset( ctx, 0, sizeof( ripemd160_context ) );
+    memset( ctx, 0, sizeof( mbedtls_ripemd160_context ) );
 }
 
-void ripemd160_free( ripemd160_context *ctx )
+void mbedtls_ripemd160_free( mbedtls_ripemd160_context *ctx )
 {
     if( ctx == NULL )
         return;
 
-    polarssl_zeroize( ctx, sizeof( ripemd160_context ) );
+    mbedtls_platform_zeroize( ctx, sizeof( mbedtls_ripemd160_context ) );
+}
+
+void mbedtls_ripemd160_clone( mbedtls_ripemd160_context *dst,
+                        const mbedtls_ripemd160_context *src )
+{
+    *dst = *src;
 }
 
 /*
  * RIPEMD-160 context setup
  */
-void ripemd160_starts( ripemd160_context *ctx )
+int mbedtls_ripemd160_starts_ret( mbedtls_ripemd160_context *ctx )
 {
     ctx->total[0] = 0;
     ctx->total[1] = 0;
@@ -107,12 +104,23 @@ void ripemd160_starts( ripemd160_context *ctx )
     ctx->state[2] = 0x98BADCFE;
     ctx->state[3] = 0x10325476;
     ctx->state[4] = 0xC3D2E1F0;
+
+    return( 0 );
 }
 
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_ripemd160_starts( mbedtls_ripemd160_context *ctx )
+{
+    mbedtls_ripemd160_starts_ret( ctx );
+}
+#endif
+
+#if !defined(MBEDTLS_RIPEMD160_PROCESS_ALT)
 /*
  * Process one block
  */
-void ripemd160_process( ripemd160_context *ctx, const unsigned char data[64] )
+int mbedtls_internal_ripemd160_process( mbedtls_ripemd160_context *ctx,
+                                        const unsigned char data[64] )
 {
     uint32_t A, B, C, D, E, Ap, Bp, Cp, Dp, Ep, X[16];
 
@@ -287,19 +295,32 @@ void ripemd160_process( ripemd160_context *ctx, const unsigned char data[64] )
     ctx->state[3] = ctx->state[4] + A + Bp;
     ctx->state[4] = ctx->state[0] + B + Cp;
     ctx->state[0] = C;
+
+    return( 0 );
 }
+
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_ripemd160_process( mbedtls_ripemd160_context *ctx,
+                                const unsigned char data[64] )
+{
+    mbedtls_internal_ripemd160_process( ctx, data );
+}
+#endif
+#endif /* !MBEDTLS_RIPEMD160_PROCESS_ALT */
 
 /*
  * RIPEMD-160 process buffer
  */
-void ripemd160_update( ripemd160_context *ctx,
-                       const unsigned char *input, size_t ilen )
+int mbedtls_ripemd160_update_ret( mbedtls_ripemd160_context *ctx,
+                                  const unsigned char *input,
+                                  size_t ilen )
 {
+    int ret;
     size_t fill;
     uint32_t left;
 
     if( ilen == 0 )
-        return;
+        return( 0 );
 
     left = ctx->total[0] & 0x3F;
     fill = 64 - left;
@@ -313,7 +334,10 @@ void ripemd160_update( ripemd160_context *ctx,
     if( left && ilen >= fill )
     {
         memcpy( (void *) (ctx->buffer + left), input, fill );
-        ripemd160_process( ctx, ctx->buffer );
+
+        if( ( ret = mbedtls_internal_ripemd160_process( ctx, ctx->buffer ) ) != 0 )
+            return( ret );
+
         input += fill;
         ilen  -= fill;
         left = 0;
@@ -321,7 +345,9 @@ void ripemd160_update( ripemd160_context *ctx,
 
     while( ilen >= 64 )
     {
-        ripemd160_process( ctx, input );
+        if( ( ret = mbedtls_internal_ripemd160_process( ctx, input ) ) != 0 )
+            return( ret );
+
         input += 64;
         ilen  -= 64;
     }
@@ -330,7 +356,18 @@ void ripemd160_update( ripemd160_context *ctx,
     {
         memcpy( (void *) (ctx->buffer + left), input, ilen );
     }
+
+    return( 0 );
 }
+
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_ripemd160_update( mbedtls_ripemd160_context *ctx,
+                               const unsigned char *input,
+                               size_t ilen )
+{
+    mbedtls_ripemd160_update_ret( ctx, input, ilen );
+}
+#endif
 
 static const unsigned char ripemd160_padding[64] =
 {
@@ -343,8 +380,10 @@ static const unsigned char ripemd160_padding[64] =
 /*
  * RIPEMD-160 final digest
  */
-void ripemd160_finish( ripemd160_context *ctx, unsigned char output[20] )
+int mbedtls_ripemd160_finish_ret( mbedtls_ripemd160_context *ctx,
+                                  unsigned char output[20] )
 {
+    int ret;
     uint32_t last, padn;
     uint32_t high, low;
     unsigned char msglen[8];
@@ -359,165 +398,91 @@ void ripemd160_finish( ripemd160_context *ctx, unsigned char output[20] )
     last = ctx->total[0] & 0x3F;
     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
 
-    ripemd160_update( ctx, ripemd160_padding, padn );
-    ripemd160_update( ctx, msglen, 8 );
+    ret = mbedtls_ripemd160_update_ret( ctx, ripemd160_padding, padn );
+    if( ret != 0 )
+        return( ret );
+
+    ret = mbedtls_ripemd160_update_ret( ctx, msglen, 8 );
+    if( ret != 0 )
+        return( ret );
 
     PUT_UINT32_LE( ctx->state[0], output,  0 );
     PUT_UINT32_LE( ctx->state[1], output,  4 );
     PUT_UINT32_LE( ctx->state[2], output,  8 );
     PUT_UINT32_LE( ctx->state[3], output, 12 );
     PUT_UINT32_LE( ctx->state[4], output, 16 );
+
+    return( 0 );
 }
+
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_ripemd160_finish( mbedtls_ripemd160_context *ctx,
+                               unsigned char output[20] )
+{
+    mbedtls_ripemd160_finish_ret( ctx, output );
+}
+#endif
+
+#endif /* ! MBEDTLS_RIPEMD160_ALT */
 
 /*
  * output = RIPEMD-160( input buffer )
  */
-void ripemd160( const unsigned char *input, size_t ilen,
-                unsigned char output[20] )
+int mbedtls_ripemd160_ret( const unsigned char *input,
+                           size_t ilen,
+                           unsigned char output[20] )
 {
-    ripemd160_context ctx;
+    int ret;
+    mbedtls_ripemd160_context ctx;
 
-    ripemd160_init( &ctx );
-    ripemd160_starts( &ctx );
-    ripemd160_update( &ctx, input, ilen );
-    ripemd160_finish( &ctx, output );
-    ripemd160_free( &ctx );
+    mbedtls_ripemd160_init( &ctx );
+
+    if( ( ret = mbedtls_ripemd160_starts_ret( &ctx ) ) != 0 )
+        goto exit;
+
+    if( ( ret = mbedtls_ripemd160_update_ret( &ctx, input, ilen ) ) != 0 )
+        goto exit;
+
+    if( ( ret = mbedtls_ripemd160_finish_ret( &ctx, output ) ) != 0 )
+        goto exit;
+
+exit:
+    mbedtls_ripemd160_free( &ctx );
+
+    return( ret );
 }
 
-#if defined(POLARSSL_FS_IO)
-/*
- * output = RIPEMD-160( file contents )
- */
-int ripemd160_file( const char *path, unsigned char output[20] )
+#if !defined(MBEDTLS_DEPRECATED_REMOVED)
+void mbedtls_ripemd160( const unsigned char *input,
+                        size_t ilen,
+                        unsigned char output[20] )
 {
-    FILE *f;
-    size_t n;
-    ripemd160_context ctx;
-    unsigned char buf[1024];
-
-    if( ( f = fopen( path, "rb" ) ) == NULL )
-        return( POLARSSL_ERR_RIPEMD160_FILE_IO_ERROR );
-
-    ripemd160_init( &ctx );
-    ripemd160_starts( &ctx );
-
-    while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
-        ripemd160_update( &ctx, buf, n );
-
-    ripemd160_finish( &ctx, output );
-    ripemd160_free( &ctx );
-
-    if( ferror( f ) != 0 )
-    {
-        fclose( f );
-        return( POLARSSL_ERR_RIPEMD160_FILE_IO_ERROR );
-    }
-
-    fclose( f );
-    return( 0 );
+    mbedtls_ripemd160_ret( input, ilen, output );
 }
-#endif /* POLARSSL_FS_IO */
+#endif
 
-/*
- * RIPEMD-160 HMAC context setup
- */
-void ripemd160_hmac_starts( ripemd160_context *ctx,
-                            const unsigned char *key, size_t keylen )
-{
-    size_t i;
-    unsigned char sum[20];
-
-    if( keylen > 64 )
-    {
-        ripemd160( key, keylen, sum );
-        keylen = 20;
-        key = sum;
-    }
-
-    memset( ctx->ipad, 0x36, 64 );
-    memset( ctx->opad, 0x5C, 64 );
-
-    for( i = 0; i < keylen; i++ )
-    {
-        ctx->ipad[i] = (unsigned char)( ctx->ipad[i] ^ key[i] );
-        ctx->opad[i] = (unsigned char)( ctx->opad[i] ^ key[i] );
-    }
-
-    ripemd160_starts( ctx );
-    ripemd160_update( ctx, ctx->ipad, 64 );
-
-    polarssl_zeroize( sum, sizeof( sum ) );
-}
-
-/*
- * RIPEMD-160 HMAC process buffer
- */
-void ripemd160_hmac_update( ripemd160_context *ctx,
-                            const unsigned char *input, size_t ilen )
-{
-    ripemd160_update( ctx, input, ilen );
-}
-
-/*
- * RIPEMD-160 HMAC final digest
- */
-void ripemd160_hmac_finish( ripemd160_context *ctx, unsigned char output[20] )
-{
-    unsigned char tmpbuf[20];
-
-    ripemd160_finish( ctx, tmpbuf );
-    ripemd160_starts( ctx );
-    ripemd160_update( ctx, ctx->opad, 64 );
-    ripemd160_update( ctx, tmpbuf, 20 );
-    ripemd160_finish( ctx, output );
-
-    polarssl_zeroize( tmpbuf, sizeof( tmpbuf ) );
-}
-
-/*
- * RIPEMD-160 HMAC context reset
- */
-void ripemd160_hmac_reset( ripemd160_context *ctx )
-{
-    ripemd160_starts( ctx );
-    ripemd160_update( ctx, ctx->ipad, 64 );
-}
-
-/*
- * output = HMAC-RIPEMD-160( hmac key, input buffer )
- */
-void ripemd160_hmac( const unsigned char *key, size_t keylen,
-                     const unsigned char *input, size_t ilen,
-                     unsigned char output[20] )
-{
-    ripemd160_context ctx;
-
-    ripemd160_init( &ctx );
-    ripemd160_hmac_starts( &ctx, key, keylen );
-    ripemd160_hmac_update( &ctx, input, ilen );
-    ripemd160_hmac_finish( &ctx, output );
-    ripemd160_free( &ctx );
-}
-
-
-#if defined(POLARSSL_SELF_TEST)
+#if defined(MBEDTLS_SELF_TEST)
 /*
  * Test vectors from the RIPEMD-160 paper and
- * http://homes.esat.kuleuven.be/~bosselae/ripemd160.html#HMAC
+ * http://homes.esat.kuleuven.be/~bosselae/mbedtls_ripemd160.html#HMAC
  */
 #define TESTS   8
-#define KEYS    2
-static const char *ripemd160_test_input[TESTS] =
+static const unsigned char ripemd160_test_str[TESTS][81] =
 {
-    "",
-    "a",
-    "abc",
-    "message digest",
-    "abcdefghijklmnopqrstuvwxyz",
-    "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-    "1234567890123456789012345678901234567890"
-        "1234567890123456789012345678901234567890",
+    { "" },
+    { "a" },
+    { "abc" },
+    { "message digest" },
+    { "abcdefghijklmnopqrstuvwxyz" },
+    { "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq" },
+    { "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" },
+    { "12345678901234567890123456789012345678901234567890123456789012"
+      "345678901234567890" },
+};
+
+static const size_t ripemd160_test_strlen[TESTS] =
+{
+    0, 1, 3, 14, 26, 56, 62, 80
 };
 
 static const unsigned char ripemd160_test_md[TESTS][20] =
@@ -540,60 +505,12 @@ static const unsigned char ripemd160_test_md[TESTS][20] =
       0xd3, 0x32, 0x3c, 0xab, 0x82, 0xbf, 0x63, 0x32, 0x6b, 0xfb },
 };
 
-static const unsigned char ripemd160_test_hmac[KEYS][TESTS][20] =
-{
-  {
-    { 0xcf, 0x38, 0x76, 0x77, 0xbf, 0xda, 0x84, 0x83, 0xe6, 0x3b,
-      0x57, 0xe0, 0x6c, 0x3b, 0x5e, 0xcd, 0x8b, 0x7f, 0xc0, 0x55 },
-    { 0x0d, 0x35, 0x1d, 0x71, 0xb7, 0x8e, 0x36, 0xdb, 0xb7, 0x39,
-      0x1c, 0x81, 0x0a, 0x0d, 0x2b, 0x62, 0x40, 0xdd, 0xba, 0xfc },
-    { 0xf7, 0xef, 0x28, 0x8c, 0xb1, 0xbb, 0xcc, 0x61, 0x60, 0xd7,
-      0x65, 0x07, 0xe0, 0xa3, 0xbb, 0xf7, 0x12, 0xfb, 0x67, 0xd6 },
-    { 0xf8, 0x36, 0x62, 0xcc, 0x8d, 0x33, 0x9c, 0x22, 0x7e, 0x60,
-      0x0f, 0xcd, 0x63, 0x6c, 0x57, 0xd2, 0x57, 0x1b, 0x1c, 0x34 },
-    { 0x84, 0x3d, 0x1c, 0x4e, 0xb8, 0x80, 0xac, 0x8a, 0xc0, 0xc9,
-      0xc9, 0x56, 0x96, 0x50, 0x79, 0x57, 0xd0, 0x15, 0x5d, 0xdb },
-    { 0x60, 0xf5, 0xef, 0x19, 0x8a, 0x2d, 0xd5, 0x74, 0x55, 0x45,
-      0xc1, 0xf0, 0xc4, 0x7a, 0xa3, 0xfb, 0x57, 0x76, 0xf8, 0x81 },
-    { 0xe4, 0x9c, 0x13, 0x6a, 0x9e, 0x56, 0x27, 0xe0, 0x68, 0x1b,
-      0x80, 0x8a, 0x3b, 0x97, 0xe6, 0xa6, 0xe6, 0x61, 0xae, 0x79 },
-    { 0x31, 0xbe, 0x3c, 0xc9, 0x8c, 0xee, 0x37, 0xb7, 0x9b, 0x06,
-      0x19, 0xe3, 0xe1, 0xc2, 0xbe, 0x4f, 0x1a, 0xa5, 0x6e, 0x6c },
-  },
-  {
-    { 0xfe, 0x69, 0xa6, 0x6c, 0x74, 0x23, 0xee, 0xa9, 0xc8, 0xfa,
-      0x2e, 0xff, 0x8d, 0x9d, 0xaf, 0xb4, 0xf1, 0x7a, 0x62, 0xf5 },
-    { 0x85, 0x74, 0x3e, 0x89, 0x9b, 0xc8, 0x2d, 0xbf, 0xa3, 0x6f,
-      0xaa, 0xa7, 0xa2, 0x5b, 0x7c, 0xfd, 0x37, 0x24, 0x32, 0xcd },
-    { 0x6e, 0x4a, 0xfd, 0x50, 0x1f, 0xa6, 0xb4, 0xa1, 0x82, 0x3c,
-      0xa3, 0xb1, 0x0b, 0xd9, 0xaa, 0x0b, 0xa9, 0x7b, 0xa1, 0x82 },
-    { 0x2e, 0x06, 0x6e, 0x62, 0x4b, 0xad, 0xb7, 0x6a, 0x18, 0x4c,
-      0x8f, 0x90, 0xfb, 0xa0, 0x53, 0x33, 0x0e, 0x65, 0x0e, 0x92 },
-    { 0x07, 0xe9, 0x42, 0xaa, 0x4e, 0x3c, 0xd7, 0xc0, 0x4d, 0xed,
-      0xc1, 0xd4, 0x6e, 0x2e, 0x8c, 0xc4, 0xc7, 0x41, 0xb3, 0xd9 },
-    { 0xb6, 0x58, 0x23, 0x18, 0xdd, 0xcf, 0xb6, 0x7a, 0x53, 0xa6,
-      0x7d, 0x67, 0x6b, 0x8a, 0xd8, 0x69, 0xad, 0xed, 0x62, 0x9a },
-    { 0xf1, 0xbe, 0x3e, 0xe8, 0x77, 0x70, 0x31, 0x40, 0xd3, 0x4f,
-      0x97, 0xea, 0x1a, 0xb3, 0xa0, 0x7c, 0x14, 0x13, 0x33, 0xe2 },
-    { 0x85, 0xf1, 0x64, 0x70, 0x3e, 0x61, 0xa6, 0x31, 0x31, 0xbe,
-      0x7e, 0x45, 0x95, 0x8e, 0x07, 0x94, 0x12, 0x39, 0x04, 0xf9 },
-  },
-};
-
-static const unsigned char ripemd160_test_key[KEYS][20] =
-{
-    { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
-      0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x01, 0x23, 0x45, 0x67 },
-    { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc,
-      0xba, 0x98, 0x76, 0x54, 0x32, 0x10, 0x00, 0x11, 0x22, 0x33 },
-};
-
 /*
  * Checkup routine
  */
-int ripemd160_self_test( int verbose )
+int mbedtls_ripemd160_self_test( int verbose )
 {
-    int i, j;
+    int i, ret = 0;
     unsigned char output[20];
 
     memset( output, 0, sizeof output );
@@ -601,53 +518,35 @@ int ripemd160_self_test( int verbose )
     for( i = 0; i < TESTS; i++ )
     {
         if( verbose != 0 )
-            polarssl_printf( "  RIPEMD-160 test #%d: ", i + 1 );
+            mbedtls_printf( "  RIPEMD-160 test #%d: ", i + 1 );
 
-        ripemd160( (const unsigned char *) ripemd160_test_input[i],
-                   strlen( ripemd160_test_input[i] ),
-                   output );
+        ret = mbedtls_ripemd160_ret( ripemd160_test_str[i],
+                                     ripemd160_test_strlen[i], output );
+        if( ret != 0 )
+            goto fail;
 
         if( memcmp( output, ripemd160_test_md[i], 20 ) != 0 )
         {
-            if( verbose != 0 )
-                polarssl_printf( "failed\n" );
-
-            return( 1 );
+            ret = 1;
+            goto fail;
         }
 
         if( verbose != 0 )
-            polarssl_printf( "passed\n" );
-
-        for( j = 0; j < KEYS; j++ )
-        {
-            if( verbose != 0 )
-                polarssl_printf( "  HMAC-RIPEMD-160 test #%d, key #%d: ",
-                                 i + 1, j + 1 );
-
-            ripemd160_hmac( ripemd160_test_key[j], 20,
-                            (const unsigned char *) ripemd160_test_input[i],
-                            strlen( ripemd160_test_input[i] ),
-                            output );
-
-            if( memcmp( output, ripemd160_test_hmac[j][i], 20 ) != 0 )
-            {
-                if( verbose != 0 )
-                    polarssl_printf( "failed\n" );
-
-                return( 1 );
-            }
-
-            if( verbose != 0 )
-                polarssl_printf( "passed\n" );
-        }
-
-        if( verbose != 0 )
-            polarssl_printf( "\n" );
+            mbedtls_printf( "passed\n" );
     }
 
+    if( verbose != 0 )
+        mbedtls_printf( "\n" );
+
     return( 0 );
+
+fail:
+    if( verbose != 0 )
+        mbedtls_printf( "failed\n" );
+
+    return( ret );
 }
 
-#endif /* POLARSSL_SELF_TEST */
+#endif /* MBEDTLS_SELF_TEST */
 
-#endif /* POLARSSL_RIPEMD160_C */
+#endif /* MBEDTLS_RIPEMD160_C */
