@@ -116,4 +116,35 @@ void ocall_cpuid(unsigned int* request) {
     arena_free(a);
 }
 
+/* Handle CPUID ecall after an illegal instruction has been caught on the host */
+void ecall_cpuid(gprsgx_t *regs) {
+    unsigned int request[4];
+    int clear_tsc = 0;
+    request[0] = (unsigned int)regs->rax;
+    request[2] = (unsigned int)regs->rcx;
+    if (request[0] == 1) clear_tsc = 1;
+    ocall_cpuid(request);
+    if (clear_tsc) {
+        /* clear TSC bit in edx, CPUID_FEAT_EDX_TSC - 5th bit */
+        unsigned int mask;
+        mask = ~(1<<4);
+        request[3] &= mask;
+    }
+    regs->rax = request[0];
+    regs->rbx = request[1];
+    regs->rcx = request[2];
+    regs->rdx = request[3];
+    regs->rip += 2;
+}
+
+/* Handle RDTSC ecall after an illegal instruction has been caught on the host */
+void ecall_rdtsc(gprsgx_t *regs, uint64_t ts) {
+    uint64_t mask;
+    mask = 0xffffffff;
+    regs->rax = ts & mask;
+    regs->rdx = (ts & ~mask) >> 32;
+    regs->rip += 2;
+
+}
+
 #endif

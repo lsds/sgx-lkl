@@ -169,7 +169,7 @@ typedef struct {
     uint64_t thread_state;
     uint64_t eh_tcs_addr;
     uint64_t eh_exit_addr;
-    uint64_t eh_ursp; 
+    uint64_t eh_ursp;
     uint64_t eh_urbp;
     uint64_t eh_handling;
     jmp_buf  regs;
@@ -189,6 +189,9 @@ int      thread_setjmp();
 enclave_parms_t* get_enclave_parms();
 uint64_t get_eh_handling();
 void     set_eh_handling(uint64_t val);
+
+void ecall_cpuid(gprsgx_t *regs);
+void ecall_rdtsc(gprsgx_t *regs, uint64_t ts);
 
 #endif
 

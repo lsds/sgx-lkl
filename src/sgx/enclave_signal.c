@@ -104,38 +104,15 @@ static int handle_sigsegv(gprsgx_t *regs, void *arg) {
 }
 
 static int handle_sigill(gprsgx_t *regs, void *arg) {
-    uint64_t ts = (uint64_t) arg;
-    uint64_t tcs_addr, exit_addr, ursp, urbp, ssa_start, exit;
-    /* cpuid opcode: 0fa2 */
-    if (((unsigned char*)(regs->rip))[0] == 0x0f && ((unsigned char*)(regs->rip))[1] == 0xa2) {
-        unsigned int request[4];
-        int clear_tsc = 0;
-        request[0] = (unsigned int)regs->rax;
-        request[2] = (unsigned int)regs->rcx;
-        if (request[0] == 1) clear_tsc = 1;
-        ocall_cpuid(request);
-        if (clear_tsc) {
-            /* clear TSC bit in edx, CPUID_FEAT_EDX_TSC - 5th bit */
-            unsigned int mask;
-            mask = ~(1<<4);
-            request[3] &= mask;
-        }
-        regs->rax = request[0];
-        regs->rbx = request[1];
-        regs->rcx = request[2];
-        regs->rdx = request[3];
-        regs->rip += 2;
-
+    uint16_t opcode = *((uint16_t*) regs->rip);
+    switch (opcode) {
+    /* CPUID opcode: 0f a2 */
+    case 0xa20f:
+        ecall_cpuid(regs);
         return 0;
-    }
-    /* rdtsc opcode: 0f31 */
-    else if (((unsigned char*)(regs->rip))[0] == 0x0f && ((unsigned char*)(regs->rip))[1] == 0x31) {
-        uint64_t mask;
-        mask = 0xffffffff;
-        regs->rax = ts & mask;
-        regs->rdx = (ts & ~mask) >> 32;
-        regs->rip += 2;
-
+    /* RDTSC opcode: 0f 31 */
+    case 0x310f:
+        ecall_rdtsc(regs, (uint64_t) arg);
         return 0;
     }
 
