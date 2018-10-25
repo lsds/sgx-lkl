@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, 2017, 2018 Imperial College London (under GNU General Public License v3)
+ * Copyright 2016, 2017, 2018 Imperial College London
  * Copyright 2016, 2017 TU Dresden (under SCONE source code license)
  */
 
