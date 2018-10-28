@@ -38,7 +38,6 @@ int sgxlkl_mmap_file_support = 0;
 int sgxlkl_mtu = 0;
 
 extern struct timespec sgxlkl_app_starttime;
-struct lkl_disk root_disk;
 
 #ifndef NO_CRYPTSETUP
 static const char* lkl_encryption_key = "FOO";
@@ -91,8 +90,8 @@ static unsigned long long get_env_bytes(const char *name, unsigned long long def
 
 static int lkl_prestart_disks(enclave_config_t* encl)
 {
-	int fd = encl->disk_fd;
         /* Set ops to NULL to use platform default ops */
+	struct lkl_disk root_disk;
 	root_disk.ops = NULL;
 	root_disk.fd = encl->disk_fd;
 	int disk_dev_id = lkl_disk_add(&root_disk);
@@ -106,7 +105,6 @@ static int lkl_prestart_disks(enclave_config_t* encl)
 
 static int lkl_prestart_net(enclave_config_t* encl)
 {
-	int fd = encl->net_fd;
 	struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd);
 	if (netdev == NULL) {
 		fprintf(stderr, "Error: unable to register netdev\n");
@@ -725,9 +723,9 @@ void __lkl_exit()
 		printf("Application runtime: %lld.%.9lds", runtime.tv_sec, runtime.tv_nsec);
 	}
 
-	long res = lkl_disk_remove(root_disk);
+	long res = lkl_umount_timeout("/", 0, UMOUNT_ROOT_DISK_TIMEOUT);
 	if (res < 0) {
-		fprintf(stderr, "Error: LKL remove disk, %s\n",
+		fprintf(stderr, "Error: Could not unmount root disk, %s\n",
 			lkl_strerror(res));
 		exit(res);
 	}
