@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <time.h>
 #include <lkl_host.h>
 #include "lkl/disk.h"
 #include "lkl/posix-host.h"
@@ -23,6 +24,8 @@
 
 #define BIT(x) (1ULL << x)
 
+#define UMOUNT_ROOT_DISK_TIMEOUT 2000
+
 int sethostname(const char *, size_t);
 
 int sgxlkl_trace_lkl_syscall = 0;
@@ -34,6 +37,7 @@ int sgxlkl_use_tap_offloading = 0;
 int sgxlkl_mmap_file_support = 0;
 int sgxlkl_mtu = 0;
 
+extern struct timespec sgxlkl_app_starttime;
 struct lkl_disk root_disk;
 
 #ifndef NO_CRYPTSETUP
@@ -695,8 +699,32 @@ void __lkl_start_init(enclave_config_t* encl)
 	sethostname(encl->hostname, strlen(encl->hostname));
 }
 
+/* Requires starttime to be higher or equal to endtime */
+int timespec_diff(struct timespec *starttime, struct timespec *endtime, struct timespec *diff) {
+	if (starttime->tv_sec > endtime->tv_sec || (starttime->tv_sec == endtime->tv_sec && starttime->tv_nsec > endtime->tv_nsec)) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	diff->tv_sec = endtime->tv_sec - starttime->tv_sec;
+	if (starttime->tv_nsec > endtime->tv_nsec) {
+		diff->tv_sec--;
+	}
+
+	diff->tv_nsec = (1000000000 + endtime->tv_nsec - starttime->tv_nsec) % 1000000000;
+
+	return 0;
+}
+
 void __lkl_exit()
 {
+	if (getenv("SGXLKL_PRINT_APP_RUNTIME")) {
+		struct timespec endtime, runtime;
+		clock_gettime(CLOCK_MONOTONIC, &endtime);
+		timespec_diff(&sgxlkl_app_starttime, &endtime, &runtime);
+		printf("Application runtime: %lld.%.9lds", runtime.tv_sec, runtime.tv_nsec);
+	}
+
 	long res = lkl_disk_remove(root_disk);
 	if (res < 0) {
 		fprintf(stderr, "Error: LKL remove disk, %s\n",

@@ -189,6 +189,7 @@ static void usage(char* prog) {
     printf("SGXLKL_TRACE_INTERNAL_SYSCALL: Print detailed information about in-enclave system calls not handled by LKL (in particular mmap/mremap/munmap and futex).\n");
     printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
     printf("SGXLKL_PRINT_HOST_SYSCALL_STATS: Print statistics on the number of host system calls and enclave exits.\n");
+    printf("SGXLKL_PRINT_APP_RUNTIME: Measure and print total runtime of the application itself excluding the enclave and SGX-LKL startup and shutdown time.\n");
     printf("\n%s --version to print version information.\n", prog);
     printf("%s --help to print this help.\n", prog);
 }
