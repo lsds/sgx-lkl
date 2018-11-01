@@ -24,6 +24,7 @@ static size_t mmap_num_pages; // Total number of pages that can be mmap'ed.
 #if DEBUG
 extern int sgxlkl_trace_mmap;
 static size_t used_pages = 0; // Tracks the number of used pages for the mmap tracing.
+static size_t mmap_max_allocated = 0; // Maximum amount of memory used thus far.
 #endif /* DEBUG */
 
 #define DIV_ROUNDUP(x, y)   (((x)+((y)-1))/(y))
@@ -219,9 +220,12 @@ void* enclave_mmap(void* addr, size_t length, int mmap_fixed) {
         size_t total = mmap_num_pages * PAGESIZE;
         size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
         size_t used = total - free;
+        if (mmap_max_allocated < used) {
+                mmap_max_allocated = used;
+        }
         char *mfixed = mmap_fixed ? " (MAP_FIXED)" : "";
         char *rv = ret == MAP_FAILED ? " (FAILED)": "";
-        SGXLKL_TRACE_MMAP("mmap stats: TOTAL: %8zuKB, USED: %8zuKB, FREE: %8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n", total/1024, used/1024, free/1024, requested/1024, addr, ret, mfixed, rv);
+        SGXLKL_TRACE_MMAP("mmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: %8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n", total/1024, used/1024, mmap_max_allocated/1024, free/1024, requested/1024, addr, ret, mfixed, rv);
     }
 #endif /* DEBUG */
 
@@ -260,7 +264,7 @@ int enclave_munmap(void* addr, size_t length) {
         size_t total = mmap_num_pages * PAGESIZE;
         size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
         size_t used = total - free;
-        SGXLKL_TRACE_MMAP("munmap stats: TOTAL: %8zuKB, USED: %8zuKB, FREE: %8zuKB,     FREED: %6zuKB (addr = %p)\n", total/1024, used/1024, free/1024, requested/1024, addr);
+        SGXLKL_TRACE_MMAP("munmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: %8zuKB,     FREED: %6zuKB (addr = %p)\n", total/1024, used/1024, mmap_max_allocated/1024, free/1024, requested/1024, addr);
     }
 #endif /* DEBUG */
 
