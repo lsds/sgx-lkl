@@ -15,6 +15,7 @@
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 #include "lkl/virtio_net.h"
+#include "enclave_config.h"
 #include "sgxlkl_debug.h"
 
 #ifndef NO_CRYPTSETUP
@@ -24,7 +25,7 @@
 
 #define BIT(x) (1ULL << x)
 
-#define UMOUNT_ROOT_DISK_TIMEOUT 2000
+#define UMOUNT_DISK_TIMEOUT 2000
 
 int sethostname(const char *, size_t);
 
@@ -38,6 +39,9 @@ int sgxlkl_mmap_file_support = 0;
 int sgxlkl_mtu = 0;
 
 extern struct timespec sgxlkl_app_starttime;
+
+static size_t num_disks = 0;
+static struct enclave_disk_config *disks;
 
 #ifndef NO_CRYPTSETUP
 static const char* lkl_encryption_key = "FOO";
@@ -88,19 +92,20 @@ static unsigned long long get_env_bytes(const char *name, unsigned long long def
 	return res;
 }
 
-static int lkl_prestart_disks(enclave_config_t* encl)
+
+static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_disks)
 {
+	for (size_t i = 0; i < num_disks; ++i) {
         /* Set ops to NULL to use platform default ops */
-	struct lkl_disk root_disk;
-	root_disk.ops = NULL;
-	root_disk.fd = encl->disk_fd;
-	int disk_dev_id = lkl_disk_add(&root_disk);
-	if (disk_dev_id < 0) {
-		fprintf(stderr, "Error: unable to register disk, %s\n",
-			lkl_strerror(disk_dev_id));
-		exit(disk_dev_id);
+		struct lkl_disk lkl_disk;
+		lkl_disk.ops = NULL;
+		lkl_disk.fd = disks[i].fd;
+		int disk_dev_id = lkl_disk_add(&lkl_disk);
+		if (disk_dev_id < 0) {
+			fprintf(stderr, "Error: unable to register disk %d, %s\n", i, lkl_strerror(disk_dev_id));
+			exit(EXIT_FAILURE);
+		}
 	}
-	return disk_dev_id;
 }
 
 static int lkl_prestart_net(enclave_config_t* encl)
@@ -227,6 +232,16 @@ static void lkl_mount_tmpfs()
 	}
 }
 
+static void lkl_mount_mntfs()
+{
+	int err = lkl_sys_mount("tmpfs", "/mnt", "tmpfs", 0, "mode=0777");
+	if (err != 0) {
+		fprintf(stderr, "Error: lkl_sys_mount(tmpfs): %s\n",
+			lkl_strerror(err));
+		exit(err);
+	}
+}
+
 static void lkl_mount_sysfs()
 {
 	int err = lkl_sys_mount("none", "/sys", "sysfs", 0, NULL);
@@ -277,32 +292,6 @@ static void lkl_mknods()
 				lkl_strerror(err));
 		exit(err);
 	}
-}
-
-static int lkl_create_blockdev(unsigned int disk_id, const char* devname)
-{
-	unsigned int dev;
-	int err;
-
-
-	err = lkl_get_virtio_blkdev(disk_id, 0, &dev);
-	if (err < 0)
-		goto fail;
-
-	err = lkl_sys_access("/dev", LKL_S_IRWXO);
-	if (err < 0) {
-		if (err == -LKL_ENOENT)
-			err = lkl_sys_mkdir("/dev", 0700);
-		if (err < 0)
-			goto fail;
-	}
-
-	err = lkl_sys_mknod(devname, LKL_S_IFBLK | 0600, dev);
-	if (err < 0)
-		return err;
-
-fail:
-	return err;
 }
 
 static int lkl_mount_blockdev(const char* dev_str, const char* mnt_point,
@@ -466,7 +455,7 @@ static void lkl_run_in_kernel_stack(void *(*start_routine) (void *), void* arg)
 }
 #endif
 
-static void lkl_poststart_disks(enclave_config_t* encl, int disk_dev_id)
+static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 {
 	int err = 0;
 	lkl_mount_devtmpfs("/dev");
@@ -474,87 +463,112 @@ static void lkl_poststart_disks(enclave_config_t* encl, int disk_dev_id)
 	lkl_mount_procfs();
 	lkl_prepare_rootfs("/sys", 0700);
 	lkl_mount_sysfs();
-	if (disk_dev_id >= 0) {
-		char mnt_point[] = {"/mnt/vda"};
-		char dev_str_raw[] = {"/dev/vda"};
+
+	char mnt_point[] = {"/mnt/vda"};
+	char dev_str_raw[] = {"/dev/vda"};
 #ifndef NO_CRYPTSETUP
-		char dev_str_enc[] = {"/dev/mapper/cryptroot"};
-		char dev_str_verity[] = {"/dev/mapper/verityroot"};
+	char dev_str_enc[] = {"/dev/mapper/cryptroot"};
+	char dev_str_verity[] = {"/dev/mapper/verityroot"};
 #endif
-		char *dev_str = dev_str_raw;
-		char new_dev_str[] = {"/mnt/vda/dev/"};
+	char *dev_str = dev_str_raw;
+	char new_dev_str[] = {"/mnt/vda/dev/"};
 
 #ifndef NO_CRYPTSETUP
-		int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
-		int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
+	int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
+	int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
-		if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) && (getenv("SGXLKL_HD_VERITY") != NULL || encl->disk_enc)) {
-			sgxlkl_trace_lkl_syscall = 0;
-			sgxlkl_trace_internal_syscall = 0;
-			SGXLKL_VERBOSE("Disk encryption/integrity requested: temporarily disabling lkl_strace\n");
-		}
-
-		if (getenv("SGXLKL_HD_VERITY") != NULL) {
-			lkl_run_in_kernel_stack(&lkl_activate_verity_disk_thread, dev_str);
-
-			/* we now want to mount the verified volume */
-			dev_str = dev_str_verity;
-		}
-		if (encl->disk_enc) {
-			lkl_run_in_kernel_stack(&lkl_activate_crypto_disk_thread, dev_str);
-
-			/* we now want to mount the decrypted volume */
-			dev_str = dev_str_enc;
-		}
-
-		if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) && (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
-			SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
-			sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
-			sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
-		}
-#endif
-
-		err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", encl->disk_ro ? LKL_MS_RDONLY : 0, NULL);
-		if (err < 0) {
-			fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n",
-				lkl_strerror(err), err);
-			exit(err);
-		}
-
-		/* set up /dev in the new root */
-		lkl_prepare_rootfs(new_dev_str, 0700);
-		lkl_mount_devtmpfs(new_dev_str);
-		lkl_copy_blkdev_nodes("/dev/", new_dev_str);
-
-		/* clean up */
-		lkl_sys_umount("/proc", 0);
-		lkl_sys_umount("/sys", 0);
-		lkl_sys_umount("/dev", 0);
-
-		/* pivot */
-		err = lkl_sys_chroot(mnt_point);
-		if (err != 0) {
-			fprintf(stderr, "Error: lkl_sys_chroot(%s): %s\n",
-				mnt_point, lkl_strerror(err));
-			exit(err);
-		}
-
-		err = lkl_sys_chdir("/");
-		if (err != 0) {
-			fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n",
-				mnt_point, lkl_strerror(err));
-			exit(err);
-		}
+	if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) && (getenv("SGXLKL_HD_VERITY") != NULL || disk->enc)) {
+		sgxlkl_trace_lkl_syscall = 0;
+		sgxlkl_trace_internal_syscall = 0;
+		SGXLKL_VERBOSE("Disk encryption/integrity requested: temporarily disabling lkl_strace\n");
 	}
+
+	if (getenv("SGXLKL_HD_VERITY") != NULL) {
+		lkl_run_in_kernel_stack(&lkl_activate_verity_disk_thread, dev_str);
+
+		/* we now want to mount the verified volume */
+		dev_str = dev_str_verity;
+	}
+	if (disk->enc) {
+		lkl_run_in_kernel_stack(&lkl_activate_crypto_disk_thread, dev_str);
+
+		/* we now want to mount the decrypted volume */
+		dev_str = dev_str_enc;
+	}
+
+	if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) && (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
+		SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
+		sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
+		sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
+	}
+#endif
+
+	err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
+	if (err < 0) {
+		fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n",
+			lkl_strerror(err), err);
+		exit(err);
+	}
+
+	/* set up /dev in the new root */
+	lkl_prepare_rootfs(new_dev_str, 0700);
+	lkl_mount_devtmpfs(new_dev_str);
+	lkl_copy_blkdev_nodes("/dev/", new_dev_str);
+
+	/* clean up */
+	lkl_sys_umount("/proc", 0);
+	lkl_sys_umount("/sys", 0);
+	lkl_sys_umount("/dev", 0);
+
+	/* pivot */
+	err = lkl_sys_chroot(mnt_point);
+	if (err != 0) {
+		fprintf(stderr, "Error: lkl_sys_chroot(%s): %s\n",
+			mnt_point, lkl_strerror(err));
+		exit(err);
+	}
+
+	err = lkl_sys_chdir("/");
+	if (err != 0) {
+		fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n",
+			mnt_point, lkl_strerror(err));
+		exit(err);
+	}
+
 	lkl_prepare_rootfs("/dev", 0700);
 	lkl_prepare_rootfs("/mnt", 0700);
 	lkl_prepare_rootfs("/tmp", 0777);
 	lkl_prepare_rootfs("/sys", 0700);
 	lkl_prepare_rootfs("/proc", 0700);
 	lkl_mount_tmpfs();
+	lkl_mount_mntfs();
 	lkl_mount_sysfs();
 	lkl_mount_procfs();
 	lkl_mknods();
+}
+
+static void lkl_poststart_disks(struct enclave_disk_config* disks, size_t num_disks)
+{
+	lkl_poststart_root_disk(&disks[0]);
+
+	char dev_path[] = { "/dev/vdXX" };
+	size_t dev_path_len = strlen(dev_path);
+	for (size_t i = 1; i < num_disks; ++i) {
+		// We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
+		// support for more than 26 disks.
+		if ('a' + i > 'z') {
+			fprintf(stderr, "Error: Too many disks (maximum is 26). Failed to mount disk %d at %s.\n", i, disks[i].mnt);
+			// Adjust number to number of mounted disks.
+			num_disks = 26;
+			return;
+		}
+		snprintf(dev_path, dev_path_len, "/dev/vd%c", 'a' + i);
+		int err = lkl_mount_blockdev(dev_path, disks[i].mnt, "ext4", disks[i].ro ? LKL_MS_RDONLY : 0, NULL);
+		if (err < 0) {
+			fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
+			exit(err);
+		}
+	}
 }
 
 static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id)
@@ -598,6 +612,8 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id)
 
 void __lkl_start_init(enclave_config_t* encl)
 {
+	size_t i;
+
 	// Overwrite function pointers from LKL's posix-host.c with ours
 	lkl_host_ops = sgxlkl_host_ops;
 	lkl_dev_blk_ops = sgxlkl_dev_plaintext_blk_ops;
@@ -630,12 +646,19 @@ void __lkl_start_init(enclave_config_t* encl)
 	if (get_env_bool("SGXLKL_MMAP_FILE_SUPPORT", 0))
 		sgxlkl_mmap_file_support = 1;
 
-	encl->disk_ro = get_env_bool("SGXLKL_HD_RO", 0) == 1;
+	num_disks = encl->num_disks;
+	if (num_disks <= 0) {
+		fprintf(stderr, "Error: No root disk provided. Aborting...\n");
+		exit(EXIT_FAILURE);
+	}
 
-	// Register hard drive if given one
-	int disk_dev_id = -1;
-	if (encl->disk_fd != 0)
-		disk_dev_id = lkl_prestart_disks(encl);
+	// We copy the disk config as we need to keep track of mount paths and can't
+	// rely on the enclave_config to be around and unchanged for the lifetime of
+	// the enclave.
+	disks = (struct enclave_disk_config*) malloc(sizeof(struct enclave_disk_config) * num_disks);
+	memcpy(disks, encl->disks, sizeof(struct enclave_disk_config) * num_disks);
+
+	lkl_prestart_disks(disks, num_disks);
 
 	// Register network tap if given one
 	int net_dev_id = -1;
@@ -647,10 +670,12 @@ void __lkl_start_init(enclave_config_t* encl)
 	if (lkl_cmdline == NULL)
 		lkl_cmdline = DEFAULT_LKL_CMDLINE;
 	SGXLKL_VERBOSE("With command line: %s\n", lkl_cmdline);
-	SGXLKL_VERBOSE("Disk encryption: %s\n", (encl->disk_enc ? "ON" : "off"));
 	SGXLKL_VERBOSE("Using host networking stack: %s\n", (sgxlkl_use_host_network ? "YES" : "no"));
 	SGXLKL_VERBOSE("Using LKL mmap file support: %s\n", (sgxlkl_mmap_file_support ? "YES" : "no"));
-	SGXLKL_VERBOSE("Rootfs is writable: %s\n", (!encl->disk_ro ? "YES" : "no"));
+	for (i = 0; i < num_disks; ++i) {
+		SGXLKL_VERBOSE("Disk %zu: Disk encryption: %s\n", i, (disks[i].enc ? "ON" : "off"));
+		SGXLKL_VERBOSE("Disk %zu: Rootfs is writable: %s\n", i, (!disks[i].ro ? "YES" : "no"));
+	}
 
 	long res = lkl_start_kernel(&lkl_host_ops, lkl_cmdline);
 	if (res < 0) {
@@ -671,8 +696,8 @@ void __lkl_start_init(enclave_config_t* encl)
 		}
 	}
 
-	// Now that our kernel is ready to handle syscalls, mount a nice root
-	lkl_poststart_disks(encl, disk_dev_id);
+	// Now that our kernel is ready to handle syscalls, mount root
+	lkl_poststart_disks(disks, num_disks);
 
 	// Set environment variable to export SHMEM address to the application.
 	// Note: Due to how putenv() works, we need to allocate the environment
@@ -723,11 +748,29 @@ void __lkl_exit()
 		printf("Application runtime: %lld.%.9lds", runtime.tv_sec, runtime.tv_nsec);
 	}
 
-	long res = lkl_umount_timeout("/", 0, UMOUNT_ROOT_DISK_TIMEOUT);
-	if (res < 0) {
-		fprintf(stderr, "Error: Could not unmount root disk, %s\n",
-			lkl_strerror(res));
-		exit(res);
+	long res;
+	for (int i = num_disks - 1; i >= 0; --i) {
+		res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
+		if (res < 0) {
+			fprintf(stderr, "Error: Could not unmount disk %d, %s\n", i, lkl_strerror(res));
+		}
+
+		// Root disk, no need to remove mount point ("/").
+		if (i == 0) break;
+
+
+		// Not really necessary for mounts in /mnt since /mnt is
+		// mounted as tmpfs itself, but it is also possible to mount
+		// secondary images at any place in the root file system,
+		// including persistent storage, if the root file system is
+		// writeable. For simplicity, remove all mount points here.
+		//
+		// Note: We currently do not support pre-existing mount points
+		// on read-only file systems.
+		res = lkl_sys_rmdir(disks[i].mnt);
+		if (res < 0) {
+			fprintf(stderr, "Error: Could not remove mount point %s\n", disks[i].mnt, lkl_strerror(res));
+		}
 	}
 
 	res = lkl_sys_halt();

@@ -35,6 +35,16 @@ typedef struct {
     uintptr_t status;
 } syscall_t __attribute__((aligned(64)));
 
+/* Maximum path length of mount points for secondary disks */
+#define SGXLKL_DISK_MNT_MAX_PATH_LEN 255
+
+typedef struct enclave_disk_config {
+    int fd;
+    char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];
+    int ro;
+    int enc;
+} enclave_disk_config_t;
+
 /* Untrusted config provided by the user */
 typedef struct enclave_config {
     void *syscallpage;
@@ -44,9 +54,8 @@ typedef struct enclave_config {
     size_t stacksize;
     struct mpmcq syscallq;
     struct mpmcq returnq;
-    int disk_fd;
-    int disk_ro;
-    int disk_enc;
+    size_t num_disks;
+    struct enclave_disk_config *disks; /* Array of disk configurations, length = num_disks */
     int net_fd;
     struct in_addr net_ip4;
     struct in_addr net_gw4;
@@ -108,14 +117,14 @@ typedef struct {
 
 /*
  * States for each kernel thread (TCS):
- * UNUSED - enclave cannot be entered using this TCS 
+ * UNUSED - enclave cannot be entered using this TCS
  * AVAILABLE - enclave allows entry using this TCS
  * ACTIVE - thread executes, cannot be entered (SGX should prevent this by blocking TCS)
  * OUTSIDE - thread executes/sleeps outside, allows re-entry
  */
 typedef enum { ACTIVE = 0, OUTSIDE = 1, UNUSED = 2, AVAILABLE = 3 } thread_states_t;
 
-/* 
+/*
  * In-calls
  * These values are used in sgxcrt.c directly. Adjust when making changes here.
  */

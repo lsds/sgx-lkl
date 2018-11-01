@@ -172,8 +172,9 @@ static void usage(char* prog) {
     printf("SGXLKL_HOSTNAME: Host name for LKL to use (Default: %s).\n", DEFAULT_HOSTNAME);
     printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
     printf("\n## Disk ##\n");
-    printf("SGXLKL_HD_VERITY: Volume hash for the provided file system image.\n");
-    printf("SGXLKL_HD_RO: Set to 1 to mount the file system as read-only.\n");
+    printf("SGXLKL_HD_VERITY: Volume hash for the root file system image.\n");
+    printf("SGXLKL_HD_RO: Set to 1 to mount the root file system as read-only.\n");
+    printf("SGXLKL_HDS: Secondary file system images. Comma-separated list of the format: disk1path:disk1mntpoint:disk1mode,disk2path:disk2mntpoint:disk2mode,[...].\n");
     printf("\n## Memory ##\n");
     printf("SGXLKL_HEAP: Total heap size (in bytes) available in the enclave. This includes memory used by the kernel.\n");
     printf("SGXLKL_STACK_SIZE: Stack size of in-enclave user-level threads.\n");
@@ -352,10 +353,12 @@ static int is_disk_encrypted(int fd) {
     return !(magic[0] == 0x53 && magic[1] == 0xEF);
 }
 
-static void register_hd(enclave_config_t* encl, char* path, int readonly) {
-    if (encl->disk_fd != 0) {
-        fprintf(stderr, "Error: Multiple disks not supported yet\n");
-        exit(1);
+static void register_hd(enclave_config_t* encl, char* path, char* mnt, int readonly) {
+    size_t idx = encl->num_disks;
+
+    if (strlen(mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN) {
+        fprintf(stderr, "Error: Mount path for disk %lu too long (maximum length is %d): \"%s\"\n", idx, SGXLKL_DISK_MNT_MAX_PATH_LEN, mnt);
+        exit(EXIT_FAILURE);
     }
     if (path == NULL || strlen(path) == 0)
         return;
@@ -363,58 +366,95 @@ static void register_hd(enclave_config_t* encl, char* path, int readonly) {
     int fd = open(path, readonly ? O_RDONLY : O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "Unable to open disk file %s for %s access: %s\n", path, readonly ? "read" : "read/write", strerror(errno));
-        exit(2);
+        exit(EXIT_FAILURE);
     }
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1) {
         perror("fcntl(disk_fd, F_GETFL)");
-        exit(3);
+        exit(EXIT_FAILURE);
     }
     int res = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     if (res == -1) {
         perror("fcntl(disk_fd, F_SETFL)");
-        exit(4);
+        exit(EXIT_FAILURE);
     }
-    encl->disk_fd = fd;
-    encl->disk_ro = readonly;
-    encl->disk_enc = is_disk_encrypted(fd);
+
+    encl->disks[idx].fd = fd;
+    encl->disks[idx].ro = readonly;
+    strncpy(encl->disks[idx].mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
+    encl->disks[idx].mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
+    encl->disks[idx].enc = is_disk_encrypted(fd);
+    ++encl->num_disks;
+}
+
+static void register_hds(enclave_config_t *encl, char *root_hd) {
+    // Count disks to register
+    size_t num_disks = 1; // Root disk
+    char *hds_str = getenv("SGXLKL_HDS");
+    if (hds_str && hds_str[0]) {
+        num_disks++;
+        for (int i = 0; hds_str[i]; i++) {
+            if (hds_str[i] == ',') num_disks++;
+        }
+    }
+
+    // Allocate space for encave disk configurations
+    encl->disks = (struct enclave_disk_config*) malloc(sizeof(struct enclave_disk_config) * num_disks);
+    // Initialize encl->num_disks, will be adjusted by register_hd
+    encl->num_disks = 0;
+    // Register root disk
+    register_hd(encl, root_hd, "/", parseenv("SGXLKL_HD_RO", 0, 1));
+    // Register secondary disks
+    while (*hds_str) {
+        char *hd_path = hds_str;
+        char *hd_mnt = strchrnul(hd_path, ':');
+        *hd_mnt = '\0';
+        hd_mnt++;
+        char *hd_mnt_end = strchrnul(hd_mnt, ':');
+        *hd_mnt_end = '\0';
+        int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
+        register_hd(encl, hd_path, hd_mnt, hd_ro);
+
+        hds_str = strchrnul(hd_mnt_end + 1, ',');
+        while(*hds_str == ' ' || *hds_str == ',') hds_str++;
+    }
 }
 
 static void *register_shm(char* path, size_t len) {
     if (path == NULL || strlen(path) == 0)
-        exit(2);
+        exit(EXIT_FAILURE);
 
     int fd = shm_open(path, O_TRUNC | O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fd == -1) {
         fprintf(stderr, "Error: unable to access shared memory %s (%s)\n", path, strerror(errno));
         perror("open()");
-        exit(3);
+        exit(EXIT_FAILURE);
     }
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1) {
         perror("fcntl(shmem_fd, F_GETFL)");
-        exit(4);
+        exit(EXIT_FAILURE);
     }
     int res = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     if (res == -1) {
         perror("fcntl(shmem_fd, F_SETFL)");
-        exit(5);
+        exit(EXIT_FAILURE);
     }
 
     if (len <= 0) {
         fprintf(stderr, "Error: invalid memory size length %zu\n", len);
-        exit(6);
+        exit(EXIT_FAILURE);
     }
 
     if(ftruncate(fd, len) == -1) {
         fprintf(stderr, "ftruncate: %s\n", strerror(errno));
-        exit(7);
+        exit(EXIT_FAILURE);
     }
 
     void *addr;
     if ((addr = mmap(0, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
         fprintf(stderr, "mmap: %s\n", strerror(errno));
-        exit(8);
+        exit(EXIT_FAILURE);
     }
 
     close(fd);
@@ -433,7 +473,7 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
 
     if (encl->net_fd != 0) {
         fprintf(stderr, "Error: multiple network interfaces not supported yet\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // Open tap device FD
@@ -455,17 +495,17 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     int fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
     if (fd == -1) {
         perror("[    SGX-LKL   ] Error: TUN network device unavailable, open(\"/dev/net/tun\") failed");
-        exit(2);
+        exit(EXIT_FAILURE);
     }
     if (ioctl(fd, TUNSETIFF, &ifr) == -1) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Tap device %s unavailable, ioctl(\"/dev/net/tun\"), TUNSETIFF) failed: %s\n", tapstr, strerror(errno));
-        exit(3);
+        exit(EXIT_FAILURE);
     }
 
     if (vnet_hdr_sz && ioctl(fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0) {
         fprintf(stderr, "failed to TUNSETVNETHDRSZ: /dev/net/tun: %s\n", strerror(errno));
         close(fd);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     int offload_flags = 0;
@@ -476,7 +516,7 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     if (ioctl(fd, TUNSETOFFLOAD, offload_flags) != 0) {
         fprintf(stderr, "failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
         close(fd);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // Read IPv4 addr if there is one
@@ -486,7 +526,7 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     struct in_addr ip4 = { 0 };
     if (inet_pton(AF_INET, ip4str, &ip4) != 1) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 address %s\n", ip4str);
-        exit(4);
+        exit(EXIT_FAILURE);
     }
 
     // Read IPv4 gateway if there is one
@@ -497,14 +537,14 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     if (gw4str != NULL && strlen(gw4str) > 0 &&
             inet_pton(AF_INET, gw4str, &gw4) != 1) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 gateway %s\n", ip4str);
-        exit(5);
+        exit(EXIT_FAILURE);
     }
 
     // Read IPv4 mask str if there is one
     int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
     if (mask4 < 1 || mask4 > 32) {
         fprintf(stderr, "[    SGX-LKL   ] Error: Invalid IPv4 mask %s\n", mask4str);
-        exit(6);
+        exit(EXIT_FAILURE);
     }
 
     encl->net_fd = fd;
@@ -616,7 +656,7 @@ void* enclave_thread(void* parm) {
             }
             case SGXLKL_EXIT_ERROR: {
                 fprintf(stderr, "error inside enclave, error code: %lu \n", ret[1]);
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
             case SGXLKL_EXIT_DORESUME: {
                 eresume(my_tcs_id);
@@ -727,7 +767,7 @@ void stats_sigint_handler(int signo) {
         fprintf(stderr, "\nDo you want to quit (continue execution otherwise)? [y/n]");
         scanf("%1s", &response[0]);
         if (response[0] == 'y' || response[0] == 'Y') {
-            exit(0);
+            exit(EXIT_SUCCESS);
         }
 
         _sigint_handling = 0;
@@ -742,7 +782,7 @@ int main(int argc, char *argv[], char *envp[]) {
     size_t ntenclave = 1;
     pthread_t *ts;
     enclave_config_t encl = {0};
-    char *hd;
+    char *root_hd;
     char** auxvp;
     int i, r, rtprio;
     void *_retval;
@@ -758,15 +798,15 @@ int main(int argc, char *argv[], char *envp[]) {
 
     if (argc >= 2 && (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))) {
         version();
-        exit(0);
+        exit(EXIT_SUCCESS);
     }
 
     if (argc <= 2 || (argc >= 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))) {
         usage(argv[0]);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    hd = argv[1];
+    root_hd = argv[1];
 
 #ifdef SGXLKL_HW
     encl.mode = SGXLKL_HW_MODE;
@@ -921,9 +961,7 @@ int main(int argc, char *argv[], char *envp[]) {
         encl.vvar = 0;
     }
 
-    // Get network and hard-drive parameters
-    register_hd(&encl, hd, parseenv("SGXLKL_HD_RO", 0, 1));
-
+    register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
 
     set_sysconf_params(&encl);
@@ -1051,7 +1089,7 @@ int main(int argc, char *argv[], char *envp[]) {
             printf("%s", "Not allowed to create thread with realtime priority. Exiting. Use\n"
                     "# echo '*         -       rtprio          80' >> /etc/security/limits.conf\n"
                     "and relogin.\n");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
     }
     /* once enclave calls exit(2) we exit anyway, so all threads will never be joined */
