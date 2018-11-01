@@ -17,6 +17,7 @@
 #include "lkl/virtio_net.h"
 #include "enclave_config.h"
 #include "sgxlkl_debug.h"
+#include "sgxlkl_util.h"
 
 #ifndef NO_CRYPTSETUP
 #include "libcryptsetup.h"
@@ -46,52 +47,6 @@ static struct enclave_disk_config *disks;
 #ifndef NO_CRYPTSETUP
 static const char* lkl_encryption_key = "FOO";
 #endif
-
-int get_env_bool(const char *name, int def)
-{
-	char *env = getenv(name);
-	if (env == NULL)
-		return def;
-	if (def)
-		return (strncmp(env, "0", 1) != 0);
-	else
-		return (strncmp(env, "1", 1) == 0);
-}
-
-static unsigned long long get_env_bytes(const char *name, unsigned long long def, unsigned long long max)
-{
-	char *env = getenv(name);
-	if (env == NULL)
-		return def;
-	char *suffix = NULL;
-	errno = 0;
-	unsigned long long res = strtoul(env, &suffix, 10);
-	if (errno) {
-		fprintf(stderr, "Error: unable to parse %s argument: %s\n", name, strerror(errno));
-		exit(1);
-	}
-	if (suffix == NULL || *suffix == '\0')
-		return res;
-	switch (tolower(*suffix)) {
-	case 'k':
-		res *= 1024;
-		break;
-	case 'm':
-		res *= 1024*1024;
-		break;
-	case 'g':
-		res *= 1024*1024*1024;
-		break;
-	default:
-		fprintf(stderr, "Error: unable to parse RAM unit\n");
-		exit(2);
-	}
-
-	if (res > max)
-		res = max;
-	return res;
-}
-
 
 static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_disks)
 {
@@ -618,32 +573,32 @@ void __lkl_start_init(enclave_config_t* encl)
 	lkl_host_ops = sgxlkl_host_ops;
 	lkl_dev_blk_ops = sgxlkl_dev_plaintext_blk_ops;
 
-	if (get_env_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
+	if (getenv_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
 		sgxlkl_trace_lkl_syscall = 1;
 
-	if (get_env_bool("SGXLKL_TRACE_INTERNAL_SYSCALL", 0))
+	if (getenv_bool("SGXLKL_TRACE_INTERNAL_SYSCALL", 0))
 		sgxlkl_trace_internal_syscall = 1;
 
-	if (get_env_bool("SGXLKL_TRACE_SYSCALL", 0)) {
+	if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0)) {
 		sgxlkl_trace_lkl_syscall = 1;
 		sgxlkl_trace_internal_syscall = 1;
         }
 
-	if (get_env_bool("SGXLKL_TRACE_MMAP", 0))
+	if (getenv_bool("SGXLKL_TRACE_MMAP", 0))
 		sgxlkl_trace_mmap = 1;
 
-	if (get_env_bool("SGXLKL_TRACE_THREAD", 0))
+	if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
 		sgxlkl_trace_thread = 1;
 
-	if (get_env_bool("SGXLKL_HOSTNET", 0))
+	if (getenv_bool("SGXLKL_HOSTNET", 0))
 		sgxlkl_use_host_network = 1;
 
-	if (get_env_bool("SGXLKL_TAP_OFFLOAD", 0))
+	if (getenv_bool("SGXLKL_TAP_OFFLOAD", 0))
 		sgxlkl_use_tap_offloading = 1;
 
-	sgxlkl_mtu = get_env_bytes("SGXLKL_TAP_MTU", 0, INT_MAX);
+	sgxlkl_mtu = (int) getenv_uint64("SGXLKL_TAP_MTU", 0, INT_MAX);
 
-	if (get_env_bool("SGXLKL_MMAP_FILE_SUPPORT", 0))
+	if (getenv_bool("SGXLKL_MMAP_FILE_SUPPORT", 0))
 		sgxlkl_mmap_file_support = 1;
 
 	num_disks = encl->num_disks;
