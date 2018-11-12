@@ -65,13 +65,17 @@ void load_elf(char* file_to_map, encl_map_info* result) {
     void *text_segment = 0, *segment_base = 0;
     void *entry_point = 0;
     unsigned long initial_vaddr = 0, load_segments_size;
-    unsigned int mapflags = MAP_PRIVATE|MAP_ANONYMOUS;
+    unsigned int mapflags = MAP_PRIVATE;
 
+    /* TODO Do not copy the whole file into memory instead of doing a
+     * file-backed mmap? */
     mapped = map_file(file_to_map, &sb);
     if(mapped < 0) {
         result->base = (void *)-1;
         return;
     }
+
+    int fd = open(file_to_map, O_RDONLY, 0);
 
     hdr = (Elf64_Ehdr *)mapped;
 
@@ -99,8 +103,9 @@ void load_elf(char* file_to_map, encl_map_info* result) {
     for (i = 0; i < hdr->e_phnum; ++i, ++pdr)
     {
         unsigned int protflags = 0;
-        unsigned long map_addr = 0, rounded_len, k;
+        unsigned long map_addr = 0, map_len, k;
         unsigned long unaligned_map_addr = 0;
+        off_t offset;
         void *segment;
 
         if (pdr->p_type == 0x03)  /* PT_INTERP */
@@ -133,31 +138,35 @@ void load_elf(char* file_to_map, encl_map_info* result) {
         // ensure that later MAP_FIXED mmap calls for subsequent segments do
         // not overlap with unrelated previously mapped regions.
         if (!text_segment) {
-            rounded_len = load_segments_size;
+            map_len = ROUNDUP(load_segments_size, 0x1000);
         } else {
-            rounded_len = (unsigned long)pdr->p_memsz + ((unsigned long)pdr->p_vaddr % 0x1000);
+            map_len = ROUNDUP(pdr->p_vaddr + pdr->p_memsz, 0x1000) - ALIGNDOWN(pdr->p_vaddr, 0x1000);
         }
 
-        rounded_len = ROUNDUP(rounded_len, 0x1000);
-
-        segment = mmap(
-                (void *)map_addr,
-                rounded_len,
-                PROT_WRITE, mapflags, -1, 0
-                );
+        offset = ALIGNDOWN(pdr->p_offset, 0x1000);
+        protflags = (((pdr->p_flags&PF_R) ? PROT_READ : 0) |
+            ((pdr->p_flags&PF_W) ? PROT_WRITE: 0) |
+            ((pdr->p_flags&PF_X) ? PROT_EXEC : 0) |
+            PROT_WRITE); // Force writeable
+        segment = mmap((void *)map_addr, map_len, protflags, mapflags, fd, offset);
 
         if (segment == (void *) -1)
         {
             result->base = (void *)-1;
+            fprintf(stderr, "Could not map segment (%p) of %s: %s", (void*)pdr->p_vaddr, file_to_map, strerror(errno));
             return;
         }
 
-        memcopy(
-                !anywhere? (void *)pdr->p_vaddr:
-                (void *)((unsigned long)segment + ((unsigned long)pdr->p_vaddr % 0x1000)),
-                mapped + pdr->p_offset,
-                pdr->p_filesz
-               );
+        if (pdr->p_memsz > pdr->p_filesz) {
+            size_t brk = (size_t)segment + pdr->p_filesz;
+            size_t pgbrk = ROUNDUP(brk, 0x1000);
+            memset((void *)brk, 0, pgbrk - ALIGNDOWN(brk, 0x1000));
+            if (pgbrk - (size_t)segment < map_len && mmap((void *)pgbrk, (size_t)segment + map_len - pgbrk, protflags, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) == MAP_FAILED) {
+                result->base = (void *)-1;
+                fprintf(stderr, "Could not map segment (%p) of %s: %s", (void*)pdr->p_vaddr, file_to_map, strerror(errno));
+                return;
+            }
+        }
 
         if (!text_segment)
         {
@@ -168,24 +177,14 @@ void load_elf(char* file_to_map, encl_map_info* result) {
                         - (unsigned long)pdr->p_vaddr
                         + (unsigned long)text_segment);
         }
-
-
-        if (pdr->p_flags & PF_R)
-            protflags |= PROT_READ;
-        if (pdr->p_flags & PF_W)
-            protflags |= PROT_WRITE;
-        if (pdr->p_flags & PF_X)
-            protflags |= PROT_EXEC;
-
-        if (mprotect(segment, rounded_len, protflags | PROT_WRITE /* TODO: force writable */)) {
-            fprintf(stderr, "WARNING: Could not mprotect loaded segment: %s\n",
-                    strerror(errno));
-        }
     }
+
+    close(fd);
 
     result->base = text_segment;
     result->entry_point = entry_point;
 
+done:
     munmap(mapped, sb.st_size);
 }
 

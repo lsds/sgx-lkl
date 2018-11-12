@@ -353,3 +353,7 @@ other illegal instructions. Similarly, for applications that define their own
 signal handler for `SIGSEGV` signals, gdb will pause execution. When
 continuing, SGX-LKL will pass on the signal to the in-enclave signal handler
 registered by the application.
+
+Support for profiling SGX-LKL with perf is currently limited to simulation
+mode. Only SGX-LKL symbols but no symbols of the application or its
+dependencies are available to perf due to the in-enclave linking/loading.
