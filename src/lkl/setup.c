@@ -700,7 +700,7 @@ void __lkl_exit()
 		struct timespec endtime, runtime;
 		clock_gettime(CLOCK_MONOTONIC, &endtime);
 		timespec_diff(&sgxlkl_app_starttime, &endtime, &runtime);
-		printf("Application runtime: %lld.%.9lds", runtime.tv_sec, runtime.tv_nsec);
+		printf("Application runtime: %lld.%.9lds\n", runtime.tv_sec, runtime.tv_nsec);
 	}
 
 	long res;
