@@ -20,16 +20,15 @@
 #include <elf.h>
 #include <signal.h>
 #include <assert.h>
-
-#include <sys/syscall.h>
+#include <sys/auxv.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/ip.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
@@ -160,7 +159,7 @@ static void usage(char* prog) {
     printf("SGXLKL_REAL_TIME_PRIO: Set to 1 to use realtime priority for enclave threads.\n");
     printf("SGXLKL_SSPINS: Number of spins inside host syscall threads before sleeping begins.\n");
     printf("SGXLKL_SSLEEP: Sleep timeout in the syscall threads (in ns).\n");
-    printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls.\n");
+    printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls (Default: 1).\n");
     printf("SGXLKL_ETHREADS_AFFINITY: Specifies the CPU core affinity for enclave threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
     printf("SGXLKL_STHREADS_AFFINITY: Specifies the CPU core affinity for system call threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
     printf("\n## Network ##\n");
@@ -901,21 +900,15 @@ int main(int argc, char *argv[], char *envp[]) {
     newmpmcq(&encl.syscallq, sqs, sq);
     newmpmcq(&encl.returnq, rqs, rq);
 
-    if (getenv_bool("SGXLKL_GETTIME_VDSO", 0)) {
+    encl.vvar = 0;
+    if (getenv_bool("SGXLKL_GETTIME_VDSO", 1)) {
         // Retrieve and save vDSO parameters
-        /* TODO(lkurusa): getauxval returns the wrong address, probably a size issue */
-        /* uint64_t vdso_base = (uint64_t) getauxval(AT_SYSINFO_EHDR); */
-        char *vdso_base = 0;
-        for (auxvp = envp; *auxvp; auxvp++);
-        for (auxvp = auxvp + 1; *auxvp; auxvp += 2) {
-            if (auxvp[0] == AT_SYSINFO_EHDR) {
-                vdso_base = auxvp[1];
-                break;
-            }
+        void *vdso_base = (char *) getauxval(AT_SYSINFO_EHDR);
+        if (vdso_base) {
+            encl.vvar = (char *) (vdso_base - 0x3000ULL);
+        } else {
+            fprintf(stderr, "[    SGX-LKL   ] Warning: No vDSO info in auxiliary vector. vDSO will not be used.\n");
         }
-        encl.vvar = (char *) (vdso_base - 0x3000ULL);
-    } else {
-        encl.vvar = 0;
     }
 
     register_hds(&encl, root_hd);
