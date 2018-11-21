@@ -730,6 +730,24 @@ void stats_sigint_handler(int signo) {
 }
 #endif /* DEBUG */
 
+#ifndef DEBUG
+void check_debug_envs(char ** envp) {
+    const char *dbg_pres[] = {"SGXLKL_TRACE_", "SGXLKL_PRINT_"};
+
+    char envname[128];
+    for (char **env = envp; *env != 0; env++) {
+        for (int i = 0; i < sizeof(dbg_pres)/sizeof(dbg_pres[0]); i++) {
+            if (strncmp(dbg_pres[i], *env, strlen(dbg_pres[i])) == 0) {
+                snprintf(envname, MIN(sizeof(envname), strchrnul(*env, '=') - *env + 1), "%s", *env);
+                if (getenv_bool(envname, 0)) {
+                    fprintf(stderr, "[    SGX-LKL   ] Warning: %s ignored in non-debug mode.\n", envname);
+                }
+            }
+        }
+    }
+}
+#endif /*not DEBUG */
+
 int main(int argc, char *argv[], char *envp[]) {
     void *sq, *rq;
     size_t sqs = 0, rqs = 0;
@@ -785,6 +803,9 @@ int main(int argc, char *argv[], char *envp[]) {
             return -1;
         }
     }
+#else
+    /* Print warnings for debug options enabled in non-debug mode. */
+    check_debug_envs(envp);
 #endif /* DEBUG */
 
     /* ignore sigpipe? */
