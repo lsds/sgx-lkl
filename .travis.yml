@@ -1,0 +1,24 @@
+language: c
+matrix:
+  include:
+  - name: "Hardware Release"
+    env:
+      - TARGET=
+      - DEBUG=false
+  - name: "Hardware Debug"
+    env:
+      - TARGET=
+      - DEBUG=true
+  - name: "Simulation Release"
+    env:
+      - TARGET=sim
+      - DEBUG=false
+  - name: "Simulation Debug"
+    env:
+      - TARGET=sim
+      - DEBUG=true
+dist: xenial
+compiler: gcc
+before_install:
+  - sudo apt-get install make gcc bc python xutils-dev bison flex -y
+script: make $TARGET DEBUG=$DEBUG

@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/lsds/sgx-lkl.svg?branch=master)](https://travis-ci.org/lsds/sgx-lkl)
+
 SGX-LKL
 =======
 
