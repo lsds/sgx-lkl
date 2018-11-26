@@ -73,11 +73,19 @@ sudo sysctl -w net.ipv4.ip_forward=1
 ```
 
 If SGX-LKL should be allowed to access the internet or other networks,
-masquerading might be needed:
+masquerading might also be needed:
 
 ```
+# Same as above, can be skipped if run before
+sudo sysctl -w net.ipv4.ip_forward=1
+
 sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
 ```
+
+DNS resolution is configured via `/etc/resolv.conf` as usual, so if this is
+required, ensure that a valid nameserver configuration is in place on the root
+disk image, e.g. by copying the host configuration (see
+`apps/miniroot/Makefile` for an example).
 
 Building SGX-LKL manually
 -------------------------
