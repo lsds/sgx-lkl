@@ -195,6 +195,43 @@ static void usage(char* prog) {
     printf("SGXLKL_PRINT_APP_RUNTIME: Measure and print total runtime of the application itself excluding the enclave and SGX-LKL startup and shutdown time.\n");
     printf("\n%s --version to print version information.\n", prog);
     printf("%s --help to print this help.\n", prog);
+    printf("%s --help-tls to print help on how to enable thread-local storage support in hardware mode.\n", prog);
+}
+
+static void usage_tls() {
+    printf("Support for Thread-Local Storage (TLS) in hardware mode\n"
+           "\n"
+           "On x86-64 platforms, thread-local storage for applications and their initially\n"
+           "available dependencies is expected to be accessible via fixed offsets from the\n"
+           "current value of the FS segment base. Whenever a switch from one thread to\n"
+           "another occurs, the FS segment base has to be changed accordingly. Typically\n"
+           "this is done by the privileged kernel. However, with SGX the FS segment base is\n"
+           "explicitly set when entering the enclave (OFSBASE field of the TCS page) and\n"
+           "reset when leaving the enclave. SGX-LKL schedules application threads within\n"
+           "the enclaves without leaving the enclave. It therefore needs to be able to set\n"
+           "the FS segment base on contexts switches.  This can be done with the WRFSBASE\n"
+           "instruction that allows to set the FS segment base at any privilege level.\n"
+           "However, this is only possible if the control register bit CR4.FSGSBASE is set\n"
+           "to 1. On current Linux kernels this bit is not set as the kernel is not able to\n"
+           "handle FS segment base changes by userspace applications. Note that changes to\n"
+           "the segment from within an enclave are transparent to the kernel.\n"
+           "\n"
+           "In order to allow SGX-LKL to set the segment base from within the enclave, the\n"
+           "CR4.FSGSBASE bit has to be set to 1. SGX-LKL provides a kernel module to do\n"
+           "this. In order to build the module and set the CR4.FSGSBASE to 1 run the\n"
+           "following:\n"
+           "\n"
+           "  cd tools/kmod-set-fsgsbase; make set-cr4-fsgsbase\n"
+           "\n"
+           "In order to set it back to 0, run:\n"
+           "\n"
+           "  cd tools/kmod-set-fsgsbase; make unset-cr4-fsgsbase\n"
+           "\n"
+           "WARNING: While using WRFSBASE within the enclave should have no impact on the\n"
+           "host OS, allowing other userspace applications can impact the stability of\n"
+           "those applications and potentially the kernel itself. Enabling FSGSBASE should\n"
+           "be done with care.\n"
+           "\n");
 }
 
 static void sgxlkl_fail(char *msg, ...) {
@@ -523,6 +560,50 @@ void set_shared_mem(enclave_config_t *conf) {
     conf->shm_out_to_enc = register_shm(shm_file_out_to_enc, shm_len);
 }
 
+static int rdfsbase_caused_sigill = 0;
+#define RDFSBASE_LEN 5 //Instruction length
+
+void rdfsbase_sigill_handler(int sig, siginfo_t *si, void *data) {
+    rdfsbase_caused_sigill = 1;
+
+    // Skip instruction
+    ucontext_t *uc = (ucontext_t *)data;
+    uc->uc_mcontext.gregs[REG_RIP] += RDFSBASE_LEN;
+}
+
+/* Checks whether we can us FSGSBASE instructions within the enclave
+   NOTE: This overrides previously set SIGILL handlers! */
+void set_tls(enclave_config_t* conf) {
+#ifdef SGXLKL_HW
+    // We need to check whether we can support TLS in hardware mode or not This
+    // is only possible if control register bit CR4.FSGSBASE is set that allows
+    // us to set the FS segment base from userspace when context switching
+    // between lthreads within the enclave.
+
+    // All SGX-capabale CPUs should support the FSGSBASE feature, so we won't
+    // check CPUID here. However, we do have to check whether the control
+    // register bit is set. Currently, the only way to do this seems to be by
+    // actually using one of the FSGSBASE instructions to check whether it
+    // causes a #UD exception.
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(struct sigaction));
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = rdfsbase_sigill_handler;
+    if (sigaction(SIGILL, &sa, NULL) == -1) {
+        fprintf(stderr, "[    SGX-LKL   ] Warning: Failed to register SIGILL handler. Only limited thread-local storage support will be available.\n");
+        return;
+    }
+
+    // If the following instruction causes a segfault, we won't be able to use
+    // WRFSBASE to set the FS segment base inside the enclave.
+    volatile unsigned long x;
+    __asm__ volatile ( "rdfsbase %0" : "=r" (x) );
+    conf->fsgsbase = !rdfsbase_caused_sigill;
+# else
+    conf->fsgsbase = 0;
+#endif
+}
+
 /* Parses the string provided as config for CPU affinity specifications. The
  * specification must consist of a comma-separated list of core IDs. It can
  * contain ranges. For example, "0-2,4" is a valid specification.
@@ -840,9 +921,12 @@ int main(int argc, char *argv[], char *envp[]) {
         exit(EXIT_SUCCESS);
     }
 
-    if (argc <= 2 || (argc >= 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))) {
+    if (argc >= 2 && !strcmp(argv[1], "--help-tls")) {
+        usage_tls();
+        exit(EXIT_SUCCESS);
+    } else if (argc <= 2 || (argc >= 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))) {
         usage(argv[0]);
-        exit(EXIT_FAILURE);
+        exit(EXIT_SUCCESS);
     }
 
     root_hd = argv[1];
@@ -852,7 +936,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     /* Print warnings for ignored options, e.g. for debug options in non-debug mode. */
     check_envs_all(envp);
-    setup_signal_handlers();
 
 #ifdef SGXLKL_HW
     encl.mode = SGXLKL_HW_MODE;
@@ -867,9 +950,14 @@ int main(int argc, char *argv[], char *envp[]) {
     set_sysconf_params(&encl);
     set_vdso(&encl);
     set_shared_mem(&encl);
+    set_tls(&encl);
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
     register_queues(&encl);
+
+    // This has to be called after calling set_tls as set_tls registers a
+    // temporary SIGILL handler.
+    setup_signal_handlers();
 
     char libsgxlkl[PATH_MAX];
     get_absolute_libsgxlkl_path(libsgxlkl, PATH_MAX);

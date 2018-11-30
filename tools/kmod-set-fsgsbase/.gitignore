@@ -1,0 +1,7 @@
+.mod_set_cr4_fsgsbase.*.cmd
+.tmp_versions/
+Module.symvers
+mod_set_cr4_fsgsbase.ko
+mod_set_cr4_fsgsbase.mod.*
+mod_set_cr4_fsgsbase.o
+modules.order

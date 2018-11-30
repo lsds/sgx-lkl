@@ -9,13 +9,27 @@
 #include <string.h>
 #include "enclave_config.h"
 #include "hostcall_interface.h"
+#include "pthread_impl.h"
 
 /* we need this initializer for signer to find this struct in the TLS image */
 static __thread enclave_parms_t enclave_parms = {.base = 0xbaadf00ddeadbabe};
 
-inline enclave_parms_t* get_enclave_parms() {
+enclave_parms_t* get_enclave_parms() {
+    // The enclave parameters are stored in thread-local storage of each
+    // ethread. Early on they can be accessed at an offset added to the fs
+    // segment base which stores the current thread pointer. However, later on
+    // the fs base is modified to point at the TLS of the currently running
+    // lthread. By then, the scheduling context has been initialised and we can
+    // use it to get the address of the enclave parameter struct.
     enclave_parms_t* ret;
-    __asm("movq %%fs:16,%0\n" : "=r"(ret) : : );
+    if (__scheduler_self()) {
+        ret = __scheduler_self()->enclave_parms;
+    }
+
+    if (!ret) {
+        __asm("movq %%fs:16,%0\n" : "=r"(ret) : : );
+    }
+
     return ret;
 }
 

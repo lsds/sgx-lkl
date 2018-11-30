@@ -89,6 +89,20 @@ typedef struct {
     void* addr;
 } enclave_thread_t;
 
+
+/* Thread Control Block (TCB) for ethreads/the scheduler (schedctx)
+ *
+ * NOTE: MUST BE CONSISTENT WITH sched_tcb_base DEFINITION IN
+ * sgx-lkl-musl/src/internal/pthread_impl.h. */
+typedef struct sched_tcb_base {
+    void *tls; /* Will contain struct schedctx at runtime */
+    void *tcs;
+    void *enclave_parms;
+    char _pad_0[16];
+    uint64_t stack_guard_dummy; // Pthread ABI requires the thread's canary
+                                // value to be at offset 40 (0x28) of the TCB.
+} sched_tcb_base_t;
+
 static enclave_thread_t* threads;
 static int tcs_max  = 0;
 
@@ -632,13 +646,12 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
 
         //tls
         uint64_t tls = pageoffset;
-        uint64_t* ptr = (uint64_t*)page;
-        size_t tls_offset = 48;
-        ptr[0] = tls + tls_offset + sizeof(enclave_parms_t); //pointer to the actual tls
-        ptr[1] = pageoffset + PAGE_SIZE; //offset of tls from the base
-        ptr[2] = tls + tls_offset + enclave_parms_offset; //pointer(offset) to enclave parms
+        sched_tcb_base_t* sched_tcb = (uint64_t*)page;
+        size_t tls_offset = sizeof(sched_tcb_base_t);
+        sched_tcb->tls = tls + tls_offset + sizeof(enclave_parms_t); //pointer to the actual tls
+        sched_tcb->tcs = pageoffset + PAGE_SIZE; //offset of tcs from the base
+        sched_tcb->enclave_parms = tls + tls_offset + enclave_parms_offset; //pointer(offset) to enclave parms
 
-        //memcpy(page + 24, tls_start, tls_size);
         enclave_parms_t* enc = (enclave_parms_t*)(page + tls_offset + enclave_parms_offset);
         enc->base  = 0;
         enc->heap  = heap_offset;
@@ -663,21 +676,14 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
         tcs->flags.dbgoptin = 0;
         tcs->ofsbasgx = tls;
         tcs->ogsbasgx = tls;
-        tcs->fslimit  = 0x0fff;
-        tcs->gslimit  = 0x0fff;
+        tcs->fslimit  = 0x0fff; // ignored on x64
+        tcs->gslimit  = 0x0fff; // ignored on x64
         process_page(ubase, pageoffset, PAGE_TCS, page);
         threads[i].addr = (void*)(pageoffset + ubase);
         threads[i].busy = 0;
         D printf("tcs(%d): %lx\n", i, pageoffset);
         pageoffset += PAGE_SIZE;
     }
-}
-
-
-void debug_write(uint64_t addr, uint64_t val) {
-#if 0
-    encls(ENCLS_EDBGWR_IOCTL, tcsaddr_kernel + 8, (void*)val, 0);
-#endif
 }
 
 /* from Intel's ptrace */

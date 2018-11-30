@@ -53,10 +53,11 @@
 #include "hostcall_interface.h"
 #include "ticketlock.h"
 #include "tree.h"
+#include "enclave_config.h"
 
 extern int errno;
 
-int __copy_utls(uint8_t **, size_t *);
+int __copy_utls(struct lthread *, uint8_t *, size_t);
 static void _exec(void *lt);
 static inline void _lthread_madvise(struct lthread *lt);
 static void _lthread_init(struct lthread *lt);
@@ -394,6 +395,38 @@ void _lthread_free(struct lthread *lt) {
     lt = 0;
 }
 
+void set_tls_tp(struct lthread *lt) {
+    if (!libc.user_tls_enabled || !lt->itls)
+        return;
+
+    struct schedctx **sp = (struct schedctx **) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
+    *sp = __scheduler_self();
+#ifdef SGXLKL_HW
+    __asm__ volatile ( "wrfsbase %0" :: "r" (sp) );
+#else
+    int r = __set_thread_area(TP_ADJ(sp));
+    if(r < 0) {
+        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", sp, strerror(errno));
+    }
+#endif
+}
+
+void reset_tls_tp(struct lthread *lt) {
+    if (!libc.user_tls_enabled)
+        return;
+
+    struct schedctx *sp = __scheduler_self();
+#ifdef SGXLKL_HW
+    char *tp = (char *)__scheduler_self() - sizeof(enclave_parms_t) - sizeof(struct sched_tcb_base);
+    __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );
+#else
+    int r = __set_thread_area(TP_ADJ(sp));
+    if(r < 0) {
+        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", sp, strerror(errno));
+    }
+#endif
+}
+
 int _lthread_resume(struct lthread *lt) {
     struct lthread_sched *sched = lthread_get_sched();
     if (lt->attr.state & BIT(LT_ST_CANCELLED)) {
@@ -419,10 +452,13 @@ int _lthread_resume(struct lthread *lt) {
     sched->current_lthread = lt;
     sched->current_syscallslot = lt->syscall;
     sched->current_arena = &lt->syscallarena;
+
+    set_tls_tp(lt);
     _switch(&lt->ctx, &sched->ctx);
     sched->current_arena = &sched->arena;
     sched->current_syscallslot = sched->syscall;
     sched->current_lthread = NULL;
+    reset_tls_tp(lt);
     _lthread_madvise(lt);
     if (lt->attr.state & BIT(LT_ST_EXITED)) {
         /* lt is always locked before LT_ST_EXITED is set */
@@ -505,7 +541,7 @@ weak_alias(dummy_file, __stdin_used);
 weak_alias(dummy_file, __stdout_used);
 weak_alias(dummy_file, __stderr_used);
 static void init_file_lock(FILE *f) {
-	if (f && f->lock<0) f->lock = 0;
+    if (f && f->lock<0) f->lock = 0;
 }
 
 int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fun, void *arg) {
@@ -535,30 +571,41 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
         return (errno);
     }
     lt->attr.stack_size = stack_size;
-    /* mmap main tls image */
-    if (!__copy_utls(&lt->itls, &lt->itlssz)) {
-        munmap(lt->attr.stack, stack_size);
-        free(lt);
-        return (errno);
+
+    /* mmap tls image */
+    lt->itlssz = libc.tls_size;
+    if (libc.tls_size) {
+        if ((lt->itls = (uint8_t *) mmap(0, lt->itlssz, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0)) == MAP_FAILED) {
+            free(lt);
+            return errno;
+        }
+        if (!__copy_utls(lt, lt->itls, lt->itlssz)) {
+            munmap(lt->attr.stack, stack_size);
+            free(lt);
+            return errno;
+        }
     }
+
     lt->attr.state = BIT(LT_ST_NEW) | (attrp ? attrp->state : 0);
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
     lt->fun = fun;
     lt->arg = arg;
     arena_new(&lt->syscallarena, 4096);
     lt->locale = &libc.global_locale;
-    if (new_lt) {
-        *new_lt = lt;
-    }
     LIST_INIT(&lt->tls);
     lt->syscall = allocslot(lt);
     lt->robust_list.head = &lt->robust_list.head;
-    a_inc(&libc.threads_minus_1);
 
     // Inherit name from parent
     if (lthread_self() && lthread_self()->funcname) {
         lthread_set_funcname(lt, lthread_self()->funcname);
     }
+
+    if (new_lt) {
+        *new_lt = lt;
+    }
+
+    a_inc(&libc.threads_minus_1);
 
     SGXLKL_TRACE_THREAD("[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
 
@@ -593,16 +640,6 @@ void lthread_cancel(struct lthread *lt) {
     _lthread_desched_sleep(lt);
     __scheduler_enqueue(lt);
 }
-
-//void lthread_sleep(uint64_t msecs) {
-//    struct lthread *lt = lthread_get_sched()->current_lthread;
-//
-//    if (msecs == 0) {
-//        _lthread_yield_cb(lt, (void *)__scheduler_enqueue, lt);
-//    } else {
-//        _lthread_sched_sleep(lt, msecs);
-//    }
-//}
 
 void lthread_wakeup(struct lthread *lt) {
     if (lt->attr.state & BIT(LT_ST_SLEEPING)) {
