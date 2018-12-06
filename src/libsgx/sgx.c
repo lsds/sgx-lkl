@@ -95,12 +95,13 @@ typedef struct {
  * NOTE: MUST BE CONSISTENT WITH sched_tcb_base DEFINITION IN
  * sgx-lkl-musl/src/internal/pthread_impl.h. */
 typedef struct sched_tcb_base {
-    void *tls; /* Will contain struct schedctx at runtime */
+    void *self;
     void *tcs;
     void *enclave_parms;
     char _pad_0[16];
     uint64_t stack_guard_dummy; // Pthread ABI requires the thread's canary
                                 // value to be at offset 40 (0x28) of the TCB.
+    void *tls; /* Will point to struct schedctx at runtime */
 } sched_tcb_base_t;
 
 static enclave_thread_t* threads;
@@ -646,11 +647,12 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
 
         //tls
         uint64_t tls = pageoffset;
-        sched_tcb_base_t* sched_tcb = (uint64_t*)page;
+        sched_tcb_base_t* sched_tcb = (sched_tcb_base_t *)page;
         size_t tls_offset = sizeof(sched_tcb_base_t);
-        sched_tcb->tls = tls + tls_offset + sizeof(enclave_parms_t); //pointer to the actual tls
-        sched_tcb->tcs = pageoffset + PAGE_SIZE; //offset of tcs from the base
-        sched_tcb->enclave_parms = tls + tls_offset + enclave_parms_offset; //pointer(offset) to enclave parms
+        sched_tcb->self = (void *)tls; // self pointer offset
+        sched_tcb->tls = (char *)tls + tls_offset + sizeof(enclave_parms_t); // pointer to the actual tls
+        sched_tcb->tcs = (char *)pageoffset + PAGE_SIZE; // offset of tcs from the base
+        sched_tcb->enclave_parms = (char *)tls + tls_offset + enclave_parms_offset; // pointer(offset) to enclave parms
 
         enclave_parms_t* enc = (enclave_parms_t*)(page + tls_offset + enclave_parms_offset);
         enc->base  = 0;

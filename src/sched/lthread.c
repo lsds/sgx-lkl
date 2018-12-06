@@ -57,7 +57,8 @@
 
 extern int errno;
 
-int __copy_utls(struct lthread *, uint8_t *, size_t);
+int __init_utp(void *, int);
+void *__copy_utls(struct lthread *, uint8_t *, size_t);
 static void _exec(void *lt);
 static inline void _lthread_madvise(struct lthread *lt);
 static void _lthread_init(struct lthread *lt);
@@ -399,14 +400,14 @@ void set_tls_tp(struct lthread *lt) {
     if (!libc.user_tls_enabled || !lt->itls)
         return;
 
-    struct schedctx **sp = (struct schedctx **) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
-    *sp = __scheduler_self();
+    struct lthread_tcb_base *tp = (struct lthread_tcb_base*) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
+    tp->schedctx = __scheduler_self();
 #ifdef SGXLKL_HW
-    __asm__ volatile ( "wrfsbase %0" :: "r" (sp) );
+    __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );
 #else
-    int r = __set_thread_area(TP_ADJ(sp));
+    int r = __set_thread_area(TP_ADJ(tp));
     if(r < 0) {
-        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", sp, strerror(errno));
+        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", tp, strerror(errno));
     }
 #endif
 }
@@ -417,12 +418,13 @@ void reset_tls_tp(struct lthread *lt) {
 
     struct schedctx *sp = __scheduler_self();
 #ifdef SGXLKL_HW
-    char *tp = (char *)__scheduler_self() - sizeof(enclave_parms_t) - sizeof(struct sched_tcb_base);
+    char *tp = (char *)sp - sizeof(enclave_parms_t) - sizeof(struct sched_tcb_base);
     __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );
 #else
-    int r = __set_thread_area(TP_ADJ(sp));
+    char *tp = (char *)sp - sizeof(struct sched_tcb_base);
+    int r = __set_thread_area(TP_ADJ(tp));
     if(r < 0) {
-        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", sp, strerror(errno));
+        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", tp, strerror(errno));
     }
 #endif
 }
@@ -579,7 +581,7 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
             free(lt);
             return errno;
         }
-        if (!__copy_utls(lt, lt->itls, lt->itlssz)) {
+        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0)) {
             munmap(lt->attr.stack, stack_size);
             free(lt);
             return errno;

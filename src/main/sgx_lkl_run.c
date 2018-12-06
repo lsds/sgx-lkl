@@ -201,7 +201,7 @@ static void usage(char* prog) {
 static void usage_tls() {
     printf("Support for Thread-Local Storage (TLS) in hardware mode\n"
            "\n"
-           "On x86-64 platforms, thread-local storage for applications and their initially\n"
+           "On x86-64 platforms thread-local storage for applications and their initially\n"
            "available dependencies is expected to be accessible via fixed offsets from the\n"
            "current value of the FS segment base. Whenever a switch from one thread to\n"
            "another occurs, the FS segment base has to be changed accordingly. Typically\n"
@@ -209,7 +209,7 @@ static void usage_tls() {
            "explicitly set when entering the enclave (OFSBASE field of the TCS page) and\n"
            "reset when leaving the enclave. SGX-LKL schedules application threads within\n"
            "the enclaves without leaving the enclave. It therefore needs to be able to set\n"
-           "the FS segment base on contexts switches.  This can be done with the WRFSBASE\n"
+           "the FS segment base on context switches. This can be done with the WRFSBASE\n"
            "instruction that allows to set the FS segment base at any privilege level.\n"
            "However, this is only possible if the control register bit CR4.FSGSBASE is set\n"
            "to 1. On current Linux kernels this bit is not set as the kernel is not able to\n"
@@ -228,9 +228,9 @@ static void usage_tls() {
            "  cd tools/kmod-set-fsgsbase; make unset-cr4-fsgsbase\n"
            "\n"
            "WARNING: While using WRFSBASE within the enclave should have no impact on the\n"
-           "host OS, allowing other userspace applications can impact the stability of\n"
-           "those applications and potentially the kernel itself. Enabling FSGSBASE should\n"
-           "be done with care.\n"
+           "host OS, allowing other userspace applications to use it can impact the\n"
+           "stability of those applications and potentially the kernel itself. Enabling\n"
+           "FSGSBASE should be done with care.\n"
            "\n");
 }
 
@@ -926,7 +926,7 @@ int main(int argc, char *argv[], char *envp[]) {
         exit(EXIT_SUCCESS);
     } else if (argc <= 2 || (argc >= 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))) {
         usage(argv[0]);
-        exit(EXIT_SUCCESS);
+        exit(argc <= 2 ? EXIT_FAILURE : EXIT_SUCCESS);
     }
 
     root_hd = argv[1];
