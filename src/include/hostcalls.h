@@ -74,4 +74,10 @@ void *syscall_SYS_mremap(void *old_address, size_t old_size, size_t new_size, in
 int syscall_SYS_msync(void *addr, size_t length, int flags);
 int syscall_SYS_munmap(void *addr, size_t length);
 
+/* Some host system calls are only needed for debug purposed. Don't include
+ * them in a non-debug build. */
+#if DEBUG
+int host_syscall_SYS_open(const char *pathname, int flags, mode_t mode);
+#endif
+
 #endif /* HOSTCALLS_H */

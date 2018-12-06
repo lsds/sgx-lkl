@@ -800,3 +800,29 @@ int host_syscall_SYS_munlock(const void * addr, size_t len) {
     /* No-op */
     return 0;
 }
+
+/* Some host system calls are only needed for debug purposed. Don't include
+ * them in a non-debug build. */
+#if DEBUG
+int host_syscall_SYS_open(const char *pathname, int flags, mode_t mode) {
+    volatile syscall_t *sc;
+    volatile intptr_t __syscall_return_value;
+    Arena *a = NULL;
+    sc = getsyscallslot(&a);
+    size_t len1 = 0;
+    if (pathname != 0) len1 = strlen(pathname) + 1;
+    sc = arena_ensure(a, len1, (syscall_t*) sc);
+    sc->syscallno = SYS_open;
+    char * val1;
+    val1 = arena_alloc(a, len1);
+    if (pathname != NULL && val1 != NULL) memcpy(val1, pathname, len1);
+    sc->arg1 = (uintptr_t)val1;
+    sc->arg2 = (uintptr_t)flags;
+    sc->arg3 = (uintptr_t)mode;
+    threadswitch((syscall_t*) sc);
+    __syscall_return_value = sc->ret_val;
+    arena_free(a);
+    sc->status = 0;
+    return (int)__syscall_return_value;
+}
+#endif /* DEBUG */
