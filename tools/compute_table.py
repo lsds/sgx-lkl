@@ -56,7 +56,7 @@ with open(LKL_UNISTD_PATH, 'r') as f:
 with open(NATIVE_TBL_PATH, 'r') as f:
     parse_table(f, syscall_tab, 'native_num')
 
-syscall_nums = [f for f in syscall_tab.values() if f.native_num and f.lkl_num]
+syscall_nums = [f for f in syscall_tab.values() if f.native_num is not None and f.lkl_num is not None]
 syscall_nums.sort(key=lambda f: f.native_num)
 
 print("static const short syscall_remap_len = {};".format(syscall_nums[-1].native_num))
