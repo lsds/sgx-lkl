@@ -1,6 +1,7 @@
 **
 !/build/**
 !/apps/jvm/helloworld-java/**
+!/apps/miniroot/**
 !/tools/**
 **/*.o
 **/*.h

@@ -9,7 +9,7 @@ WORKDIR /sgx-lkl
 RUN apt-get update && apt-get install -y \
   build-essential \
   curl \
-  make gcc bc python xutils-dev \
+  make gcc bc python xutils-dev flex bison \
   sudo \
   git
 
