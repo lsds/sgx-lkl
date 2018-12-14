@@ -7,6 +7,7 @@
 #include <string.h>
 #define _GNU_SOURCE
 #include <sys/mman.h>
+#include <sys/sysinfo.h>
 
 #include "bitops.h"
 #include "enclave_mem.h"
@@ -21,9 +22,10 @@ static void* mmap_base; // First page that can be mmap'ed.
 static void* mmap_end;  // Last page that can be mmap'ed.
 static size_t mmap_num_pages; // Total number of pages that can be mmap'ed.
 
+static size_t used_pages = 0; // Tracks the number of used pages for the mmap tracing.
+
 #if DEBUG
 extern int sgxlkl_trace_mmap;
-static size_t used_pages = 0; // Tracks the number of used pages for the mmap tracing.
 static size_t mmap_max_allocated = 0; // Maximum amount of memory used thus far.
 #endif /* DEBUG */
 
@@ -125,6 +127,22 @@ int syscall_SYS_msync(void *addr, size_t length, int flags) {
     return 0;
 }
 
+int syscall_SYS_sysinfo(struct sysinfo *info) {
+    size_t total = mmap_num_pages * PAGESIZE;
+    size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
+
+    info->totalram = total;
+    info->freeram = free;
+    info->totalswap = 0;
+    info->freeswap = 0;
+    info->procs = 1;
+    info->totalhigh = 0;
+    info->freehigh = 0;
+    info->mem_unit = 1;
+
+    return 0;
+}
+
 /*
  * Initializes the enclave memory management.
  * 
@@ -210,12 +228,12 @@ void* enclave_mmap(void* addr, size_t length, int mmap_fixed) {
 
     ticket_unlock(&mmaplock);
 
+    if (ret != MAP_FAILED) {
+        used_pages += pages - replaced_pages;
+    }
+
 #if DEBUG
     if(sgxlkl_trace_mmap) {
-        if (ret != MAP_FAILED) {
-            used_pages += pages - replaced_pages;
-        }
-
         size_t requested = pages * PAGESIZE;
         size_t total = mmap_num_pages * PAGESIZE;
         size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
@@ -249,11 +267,9 @@ int enclave_munmap(void* addr, size_t length) {
 
     ticket_lock(&mmaplock);
 
-#if DEBUG
     // Only count pages that have been marked as mmapped before.
     size_t occupied_pages = bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index_top, pages);
     used_pages -= occupied_pages;
-#endif /* DEBUG */
 
     bitmap_clear(mmap_bitmap, index_top, pages);
     ticket_unlock(&mmaplock);

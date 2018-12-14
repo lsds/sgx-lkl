@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <poll.h>
 
@@ -73,6 +74,7 @@ void *syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, o
 void *syscall_SYS_mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address);
 int syscall_SYS_msync(void *addr, size_t length, int flags);
 int syscall_SYS_munmap(void *addr, size_t length);
+int syscall_SYS_sysinfo(struct sysinfo* info);
 
 /* Some host system calls are only needed for debug purposed. Don't include
  * them in a non-debug build. */
