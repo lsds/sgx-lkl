@@ -400,7 +400,8 @@ void set_tls_tp(struct lthread *lt) {
     if (!libc.user_tls_enabled || !lt->itls)
         return;
 
-    struct lthread_tcb_base *tp = (struct lthread_tcb_base*) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
+    uintptr_t tp_unaligned = (uintptr_t) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
+    struct lthread_tcb_base *tp = (struct lthread_tcb_base *) (tp_unaligned - (tp_unaligned & (libc.tls_align-1)));
     tp->schedctx = __scheduler_self();
 #ifdef SGXLKL_HW
     __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );
