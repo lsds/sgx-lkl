@@ -136,7 +136,7 @@ After SGX-LKL has been built, it is possible to deploy the container with the
 Java HelloWorld example on the local (or a remote) machine:
 
 ```
-./sgx-lkl-docker.sh deploy-jvm-helloworld -s
+./sgx-lkl-docker.sh deploy -a jvm-helloworld -s
 ```
 
 (Deployment on a remote Docker machine requires `docker-machine` to be set up.)
