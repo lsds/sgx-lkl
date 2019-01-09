@@ -3,6 +3,7 @@
 !/apps/jvm/helloworld-java/**
 !/apps/miniroot/**
 !/tools/**
+!/enclave_rootfs.img
 **/*.o
 **/*.h
 **/*.c

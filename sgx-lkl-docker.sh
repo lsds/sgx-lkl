@@ -1,6 +1,10 @@
 #/bin/bash
 
-# docker-machine create --driver generic --generic-ip-address=maru23.doc.res.ic.ac.uk --generic-ssh-key ~/.ssh/id_rsa-wombats --generic-ssh-user=prp maru23
+# Initialisation of remote Docker machine:
+#
+# docker-machine create --driver generic --generic-ip-address=<host> --generic-ssh-key ~/.ssh/<key> --generic-ssh-user=<user> <machine_id>
+
+set -e
 
 VOLUME_MOUNTS=$PWD:/sgx-lkl
 SSH_AGENT_WORKAROUND=
@@ -11,48 +15,39 @@ LOGIN=
 REMOTE_MACHINE=
 
 SGX_LKL_SIGN="/sgx-lkl/build/sgx-lkl-sign -t 8 -k /sgx-lkl/build/config/enclave_debug.key -f /sgx-lkl/build/libsgxlkl.so &&"
-
 SGX_LKL_PARAMS="SGXLKL_VERBOSE=1"
-
 APP=busybox
-
 SGX_DOCKER="--device=/dev/isgx --device=/dev/gsgx -v /var/run/aesmd:/var/run/aesmd"
+ESCALATE_CMD="sudo"
+IMG_SLACK_SIZE=10
 
 function usage() {
     echo
     echo "Usage:"
-    echo "`basename $0`  [-h|-?]                     Display this help message."
-    echo "  build <-s|-h> [-r] [-l]                      Build SGX-LKL in simulation (-s) or SGX hardware mode (-h)"
-    echo "                                                 -r: compiles in release mode without debug symbols"
-    echo "                                                 -l: do not build automatically but login to container"
-    echo "  deploy <-s|-h> [-m machine] [-l] [-a app]    Deploy application with SGX-LKL in simulatiuon (-s) or SGX hardware mode (-h)"
-    echo "                                                 -m  machine: deploy on remote Docker machine not localhost"
-    echo "                                                 -l: do not launch applicaton but just login to container"
-    echo "                                                 -a app: application to launch"
-    echo "                                                         Possible values: busybox, jvm-helloworld"
+    echo "`basename $0` <-s|-h>                        Use SGX-LKL in simulation (-s) or SGX hardware mode (-h)"
+    echo "  build [-r] [-l]                                Build SGX-LKL"
+    echo "                                                   -r: compiles in release mode without debug symbols"
+    echo "                                                   -l: do not build automatically but login to container"
+    echo "  deploy-app [-m machine] [-a app]               Deploy in-tree application with SGX-LKL"
+    echo "                                                   -m machine: deploy on remote Docker machine not localhost"
+    echo "                                                   -a app: application to launch"
+    echo "                                                     Possible values: busybox, jvm-helloworld"
+    echo "                                                     Empty provides a login shell to the container"
+    echo "  deploy-container <container_tag> <cmd> [args]  Create secure container run by SGX-LKL from container <container_tag>"
+    echo "                                                 that executes binary <cmd> with arguments [args]."
+    echo " [-?]       Display this help message."
+    exit 1
 }
 
-function parse_params() {    
-    while getopts ":shrlm:a:" opt; do
+function build() {
+    while getopts ":rl" opt; do
         case ${opt} in
-            s)
-                SIM=sim
-                ;;
-            h)
-                SIM=""
-                ;;
             r)
                 DEBUG=0
                 ;;
             l)
                 LOGIN=true
                 DOCKER_CMD="/bin/bash"
-                ;;
-            m)
-                REMOTE_MACHINE=${OPTARG}
-                ;;
-            a)
-                APP=${OPTARG}
                 ;;
             *)
                 echo "Invalid option: -$OPTARG" 1>&2
@@ -63,15 +58,6 @@ function parse_params() {
     done
     shift $((OPTIND-1))
 
-    if [[ ${SIM} == "unknown" ]]; then
-        echo "Missing option: <-s|-h>" 1>&2
-        usage
-        exit 1
-    fi
-
-}
-
-function build() {
     echo -n Building SGX-LKL using Docker in
     [[ ${SIM} ]] && echo -n " simulation " || echo -n " hardware "
     echo -n mode
@@ -92,24 +78,21 @@ function build() {
     docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "${DOCKER_CMD}"
 }
 
-function deploy() {
-    echo -n Deploying SGX-LKL on machine 
-    [[ ${REMOTE_MACHINE} ]] && echo -n " '${REMOTE_MACHINE}' " || echo -n " 'localhost' "
-    echo -n in
-    [[ ${SIM} ]] && echo -n " simulation " || echo -n " hardware "
-    echo mode and launching ${APP}
+function deploy-app() {
+    while getopts ":m:" opt; do
+        case ${opt} in
+            m)
+                REMOTE_MACHINE=${OPTARG}
+                ;;
+            *)
+                echo "Invalid option: -$OPTARG" 1>&2
+                usage
+                exit 1
+                ;;
+        esac
+    done
 
-    if [ ${REMOTE_MACHINE} ]; then
-        eval $(docker-machine env ${REMOTE_MACHINE})
-    fi
-
-    docker build --target deploy -t lsds/sgx-lkl:deploy .
-
-    if [ $SIM ]; then
-        SGX_DOCKER=""
-        SGX_LKL_SIGN=""
-    fi
-
+    APP=$@
     case ${APP} in
         busybox)
             APP_BUILD="(cd /sgx-lkl/apps/miniroot && make) &&"
@@ -124,11 +107,27 @@ function deploy() {
             APP_CMD="HelloWorld"
             ;;
         *)
-            echo "Unknown applcation ${APP}" 1>&2
-            usage
-            exit 1
+            LOGIN=true
+            DOCKER_CMD="/bin/bash"
             ;;
     esac
+
+    echo -n "Deploying SGX-LKL on machine" 
+    [[ ${REMOTE_MACHINE} ]] && echo -n " '${REMOTE_MACHINE}' " || echo -n " 'localhost' "
+    echo -n "in"
+    [[ ${SIM} ]] && echo -n " simulation " || echo -n " hardware "
+    echo "mode and launching ${APP}"
+
+    if [ ${REMOTE_MACHINE} ]; then
+        eval $(docker-machine env ${REMOTE_MACHINE})
+    fi
+
+    docker build --target deploy -t lsds/sgx-lkl:deploy .
+
+    if [ $SIM ]; then
+        SGX_DOCKER=""
+        SGX_LKL_SIGN=""
+    fi
 
     [ -z "${DOCKER_CMD}" ] && DOCKER_CMD="$APP_BUILD $SGX_LKL_PARAMS $LAUNCH_CMD $APP_IMG $APP_CMD"
 
@@ -140,12 +139,58 @@ function deploy() {
            /bin/bash -c "$SGX_LKL_SIGN ${DOCKER_CMD}" 
 }
 
+function deploy-container() {
+    SRC_CONTAINER=$1
+    [ -z "${SRC_CONTAINER}" ] && (echo "Missing source container <container_tag>" && usage)
+
+    shift
+    BINARY_CMD=$1
+    [ -z "${BINARY_CMD}" ] && (echo "Missing command <cmd> to run" && usage)
+
+    shift
+    BINARY_ARGS=$@
+
+    SEC_CONTAINER="${SRC_CONTAINER}-secure"
+
+    echo "Creating secure container '${SEC_CONTAINER}' from container '${SRC_CONTAINER}' with default enclave launch command '${BINARY_CMD} ${BINARY_ARGS}'"
+
+    CONTAINER_TAR=${SRC_CONTAINER}.tar
+    ENCLAVE_ROOT_IMG=enclave_rootfs.img
+    MOUNTPOINT="/mnt/ext4disk"
+
+    docker export -o ${CONTAINER_TAR} ${SRC_CONTAINER}
+
+    TAR_FILESIZE=`du -m ${CONTAINER_TAR} | cut -f1`
+    IMG_SIZE=$(( ${TAR_FILESIZE} + ${IMG_SLACK_SIZE} ))
+
+    docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "\\
+    
+        dd if=/dev/zero of=${ENCLAVE_ROOT_IMG} count=${IMG_SIZE} bs=1M 2>/dev/null\
+	    && mkfs.ext4 -q ${ENCLAVE_ROOT_IMG}\
+	    &&  ${ESCALATE_CMD} mkdir -p ${MOUNTPOINT}\
+	    &&  ${ESCALATE_CMD} mount -t ext4 -o loop ${ENCLAVE_ROOT_IMG} ${MOUNTPOINT}\
+	    &&  ${ESCALATE_CMD} tar -C ${MOUNTPOINT} -xf ${CONTAINER_TAR}\
+	    &&  ${ESCALATE_CMD} umount ${MOUNTPOINT}\
+	    &&  ${ESCALATE_CMD} rm -f ${CONTAINER_TAR}"
+
+    docker build -q --build-arg binary_cmd="${BINARY_CMD}" --build-arg binary_args="${BINARY_ARGS}" --target min-deploy -t ${SEC_CONTAINER} .
+
+    rm -f ${ENCLAVE_ROOT_IMG}
+}
+
 function main() {
-    while getopts ":h?" opt; do
+    while getopts ":?hs" opt; do
         case ${opt} in
-            h|?)
+            h)
+                SIM=""
+                break
+                ;;
+            s)
+                SIM="sim"
+                break
+                ;;
+            ?)
                 usage
-                exit 0
                 ;;
             \?)
                 echo "Unknown option: -$OPTARG" 1>&2
@@ -154,20 +199,23 @@ function main() {
         esac
     done
 
+    [ ${SIM} == "unknown" ] && (echo "Missing option: <-s|-h>" 1>&2; usage)
+
     shift $((OPTIND-1))
     subcommand=$1; shift
 
     case "$subcommand" in
         build)
-            parse_params "$@"
-            build
+            build "$@"
             ;;
-        deploy)
-            parse_params "$@"
-            deploy
+        deploy-app)
+            deploy-app "$@"
+            ;;
+        deploy-container)
+            deploy-container "$@"
             ;;
         *)
-            echo "Missing/unknown command ${subcommand}" 1>&2
+            echo "Missing/unknown command '${subcommand}'" 1>&2
             usage
             exit 1
             ;;
