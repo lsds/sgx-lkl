@@ -76,6 +76,9 @@ typedef struct enclave_config {
     int mode; /* SGXLKL_HW_MODE or SGXLKL_SIM_MODE */
     void *vvar;
     int fsgsbase; /* Can we use FSGSBASE instructions within the enclave? */
+#ifndef SGXLKL_HW
+    void (*sim_exit_handler) (int);
+#endif
 } enclave_config_t;
 
 enum SlotState { DONE, WRITTEN };

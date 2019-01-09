@@ -97,6 +97,12 @@ static const size_t DEFAULT_HEAP_SIZE = 200 * 1024 * 1024;
 // trying to reenter.
 static int __state_exiting = 0;
 
+// Keep track of enclave disk image files so we can flush changes to them
+// on exit.
+static struct enclave_disk_config *encl_disks = 0;
+static size_t encl_disk_cnt = 0;
+
+
 static pthread_spinlock_t __stdout_print_lock = {0};
 static pthread_spinlock_t __stderr_print_lock = {0};
 
@@ -124,6 +130,14 @@ __thread int my_tcs_id;
  * available when the executable is mapped.
  */
 #define SIM_NON_PIE_ENCL_MMAP_OFFSET 0x200000
+
+/* Conditional variable to indicate exit, only used in simulation mode.
+   exit_mtx protects the cv. exit_code is set to the exit code set by the
+   application.
+*/
+pthread_cond_t sim_exit_cv;
+pthread_mutex_t sim_exit_mtx;
+int sim_exit_code;
 #endif /* SGXLKL_HW */
 
 #define VERSION "1.0.0"
@@ -408,6 +422,10 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while(*hds_str == ' ' || *hds_str == ',') hds_str++;
     }
+
+    // Keep track of disks in order to close fds properly at exit
+    encl_disks = encl->disks;
+    encl_disk_cnt = encl->num_disks;
 }
 
 static void *register_shm(char* path, size_t len) {
@@ -874,6 +892,54 @@ void setup_signal_handlers(void) {
 #endif /* SGXLKL_HW */
 }
 
+#ifndef SGXLKL_HW
+/* Called by an enclave thread on exit in simulation mode. This is needed to be
+ * able to call the glibc versions of the pthread_* functions. */
+void sgxlkl_sim_exit_handler(int ec) {
+    // Signal main thread outside to exit.
+    sim_exit_code = ec;
+    int ret;
+    if (ret = pthread_mutex_lock(&sim_exit_mtx))
+        sgxlkl_fail("Failed to acquire enclave exit lock.\n");
+    if (ret = pthread_cond_signal(&sim_exit_cv))
+        sgxlkl_fail("Failed to acquire enclave exit lock.\n");
+    pthread_mutex_unlock(&sim_exit_mtx);
+}
+
+static void setup_sim_exit_handler(struct enclave_config *encl) {
+    /* We use a condition variable to wait for enclave threads to exit in SIM mode.
+       This allows us to to do cleanup work when exiting. We can't exit from the
+       enclave in SIM mode directly:
+
+       1) If we terminate by directly performing exit/exit_group syscalls, exit
+       handlers registered in this file won't be called.  2) We can't call the glibc
+       exit function from an enclave thread directly due to glibc storing a pointer
+       guard used for atexit function mangling in the thread control block (TCB). In
+       order to support thread-local storage for user-level application threads within
+       the enclave we se our own TCBs so that pointer guards don't match and the glibc
+       exit function would fail when demangling exit function pointers.
+
+       In HW mode, this is not an issue as leaving the enclave restores the FS segment
+       base on exit. The segment base then points to the correct glibc pthread TCB. */
+    int ret;
+    if (ret = pthread_cond_init(&sim_exit_cv, NULL))
+        sgxlkl_fail("Could not initialize exit condition variable: %s\n", strerror(ret));
+    if (ret = pthread_mutex_init(&sim_exit_mtx, NULL))
+        sgxlkl_fail("Could not initialize exit mutex: %s\n", strerror(ret));
+    if (ret = pthread_mutex_lock(&sim_exit_mtx))
+        sgxlkl_fail("Could not lock exit mutex: %s.\n", strerror(ret));
+
+    encl->sim_exit_handler = &sgxlkl_sim_exit_handler;
+}
+#endif /* !SGXLKL_HW */
+
+static void sgxlkl_cleanup(void) {
+    // Close disk image fds
+    while (encl_disk_cnt) {
+        close(encl_disks[--encl_disk_cnt].fd);
+    }
+}
+
 /* Determines path of libsgxlkl.so (lkl + musl) */
 void get_absolute_libsgxlkl_path(char *buf, size_t len) {
     ssize_t q;
@@ -954,6 +1020,12 @@ int main(int argc, char *argv[], char *envp[]) {
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
     register_queues(&encl);
+
+#ifndef SGXLKL_HW
+    setup_sim_exit_handler(&encl);
+#endif
+
+    atexit(sgxlkl_cleanup);
 
     // This has to be called after calling set_tls as set_tls registers a
     // temporary SIGILL handler.
@@ -1094,10 +1166,14 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
-    /* once enclave calls exit(2) we exit anyway, so all threads will never be joined */
-    for (i = 0; i < ntsyscall; i++) {
-        pthread_join(ts[i], &_retval);
-    }
+#ifdef SGXLKL_HW
+    /* Once an enclave thread calls exit in HW mode we exit anyway. */
+    for (i = 0; i < ntenclave; i++)
+        pthread_join(ts[ntsyscall + i], &_retval);
+#else
+    pthread_cond_wait(&sim_exit_cv, &sim_exit_mtx);
+    exit(sim_exit_code);
+#endif
 
     return 0;
 }
