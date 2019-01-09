@@ -47,6 +47,8 @@ typedef struct {
     void*    token;
 } gettoken_t;
 
+static int use_in_kernel_init = 0;
+
 /*
  * if changed, the same typedef must be updated accordingly in
  * sgx-lkl/src/include/enclave_config.h
@@ -169,7 +171,7 @@ static char* get_init_token(sigstruct_t* sig) {
         offset += PAGE_SIZE;
     }
 
-    int ret = einit(u, p, 0);
+    int ret = einit(u, p);
     if (ret != 0) {
         destroy_enclave(u);
         return 0;
@@ -195,39 +197,33 @@ static char* get_init_token(sigstruct_t* sig) {
     return req.token;
 }
 
-static void update_init_token(char* enclave, einittoken_t* token) {
-    uintptr_t token_section = get_section_address((char*)enclave, ".note.token");
-    memcpy((void*)token_section, token, sizeof(einittoken_t));
-}
-
-int einit(uintptr_t base, void* sigstruct, void* einittoken) {
-    int res = 0;
-    void* new_token = 0;
-    sigstruct_t* sig = (sigstruct_t*)sigstruct;
-
+int einit(uintptr_t base, void* sigstruct) {
+    void *einittoken;
     einittoken_t token = {0};
+
+    sigstruct_t* sig = (sigstruct_t*)sigstruct;
+    // Dont generate a launch token for the enclave
     if (sig->vendor == 0x8086) {
         einittoken = &token;
+    } else {
+        einittoken = get_init_token(sigstruct);
     }
 
-    struct sgx_enclave_init parm = {0};
-    parm.addr = base;
-    parm.sigstruct = (__u64)sigstruct;
-    parm.einittoken = (__u64)einittoken;
-    /* attempt to initialize the enclave with the provided launch token
-     * if we don't succeed, get a new token */
-    res = ioctl(sgxfd, SGX_IOC_ENCLAVE_INIT, &parm);
-    if (res == 0) return res;
-    printf("EINIT ERROR: %d\n", res);
-    if (res == ERR_SGX_INVALID_EINIT_TOKEN || res == ERR_SGX_INVALID_CPUSVN || res == ERR_SGX_INVALID_ISVSVN) {
-        new_token = get_init_token(sigstruct);
-        /* now we patch the executable with the new launch token */
-        update_init_token(0, new_token);
-        parm.einittoken = (__u64)new_token;
-    }
+    if (use_in_kernel_init) {
+        struct sgx_enclave_init_in_kernel initp = { 0, 0 };
+        initp.addr = (__u64)base;
+        initp.sigstruct = (__u64)sigstruct;
 
-    res = ioctl(sgxfd, SGX_IOC_ENCLAVE_INIT, &parm);
-    return res;
+        return ioctl(sgxfd, SGX_IOC_ENCLAVE_INIT_IN_KERNEL, &initp);
+    } else {
+        struct sgx_enclave_init parm = {0};
+        parm.addr = base;
+        parm.sigstruct = (__u64)sigstruct;
+        parm.einittoken = (__u64) einittoken;
+        /* attempt to initialize the enclave with the provided launch token
+         * if we don't succeed, get a new token */
+        return ioctl(sgxfd, SGX_IOC_ENCLAVE_INIT, &parm);
+    }
 }
 
 int add_page(uint64_t base, uint64_t offset, uint64_t prot, const void* p) {
@@ -277,7 +273,7 @@ uint64_t ecreate(size_t npages, int ssaSize, const void* sigstruct, void* basead
        to the enclave size. Therefore, we cannot use 0x400000 as base address in cases where the enclave is
        larger than 4 MB (0x400000 bytes). Instead, we allow mappings to address 0x0 to adhere to the alignment
        requirement.
-       */
+     */
     if(baseaddr == ECREATE_NO_FIXED_ADDR) {
         base = mmap(0x0, secs.size, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_SHARED, sgxfd, 0);
     } else {
@@ -320,10 +316,22 @@ uint64_t ecreate(size_t npages, int ssaSize, const void* sigstruct, void* basead
 
 int init_sgx() {
     if (sgxfd != 0) return 0;
-    if ((sgxfd = open("/dev/isgx", O_RDWR)) < 0) {
-        perror("error opening sgx device");
+
+    int isgx_errno = 0;
+    if ((sgxfd = open("/dev/isgx", O_RDWR)) > 0)
+        return 0;
+    isgx_errno = errno;
+
+    if ((sgxfd = open("/dev/sgx", O_RDWR)) < 0) {
+        fprintf(stderr, "Failed to open SGX device:\n"
+                        "  /dev/isgx: %s\n"
+                        "  /dev/sgx:  %s\n"
+                      , strerror(isgx_errno), strerror(errno));
         exit(EXIT_FAILURE);
     }
+
+    use_in_kernel_init = 1;
+
     return 0;
 }
 
@@ -730,26 +738,8 @@ enclave_parms_t* get_enclave_parms(void *p) {
     return (enclave_parms_t *)start;
 }
 
-uintptr_t create_enclave_mem(char *p, char *einit_path, int base_zero, void *base_zero_max) {
-    einittoken_t *t = 0;
+uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max) {
     sigstruct_t  *s = 0;
-
-    struct stat sb;
-
-    /* if einit_path is set, try to get the token from the file, otherwise it should be in .note.token */
-    if (einit_path != 0) {
-        int fd = open(einit_path, O_RDONLY);
-        if (fd == -1) {
-            fprintf(stderr, "cannot open einit file\n");
-            exit(EXIT_FAILURE);
-        }
-
-        fstat(fd, &sb);
-        t = (einittoken_t*)mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-        close(fd);
-    }
-    else
-        t = (einittoken_t*)get_section_address(p, ".note.token");
 
     s = (sigstruct_t*)get_section_address(p, ".note.sigstruct");
     if (s == 0) {
@@ -779,15 +769,12 @@ uintptr_t create_enclave_mem(char *p, char *einit_path, int base_zero, void *bas
     heap_size = enc->heap_size; // Used by GDB plugin
     process_pages(p, (uint64_t)ubase, heap, stack, tcsp, nssa, &add_page);
 
-    int res = einit(ubase, s, t);
+    int res = einit(ubase, s);
     if (res != 0) {
         printf("Error while initializing enclave, error code: %d\n", res);
         destroy_enclave(ubase);
         exit(EXIT_FAILURE);
     }
-
-    if (einit_path != 0)
-        munmap(t, sb.st_size);
 
     __gdb_hook_init_done();
 
@@ -798,7 +785,7 @@ uintptr_t create_enclave_mem(char *p, char *einit_path, int base_zero, void *bas
     return ubase;
 }
 
-uint64_t create_enclave(char* path, char* einit_path) {
+uint64_t create_enclave(char* path) {
     int fd = open(path, O_RDONLY);
     if (fd == -1) {
         fprintf(stderr, "cannot open enclave file\n");
@@ -814,7 +801,7 @@ uint64_t create_enclave(char* path, char* einit_path) {
     }
     close(fd);
 
-    ubase = create_enclave_mem(p, einit_path, 0, (void*) 0);
+    ubase = create_enclave_mem(p, 0, (void*) 0);
 
     munmap(p, sb.st_size);
     return (uint64_t)ubase;
@@ -892,30 +879,6 @@ static void fill_sigstruct_section(void* p, void* s) {
     memcpy(offset + p, s, 1808);
 }
 
-static void fill_token_section(void* p, void* t) {
-    Elf_Ehdr *ehdr = (Elf_Ehdr*)p;
-    Elf_Shdr *shdr = (Elf_Shdr*)(p + ehdr->e_shoff);
-    int shnum = ehdr->e_shnum;
-
-    Elf_Shdr *sh_strtab = &shdr[ehdr->e_shstrndx];
-    const char *const sh_strtab_p = p + sh_strtab->sh_offset;
-
-    int offset = 0;
-    for (int i = 0; i < shnum; ++i) {
-        if (strcmp(sh_strtab_p + shdr[i].sh_name, ".note.token") == 0) {
-            offset = shdr[i].sh_offset;
-            break;
-        }
-    }
-
-    if (offset == 0) {
-        fprintf(stderr, "enclave library should have .note.token section\n");
-        exit(EXIT_FAILURE);
-    }
-
-    memcpy(offset + p, t, 304);
-}
-
 void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     if (p == 0) return;
     if (key_path == 0) {
@@ -961,12 +924,6 @@ void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     sigstruct_t *s = (sigstruct_t*)get_section_address(p, ".note.sigstruct");
     memcpy(s->enclaveHash, hash, 32);
     cmd_sign(s, key_path);
-    char* t = get_init_token(s);
-    if (t) {
-        fill_token_section(p, t);
-        update_init_token(p, (einittoken_t *)t);
-        free(t);
-    }
 
     D printf("enclave hash: ");
     for(int i = 0; i < 32; i++)
@@ -974,7 +931,7 @@ void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     D printf("\n");
 }
 
-void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp, int get_token) {
+void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp) {
     int fd = open(path, O_RDWR);
     if (fd == -1) {
         fprintf(stderr, "could not open enclave library \n");
@@ -1051,17 +1008,6 @@ void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp, in
     memcpy(s.enclaveHash, hash, 32);
     cmd_sign(&s, key);
     fill_sigstruct_section(p, &s);
-
-    if (get_token) {
-        char* t = get_init_token(&s);
-        if (t) {
-            fill_token_section(p, t);
-            free(t);
-        }
-        else {
-            fprintf(stderr, "error while obtaining einittoken\n");
-        }
-    }
 
     munmap(p, sb.st_size);
     close(fd);

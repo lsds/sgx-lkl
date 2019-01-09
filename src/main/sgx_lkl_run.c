@@ -106,7 +106,7 @@ extern void eresume(uint64_t tcs_id);
 char* init_sgx();
 int   get_tcs_num();
 void  enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
-uint64_t create_enclave_mem(char* p, char* einit_path, int base_zero, void *base_zero_max);
+uint64_t create_enclave_mem(char* p, int base_zero, void *base_zero_max);
 void     enclave_update_heap(void *p, size_t new_heap, char* key_path);
 
 typedef struct {
@@ -996,7 +996,7 @@ int main(int argc, char *argv[], char *envp[]) {
             sgxlkl_fail("Heap size but no enclave signing key specified. Please specify a signing key via SGXLKL_KEY.\n");
         enclave_update_heap(enclave_start, getenv_uint64("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX), getenv("SGXLKL_KEY"));
     }
-    create_enclave_mem(enclave_start, 0, getenv_bool("SGXLKL_NON_PIE", 0), &__sgxlklrun_text_segment_start);
+    create_enclave_mem(enclave_start, getenv_bool("SGXLKL_NON_PIE", 0), &__sgxlklrun_text_segment_start);
 
     // Check if there are enough TCS for all ethreads.
     int num_tcs = get_tcs_num();

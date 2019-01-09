@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
     char* key = args_info.key_arg;
     char* libpath = args_info.file_arg;
 
-    enclave_sign(libpath, key, heapsize, stacksize, threads, 1);
+    enclave_sign(libpath, key, heapsize, stacksize, threads);
     cmdline_parser_free(&args_info);
     return 0;
 }

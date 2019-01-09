@@ -23,15 +23,15 @@ void  execute_instructions();
 
 /* SGX instructions wrappers */
 uint64_t ecreate(size_t npages, int ssaSize, const void* sigstruct, void* baseaddr);
-int      einit(uintptr_t base, void* sigstruct, void* einittoken); 
+int      einit(uintptr_t base, void* sigstruct);
 void     eenter(uint64_t tcs, uint64_t* rdi, uint64_t* rsi);
 void     eresume(uint64_t tcs_id);
 int      add_page(uint64_t base, uint64_t offset, uint64_t prot, const void* page);
 
 /* High-level API */
-void     enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcs, int get_token);
-uint64_t create_enclave(char* path, char* einit_path);
-uint64_t create_enclave_mem(char* p, char* einit_path, int base_zero, void *base_zero_max);
+void     enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcs);
+uint64_t create_enclave(char* path);
+uint64_t create_enclave_mem(char* p, int base_zero, void *base_zero_max);
 void     enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
 int      get_free_tcs_id();
 int      get_tcs_num();
