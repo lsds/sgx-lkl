@@ -26,12 +26,19 @@ RANLIB  = $(CROSS_COMPILE)ranlib
 
 ifeq ($(HW_MODE),yes)
   CFLAGS_SGX = -DSGXLKL_HW
+  CFLAGS_LIBSGX = -DSGXLKL_HW
 else
   CFLAGS_SGX =
+  CFLAGS_LIBSGX =
 endif
 
 ifeq ($(DEBUG),true)
-  CFLAGS_SGX += -DDEBUG
+  CFLAGS_LIBSGX += -DDEBUG -O1 -ggdb3
+  CFLAGS_SGX += -DDEBUG -O0 -ggdb3
+else
+  CFLAGS_SGX += -O3
+  CFLAGS_LIBSGX = -O3
+
 endif
 
 # Copied from sgx-lkl-musl/config.mak after ./configure
@@ -69,8 +76,9 @@ $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a: $(LIBSGX_OBJS)
 	ar rc $@ $^ libsgx/libs/lible.o
 	ranlib $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
 
+# libsgx needs can't be built with -O0, force -O1
 $(LIBSGX_OBJS): $(LIB_SGX_LKL_BUILD)/libsgx/%.o: libsgx/%.c
-	$(CC) -ggdb3 -O3 -c --std=gnu11 -Ilibsgx/include  $(CFLAGS_SGX) $< -o $@
+	$(CC) -c --std=gnu11 -Ilibsgx/include  $(CFLAGS_LIBSGX) $< -o $@
 
 # sgx_lkl_sign ----
 
@@ -78,22 +86,22 @@ SIGN_SRCS = sgx_lkl_sign.c sgx_lkl_sign_cmdline.c
 SIGN_OBJS = $(SIGN_SRCS:.c=.o)
 
 $(LIB_SGX_LKL_BUILD)/sgx_sign/%.o: sgx_sign/%.c
-	$(CC) -ggdb3 -O3 -c --std=gnu11 -Ilibsgx/include $< -o $@
+	$(CC) $(CFLAGS_SGX)  -c --std=gnu11 -Ilibsgx/include $< -o $@
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(addprefix $(LIB_SGX_LKL_BUILD)/sgx_sign/,$(SIGN_OBJS)) $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a
-	$(CC) -ggdb3 -O3 --std=gnu11 -fno-pie -no-pie -Ilibsgx/include $^ -o $@
+	$(CC) $(CFLAGS_SGX)  --std=gnu11 -fno-pie -no-pie -Ilibsgx/include $^ -o $@
 
 # sgx-lkl-run ----
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-run: $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a builddirs
-	$(CC) -g -O3 $(LIB_SGX_LKL_BUILD)/main/main.a -o $@ $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a -pthread -ldl -lrt -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
+	$(CC) $(CFLAGS_SGX) $(LIB_SGX_LKL_BUILD)/main/main.a -o $@ $(LIB_SGX_LKL_BUILD)/libsgx/libsgx.a -pthread -ldl -lrt -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
 
 MAIN_SRCS=$(wildcard main/*.c) $(wildcard shared/*.c)
 MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
 
 $(MAIN_OBJS): $(LIB_SGX_LKL_BUILD)/main/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) -ggdb3 -DSGXLKL_SO_PATH=$(SGXLKL_SO_PATH) -c -o $@ $<
+	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) -DSGXLKL_SO_PATH=$(SGXLKL_SO_PATH) -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
 	$(AR) rc $@ $(MAIN_OBJS)

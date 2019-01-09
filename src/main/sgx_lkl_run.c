@@ -764,11 +764,11 @@ void sigsegv_handler(int sig, siginfo_t *si, void *unused) {
 }
 #endif
 
+#ifdef DEBUG
 void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf) {
     __asm__ volatile ( "nop" : : "m" (conf) );
 }
 
-#ifdef DEBUG
 void print_host_syscall_stats() {
     // If we are exiting from the SIGINT handler, we already printed the
     // syscall stats.
@@ -815,7 +815,7 @@ void stats_sigint_handler(int signo) {
 }
 #endif /* DEBUG */
 
-void check_envs(char **pres, char **envp, const char *warn_msg) {
+void check_envs(const char **pres, char **envp, const char *warn_msg) {
     char envname[128];
     for (char **env = envp; *env != 0; env++) {
         for (int i = 0; i < sizeof(pres)/sizeof(pres[0]); i++) {
@@ -1039,7 +1039,10 @@ int main(int argc, char *argv[], char *envp[]) {
         pthread_setname_np(ts[i], "HOST_SYSCALL");
     }
 
+#ifdef DEBUG
     __gdb_hook_starter_ready(&encl);
+#endif
+
     encl.argc = argc - 2;
     encl.argv = (argv + 2);
 
