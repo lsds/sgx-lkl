@@ -547,17 +547,39 @@ void set_sysconf_params(enclave_config_t *conf) {
 
 }
 
+
+
+static void *find_vvar_base(void) {
+    FILE *maps;
+    char mapping[128];
+    void *vvar_base = 0;
+
+    if (!(maps = fopen("/proc/self/maps", "r")))
+        return NULL;
+
+    int found = 0;
+    while (!found && fgets(mapping, sizeof(mapping), maps)) {
+        int name_idx = -1;
+        if (sscanf(mapping, "%p-%*p r-%*cp %*x %*x:%*x %*u %n",
+               &vvar_base, &name_idx) != 1) {
+            continue;
+        }
+
+        if (name_idx >= 0 && !strncmp(&mapping[name_idx], "[vvar]", sizeof("[vvar]") - 1))
+            found = 1;
+    }
+
+    fclose(maps);
+    return found ? vvar_base : NULL;
+}
+
 void set_vdso(enclave_config_t* conf) {
     conf->vvar = 0;
     if (!getenv_bool("SGXLKL_GETTIME_VDSO", 1)) return;
 
-    // Retrieve and save vDSO parameters
-    void *vdso_base = (char *) getauxval(AT_SYSINFO_EHDR);
-    if (vdso_base) {
-        conf->vvar = (char *) (vdso_base - 0x3000ULL);
-    } else {
-        fprintf(stderr, "[    SGX-LKL   ] Warning: No vDSO info in auxiliary vector. vDSO will not be used.\n");
-    }
+    // Try to locate vvar pages
+    if (!(conf->vvar = find_vvar_base()))
+        fprintf(stderr, "[    SGX-LKL   ] Warning: Could not locate vvar region. vDSO will not be used.\n");
 }
 
 /* Sets up shared memory with the outside */
@@ -1174,7 +1196,5 @@ int main(int argc, char *argv[], char *envp[]) {
     pthread_cond_wait(&sim_exit_cv, &sim_exit_mtx);
     exit(sim_exit_code);
 #endif
-
-    return 0;
 }
 
