@@ -451,7 +451,7 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 		dev_str = dev_str_enc;
 	}
 
-	if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) && (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
+	if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) || (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
 		SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
 		sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
 		sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
