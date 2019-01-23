@@ -805,8 +805,8 @@ void sigsegv_handler(int sig, siginfo_t *si, void *unused) {
 #endif
 
 #ifdef DEBUG
-void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf) {
-    __asm__ volatile ( "nop" : : "m" (conf) );
+void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf, char *libsgxlkl_path) {
+    __asm__ volatile ( "nop" : : "m" (conf), "m" (libsgxlkl_path) );
 }
 
 void print_host_syscall_stats() {
@@ -963,26 +963,50 @@ static void sgxlkl_cleanup(void) {
 }
 
 /* Determines path of libsgxlkl.so (lkl + musl) */
-void get_absolute_libsgxlkl_path(char *buf, size_t len) {
+void get_libsgxlkl_path(char *path_buf, size_t len) {
+    /* Look for libsgxlkl.so in:
+     *  1. .
+     *  2. ../lib
+     *  3. /lib
+     *  4. /usr/local/lib
+     *  5. /usr/lib
+     *
+     * NOTE: The code below relies on the fact that relative paths
+     * are checked first.
+    */
+    char *search_in = ".:../lib:/lib:/usr/local/lib:/usr/lib";
+
     ssize_t q;
     char *path_sep;
-    /* SGXLKL_SO_PATH is relative to path of sgx-lkl-run. */
-    char *libsgxlkl_rel = __stringify(SGXLKL_SO_PATH);
-
-    /* Fallback, look for libsgxlkl.so in directory of sgx-lkl-run */
-    if(!*libsgxlkl_rel) {
-        libsgxlkl_rel = "libsgxlkl.so";
-    }
-
-    q = readlink("/proc/self/exe", buf, len);
-
-    if (q <= 0 || (path_sep = strrchr (buf, '/')) == NULL) {
+    q = readlink("/proc/self/exe", path_buf, len);
+    if (q <= 0 || (path_sep = strrchr(path_buf, '/')) == NULL)
         sgxlkl_fail("Unable to determine path of sgx-lkl-run.\n");
-    } else if (q > len - strlen(libsgxlkl_rel) - 1) {
-        sgxlkl_fail("Provided libsgxlkl.so path is too long.\n");
+
+    char *base = search_in;
+    size_t base_len = 0;
+    while ((base_len = strcspn(base, ":")) > 0) {
+        // Relative or absolute path
+        char *buf;
+        size_t max_len;
+        if (!strncmp(base, ".", 1)) {
+            buf = path_sep + 1;
+            max_len = len - (path_sep + 1 - path_buf);
+        } else {
+            buf = path_buf;
+            max_len = len;
+        }
+
+        if (snprintf(buf, max_len, "%.*s/%s", (int) base_len, base, "libsgxlkl.so") < max_len) {
+            // If accessible, path found.
+            if (!access(path_buf, R_OK))
+                return;
+        }
+
+        base += base_len;
+        base += strspn(base, ":");
     }
 
-    strncpy(path_sep + 1, libsgxlkl_rel, len - (path_sep + 1 - buf));
+    sgxlkl_fail("Unable to locate libsgxlkl.so.\n");
 }
 
 int main(int argc, char *argv[], char *envp[]) {
@@ -1054,7 +1078,7 @@ int main(int argc, char *argv[], char *envp[]) {
     setup_signal_handlers();
 
     char libsgxlkl[PATH_MAX];
-    get_absolute_libsgxlkl_path(libsgxlkl, PATH_MAX);
+    get_libsgxlkl_path(libsgxlkl, PATH_MAX);
 
     parse_cpu_affinity_params(getenv("SGXLKL_STHREADS_AFFINITY"), &sthreads_cores, &sthreads_cores_len);
     parse_cpu_affinity_params(getenv("SGXLKL_ETHREADS_AFFINITY"), &ethreads_cores, &ethreads_cores_len);
@@ -1134,7 +1158,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
 #ifdef DEBUG
-    __gdb_hook_starter_ready(&encl);
+    __gdb_hook_starter_ready(&encl, libsgxlkl);
 #endif
 
     encl.argc = argc - 2;

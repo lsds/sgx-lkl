@@ -43,7 +43,6 @@ def add_symbol_file(filename, baseaddr):
 
 class StarterExecBreakpoint(gdb.Breakpoint):
     STARTER_HAS_LOADED = '__gdb_hook_starter_ready'
-    LIBC_LOCATION = os.path.dirname(os.path.realpath(__file__)) + '/../build/libsgxlkl.so'
 
     def __init__(self):
         super(StarterExecBreakpoint, self).__init__(self.STARTER_HAS_LOADED, internal=True)
@@ -55,9 +54,10 @@ class StarterExecBreakpoint(gdb.Breakpoint):
         if in_hw_mode:
             gdb.write('Running on hardware... skipping simulation load.\n')
         else:
+            libsgxlkl = gdb.execute('printf "%s", libsgxlkl_path', to_string=True)
             gdb.write('Loading symbols for %s at base 0x%x...\n' % (
-                self.LIBC_LOCATION, int(base_addr)))
-            add_symbol_file(self.LIBC_LOCATION, int(base_addr))
+                libsgxlkl, int(base_addr)))
+            add_symbol_file(libsgxlkl, int(base_addr))
 
         if not self.inited and gdb.lookup_global_symbol("__gdb_load_debug_symbols_alive"):
             gdb.write('Enabled loading in-enclave debug symbols\n')
