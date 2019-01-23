@@ -44,16 +44,23 @@ char *getenv_str(const char *var, const char *def) {
     //Duplicate default value as it might not be allocated on the heap and to
     //make API consistent, i.e. the memory pointed to by the return value
     //should be freeable.
-    return (val != NULL) ? strdup(val) : strdup(def);
+    return (val != NULL) ? strdup(val) : ((def != NULL) ? strdup(def) : NULL);
 }
 
 int getenv_bool(const char *var, int def)
 {
-	char *val = getenv(var);
-	if (val == NULL)
-		return def;
-	if (def)
-		return (strncmp(val, "0", 1) != 0);
-	else
-		return (strncmp(val, "1", 1) == 0);
+    char *val = getenv(var);
+    if (val == NULL)
+        return def;
+    if (def)
+        return (strncmp(val, "0", 1) != 0);
+    else
+        return (strncmp(val, "1", 1) == 0);
+}
+
+uint64_t next_pow2(uint64_t x) {
+    uint64_t n = 1;
+    while (n < x)
+        n = n << 1;
+    return n;
 }
