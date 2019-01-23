@@ -1076,7 +1076,7 @@ int main(int argc, char *argv[], char *envp[]) {
     /* Map enclave file into memory */
     int lkl_lib_fd;
     struct stat lkl_lib_stat;
-    if(!(lkl_lib_fd = open(libsgxlkl, O_RDWR)))
+    if(!(lkl_lib_fd = open(libsgxlkl, O_RDONLY)))
         sgxlkl_fail("Failed to open %s: %s\n", libsgxlkl, strerror(errno));
 
     if(fstat(lkl_lib_fd, &lkl_lib_stat) == -1)
