@@ -49,6 +49,7 @@ typedef struct enclave_disk_config {
 typedef struct enclave_config {
     void *syscallpage;
     size_t maxsyscalls;
+    size_t max_user_threads;
     void *heap;
     size_t heapsize;
     size_t stacksize;

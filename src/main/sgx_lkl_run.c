@@ -91,7 +91,11 @@ static const char* DEFAULT_HOSTNAME = "lkl";
  * either we are in simulation mode, or we are in HW mode and a key is provided
  * via SGXLKL_KEY.
  */
-static const size_t DEFAULT_HEAP_SIZE = 200 * 1024 * 1024;
+#define DEFAULT_HEAP_SIZE 200 * 1024 * 1024
+
+#define DEFAULT_MAX_USER_THREADS 256
+#define MAX_MAX_USER_THREADS 65536
+
 
 // Is set to 1 when terminating the enclave to prevent concurrent threads from
 // trying to reenter.
@@ -525,8 +529,14 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
 static void register_queues(enclave_config_t* encl) {
     int mmapflags = MAP_PRIVATE|MAP_ANONYMOUS;
 
-    size_t rqs = sizeof(encl->returnq.buffer)*256;
-    size_t sqs = sizeof(encl->syscallq.buffer)*256;
+    // Maximum number of syscall and return queue elements is user-level
+    // threads + ethreads.
+    size_t sqs = encl->maxsyscalls * sizeof(*encl->syscallq.buffer);
+    size_t rqs = encl->maxsyscalls * sizeof(*encl->returnq.buffer);
+    // The mpmc implementation requires the buffer size to be a power of two.
+    sqs = next_pow2(sqs);
+    rqs = next_pow2(rqs);
+
     void *rq = mmap(0, rqs, PROT_READ|PROT_WRITE, mmapflags, -1, 0);
     if (rq == MAP_FAILED) sgxlkl_fail("Could not allocate memory for return queue: %s\n", strerror(errno));
     void *sq = mmap(0, sqs, PROT_READ|PROT_WRITE, mmapflags, -1, 0);
@@ -1058,7 +1068,8 @@ int main(int argc, char *argv[], char *envp[]) {
     backoff_maxpause = getenv_uint64("SGXLKL_SSPINS", 100, ULONG_MAX);
     backoff_factor = getenv_uint64("SGXLKL_SSLEEP", 4000, ULONG_MAX);
     encl.stacksize = getenv_uint64("SGXLKL_STACK_SIZE", 512*1024, ULONG_MAX);
-    encl.maxsyscalls = getenv_uint64("SGXLKL_MAX_USER_THREADS", 256, 100000);
+    encl.max_user_threads = getenv_uint64("SGXLKL_MAX_USER_THREADS", DEFAULT_MAX_USER_THREADS, MAX_MAX_USER_THREADS);
+    encl.maxsyscalls = encl.max_user_threads + getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
     set_sysconf_params(&encl);
     set_vdso(&encl);
     set_shared_mem(&encl);
