@@ -29,7 +29,6 @@ else
     GDB=gdb
 fi
 
-# Are we running in sim or in hw mode?
 for arg in "\$@"
 do
     if [[ \$arg = *"sgx-lkl-run" ]]; then
@@ -38,24 +37,15 @@ do
     fi
 done
 
-HW_MODE=0
 if [[ ! -z "\$SGX_LKL_RUN" ]]; then
     SGX_LKL_VERSION=\$(\$SGX_LKL_RUN --version)
     if [[ ! \$SGX_LKL_VERSION = *"DEBUG"* ]]; then
         echo "Warning: \$SGX_LKL_RUN not compiled with DEBUG=true. Debug symbols might be missing."
     fi
-
-    if [[ \$SGX_LKL_VERSION = *"Hardware"* ]]; then
-        HW_MODE=1
-    fi
 fi
 
-if [[ "\$HW_MODE" == "1" ]]; then
-    export PYTHONPATH=\$GDB_SGX_PLUGIN_PATH
-    LD_PRELOAD=\$SGX_LIBRARY_PATH/libsgx_ptrace.so \$GDB -iex "directory \$GDB_SGX_PLUGIN_PATH" -iex "source \$GDB_SGX_PLUGIN_PATH/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" -iex "source \$GDB_PLUGIN" "\$@"
-else
-    \$GDB -iex "add-auto-load-safe-path /usr/lib" -iex "source \$GDB_PLUGIN" "\$@"
-fi
+export PYTHONPATH=\$GDB_SGX_PLUGIN_PATH
+LD_PRELOAD=\$SGX_LIBRARY_PATH/libsgx_ptrace.so \$GDB -iex "directory \$GDB_SGX_PLUGIN_PATH" -iex "source \$GDB_SGX_PLUGIN_PATH/gdb_sgx_plugin.py" -iex "set environment LD_PRELOAD" -iex "add-auto-load-safe-path /usr/lib" -iex "source \$GDB_PLUGIN" "\$@"
 EOF
 
 chmod +x sgx-lkl-gdb
