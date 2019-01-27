@@ -57,7 +57,7 @@ tools: ${TOOLS_OBJ}
 
 # Generic tool rule (doesn't actually depend on lkl_lib, but on LKL headers)
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
-	${HOST_MUSL_CC} ${MY_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $< ${MY_LDFLAGS}
+	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
 ${LKL_SGXMUSL_HEADERS}: ${LKL_BUILD}/include/lkl/%.h: ${TOOLS_BUILD}/lkl_%

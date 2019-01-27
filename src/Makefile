@@ -17,11 +17,6 @@ sgxlkl_toolsdir = ../tools
 
 CC = gcc
 CROSS_COMPILE = 
-#TODO: Get rid of realpath dependency, which is not installed by default on
-#most distributions. On some distributions (Ubuntu 14.04) the version available
-#in the official repositories has no support for the `-m` or `--relative-to`.
-# sgx-lkl-run will use './libsgxlkl.so' as default.
-SGXLKL_SO_PATH = $(shell realpath -m $(BUILD_DIR)/libsgxlkl.so --relative-to $(LIB_SGX_LKL_BUILD))
 RANLIB  = $(CROSS_COMPILE)ranlib
 
 ifeq ($(HW_MODE),yes)
@@ -33,8 +28,11 @@ else
 endif
 
 ifeq ($(DEBUG),true)
-  CFLAGS_LIBSGX += -DDEBUG -O1 -ggdb3
-  CFLAGS_SGX += -DDEBUG -O0 -ggdb3
+  CFLAGS_LIBSGX += -DDEBUG -O1 -g3 -ggdb3
+  CFLAGS_SGX += -DDEBUG -O0 -g3 -ggdb3
+else ifeq ($(DEBUG),opt)
+  CFLAGS_LIBSGX += -O3 -g3 -ggdb3
+  CFLAGS_SGX += -O3 -g3 -ggdb3
 else
   CFLAGS_SGX += -O3
   CFLAGS_LIBSGX = -O3
@@ -101,7 +99,7 @@ MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
 
 $(MAIN_OBJS): $(LIB_SGX_LKL_BUILD)/main/%.o: %.c
 	mkdir -p $(dir $@)
-	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) -DSGXLKL_SO_PATH=$(SGXLKL_SO_PATH) -c -o $@ $<
+	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/include $(CFLAGS_SGX) -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
 	$(AR) rc $@ $(MAIN_OBJS)

@@ -30,19 +30,21 @@ LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/
 # Location of enclave debug key (used for signing the enclave)
 ENCLAVE_DEBUG_KEY=${BUILD_DIR}/config/enclave_debug.key
 
-MY_CFLAGS ?= -std=c11 -Wall -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y
-MY_LDFLAGS ?=
-
-DEBUG ?= false
+SGXLKL_CFLAGS ?= -std=c11 -Wall -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y
 
 MUSL_CONFIGURE_OPTS ?=
 MUSL_CFLAGS ?= -fPIC -D__USE_GNU
 
+DEBUG ?= false
+
 ifeq ($(DEBUG),true)
+	SGXLKL_CFLAGS += -g3 -ggdb3 -O0
 	MUSL_CONFIGURE_OPTS += --disable-optimize --enable-debug
-	MUSL_CFLAGS += -ggdb3 -O0 -DDEBUG
-	MY_CFLAGS += -ggdb3 -O0
+	MUSL_CFLAGS += -g3 -ggdb3 -O0 -DDEBUG
+else ifeq ($(DEBUG),opt)
+	SGXLKL_CFLAGS += -g3 -ggdb3 -O3
+	MUSL_CFLAGS += -g3 -ggdb3 -O3
 else
+	SGXLKL_CFLAGS += -O3
 	MUSL_CFLAGS += -O3
-	MY_CFLAGS += -O3
 endif
