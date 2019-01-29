@@ -21,4 +21,4 @@ dist: xenial
 compiler: gcc
 before_install:
   - sudo apt-get install make gcc bc python xutils-dev bison flex -y
-script: make $TARGET DEBUG=$DEBUG
+script: travis_wait 30 make $TARGET DEBUG=$DEBUG
