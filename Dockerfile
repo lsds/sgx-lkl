@@ -9,7 +9,8 @@ WORKDIR /sgx-lkl
 RUN apt-get update && apt-get install -y \
   build-essential \
   curl \
-  make gcc bc python xutils-dev flex bison \
+  wget \
+  make gcc bc python xutils-dev flex bison autogen autoconf libtool autopoint pkg-config libgcrypt20-dev libjson0 libjson0-dev \
   sudo \
   git
 
@@ -51,6 +52,11 @@ FROM phusion/baseimage as min-deploy
 
 WORKDIR /sgx-lkl
 
+RUN apt-get update && apt-get install -y \
+  sudo \
+  iproute2 iptables net-tools \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home -s /bin/bash user && \
     adduser user sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
@@ -67,5 +73,11 @@ COPY --chown=user:user build build/
 COPY --chown=user:user enclave_rootfs.img  .
 
 # Start from a Bash prompt
-CMD ["/bin/bash", "-c", "SGXLKL_GETTIME_VDSO=0 /sgx-lkl/build/sgx-lkl-run /sgx-lkl/enclave_rootfs.img ${env_binary_cmd} ${env_binary_args}"]
-
+CMD ["/bin/bash", "-c", "sudo ip tuntap add dev sgxlkl_tap0 mode tap user root \
+    && sudo ip link set dev sgxlkl_tap0 up \
+    && sudo ip addr add dev sgxlkl_tap0 10.0.1.254/24 \
+    && sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT \
+    && sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT \
+    && sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE \
+    && sudo sysctl -w net.ipv4.ip_forward=1 \
+    && sudo SGXLKL_TAP=sgxlkl_tap0 SGXLKL_HEAP=2500M SGXLKL_GETTIME_VDSO=1 /sgx-lkl/build/sgx-lkl-run /sgx-lkl/enclave_rootfs.img ${env_binary_cmd} ${env_binary_args}"]

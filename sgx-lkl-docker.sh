@@ -19,7 +19,7 @@ SGX_LKL_PARAMS="SGXLKL_VERBOSE=1"
 APP=busybox
 SGX_DOCKER="--device=/dev/isgx --device=/dev/gsgx -v /var/run/aesmd:/var/run/aesmd"
 ESCALATE_CMD="sudo"
-IMG_SLACK_SIZE=10
+IMG_SLACK_SIZE=500 # was 10 MB
 
 function usage() {
     echo
@@ -40,6 +40,7 @@ function usage() {
 }
 
 function build() {
+    local OPTIND OPTARG opt
     while getopts ":rl" opt; do
         case ${opt} in
             r)
@@ -79,6 +80,7 @@ function build() {
 }
 
 function deploy-app() {
+    local OPTIND OPTARG opt
     while getopts ":m:" opt; do
         case ${opt} in
             m)
@@ -112,7 +114,7 @@ function deploy-app() {
             ;;
     esac
 
-    echo -n "Deploying SGX-LKL on machine" 
+    echo -n "Deploying SGX-LKL on machine"
     [[ ${REMOTE_MACHINE} ]] && echo -n " '${REMOTE_MACHINE}' " || echo -n " 'localhost' "
     echo -n "in"
     [[ ${SIM} ]] && echo -n " simulation " || echo -n " hardware "
@@ -164,14 +166,15 @@ function deploy-container() {
     IMG_SIZE=$(( ${TAR_FILESIZE} + ${IMG_SLACK_SIZE} ))
 
     docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "\\
-    
+
         dd if=/dev/zero of=${ENCLAVE_ROOT_IMG} count=${IMG_SIZE} bs=1M 2>/dev/null\
-	    && mkfs.ext4 -q ${ENCLAVE_ROOT_IMG}\
-	    &&  ${ESCALATE_CMD} mkdir -p ${MOUNTPOINT}\
-	    &&  ${ESCALATE_CMD} mount -t ext4 -o loop ${ENCLAVE_ROOT_IMG} ${MOUNTPOINT}\
-	    &&  ${ESCALATE_CMD} tar -C ${MOUNTPOINT} -xf ${CONTAINER_TAR}\
-	    &&  ${ESCALATE_CMD} umount ${MOUNTPOINT}\
-	    &&  ${ESCALATE_CMD} rm -f ${CONTAINER_TAR}"
+            && mkfs.ext4 -q ${ENCLAVE_ROOT_IMG}\
+            && ${ESCALATE_CMD} mkdir -p ${MOUNTPOINT}\
+            && ${ESCALATE_CMD} mount -t ext4 -o loop ${ENCLAVE_ROOT_IMG} ${MOUNTPOINT}\
+            && ${ESCALATE_CMD} tar -C ${MOUNTPOINT} -xf ${CONTAINER_TAR}\
+            && ${ESCALATE_CMD} sh -c 'echo \"nameserver 8.8.8.8\" > ${MOUNTPOINT}/etc/resolv.conf'\
+            && ${ESCALATE_CMD} umount ${MOUNTPOINT}\
+            && ${ESCALATE_CMD} rm -f ${CONTAINER_TAR}"
 
     docker build -q --build-arg binary_cmd="${BINARY_CMD}" --build-arg binary_args="${BINARY_ARGS}" --target min-deploy -t ${SEC_CONTAINER} .
 
