@@ -199,7 +199,7 @@ function main() {
         esac
     done
 
-    [ ${SIM} == "unknown" ] && (echo "Missing option: <-s|-h>" 1>&2; usage)
+    [[ ${SIM} == "unknown" ]] && (echo "Missing option: <-s|-h>" 1>&2; usage)
 
     shift $((OPTIND-1))
     subcommand=$1; shift
