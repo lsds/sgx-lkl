@@ -24,6 +24,6 @@ matrix:
 dist: xenial
 compiler: gcc
 before_install:
-  - travis_wait 30 git submodule update --init --recursive
-  - sudo apt-get install make gcc bc python xutils-dev bison flex -y
+  - travis_wait 45 git submodule update --init --recursive
+  - sudo apt-get install make gcc bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf -y
 script: make $TARGET DEBUG=$DEBUG
