@@ -27,7 +27,7 @@ tested SGX-LKL with driver versions 1.9 to 2.4. SGX-LKL also provides a
 simulation mode for which no SGX-enabled CPU is needed. Furthermore the
 following packages are required to build SGX-LKL:
 `make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`,
-`flex`, `libgcrypt20-dev`, `libjson-c-dev`.
+`flex`, `libgcrypt20-dev`, `libjson-c-dev`, `autopoint`, `pkgconf`.
 
 Install these with:
 
