@@ -19,10 +19,9 @@
 #include "sgxlkl_debug.h"
 #include "sgxlkl_util.h"
 
-#ifndef NO_CRYPTSETUP
 #include "libcryptsetup.h"
 #include "libdevmapper.h"
-#endif
+#include "pthread.h"
 
 #define BIT(x) (1ULL << x)
 
@@ -43,10 +42,6 @@ extern struct timespec sgxlkl_app_starttime;
 
 static size_t num_disks = 0;
 static struct enclave_disk_config *disks;
-
-#ifndef NO_CRYPTSETUP
-static const char* lkl_encryption_key = "FOO";
-#endif
 
 static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_disks)
 {
@@ -177,6 +172,16 @@ static void lkl_mount_devtmpfs(const char* mntpoint)
 	}
 }
 
+static void lkl_mount_shmtmpfs()
+{
+	int err = lkl_sys_mount("tmpfs", "/dev/shm", "tmpfs", 0, "rw,nodev");
+	if (err != 0) {
+		fprintf(stderr, "Error: lkl_sys_mount(tmpfs) (/dev/shm): %s\n",
+			lkl_strerror(err));
+		exit(err);
+	}
+}
+
 static void lkl_mount_tmpfs()
 {
 	int err = lkl_sys_mount("tmpfs", "/tmp", "tmpfs", 0, "mode=0777");
@@ -202,6 +207,16 @@ static void lkl_mount_sysfs()
 	int err = lkl_sys_mount("none", "/sys", "sysfs", 0, NULL);
 	if (err != 0) {
 		fprintf(stderr, "Error: lkl_sys_mount(sysfs): %s\n",
+			lkl_strerror(err));
+		exit(err);
+	}
+}
+
+static void lkl_mount_runfs()
+{
+	int err = lkl_sys_mount("tmpfs", "/run", "tmpfs", 0, "mode=0700");
+	if (err != 0) {
+		fprintf(stderr, "Error: lkl_sys_mount(tmpfs): %s\n",
 			lkl_strerror(err));
 		exit(err);
 	}
@@ -284,46 +299,74 @@ fail:
 	return err;
 }
 
-#ifndef NO_CRYPTSETUP
-static void* lkl_activate_crypto_disk_thread(void* disk_path_vd)
+struct lkl_crypt_device {
+	char *disk_path;
+	int readonly;
+	struct enclave_disk_config *disk_config;
+};
+
+static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
 	int err;
 
-	char* disk_path = (char*)disk_path_vd;
+	char* disk_path = lkl_cd->disk_path;
 
 	struct crypt_device *cd;
-	// cryptsetup!
 	err = crypt_init(&cd, disk_path);
 	if (err != 0) {
 		fprintf(stderr, "Error: crypt_init(): %s (%d)\n", strerror(err), err);
 		exit(err);
 	}
 
-	err = crypt_load(cd, CRYPT_LUKS1, NULL);
+	err = crypt_load(cd, CRYPT_LUKS, NULL);
 	if (err != 0) {
 		fprintf(stderr, "Error: crypt_load(): %s (%d)\n", strerror(err), err);
 		exit(err);
 	}
 
-	err = crypt_activate_by_passphrase(cd, "cryptroot", CRYPT_ANY_SLOT, lkl_encryption_key, strlen(lkl_encryption_key), CRYPT_ACTIVATE_READONLY);
-	if (err != 0) {
-		fprintf(stderr, "Error: crypt_activate_by_passphrase(): %s (%d)\n", strerror(err), err);
+	// Copy decryption keys into enclave (debug-only).
+	char *key_outside = lkl_cd->disk_config->key;
+	lkl_cd->disk_config->key = (char *) lkl_sys_mmap(NULL, lkl_cd->disk_config->key_len, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	if ((int64_t) lkl_cd->disk_config->key <= 0) {
+		fprintf(stderr, "Error: Unable to allocate memory for disk encryption key inside the enclave: %s\n", lkl_strerror((int) lkl_cd->disk_config->key));
+		exit(EXIT_FAILURE);
+	}
+	memcpy(lkl_cd->disk_config->key, key_outside, lkl_cd->disk_config->key_len);
+
+	err = crypt_activate_by_passphrase(cd, "cryptroot", CRYPT_ANY_SLOT, lkl_cd->disk_config->key, lkl_cd->disk_config->key_len, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
+	if (err == -1) {
+		fprintf(stderr, "Error: Unable to activate encrypted disk. Please ensure you have provided the correct passphrase/keyfile!\n");
+		exit(err);
+	} else if (err != 0) {
+		fprintf(stderr, "Error: Unable to activate encrypted disk due to unknown error (error code: %d)\n", err);
 		exit(err);
 	}
 
 	crypt_free(cd);
 
-	return NULL;
+	// The key is only needed during activation, so don't keep it around
+	// afterwards and free up space.
+	memset(lkl_cd->disk_config->key, 0, lkl_cd->disk_config->key_len);
+	
+	unsigned long munmap_ret;
+	if((munmap_ret = lkl_sys_munmap((unsigned long) lkl_cd->disk_config->key, lkl_cd->disk_config->key_len))) {
+		fprintf(stderr, "Error: Unable to unmap memory for disk encryption key: %s\n", lkl_strerror((int) munmap_ret));
+		exit(EXIT_FAILURE);
+	}
+	lkl_cd->disk_config->key = NULL;
+	lkl_cd->disk_config->key_len = 0;
+
+	return 0;
 }
 
 /* XXX(lukegb): don't abuse cryptsetup's internal, unexported hex-to-bytes function */
 extern ssize_t crypt_hex_to_bytes(const char *hex, char **result, int safe_alloc);
 
-static void* lkl_activate_verity_disk_thread(void* disk_path_vd)
+static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
 	int err;
 
-	char* disk_path = (char*)disk_path_vd;
+	char* disk_path = lkl_cd->disk_path;
 
 	struct crypt_device *cd;
 	// cryptsetup!
@@ -333,15 +376,17 @@ static void* lkl_activate_verity_disk_thread(void* disk_path_vd)
 		exit(err);
 	}
 
-	/* XXX(lukegb): calculate disk correctly
-	 * this is calculated as IMAGE_SIZE_MB + LUKS_HEADER_BLOCKS */
-	const int disk_size = 100 + 5; /* MB */
-
+	/*
+	 * The dm-verity Merkle tree that contains the hashes of all data blocks is
+	 * stored on the disk image following the actual data blocks. The offset that
+	 * signifies both the end of the data region as well as the start of the hash
+	 * region has to be provided to SGX-LKL.
+	 */
 	struct crypt_params_verity verity_params = {
 		.data_device = disk_path,
 		.hash_device = disk_path,
-		.hash_area_offset = disk_size*1024*1024,
-		.data_size = disk_size*2048,
+		.hash_area_offset = lkl_cd->disk_config->roothash_offset,
+		.data_size = lkl_cd->disk_config->roothash_offset / 512, // In blocks, divide by block size
 		.data_block_size = 512,
 		.hash_block_size = 512,
 	};
@@ -352,16 +397,14 @@ static void* lkl_activate_verity_disk_thread(void* disk_path_vd)
 		exit(err);
 	}
 
-	const char* volume_hash = getenv("SGXLKL_HD_VERITY");
 	char* volume_hash_bytes = NULL;
-
 	ssize_t hash_size = crypt_get_volume_key_size(cd);
-	if (crypt_hex_to_bytes(volume_hash, &volume_hash_bytes, 0) != hash_size) {
+	if (crypt_hex_to_bytes(lkl_cd->disk_config->roothash, &volume_hash_bytes, 0) != hash_size) {
 		fprintf(stderr, "Invalid root hash string specified!\n");
 		exit(1);
 	}
 
-	err = crypt_activate_by_volume_key(cd, "verityroot", volume_hash_bytes, 32, CRYPT_ACTIVATE_READONLY);
+	err = crypt_activate_by_volume_key(cd, "verityroot", volume_hash_bytes, 32, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
 	if (err != 0) {
 		fprintf(stderr, "Error: crypt_activate_by_volume_key(): %s (%d)\n", strerror(err), err);
 		exit(err);
@@ -378,13 +421,14 @@ static void lkl_run_in_kernel_stack(void *(*start_routine) (void *), void* arg)
 	int err;
 
 	/*
-	 * we need to pivot to a stack which is inside LKL's known memory mappings
+	 * We need to pivot to a stack which is inside LKL's known memory mappings
 	 * otherwise get_user_pages will not manage to find the mapping, and will
 	 * fail.
 	 *
-	 * 4kB stack is too small. 8kB works for the moment, so I'll leave it at that. -lukegb
+	 * Buffers passed to the kernel via the crypto API need to be allocated
+	 * on this stack, or on heap pages allocated via lkl_sys_mmap.
 	 */
-	const int stack_size = 8192;
+	const int stack_size = 32*1024;
 
 	void* addr = lkl_sys_mmap(NULL, stack_size, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
 	if (addr == MAP_FAILED) {
@@ -408,7 +452,6 @@ static void lkl_run_in_kernel_stack(void *(*start_routine) (void *), void* arg)
 		exit(err);
 	}
 }
-#endif
 
 static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 {
@@ -418,17 +461,17 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 	lkl_mount_procfs();
 	lkl_prepare_rootfs("/sys", 0700);
 	lkl_mount_sysfs();
-
+	lkl_prepare_rootfs("/run", 0700);
+	lkl_mount_runfs();
 	char mnt_point[] = {"/mnt/vda"};
 	char dev_str_raw[] = {"/dev/vda"};
-#ifndef NO_CRYPTSETUP
+
 	char dev_str_enc[] = {"/dev/mapper/cryptroot"};
 	char dev_str_verity[] = {"/dev/mapper/verityroot"};
-#endif
+
 	char *dev_str = dev_str_raw;
 	char new_dev_str[] = {"/mnt/vda/dev/"};
 
-#ifndef NO_CRYPTSETUP
 	int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
 	int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
@@ -438,25 +481,34 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 		SGXLKL_VERBOSE("Disk encryption/integrity requested: temporarily disabling lkl_strace\n");
 	}
 
-	if (getenv("SGXLKL_HD_VERITY") != NULL) {
-		lkl_run_in_kernel_stack(&lkl_activate_verity_disk_thread, dev_str);
+		struct lkl_crypt_device lkl_cd;
+		lkl_cd.disk_path = dev_str;
+		lkl_cd.readonly = disk->ro;
+		lkl_cd.disk_config = disk;
 
-		/* we now want to mount the verified volume */
-		dev_str = dev_str_verity;
-	}
-	if (disk->enc) {
-		lkl_run_in_kernel_stack(&lkl_activate_crypto_disk_thread, dev_str);
 
-		/* we now want to mount the decrypted volume */
-		dev_str = dev_str_enc;
-	}
+		if (disk->roothash != NULL) {
+			lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_verity_disk_thread, (void *) &lkl_cd);
+
+			// We now want to mount the verified volume
+			dev_str = dev_str_verity;
+			lkl_cd.disk_path = dev_str_verity;
+			// dm-verity is read only
+			disk->ro = 1;
+			lkl_cd.readonly = 1;
+		}
+		if (disk->enc) {
+			lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_crypto_disk_thread, (void *) &lkl_cd);
+
+			// We now want to mount the decrypted volume
+			dev_str = dev_str_enc;
+		}
 
 	if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) || (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
 		SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
 		sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
 		sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
 	}
-#endif
 
 	err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
 	if (err < 0) {
@@ -473,6 +525,7 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 	/* clean up */
 	lkl_sys_umount("/proc", 0);
 	lkl_sys_umount("/sys", 0);
+	lkl_sys_umount("/run", 0);
 	lkl_sys_umount("/dev", 0);
 
 	/* pivot */
@@ -491,13 +544,17 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk)
 	}
 
 	lkl_prepare_rootfs("/dev", 0700);
+	lkl_prepare_rootfs("/dev/shm", 0777);
 	lkl_prepare_rootfs("/mnt", 0700);
 	lkl_prepare_rootfs("/tmp", 0777);
 	lkl_prepare_rootfs("/sys", 0700);
+	lkl_prepare_rootfs("/run", 0700);
 	lkl_prepare_rootfs("/proc", 0700);
+	lkl_mount_shmtmpfs();
 	lkl_mount_tmpfs();
 	lkl_mount_mntfs();
 	lkl_mount_sysfs();
+	lkl_mount_runfs();
 	lkl_mount_procfs();
 	lkl_mknods();
 }
@@ -612,6 +669,7 @@ void __lkl_start_init(enclave_config_t* encl)
 	// the enclave.
 	disks = (struct enclave_disk_config*) malloc(sizeof(struct enclave_disk_config) * num_disks);
 	memcpy(disks, encl->disks, sizeof(struct enclave_disk_config) * num_disks);
+	// Decryption keys are copied in lkl_activate_crypto_thread.
 
 	lkl_prestart_disks(disks, num_disks);
 

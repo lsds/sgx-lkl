@@ -43,6 +43,10 @@ typedef struct enclave_disk_config {
     char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];
     int ro;
     int enc;
+    char *key;
+    size_t key_len;
+    char *roothash;
+    size_t roothash_offset;
 } enclave_disk_config_t;
 
 /* Untrusted config provided by the user */

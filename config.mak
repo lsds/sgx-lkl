@@ -17,6 +17,12 @@ TOOLS ?= ${ROOT_DIR}/tools
 TOOLS_BUILD ?= $(BUILD_DIR)/tools
 TOOLS_SRC ?= $(wildcard $(TOOLS)/*.c)
 TOOLS_OBJ ?= $(addprefix $(TOOLS_BUILD)/, $(notdir $(TOOLS_SRC:.c=)))
+CRYPTSETUP ?= ${ROOT_DIR}/third_party/cryptsetup
+CRYPTSETUP_BUILD ?= ${BUILD_DIR}/cryptsetup
+DEVICEMAPPER ?= ${ROOT_DIR}/third_party/devicemapper
+UTILLINUX ?= ${ROOT_DIR}/third_party/util-linux
+POPT ?= ${ROOT_DIR}/third_party/popt
+JSONC ?= ${ROOT_DIR}/third_party/json-c
 LKL ?= $(ROOT_DIR)/lkl
 LKL_BUILD ?= ${BUILD_DIR}/lkl
 LIBLKL ?= ${LKL_BUILD}/lib/liblkl.a
@@ -35,16 +41,21 @@ SGXLKL_CFLAGS ?= -std=c11 -Wall -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -
 MUSL_CONFIGURE_OPTS ?=
 MUSL_CFLAGS ?= -fPIC -D__USE_GNU
 
+CRYPTSETUP_CFLAGS ?=
+
 DEBUG ?= false
 
 ifeq ($(DEBUG),true)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O0
 	MUSL_CONFIGURE_OPTS += --disable-optimize --enable-debug
 	MUSL_CFLAGS += -g3 -ggdb3 -O0 -DDEBUG
+	CRYPTSETUP_CFLAGS += -g3 -ggdb3 -O0
 else ifeq ($(DEBUG),opt)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O3
 	MUSL_CFLAGS += -g3 -ggdb3 -O3
+	CRYPTSETUP_CFLAGS += -g3 -ggdb3 -O3
 else
 	SGXLKL_CFLAGS += -O3
 	MUSL_CFLAGS += -O3
+	CRYPTSETUP_CFLAGS += -O3
 endif
