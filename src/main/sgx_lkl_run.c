@@ -82,6 +82,10 @@ extern unsigned long hw_exceptions;
 // One first empty block for bootloaders, and offset in second block
 #define EXT4_MAGIC_OFFSET (1024 + 0x38)
 
+#define MAX_KEY_FILE_SIZE_KB 8192
+#define MAX_HASH_DIGITS 512
+#define MAX_HASHOFFSET_DIGITS 16
+
 static const char* DEFAULT_IPV4_ADDR = "10.0.1.1";
 static const char* DEFAULT_IPV4_GW = "10.0.1.254";
 static const int   DEFAULT_IPV4_MASK = 24;
@@ -192,7 +196,9 @@ static void usage(char* prog) {
     printf("SGXLKL_HOSTNAME: Host name for LKL to use (Default: %s).\n", DEFAULT_HOSTNAME);
     printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
     printf("\n## Disk ##\n");
-    printf("SGXLKL_HD_VERITY: Volume hash for the root file system image.\n");
+    printf("SGXLKL_HD_VERITY: Root hash or file path to root hash for the root file system image (Debug only).\n");
+    printf("SGXLKL_HD_VERITY_OFFSET: Offset or file path to offset of the dm-verity merkle tree on the root file system image (Debug only). If omitted and <path/to/diskimage>.hashoffset exists, this offset will be used if possible.\n");
+    printf("SGXLKL_HD_KEY: Encryption key as passphrase or file path to a key file for the root file system image (Debug only).\n");
     printf("SGXLKL_HD_RO: Set to 1 to mount the root file system as read-only.\n");
     printf("SGXLKL_HDS: Secondary file system images. Comma-separated list of the format: disk1path:disk1mntpoint:disk1mode,disk2path:disk2mntpoint:disk2mode,[...].\n");
     printf("\n## Memory ##\n");
@@ -258,6 +264,13 @@ static void sgxlkl_fail(char *msg, ...) {
     va_start(args, msg);
     vfprintf(stderr, msg, args);
     exit(EXIT_FAILURE);
+}
+
+static void sgxlkl_warn(char *msg, ...) {
+    va_list(args);
+    fprintf(stderr, "[    SGX-LKL   ] Warning: ");
+    va_start(args, msg);
+    vfprintf(stderr, msg, args);
 }
 
 size_t backoff_maxpause = 100;
@@ -362,6 +375,77 @@ void *host_syscall_thread(void *v) {
     return NULL;
 }
 
+static void prepare_verity(struct enclave_disk_config *disk, char *disk_path, char *verity_file_or_roothash, char *verity_file_or_hashoffset) {
+    if (!verity_file_or_roothash) {
+        disk->roothash = NULL;
+        disk->roothash_offset = 0;
+        return;
+    }
+
+    if (access(verity_file_or_roothash, R_OK) != -1) {
+        FILE *hf;
+        char hash[MAX_HASH_DIGITS + 2];
+
+        if (!(hf = fopen(verity_file_or_roothash, "r")))
+            sgxlkl_fail("Failed to open root hash file %s.\n", verity_file_or_roothash);
+
+        if (!fgets(hash, MAX_HASH_DIGITS + 2, hf))
+            sgxlkl_fail("Failed to read root hash from file %s.\n", verity_file_or_roothash);
+
+        /* Remove possible new line */
+        char *nl = strchr(hash, '\n');
+        if (nl) *nl = 0;
+
+        size_t hash_len = strlen(hash);
+        if (hash_len > MAX_HASH_DIGITS)
+            sgxlkl_fail("Root hash read from file %s too long! Maximum length: %d\n", verity_file_or_roothash, MAX_HASH_DIGITS);
+
+        disk->roothash = (char*) malloc(hash_len + 1);
+        strncpy(disk->roothash, hash, hash_len);
+        disk->roothash[hash_len] = 0;
+
+        fclose(hf);
+    } else
+        disk->roothash = verity_file_or_roothash;
+
+
+    char *hashoffset_path;
+    if (!verity_file_or_hashoffset) {
+        size_t hashoffset_path_len = strlen(disk_path) + strlen(".hashoffset") + 1;
+        hashoffset_path = (char*) malloc(hashoffset_path_len);
+        snprintf(hashoffset_path, hashoffset_path_len, "%s%s", disk_path, ".hashoffset");
+    } else {
+        hashoffset_path = verity_file_or_hashoffset;
+    }
+
+    char *hashoffset_str;
+    if (access(hashoffset_path, R_OK) != -1) {
+        FILE *hf;
+        char hashoffset_buf[MAX_HASHOFFSET_DIGITS];
+
+        if (!(hf = fopen(hashoffset_path, "r")))
+            sgxlkl_fail("Failed to open hash offset file %s.\n", hashoffset_path);
+
+        if (!fgets(hashoffset_buf, MAX_HASHOFFSET_DIGITS, hf))
+            sgxlkl_fail("Failed to read hash offset from file %s.\n", hashoffset_path);
+
+        fclose(hf);
+
+        hashoffset_str = hashoffset_buf;
+    } else if (verity_file_or_hashoffset) {
+        hashoffset_str = verity_file_or_hashoffset;
+    } else
+        sgxlkl_fail("A hash offset must be set via SGXLKL_HD_VERITY_OFFSET when SGXLKL_HD_VERITY is used.\n");
+
+    errno = 0;
+    disk->roothash_offset = strtoll(hashoffset_str, NULL, 10);
+    if (errno == EINVAL || errno == ERANGE)
+        sgxlkl_fail("Failed to parse hash offset!\n");
+
+    if (hashoffset_path != verity_file_or_hashoffset)
+        free(hashoffset_path);
+}
+
 static int is_disk_encrypted(int fd) {
     unsigned char magic[2] = {0};
     ssize_t read_bytes = pread(fd, magic, 2, EXT4_MAGIC_OFFSET);
@@ -372,7 +456,7 @@ static int is_disk_encrypted(int fd) {
     return !(magic[0] == 0x53 && magic[1] == 0xEF);
 }
 
-static void register_hd(enclave_config_t* encl, char* path, char* mnt, int readonly) {
+static void register_hd(enclave_config_t* encl, char* path, char* mnt, int readonly, char *keyfile_or_passphrase, char *verity_file_or_roothash, char *verity_file_or_hashoffset) {
     size_t idx = encl->num_disks;
 
     if (strlen(mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
@@ -387,11 +471,45 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     int res = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     if (res == -1) sgxlkl_fail("fcntl(disk_fd, F_SETFL)");
 
-    encl->disks[idx].fd = fd;
-    encl->disks[idx].ro = readonly;
-    strncpy(encl->disks[idx].mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
-    encl->disks[idx].mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
-    encl->disks[idx].enc = is_disk_encrypted(fd);
+    struct enclave_disk_config *disk = &encl->disks[idx];
+    disk->fd = fd;
+    disk->ro = readonly;
+    strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
+    disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
+    disk->enc = is_disk_encrypted(fd);
+    if (disk->enc) {
+        if (!keyfile_or_passphrase)
+            sgxlkl_fail("No passphrase or key file provided via SGXLKL_HD_KEY for encrypted disk %s.\n", path);
+
+        // Currently we have a single parameter for passphrases and keyfiles. Determine which one it is.
+        if (access(keyfile_or_passphrase, R_OK) != -1) {
+            FILE *kf;
+
+            if (!(kf = fopen(keyfile_or_passphrase, "rb")))
+                sgxlkl_fail("Failed to open keyfile %s.\n", keyfile_or_passphrase);
+
+            fseek(kf, 0, SEEK_END);
+            disk->key_len = ftell(kf);
+            if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024) {
+                sgxlkl_warn("Provided key file is larger than maximum supported key file size (%dkB). Only the first %dkB will be used.\n", MAX_KEY_FILE_SIZE_KB, MAX_KEY_FILE_SIZE_KB);
+                disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
+            }
+            rewind(kf);
+
+            disk->key = (char *) malloc((disk->key_len));
+            if (!fread(disk->key, disk->key_len, 1, kf))
+                sgxlkl_fail("Failed to read keyfile %s.\n", keyfile_or_passphrase);
+
+            fclose(kf);
+        } else {
+            disk->key_len = strlen(keyfile_or_passphrase);
+            disk->key = (char *) malloc(disk->key_len);
+            memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
+        }
+    }
+
+    prepare_verity(disk, path, verity_file_or_roothash, verity_file_or_hashoffset);
+
     ++encl->num_disks;
 }
 
@@ -411,7 +529,8 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
     // Initialize encl->num_disks, will be adjusted by register_hd
     encl->num_disks = 0;
     // Register root disk
-    register_hd(encl, root_hd, "/", getenv_bool("SGXLKL_HD_RO", 0));
+    register_hd(encl, root_hd, "/", getenv_bool("SGXLKL_HD_RO", 0), getenv_str("SGXLKL_HD_KEY", NULL),
+                getenv_str("SGXLKL_HD_VERITY", NULL), getenv_str("SGXLKL_HD_VERITY_OFFSET", NULL));
     // Register secondary disks
     while (*hds_str) {
         char *hd_path = hds_str;
@@ -421,7 +540,7 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
         char *hd_mnt_end = strchrnul(hd_mnt, ':');
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(encl, hd_path, hd_mnt, hd_ro);
+        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL);
 
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while(*hds_str == ' ' || *hds_str == ',') hds_str++;
@@ -640,7 +759,7 @@ void set_tls(enclave_config_t* conf) {
     sa.sa_flags = SA_SIGINFO;
     sa.sa_sigaction = rdfsbase_sigill_handler;
     if (sigaction(SIGILL, &sa, NULL) == -1) {
-        fprintf(stderr, "[    SGX-LKL   ] Warning: Failed to register SIGILL handler. Only limited thread-local storage support will be available.\n");
+        sgxlkl_warn("Failed to register SIGILL handler. Only limited thread-local storage support will be available.\n");
         return;
     }
 
