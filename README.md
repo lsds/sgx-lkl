@@ -173,7 +173,7 @@ sudo apt-get install curl openjdk-8-jdk
 To build the disk image, run
 
 ```
-cd apps/jvm/helloworld-java 
+cd apps/jvm/helloworld-java
 make
 ```
 
@@ -368,3 +368,6 @@ registered by the application.
 Support for profiling SGX-LKL with perf is currently limited to simulation
 mode. Only SGX-LKL symbols but no symbols of the application or its
 dependencies are available to perf due to the in-enclave linking/loading.
+
+Take a look in the [wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging) for
+further debugging options.
