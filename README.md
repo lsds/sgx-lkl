@@ -23,10 +23,11 @@ SGX-LKL has been tested on Ubuntu 16.04 and 18.04. To run SGX-LKL in SGX
 enclaves, the Intel SGX driver (available at
 https://github.com/01org/linux-sgx-driver and
 https://01.org/intel-software-guard-extensions/downloads) is required. We have
-tested SGX-LKL with driver versions 1.9 and 2.0. SGX-LKL also provides a
-simulation mode for which no SGX-enabled CPU is needed. Furthermore the
-following packages are required to build SGX-LKL:
-`make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`, `flex`.
+tested SGX-LKL with driver versions 1.9 and 2.0 on Ubuntu 16.04 and version 2.4
+on Ubuntu 18.04. SGX-LKL also provides a simulation mode for which no
+SGX-enabled CPU is needed. Furthermore the following packages are required to
+build SGX-LKL: `make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`),
+`bison`, `flex`.
 
 Install these with:
 
