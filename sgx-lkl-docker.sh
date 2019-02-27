@@ -160,23 +160,29 @@ function deploy-container() {
     ENCLAVE_ROOT_IMG=enclave_rootfs.img
     MOUNTPOINT="/mnt/ext4disk"
 
+    echo -n "Exporting existing container to image file... "
     docker export -o ${CONTAINER_TAR} ${SRC_CONTAINER}
+    echo "Done."
 
     TAR_FILESIZE=`du -m ${CONTAINER_TAR} | cut -f1`
     IMG_SIZE=$(( ${TAR_FILESIZE} + ${IMG_SLACK_SIZE} ))
 
+    echo "Creating secure container image... "
     docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "\\
 
         dd if=/dev/zero of=${ENCLAVE_ROOT_IMG} count=${IMG_SIZE} bs=1M 2>/dev/null\
             && mkfs.ext4 -q ${ENCLAVE_ROOT_IMG}\
             && ${ESCALATE_CMD} mkdir -p ${MOUNTPOINT}\
             && ${ESCALATE_CMD} mount -t ext4 -o loop ${ENCLAVE_ROOT_IMG} ${MOUNTPOINT}\
-            && ${ESCALATE_CMD} tar -C ${MOUNTPOINT} -xf ${CONTAINER_TAR}\
+            && ${ESCALATE_CMD} pv ${CONTAINER_TAR} | ${ESCALATE_CMD} tar xp -C ${MOUNTPOINT} \
             && ${ESCALATE_CMD} sh -c 'echo \"nameserver 8.8.8.8\" > ${MOUNTPOINT}/etc/resolv.conf'\
             && ${ESCALATE_CMD} umount ${MOUNTPOINT}\
             && ${ESCALATE_CMD} rm -f ${CONTAINER_TAR}"
+    echo "Done."
 
+    echo -n "Building secure container... "
     docker build -q --build-arg binary_cmd="${BINARY_CMD}" --build-arg binary_args="${BINARY_ARGS}" --target min-deploy -t ${SEC_CONTAINER} .
+    echo "Done."
 
     rm -f ${ENCLAVE_ROOT_IMG}
 }
