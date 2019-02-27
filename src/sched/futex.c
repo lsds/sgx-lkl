@@ -2,7 +2,9 @@
  * Copyright 2016, 2017, 2018 Imperial College London
  */
 
+#include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include <lthread.h>
 #include <atomic.h>

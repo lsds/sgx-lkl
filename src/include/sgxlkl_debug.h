@@ -5,21 +5,19 @@
 #ifndef _SGXLKL_DEBUG_INCLUDE
 #define _SGXLKL_DEBUG_INCLUDE
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <assert.h>
-#include <errno.h>
-#include <inttypes.h>
-#include <stdarg.h>
-
-#include "lkl_host.h"
-
 #define SGXLKL_LKL_SYSCALL      1
 #define SGXLKL_INTERNAL_SYSCALL 3
 
-#if DEBUG
+void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...);
+
+#ifdef DEBUG
+
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 extern int sgxlkl_verbose;
 extern int sgxlkl_trace_thread;
@@ -78,14 +76,11 @@ static int sgxlkl_debug_printf(const char *fmt, ...) {
     va_end(args);
     return n;
 }
-
 #else
-
 #define SGXLKL_VERBOSE(x, ...)
 #define SGXLKL_TRACE_THREAD(x, ...)
 #define SGXLKL_TRACE_MMAP(x, ...)
 #define SGXLKL_TRACE_SYSCALL(x, ...)
-
 #endif /* DEBUG */
 
 #endif /* _SGXLKL_DEBUG_INCLUDE*/
