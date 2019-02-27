@@ -34,7 +34,7 @@ extern int sgxlkl_trace_internal_syscall;
                                                         sgxlkl_debug_printf(type == SGXLKL_LKL_SYSCALL ? "[  LKL SYSCALL ] " x : \
                                                                             "[INTRNL SYSCALL] " x, ##__VA_ARGS__);}
 
-#define LKL_STDOUT_FILENO 1
+#define LKL_STDERR_FILENO 2
 #define DEBUG_TRACE_BUF_SIZE 512
 
 static int sgxlkl_debug_vprintf(const char *fmt, va_list args) {
@@ -60,7 +60,7 @@ static int sgxlkl_debug_vprintf(const char *fmt, va_list args) {
 
     size_t curr_index = 0;
     while (curr_index < n) {
-        curr_index += write(LKL_STDOUT_FILENO, buffer + curr_index, n - curr_index);
+        curr_index += write(LKL_STDERR_FILENO, buffer + curr_index, n - curr_index);
     }
 
     if (buffer != (char*) &buf) {
