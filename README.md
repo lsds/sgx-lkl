@@ -27,12 +27,13 @@ tested SGX-LKL with driver versions 1.9 and 2.0 on Ubuntu 16.04 and version 2.4
 on Ubuntu 18.04. SGX-LKL also provides a simulation mode for which no
 SGX-enabled CPU is needed. Furthermore the following packages are required to
 build SGX-LKL: `make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`),
-`bison`, `flex`, `libgcrypt20-dev`, `libjson-c-dev`, `autopoint`, `pkgconf`.
+`bison`, `flex`, `libgcrypt20-dev`, `libjson-c-dev`, `autopoint`, `pkgconf`,
+`autoconf`, `libtool`.
 
 Install these with:
 
 ```
-sudo apt-get install make gcc bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf
+sudo apt-get install make gcc bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf autoconf libtool
 ```
 
 Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions
