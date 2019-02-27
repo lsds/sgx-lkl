@@ -39,6 +39,7 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} s
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h
+	grep "include \"sys/stat.h" lkl/tools/lkl/include/lkl.h > /dev/null || sed  -i '/define _LKL_H/a \\n#include "sys/stat.h"\n#include "time.h"' lkl/tools/lkl/include/lkl.h
 	# Set bootmem size (default in LKL is 64MB)
 	sed -i 's/static unsigned long mem_size = .*;/static unsigned long mem_size = ${BOOT_MEM} \* 1024 \* 1024;/g' lkl/arch/lkl/kernel/setup.c
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_MUSL_CC} PREFIX="" \
