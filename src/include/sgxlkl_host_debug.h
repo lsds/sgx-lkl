@@ -332,7 +332,7 @@ static inline void log_host_syscall(long n, long res, long arg1, long arg2, long
     const char *name = (n < sizeof(_syscall_names)) ? _syscall_names[n] : "UNKNOWN";
 
     if (res < 0)
-        snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", strerror(res));
+        snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", strerror(-res));
 
     fprintf(stderr, "[ HOST SYSCALL ] [tid=???] %s\t%ld\t(0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx) = 0x%lx%s\n", name, n,
             arg1, arg2, arg3, arg4, arg5, arg6, res, errmsg);
