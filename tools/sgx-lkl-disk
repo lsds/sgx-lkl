@@ -45,7 +45,12 @@ Create (--create) options
  -a, --alpine=<alpine pkg>  Create disk with Alpine image as basis with the
                             specified package(s) installed. Multiple packages
                             must be separated by a whitespace.
- -d, --docker=<dockerfile>  Builds disk image based on the specified Dockerfile.
+ -d, --docker=<image|dockerfile>
+                            If the argument is a path to a Dockerfile, this
+                            builds a disk image based on the specified
+                            Dockerfile. If the argument is the id or name of a
+                            Docker image, a disk image is built from the
+                            specified Docker image.
       --nocontext           Build Docker image with no/a minimal build context.
  -i, --from-image=<path>    Create disk as a copy of the existing image at
                             <path>.
@@ -189,8 +194,8 @@ function cleanup() {
     fi
 
     if [ "${cleanup:-}" = 1 ]; then
-        if [[ ! -z ${docker_image_id:-} ]] && [[ $(docker images -qa | grep ${docker_image_id}) ]]; then
-            docker rmi ${docker_image_id}
+        if [[ ! -z ${tmp_docker_image_id:-} ]] && [[ $(docker images -qa | grep ${tmp_docker_image_id}) ]]; then
+            docker rmi ${tmp_docker_image_id}
         fi
         [[ ! -z ${alpine_tar:-} ]] && [[ -e ${alpine_tar} ]] && rm -r "${alpine_tar}" || true
     fi
@@ -369,21 +374,25 @@ function create_from_docker() {
     req docker
     tmp_mnt_point=$(mktemp -d -t sgxlkl_tmp_mnt_XXX)
 
-    if [[ "${nocontext:-}" == 1 ]]; then
-        tmp_docker_context="$(mktemp -d -t sgxlkl_tmp_dc_XXX)"
-        cp "${dockerfile}" ${tmp_docker_context}
-        dockerfile="${tmp_docker_context}/$(basename ${dockerfile})"
-        docker_context=${tmp_docker_context}
-    else docker_context="$(dirname ${dockerfile})"; fi
+    # If dockerfile is not specified, docker_image must already be set.
+    if [[ ! -z "${dockerfile:-}"  ]]; then
+        if [[ "${nocontext:-}" == 1 ]]; then
+            tmp_docker_context="$(mktemp -d -t sgxlkl_tmp_dc_XXX)"
+            cp "${dockerfile}" ${tmp_docker_context}
+            dockerfile="${tmp_docker_context}/$(basename ${dockerfile})"
+            docker_context=${tmp_docker_context}
+        else docker_context="$(dirname ${dockerfile})"; fi
 
-    echo "Creating ${disk_image} from Dockerfile ${dockerfile}..."
+        echo "Creating ${disk_image} from Dockerfile ${dockerfile}..."
 
-    echo "Building Docker image..."
-    docker_image_id=$(cat /proc/sys/kernel/random/uuid)
-    docker build --rm=true -t ${docker_image_id} -f "${dockerfile}" "${docker_context}" > ${VERBOSE_OUT}
+        echo "Building Docker image..."
+        tmp_docker_image_id=$(cat /proc/sys/kernel/random/uuid) # Can be cleaned up at exit.
+        docker_image=${tmp_docker_image_id}
+        docker build --rm=true -t ${docker_image} -f "${dockerfile}" "${docker_context}" > ${VERBOSE_OUT}
+    fi
 
     echo "Creating and exporting Docker container..."
-    docker_container_id=$(docker create ${docker_image_id})
+    docker_container_id=$(docker create ${docker_image})
     tmp_docker_tar=$(mktemp -t sgxlkl_tmp_docker_tar_XXX)
     docker export -o ${tmp_docker_tar} ${docker_container_id}
 
@@ -816,8 +825,14 @@ while true; do
             ;;
         -d|--docker)
             if [[ $2 == -* ]]; then err_req_arg $1; fi
+            req docker
             d=1
-            dockerfile=$2
+            if [[ -e "$2" ]]; then
+                dockerfile=$2
+            else
+                docker_image=$2
+            fi
+
             shift 2
             ;;
         --nocontext)
