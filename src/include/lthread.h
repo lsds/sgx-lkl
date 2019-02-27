@@ -145,8 +145,8 @@ struct lthread {
     int err;                                /* errno value */
     char *dlerror_buf;
     int dlerror_flag;
-    void **dtv;
-    void **dtv_copy;
+    uintptr_t *dtv;
+    uintptr_t *dtv_copy;
     /* yield_cb_* are a callback to call after yield finished and it's arg */
     /* they are required to release futex lock on FUTEX_WAIT operation */
     /* and in sched_yield (see comment there) to avoid race among schedulers */

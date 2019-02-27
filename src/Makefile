@@ -39,12 +39,12 @@ endif
 
 # Copied from sgx-lkl-musl/config.mak after ./configure
 # TODO: Do not hardcode cflags here
-CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -include vis.h -fPIC
+CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -fPIC
 CFLAGS_C99FSE = -std=c99 -nostdinc -ffreestanding -fexcess-precision=standard -frounding-math -Wa,--noexecstack
 
 CFLAGS_MUSL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_SGX) $(MUSL_CFLAGS)
 CFLAGS_MUSL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_MUSL_ALL += -I$(SGX_LKL_MUSL)/src/internal -I$(SGX_LKL_MUSL_BUILD)/include -I$(CRYPTSETUP_BUILD)/include -I$(SGX_LKL_MUSL)/arch/$(ARCH)
+CFLAGS_MUSL_ALL += -I$(SGX_LKL_MUSL)/src/internal -I$(SGX_LKL_MUSL)/src/include -I$(SGX_LKL_MUSL_BUILD)/include -I$(CRYPTSETUP_BUILD)/include -I$(SGX_LKL_MUSL)/arch/$(ARCH)
 
 all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run
 

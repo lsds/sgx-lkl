@@ -70,15 +70,15 @@ static inline unsigned long bitmap_find_next_zero_area(unsigned long *map,
 }
 
 static int in_mmap_range(void* addr, size_t size) {
-    return addr >= mmap_base && (addr + size) <= mmap_end;
+    return addr >= mmap_base && ((char *)addr + size) <= (char *)mmap_end;
 }
 
 static void* index_to_addr(size_t index) {
-    return mmap_end - (index * PAGE_SIZE);
+    return (char *)mmap_end - (index * PAGE_SIZE);
 }
 
 static size_t addr_to_index(void* addr) {
-    return (mmap_end - addr) / PAGE_SIZE;
+    return ((char *)mmap_end - (char *)addr) / PAGE_SIZE;
 }
 
 void *syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
@@ -156,7 +156,7 @@ int syscall_SYS_sysinfo(struct sysinfo *info) {
 void enclave_mman_init(void* base, size_t num_pages) {
     // Don't use page at address 0x0.
     if(base == 0x0) {
-        base = base + PAGE_SIZE;
+        base = (char *)base + PAGE_SIZE;
         num_pages = num_pages - 1;
     }
 
@@ -166,8 +166,8 @@ void enclave_mman_init(void* base, size_t num_pages) {
     // Bitmap is stored at the beginning of the enclave memory range.
     mmap_bitmap = base;
     // Base address for range of pages available to mmap calls.
-    mmap_base = mmap_bitmap + (bitmap_req_pages * PAGE_SIZE);
-    mmap_end = mmap_base + (mmap_num_pages - 1) * PAGE_SIZE;
+    mmap_base = (char *)mmap_bitmap + (bitmap_req_pages * PAGE_SIZE);
+    mmap_end = (char *)mmap_base + (mmap_num_pages - 1) * PAGE_SIZE;
     // Initialize bitmap
     bitmap_clear(mmap_bitmap, 0, mmap_num_pages);
 }
