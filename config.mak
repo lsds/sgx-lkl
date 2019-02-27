@@ -9,23 +9,29 @@ FORCE_SUBMODULES_VERSION ?= false
 
 ROOT_DIR ?= $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR ?= $(ROOT_DIR)/build
+
 TESTS ?= $(ROOT_DIR)/tests
 TESTS_BUILD ?= $(BUILD_DIR)/tests
 TESTS_SRC ?= $(sort $(wildcard $(TESTS)/*.c))
 TESTS_OBJ ?= $(addprefix $(TESTS_BUILD)/, $(notdir $(TESTS_SRC:.c=)))
+
 TOOLS ?= ${ROOT_DIR}/tools
 TOOLS_BUILD ?= $(BUILD_DIR)/tools
 TOOLS_SRC ?= $(wildcard $(TOOLS)/*.c)
 TOOLS_OBJ ?= $(addprefix $(TOOLS_BUILD)/, $(notdir $(TOOLS_SRC:.c=)))
+
 CRYPTSETUP ?= ${ROOT_DIR}/third_party/cryptsetup
 CRYPTSETUP_BUILD ?= ${BUILD_DIR}/cryptsetup
 DEVICEMAPPER ?= ${ROOT_DIR}/third_party/devicemapper
 UTILLINUX ?= ${ROOT_DIR}/third_party/util-linux
 POPT ?= ${ROOT_DIR}/third_party/popt
 JSONC ?= ${ROOT_DIR}/third_party/json-c
+MBEDTLS ?= ${ROOT_DIR}/third_party/mbedtls
+
 LKL ?= $(ROOT_DIR)/lkl
 LKL_BUILD ?= ${BUILD_DIR}/lkl
 LIBLKL ?= ${LKL_BUILD}/lib/liblkl.a
+
 HOST_MUSL ?= $(ROOT_DIR)/host-musl
 HOST_MUSL_BUILD ?= $(BUILD_DIR)/host-musl
 HOST_MUSL_CC ?= ${HOST_MUSL_BUILD}/bin/musl-gcc
@@ -33,6 +39,7 @@ SGX_LKL_MUSL ?= $(ROOT_DIR)/sgx-lkl-musl
 SGX_LKL_MUSL_BUILD ?= ${BUILD_DIR}/sgx-lkl-musl
 # Headers not exported by LKL and built by a custom tool's output cat to the file instead
 LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/syscalls.h
+
 # Location of enclave debug key (used for signing the enclave)
 ENCLAVE_DEBUG_KEY=${BUILD_DIR}/config/enclave_debug.key
 

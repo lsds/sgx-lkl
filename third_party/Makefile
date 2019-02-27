@@ -3,9 +3,17 @@ include ../config.mak
 .PHONY: clean
 .INTERMEDIATE: ${MAKE_ROOT}/cryptsetup.tar.gz ${MAKE_ROOT}/devicemapper.tar.gz ${MAKE_ROOT}/util-linux.tar.gz ${MAKE_ROOT}/popt.tar.gz ${MAKE_ROOT}/json-c.tar.gz
 
+ifeq ($(DEBUG),true)
+  CFLAGS_MBEDTLS += -DDEBUG -O0 -g3 -ggdb3
+else ifeq ($(DEBUG),opt)
+  CFLAGS_MBEDTLS += -O3 -g3 -ggdb3
+else
+  CFLAGS_MBEDTLS += -O3
+endif
+
 default: all
 
-all: ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a
+all: ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${MBEDTLS}/mbedtls.a
 
 MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
@@ -76,9 +84,20 @@ ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a: ${CRYPTSETUP} ${CRYPTSETUP_BUILD}/lib/l
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${CRYPTSETUP} install-libLTLIBRARIES
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${CRYPTSETUP} install-includeHEADERS
 
+
+MBEDTLS_SRCS = $(wildcard ${MBEDTLS}/*.c)
+MBEDTLS_OBJS = $(MBEDTLS_SRCS:.c=.o)
+
+${MBEDTLS}/mbedtls.a: ${MBEDTLS_OBJS}
+	ar rc $@ $^
+
+$(MBEDTLS_OBJS): $(MBEDTLS)/%.o: ${MBEDTLS}/%.c
+	$(CC) -c --std=gnu11 -I${MBEDTLS}/include $(CFLAGS_MBEDTLS) $< -o $@
+
 clean:
 	+[ -f ${CRYPTSETUP}/Makefile ] && ${MAKE} -C ${CRYPTSETUP} distclean || true
 	+[ -f ${POPT}/Makefile ] && ${MAKE} -C ${POPT} distclean || true
 	+[ -f ${UTILLINUX}/Makefile ] && ${MAKE} -C ${UTILLINUX} distclean || true
 	+[ -f ${DEVICEMAPPER}/Makefile ] && ${MAKE} -C ${DEVICEMAPPER} distclean || true
 	+[ -f ${JSONC}/Makefile ] && ${MAKE} -C ${JSONC} distclean || true
+	+rm -rf $(MBEDTLS)/mbedtls.a $(MBEDTLS)/*.o 

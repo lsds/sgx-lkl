@@ -28,3 +28,5 @@ third_party/devicemapper/
 third_party/util-linux/
 third_party/popt/
 third_party/json-c/
+third_party/mbedtls/*.o
+third_party/mbedtls/*.a

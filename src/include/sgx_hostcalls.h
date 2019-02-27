@@ -1,9 +1,6 @@
-/*
- * Copyright 2016, 2017, 2018 Imperial College London
- */
 
-#ifndef HOSTCALLS_H
-#define HOSTCALLS_H
+#ifndef SGX_HOSTCALLS_H
+#define SGX_HOSTCALLS_H
 #define _GNU_SOURCE
 #define _BSD_SOURCE
 
@@ -16,10 +13,10 @@
 #include <sys/types.h>
 #include <poll.h>
 
-#include "hostcall_interface.h"
+#include "sgx_hostcall_interface.h"
 
 /* 
- * hostsyscalls.c must include ksigaction.h before including this header.
+ * sgx_hostcalls.c must include ksigaction.h before including this header.
  */
 typedef struct k_sigaction k_sigaction_t;
 
@@ -82,4 +79,4 @@ int syscall_SYS_sysinfo(struct sysinfo* info);
 int host_syscall_SYS_open(const char *pathname, int flags, mode_t mode);
 #endif
 
-#endif /* HOSTCALLS_H */
+#endif /* SGX_HOSTCALLS_H */

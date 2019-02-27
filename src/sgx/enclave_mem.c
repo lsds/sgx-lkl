@@ -11,7 +11,7 @@
 
 #include "bitops.h"
 #include "enclave_mem.h"
-#include "hostcalls.h"
+#include "sgx_hostcalls.h"
 #include "ticketlock.h"
 #include "sgxlkl_debug.h"
 

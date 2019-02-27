@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "sgx_lkl_sign_cmdline.h"
+#include "sgxlkl_sign_cmdline.h"
 #include "libsgx.h"
 
 #define DIV_ROUNDUP(x, y)   (((x)+((y)-1))/(y))

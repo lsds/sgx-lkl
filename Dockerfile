@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
   curl \
   wget \
   pv \
-  make gcc bc python xutils-dev flex bison autogen autoconf libtool autopoint pkg-config libgcrypt20-dev libjson0 libjson0-dev \
+  make gcc bc python xutils-dev flex bison autogen autoconf libtool autopoint pkg-config libgcrypt20-dev libjson0 libjson0-dev libtool-bin \
   sudo \
   git
 

@@ -7,8 +7,8 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <string.h>
-#include "enclave_config.h"
-#include "hostcall_interface.h"
+#include "sgx_enclave_config.h"
+#include "sgx_hostcall_interface.h"
 #include "pthread_impl.h"
 
 /* we need this initializer for signer to find this struct in the TLS image */

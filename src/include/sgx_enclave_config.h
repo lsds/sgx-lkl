@@ -1,16 +1,13 @@
-/*
- * Copyright 2016, 2017, 2018 Imperial College London
- */
 
-#ifndef ENCLAVE_CONFIG_H
-#define ENCLAVE_CONFIG_H
+#ifndef SGX_ENCLAVE_CONFIG_H
+#define SGX_ENCLAVE_CONFIG_H
 
 #include <netinet/ip.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <elf.h>
 #include "mpmc_queue.h"
-#include "ring_buff.h"
+//#include "ring_buff.h"
 
 #ifdef SGXLKL_HW
 #include <setjmp.h>
@@ -194,4 +191,4 @@ void ecall_rdtsc(gprsgx_t *regs, uint64_t ts);
 
 #endif
 
-#endif /* ENCLAVE_CONFIG_H */
+#endif /* SGX_ENCLAVE_CONFIG_H */

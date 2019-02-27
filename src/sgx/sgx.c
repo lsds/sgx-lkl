@@ -17,8 +17,10 @@
 #include <limits.h>
 #include "libsgx.h"
 #include "elf.h"
+
 #include <mbedtls/sha256.h>
 #include <mbedtls/rsa.h>
+
 #include <errno.h>
 #include <setjmp.h>
 #include "isgx_user.h"

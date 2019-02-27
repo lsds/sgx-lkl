@@ -50,10 +50,10 @@
 #include "pthread_impl.h"
 #include "sgxlkl_debug.h"
 #include "stdio_impl.h"
-#include "hostcall_interface.h"
+#include "sgx_hostcall_interface.h"
 #include "ticketlock.h"
 #include "tree.h"
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 
 extern int errno;
 
@@ -402,6 +402,7 @@ void set_tls_tp(struct lthread *lt) {
 
     uintptr_t tp_unaligned = (uintptr_t) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
     struct lthread_tcb_base *tp = (struct lthread_tcb_base *) (tp_unaligned - (tp_unaligned & (libc.tls_align-1)));
+
     tp->schedctx = __scheduler_self();
 #ifdef SGXLKL_HW
     __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );

@@ -16,7 +16,7 @@
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 #include "lkl/virtio_net.h"
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 #include "sgxlkl_debug.h"
 #include "sgxlkl_util.h"
 

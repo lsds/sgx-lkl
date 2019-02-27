@@ -5,7 +5,7 @@
 #ifndef ENCLAVE_SIGNAL_H
 #define ENCLAVE_SIGNAL_H
 
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 
 /* Enclave signal info */
 typedef struct {

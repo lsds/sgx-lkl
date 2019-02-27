@@ -22,7 +22,7 @@
 #include "lkl/virtio.h"
 #include "lkl/virtio_net.h"
 
-#include "hostcalls.h"
+#include "sgx_hostcalls.h"
 
 struct lkl_netdev_fd {
 	struct lkl_netdev dev;

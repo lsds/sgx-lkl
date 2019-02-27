@@ -39,8 +39,8 @@
 #include <signal.h>
 #include <time.h>
 
-#include "enclave_config.h"
-#include "hostcall_interface.h"
+#include "sgx_enclave_config.h"
+#include "sgx_hostcall_interface.h"
 #include "locale_impl.h"
 #include "atomic.h"
 #include "queue.h"

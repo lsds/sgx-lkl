@@ -33,10 +33,10 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 #include "load_elf.h"
 #include "mpmc_queue.h"
-#include "ring_buff.h"
+//#include "ring_buff.h"
 #include "sgxlkl_util.h"
 
 #include "lkl/linux/virtio_net.h"

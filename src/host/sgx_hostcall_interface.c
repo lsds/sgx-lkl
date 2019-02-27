@@ -19,7 +19,7 @@
 #include "pthread_impl.h"
 #include "ticketlock.h"
 
-#include "hostcall_interface.h"
+#include "sgx_hostcall_interface.h"
 
 static syscall_t* S;
 

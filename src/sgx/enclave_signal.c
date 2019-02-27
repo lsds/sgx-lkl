@@ -6,7 +6,7 @@
 #define _GNU_SOURCE
 #include <signal.h>
 #include <string.h>
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 #include "enclave_signal.h"
 #include "pthread_impl.h"
 

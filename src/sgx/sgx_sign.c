@@ -5,8 +5,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+
 #include <mbedtls/sha256.h>
 #include <mbedtls/rsa.h>
+
 #include "sgx.h"
 
 void rsa_sign(mbedtls_rsa_context *ctx, rsa_sig_t sig,

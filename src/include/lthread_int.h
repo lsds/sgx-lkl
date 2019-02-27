@@ -37,8 +37,8 @@
 #include <stdint.h>
 #include <lthread.h>
 
-#include "queue.h"
-#include "tree.h"
+//#include "queue.h"
+//#include "tree.h"
 
 #define LT_MAX_EVENTS    (1024)
 #define MAX_STACK_SIZE (512*1024) /* 512k */

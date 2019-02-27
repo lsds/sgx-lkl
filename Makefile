@@ -53,12 +53,12 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} s
 
 tools: ${TOOLS_OBJ}
 
-${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a: ${LKL_BUILD}/include
-	+${MAKE} -C ${MAKE_ROOT}/third_party $@
-
 # Generic tool rule (doesn't actually depend on lkl_lib, but on LKL headers)
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
+
+${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a: ${LKL_BUILD}/include
+	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
 ${LKL_SGXMUSL_HEADERS}: ${LKL_BUILD}/include/lkl/%.h: ${TOOLS_BUILD}/lkl_%
@@ -89,7 +89,7 @@ sgx-lkl-sign: $(BUILD_DIR)/libsgxlkl.so $(ENCLAVE_DEBUG_KEY)
 
 # compile sgx-lkl sources
 
-sgx-lkl: sgx-lkl-musl-config
+sgx-lkl: sgx-lkl-musl-config ${MBEDTLS}/mbedtls.a
 	make -C src all HW_MODE=$(HW_MODE) LIB_SGX_LKL_BUILD_DIR="$(BUILD_DIR)"
 
 $(ENCLAVE_DEBUG_KEY):

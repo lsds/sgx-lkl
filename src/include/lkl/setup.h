@@ -2,7 +2,7 @@
  * Copyright 2016, 2017, 2018 Imperial College London
  */
 
-#include "enclave_config.h"
+#include "sgx_enclave_config.h"
 
 // 16 MiB is plenty enough of RAM for LKL, except if you want to run tmpfs benchmarks
 // (in which case don't edit this, use SGXLKL_LKLRAM environment variable instead)

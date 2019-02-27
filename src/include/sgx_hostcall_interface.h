@@ -1,10 +1,7 @@
-/*
- * Copyright 2016, 2017, 2018 Imperial College London
- */
 
-#ifndef HOSTCALL_INTERFACE_H
-#define HOSTCALL_INTERFACE_H
-#include "enclave_config.h"
+#ifndef SGX_HOSTCALL_INTERFACE_H
+#define SGX_HOSTCALL_INTERFACE_H
+#include "sgx_enclave_config.h"
 
 struct mpmcq *__syscall_queue;
 struct mpmcq *__return_queue;
@@ -34,5 +31,5 @@ size_t deepsizeiovec(const struct iovec *dst);
 int deepinitiovec(struct Arena *a, struct iovec *dst, const struct iovec *src);
 void deepcopyiovec(struct iovec *dst, const struct iovec *src);
 
-#endif /* HOSTCALL_INTERFACE_H */
+#endif /* SGX_HOSTCALL_INTERFACE_H */
 
