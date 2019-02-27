@@ -49,6 +49,8 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} s
 		TARGETS="" headers_install
 	# Bugfix, prefix symbol that collides with musl's one
 	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct ipc_perm/struct lkl_ipc_perm/' {} \;
+	# Bugfix, lkl_host.h redefines struct iovec in older versions of LKL.
+	grep "CONFIG_AUTO_LKL_POSIX_HOST" ${LKL_BUILD}/include/lkl_host.h > /dev/null && find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct iovec/struct lkl__iovec/' {} \; || true # struct lkl_iovec already exists
 	+${MAKE} headers_install -C ${LKL} ARCH=lkl INSTALL_HDR_PATH=${LKL_BUILD}/
 
 tools: ${TOOLS_OBJ}
