@@ -26,6 +26,8 @@ def parse_table(f, syscall_tab, attr):
         if ln.startswith('#') or len(ln) == 0:
             continue
         num, abi, name, *extra = ln.split()
+        if not abi == "common" and not abi == "64":
+            continue
         num = int(num)
         if name not in syscall_tab:
             syscall_tab[name] = Syscall(name)
