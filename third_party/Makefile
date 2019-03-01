@@ -25,16 +25,16 @@ ${MAKE_ROOT}/cryptsetup.tar.gz:
 	wget -O "$@" 'https://gitlab.com/cryptsetup/cryptsetup/repository/archive.tar.gz?ref=v2.0.2'
 
 ${MAKE_ROOT}/devicemapper.tar.gz:
-	wget -O "$@" 'ftp://sources.redhat.com/pub/lvm2/LVM2.2.02.98.tgz'
+	wget -O "$@" 'https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz'
 
 ${MAKE_ROOT}/util-linux.tar.gz:
-	wget -O "$@" 'https://www.kernel.org/pub/linux/utils/util-linux/v2.29/util-linux-2.29.2.tar.gz'
+	wget -O "$@" 'https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git/snapshot/util-linux-2.29.2.tar.gz'
 
 ${MAKE_ROOT}/popt.tar.gz:
-	wget -O "$@" 'http://rpm5.org/files/popt/popt-1.16.tar.gz'
+	wget -O "$@" 'https://deb.debian.org/debian/pool/main/p/popt/popt_1.16.orig.tar.gz'
 
 ${MAKE_ROOT}/json-c.tar.gz:
-	wget -O "$@" 'https://s3.amazonaws.com/json-c_releases/releases/json-c-0.13.1.tar.gz'
+	wget -O "$@" 'https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz'
 
 ${CRYPTSETUP}: ${MAKE_ROOT}/cryptsetup.tar.gz
 	mkdir -p $@ && tar -C $@ --strip 1 -xf $<
@@ -58,6 +58,7 @@ ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTS
 	+CC=${HOST_MUSL_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm install
 
 ${CRYPTSETUP_BUILD}/lib/libuuid.a: ${UTILLINUX} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}
+	cd ${UTILLINUX}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./autogen.sh
 	cd ${UTILLINUX}; [ -f Makefile ] || CC=${HOST_MUSL_CC} CFLAGS="${CRYPTSETUP_CFLAGS} -fPIC -Wl,--dynamic-linker=${HOST_MUSL_BUILD}/lib/libc.so" ./configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static \
 		--disable-all-programs --enable-libuuid --enable-uuid \
