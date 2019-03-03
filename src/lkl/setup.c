@@ -4,14 +4,18 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <linux/random.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <time.h>
 #include <lkl_host.h>
+
 #include "lkl/disk.h"
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
@@ -19,10 +23,10 @@
 #include "sgx_enclave_config.h"
 #include "sgxlkl_debug.h"
 #include "sgxlkl_util.h"
-
 #include "libcryptsetup.h"
 #include "libdevmapper.h"
 #include "pthread.h"
+
 
 #define BIT(x) (1ULL << x)
 
@@ -604,6 +608,57 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     }
 }
 
+static void init_random() {
+    struct rand_pool_info *pool_info = 0;
+    FILE *f;
+    int fd;
+
+    SGXLKL_VERBOSE("Adding entropy to entropy pool.\n");
+
+    char buf[8] = {0};
+    f  = fopen("/proc/sys/kernel/random/poolsize", "r");
+    if (!f)
+        goto err;
+    if (fgets(buf, 8, f) == NULL)
+        goto err;
+    // /proc/sys/kernel/random/poolsize for kernel 2.6+ contains pool size in
+    // bits, divide by 8 for number of bytes.
+    int poolsize = atoi(buf) / 8;
+
+    // To be on the safe side, add entropy equivalent to the pool size.
+    pool_info = (struct rand_pool_info *) malloc(sizeof(pool_info) + poolsize);
+    if (!pool_info)
+        goto err;
+
+    pool_info->entropy_count = poolsize * 8;
+    pool_info->buf_size = poolsize;
+
+    uint64_t *entropy_buf = (uint64_t *) pool_info->buf;
+    for (int i = 0; i < poolsize / 8; i++) {
+        // TODO Use intrinsics
+        // if (!_rdrand64_step(&entropy_buf[i]))
+        //    goto err;
+        register uint64_t rd;
+        __asm__ volatile ( "rdrand %0;" : "=r" ( rd ) );
+        entropy_buf[i] = rd;
+    }
+
+    fd = open("/dev/random", O_RDONLY);
+    if (ioctl(fd, RNDADDENTROPY, pool_info) == -1)
+        goto err;
+
+    goto out;
+err:
+    fprintf(stderr, "[ SGX-LKL ] Warning: Failed to add entropy to entropy pool.\n");
+out:
+    if (f)
+        fclose(f);
+    if (fd)
+        close(fd);
+    if (pool_info)
+        free(pool_info);
+}
+
 void __lkl_start_init(enclave_config_t* encl) {
     size_t i;
 
@@ -692,6 +747,8 @@ void __lkl_start_init(enclave_config_t* encl) {
 
     // Now that our kernel is ready to handle syscalls, mount root
     lkl_poststart_disks(disks, num_disks);
+
+    init_random();
 
     // Set environment variable to export SHMEM address to the application.
     // Note: Due to how putenv() works, we need to allocate the environment
