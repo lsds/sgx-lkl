@@ -23,12 +23,11 @@ SGX-LKL has been tested on Ubuntu 16.04 and 18.04. To run SGX-LKL in SGX
 enclaves, the Intel SGX driver (available at
 https://github.com/01org/linux-sgx-driver and
 https://01.org/intel-software-guard-extensions/downloads) is required. We have
-tested SGX-LKL with driver versions 1.9 and 2.0 on Ubuntu 16.04 and version 2.4
-on Ubuntu 18.04. SGX-LKL also provides a simulation mode for which no
-SGX-enabled CPU is needed. Furthermore the following packages are required to
-build SGX-LKL: `make`, `gcc`, `bc`, `python`, `xutils-dev` (for `makedepend`),
-`bison`, `flex`, `libgcrypt20-dev`, `libjson-c-dev`, `autopoint`, `pkgconf`,
-`autoconf`, `libtool`.
+tested SGX-LKL with driver versions 1.9 to 2.4. SGX-LKL also provides a
+simulation mode for which no SGX-enabled CPU is needed. Furthermore the
+following packages are required to build SGX-LKL: `make`, `gcc`, `bc`,
+`python`, `xutils-dev` (for `makedepend`), `bison`, `flex`, `libgcrypt20-dev`,
+`libjson-c-dev`, `autopoint`, `pkgconf`, `autoconf`, `libtool`.
 
 Install these with:
 
@@ -315,7 +314,7 @@ disk images.
 
 #### Creating Alpine-based disk images
 
-To create a disk image, use the `--create` option. In addition, `sgx-lkl-disk`
+To create a disk image, use the `create` action. In addition, `sgx-lkl-disk`
 expects the disk image size to be specified via `--size=<SIZE>` and the disk
 image file name. Lastly, you will need to specify the source of the image.
 
@@ -324,7 +323,7 @@ Alpine package repository, use the `--alpine=<pkgs>` flag. For example, to
 create an image with redis installed, run:
 
 ```
-sgx-lkl-disk --create --size=50M --alpine="redis" sgxlkl-disk.img
+sgx-lkl-disk create --size=50M --alpine="redis" sgxlkl-disk.img
 # Run with
 SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/redis-server --bind 10.0.1.1
 ```
@@ -332,7 +331,7 @@ SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/redis-server --bin
 Or to create a disk image with memcached, run
 
 ```
-sgx-lkl-disk --create --size=50M --alpine="memcached" sgxlkl-disk.img
+sgx-lkl-disk create --size=50M --alpine="memcached" sgxlkl-disk.img
 # Run with
 SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/memcached --listen=10.0.1.1 -u root --extended=no_drop_privileges -vv
 ```
@@ -351,7 +350,7 @@ tree my-python-root
 > │   ├── myapp.py
 > │   └── util.py
 
-sgx-lkl-create --create --size=100M --alpine="python" --copy=./my-python-root sgxlkl-disk.img
+sgx-lkl-create create --size=100M --alpine="python" --copy=./my-python-root sgxlkl-disk.img
 # Run with
 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/python /app/myapp.py
 ```
@@ -365,7 +364,7 @@ point is an Alpine Docker base image. To build an SGX-LKL disk image from a
 Dockerfile, run:
 
 ```
-sgx-lkl-disk --create --size=100M --docker=MyDockerfile sgxlkl-disk.img
+sgx-lkl-disk create --size=100M --docker=MyDockerfile sgxlkl-disk.img
 ```
 
 #### Creating plain disk images
@@ -374,7 +373,7 @@ If all that is needed is a plain disk image based on files existing on the
 host, the `--copy` flag can be used on its own as well:
 
 ```
-sgx-lkl-disk --create --size=50M --copy=./my-root sgxlkl-disk.img
+sgx-lkl-disk create --size=50M --copy=./my-root sgxlkl-disk.img
 ```
 
 #### Disk encryption
@@ -385,7 +384,7 @@ kernel. Typically encryption for a disk can be setup via the `cryptsetup` tool.
 create an encrypted disk image with default options run
 
 ```
-sgx-lkl-disk --create --size=50M --encrypt --key-file --alpine="" sgxlkl-disk.img.enc
+sgx-lkl-disk create --size=50M --encrypt --key-file --alpine="" sgxlkl-disk.img.enc
 # Run with
 SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.key sgx-lkl-run ./sgxlkl-disk.img.enc /bin/echo "Hello World"
 ```
@@ -405,7 +404,7 @@ For example, to create a read-only encrypted disk image with integrity
 protection via *dm-verity*, you can run
 
 ```
-sgx-lkl-disk --create --size=50M --encrypt --key-file --verity --alpine="" sgxlkl-disk.img.enc.vrt
+sgx-lkl-disk create --size=50M --encrypt --key-file --verity --alpine="" sgxlkl-disk.img.enc.vrt
 # Run with
 SGXLKL_HD_VERITY=./sgxlkl-disk.img.enc.vrt.roothash SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.vrt.key sgx-lkl-run ./sgxlkl-disk.img.enc.vrt /bin/echo "Hello World"
 ```
@@ -415,7 +414,7 @@ authenticated encryption and supports both reads and writes, you can run
 
 ```
 # --integrity requires a host kernel version 4.12 or greater and cryptsetup version 2.0.0 or greater
-sgx-lkl-disk --create --size=50M --encrypt --key-file --integrity --alpine="" sgxlkl-disk.img.enc.int
+sgx-lkl-disk create --size=50M --encrypt --key-file --integrity --alpine="" sgxlkl-disk.img.enc.int
 # Run with
 SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.int.key sgx-lkl-run ./sgxlkl-disk.img.enc.int /bin/echo "Hello World"
 ```
