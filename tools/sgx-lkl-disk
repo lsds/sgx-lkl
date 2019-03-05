@@ -156,48 +156,70 @@ echo \"Installing \${alpine_pkgs}\"
 apk add \${alpine_pkgs}
 "
 
+to_cleanup=0
+function cleanup_echo() {
+    if [[ "${to_cleanup}" == "0" ]]; then
+        to_cleanup=1
+        echo "Cleaning up temporary files..."
+    fi
+}
+
+function cleanup_file() {
+    if [[ ! -z "$1" ]] && [[ -e "$1" ]]; then
+        cleanup_echo
+        rm -r "$1"
+    fi
+}
 
 function cleanup() {
-    echo "Cleaning up temporary files..."
-
-    [[ ! -z ${tmp_buildenv:-} ]] && [[ -e ${tmp_buildenv} ]] && rm -r "${tmp_buildenv}" || true
-    [[ ! -z ${tmp_docker_tar:-} ]] && [[ -e ${tmp_docker_tar} ]] && rm -r "${tmp_docker_tar}" || true
-    [[ ! -z ${tmp_docker_context:-} ]] && [[ -e ${tmp_docker_context} ]] && rm -r "${tmp_docker_context}" || true
-    [[ ! -z ${tmp_image:-} ]] && [[ -e ${tmp_image} ]] && rm -r "${tmp_image}" || true
+    cleanup_file "${tmp_buildenv:-}"
+    cleanup_file "${tmp_docker_tar:-}"
+    cleanup_file "${tmp_docker_context:-}"
+    cleanup_file "${tmp_image:-}"
 
     if [ ! -z ${tmp_mnt_point:-} ]; then
+        cleanup_echo
         if mountpoint -q "${tmp_mnt_point}" &> /dev/null; then sudo umount "${tmp_mnt_point}"; fi
         rm -r "${tmp_mnt_point}"
     fi
 
     if [[ "$m" == 1 ]] && [[ ! -z "${loop_device:-}" ]]; then
         if ! mountpoint -q "${mnt_point}" &> /dev/null; then
+            cleanup_echo
             sudo losetup -d "${loop_device}"
         fi
 
         if [[ -d "${mnt_point}" ]] && [[ -z "$(ls -A "${mnt_point}")" ]]; then
+            cleanup_echo
             rm -r ${mnt_point}
         fi
     fi
 
     if [[ ! -z ${docker_container_id:-} ]] && [[ ! $(docker ps -qa | grep -q ${docker_container_id}) ]]; then
+        cleanup_echo
         docker rm --force ${docker_container_id} > /dev/null
     fi
 
     if [[ ! -z ${tmp_cryptsetup_name:-} ]] && [[ -e "/dev/mapper/${tmp_cryptsetup_name}" ]]; then
+        cleanup_echo
         sleep 1
         sudo cryptsetup close ${tmp_cryptsetup_name}
     fi
 
     if [[ ! -z ${tmp_loop_device:-} ]] && [[ ! -z $(losetup -l | grep "${tmp_loop_device} ") ]]; then
+        cleanup_echo
         sudo losetup -d ${tmp_loop_device}
     fi
 
     if [ "${cleanup:-}" = 1 ]; then
         if [[ ! -z ${tmp_docker_image_id:-} ]] && [[ $(docker images -qa | grep ${tmp_docker_image_id}) ]]; then
+            cleanup_echo
             docker rmi ${tmp_docker_image_id}
         fi
-        [[ ! -z ${alpine_tar:-} ]] && [[ -e ${alpine_tar} ]] && rm -r "${alpine_tar}" || true
+        if [[ ! -z ${alpine_tar:-} ]] && [[ -e ${alpine_tar} ]]; then
+            cleanup_echo
+            rm -r "${alpine_tar}"
+        fi
     fi
 }
 
