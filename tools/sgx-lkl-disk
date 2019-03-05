@@ -28,18 +28,18 @@ Creates and manages ext4 disk images usable by SGX-LKL.
 Mandatory arguments to long options are mandatory for short options too.
 
 Actions
- -c, --create               Create a new disk image.
- -s, --status               Print information on dm-crypt/dm-integrity/dm-verity
+ c, create                  Create a new disk image.
+ s, status                  Print information on dm-crypt/dm-integrity/dm-verity
                             setup of IMAGEFILE.
- -m, --mount                Mount IMAGEFILE.
- -U, --unmount              Unmount MOUNTPOINT.
- -h, --help                 Print this help text.
- -u, --usage                Print usage info.
+ m, mount                   Mount IMAGEFILE.
+ U, unmount                 Unmount MOUNTPOINT.
+ h, help                    Print this help text.
+ u, usage                   Print usage info.
 
 General options
  -V, --verbose              More verbose output.
 
-Create (--create) options
+Create ('create') options
  -x, --cleanup              Clean up downloads and Docker images that would
                             otherwise get cached.
  -a, --alpine=<alpine pkg>  Create disk with Alpine image as basis with the
@@ -84,13 +84,13 @@ Create (--create) options
                             supported. (Requires cryptsetup version >= 2.0.0 and
                             kernel version >= 4.12).
 
-Status (--status) options:
+Status ('status') options:
  -v, --verity               Show dm-verity info for IMAGEFILE. This expects
                             IMAGEFILE.roothash to contain the root hash and
                             IMAGEFILE.hashoffset to contain the offset to the
                             hash metadata.
 
-Mount (--mount) options:
+Mount ('mount') options:
  -M, --mnt-point=<path>     Mount IMAGEFILE at mount point <path>.
      --mnt-options=<opts>   Mount IMAGEFILE with the options <opts>.
  -v, --verity               Mount IMAGEFILE with dm-verity integrity protection.
@@ -124,17 +124,17 @@ NOTES on --integrity:
 
 Examples:
 
-sgx-lkl-disk --create --size=100M --docker=./Dockerfile sgxlkl-disk.img
-sgx-lkl-disk --create --size=100M --from-image=sgxlkl-disk.img sgxlkl-disk.img
-sgx-lkl-disk --create --size=100M --alpine="redis memcached" sgxlkl-disk.img
-sgx-lkl-disk --create --size=100M --alpine="python" --copy=./my-python-app sgxlkl-disk.img
-sgx-lkl-disk --create --size=100M --copy=./my-root --encrypt --key-file=./my-key sgxlkl-disk.img.enc
-sgx-lkl-disk --create --size=100M --copy=./my-root --encrypt --key-file=./my-key --integrity sgxlkl-disk.img.enc.int
-sgx-lkl-disk --create --size=100M --copy=./my-root --encrypt --key-file=./my-key --verity sgxlkl-disk.img.enc.vrt
-sgx-lkl-disk --create --size=100M --copy=./my-root --verity sgxlkl-disk.img.vrt
-sgx-lkl-disk --status sgxlkl-disk.img
-sgx-lkl-disk --mount --mnt-point=./mnt-sgxlkl ./sgxlkl-disk.img
-sgx-lkl-disk --unmount ./mnt-sgxlkl
+sgx-lkl-disk create --size=100M --docker=./Dockerfile sgxlkl-disk.img
+sgx-lkl-disk create --size=100M --from-image=sgxlkl-disk.img sgxlkl-disk.img
+sgx-lkl-disk create --size=100M --alpine="redis memcached" sgxlkl-disk.img
+sgx-lkl-disk create --size=100M --alpine="python" --copy=./my-python-app sgxlkl-disk.img
+sgx-lkl-disk create --size=100M --copy=./my-root --encrypt --key-file=./my-key sgxlkl-disk.img.enc
+sgx-lkl-disk create --size=100M --copy=./my-root --encrypt --key-file=./my-key --integrity sgxlkl-disk.img.enc.int
+sgx-lkl-disk create --size=100M --copy=./my-root --encrypt --key-file=./my-key --verity sgxlkl-disk.img.enc.vrt
+sgx-lkl-disk create --size=100M --copy=./my-root --verity sgxlkl-disk.img.vrt
+sgx-lkl-disk status sgxlkl-disk.img
+sgx-lkl-disk mount --mnt-point=./mnt-sgxlkl ./sgxlkl-disk.img
+sgx-lkl-disk unmount ./mnt-sgxlkl
 UsageMsg
 }
 
@@ -240,12 +240,12 @@ function err_op_req_arg() {
 }
 
 function err_op() {
-    echo "$SELF: Exactly one of --create, --status, --mount, --unmount is required."
+    echo "$SELF: Exactly one of 'create', 'status', 'mount', 'unmount' is required as action."
     exit 126
 }
 
 function err_create_op() {
-    echo "$SELF: Exactly one of --alpine, --docker, --from-image, --copy (combinable with others) is required with --create."
+    echo "$SELF: Exactly one of --alpine, --docker, --from-image, --copy (combinable with others) is required with 'create'."
     exit 126
 }
 
@@ -265,7 +265,7 @@ function err_passphrase_or_keyfile() {
 }
 
 function err_passphrase_or_keyfile_mount() {
-    echo "$SELF: Either --passphrase or --key-file required when mounting an encrypted disk image with --mount."
+    echo "$SELF: Either --passphrase or --key-file required when mounting an encrypted disk image with 'mount'."
     exit 126
 }
 
@@ -608,7 +608,7 @@ function verity() {
 }
 
 function create() {
-    req_arg "--create" "--size" $sz
+    req_arg "create" "--size" $sz
 
     disk_size=$(to_bytes "$sz")
     disk_size=$(( (${disk_size} + 511) / 512 * 512)) # 512 byte alignment
@@ -715,7 +715,7 @@ function mount_enc() {
 }
 
 function mount() {
-    req_arg "--mount" "--mnt-point" $mnt_point
+    req_arg "mount" "--mnt-point" $mnt_point
 
     echo "Mounting ${disk_image}..."
 
@@ -766,12 +766,8 @@ function unmount() {
 OPTIONS="\
 U,usage, \
 h,help, \
-c,create, \
-s,status, \
-m,mount, \
 M,mnt-point,: \
 ,mnt-options,: \
-u,unmount, \
 x,cleanup, \
 V,verbose, \
 a,alpine,: \
@@ -792,6 +788,30 @@ S,size,: \
 "
 c=0 s=0 m=0 u=0 a=0 d=0 e=0 i=0 v=0 im=0 sz=0 k=0 copy_src=""
 
+case "$1" in
+    u|h|usage|help)
+        usage
+        exit 0
+        ;;
+    c|create)
+        c=1
+        shift
+        ;;
+    s|status)
+        s=1
+        shift
+        ;;
+    m|mount)
+        m=1
+        shift
+        ;;
+    U|unmount)
+        u=1
+        shift
+        ;;
+esac
+
+
 IFS=' ' read -r -a OPTS_ARR <<< "${OPTIONS}"
 for OPT in "${OPTS_ARR[@]}"; do
     SHORTOPT=$(echo "${OPT}" | cut -d"," -f1)
@@ -811,22 +831,6 @@ while true; do
         -u|-h|--usage|--help)
             usage
             exit 0
-            ;;
-        -c|--create)
-            c=1
-            shift
-            ;;
-        -s|--status)
-            s=1
-            shift
-            ;;
-        -m|--mount)
-            m=1
-            shift
-            ;;
-        -U|--unmount)
-            u=1
-            shift
             ;;
         -x|--cleanup)
             cleanup=1
@@ -854,7 +858,6 @@ while true; do
             else
                 docker_image=$2
             fi
-
             shift 2
             ;;
         --nocontext)
@@ -952,7 +955,7 @@ while true; do
 done
 
 if [[ $# -ne 1 ]]; then
-    echo "$0: A single file name for the disk image or mount point (with --unmount) is required as argument."
+    echo "$0: A single file name for the disk image or mount point (with 'unmount') is required as argument."
     exit 126
 fi
 
