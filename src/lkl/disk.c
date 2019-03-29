@@ -42,7 +42,7 @@ static int do_plain_rw(ssize_t (*fn)(), struct lkl_disk disk, struct lkl_blk_req
     return ret;
 }
 
-static int blk_plaintext_request(struct lkl_disk disk, struct lkl_blk_req *req) {
+static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req) {
     int err = 0;
     switch (req->type) {
     case LKL_DEV_BLK_TYPE_READ:
@@ -74,8 +74,8 @@ static int blk_plaintext_request(struct lkl_disk disk, struct lkl_blk_req *req) 
     return LKL_DEV_BLK_STATUS_OK;
 }
 
-struct lkl_dev_blk_ops sgxlkl_dev_plaintext_blk_ops = {
+struct lkl_dev_blk_ops sgxlkl_dev_blk_ops = {
     .get_capacity = fd_get_capacity,
-    .request = blk_plaintext_request,
+    .request = blk_request,
 };
 

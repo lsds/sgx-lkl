@@ -201,6 +201,7 @@ static void usage(char* prog) {
     printf("SGXLKL_HD_KEY: Encryption key as passphrase or file path to a key file for the root file system image (Debug only).\n");
     printf("SGXLKL_HD_RO: Set to 1 to mount the root file system as read-only.\n");
     printf("SGXLKL_HDS: Secondary file system images. Comma-separated list of the format: disk1path:disk1mntpoint:disk1mode,disk2path:disk2mntpoint:disk2mode,[...].\n");
+    printf("SGXLKL_HD_MMAP: Set to 1 to use file-backed mmap to read from and write to disks instead of using host read/write system calls.\n");
     printf("\n## Memory ##\n");
     printf("SGXLKL_HEAP: Total heap size (in bytes) available in the enclave. This includes memory used by the kernel.\n");
     printf("SGXLKL_STACK_SIZE: Stack size of in-enclave user-level threads.\n");
@@ -464,6 +465,15 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
 
     int fd = open(path, readonly ? O_RDONLY : O_RDWR);
     if (fd == -1) sgxlkl_fail("Unable to open disk file %s for %s access: %s\n", path, readonly ? "read" : "read/write", strerror(errno));
+    struct stat disk_stat;
+    fstat(fd, &disk_stat);
+
+    char * disk_mmap = NULL;
+    if (getenv_bool("SGXLKL_HD_MMAP", 0)) {
+        disk_mmap = mmap(NULL, disk_stat.st_size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
+        if (disk_mmap == MAP_FAILED)
+            sgxlkl_fail("Could not map memory for disk image: %s\n", strerror(errno));
+    }
 
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1) sgxlkl_fail("fcntl(disk_fd, F_GETFL)");
@@ -474,6 +484,8 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     struct enclave_disk_config *disk = &encl->disks[idx];
     disk->fd = fd;
     disk->ro = readonly;
+    disk->capacity = disk_stat.st_size;
+    disk->mmap = disk_mmap;
     strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
     disk->enc = is_disk_encrypted(fd);

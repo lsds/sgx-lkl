@@ -9,5 +9,5 @@
 
 extern struct lkl_host_operations sgxlkl_host_ops;
 extern struct lkl_dev_blk_ops sgxlkl_dev_blk_ops;
-
+extern struct lkl_dev_blk_ops sgxlkl_dev_blk_mem_ops;
 #endif

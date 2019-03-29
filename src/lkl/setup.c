@@ -45,8 +45,8 @@ int sgxlkl_mtu = 0;
 
 extern struct timespec sgxlkl_app_starttime;
 
-static size_t num_disks = 0;
-static struct enclave_disk_config *disks;
+size_t num_disks = 0;
+struct enclave_disk_config *disks;
 
 static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_disks) {
     for (size_t i = 0; i < num_disks; ++i) {
@@ -662,9 +662,12 @@ out:
 void __lkl_start_init(enclave_config_t* encl) {
     size_t i;
 
-    // Overwrite function pointers from LKL's posix-host.c with ours
+    // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
-    lkl_dev_blk_ops = sgxlkl_dev_plaintext_blk_ops;
+    if (getenv_bool("SGXLKL_HD_MMAP", 0))
+        lkl_dev_blk_ops = sgxlkl_dev_blk_mem_ops;
+    else
+        lkl_dev_blk_ops = sgxlkl_dev_blk_ops;
 
     if (getenv_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
         sgxlkl_trace_lkl_syscall = 1;

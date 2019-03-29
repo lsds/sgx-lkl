@@ -44,6 +44,8 @@ typedef struct enclave_disk_config {
     size_t key_len;
     char *roothash;
     size_t roothash_offset;
+    size_t capacity;
+    char *mmap;
 } enclave_disk_config_t;
 
 /* Untrusted config provided by the user */
