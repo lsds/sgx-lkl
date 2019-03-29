@@ -36,7 +36,6 @@
 #include "sgx_enclave_config.h"
 #include "load_elf.h"
 #include "mpmc_queue.h"
-//#include "ring_buff.h"
 #include "sgxlkl_util.h"
 
 #include "lkl/linux/virtio_net.h"
@@ -331,7 +330,7 @@ void *host_syscall_thread(void *v) {
 #endif /* DEBUG */
 
         /* Acquire ticket lock if the system call writes to stdout or stderr to prevent mangling of concurrent writes */
-        if (scall[i].syscallno == SYS_write) {
+        if (scall[i].syscallno == SYS_write || scall[i].syscallno == SYS_writev) {
             int fd = (int) scall[i].arg1;
             if (fd == STDOUT_FILENO) {
                 pthread_spin_lock(&__stdout_print_lock);
@@ -681,11 +680,9 @@ static void register_queues(enclave_config_t* encl) {
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
-void set_sysconf_params(enclave_config_t *conf) {
-    long no_ethreads = (long) getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
-    conf->sysconf_nproc_conf = MIN(sysconf(_SC_NPROCESSORS_CONF), no_ethreads);
-    conf->sysconf_nproc_onln = MIN(sysconf(_SC_NPROCESSORS_ONLN), no_ethreads);
-
+void set_sysconf_params(enclave_config_t *conf, long no_ethreads) {
+    conf->sysconf_nproc_conf = no_ethreads;
+    conf->sysconf_nproc_onln = no_ethreads;
 }
 
 
@@ -1196,12 +1193,16 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.mode = SGXLKL_SIM_MODE;
 #endif /* SGXLKL_HW */
 
+    // Use numbers of cores as default.
+    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
+    ntenclave = getenv_uint64("SGXLKL_ETHREADS", (size_t) nproc, 1024);
+
     backoff_maxpause = getenv_uint64("SGXLKL_SSPINS", 100, ULONG_MAX);
     backoff_factor = getenv_uint64("SGXLKL_SSLEEP", 4000, ULONG_MAX);
     encl.stacksize = getenv_uint64("SGXLKL_STACK_SIZE", 512*1024, ULONG_MAX);
     encl.max_user_threads = getenv_uint64("SGXLKL_MAX_USER_THREADS", DEFAULT_MAX_USER_THREADS, MAX_MAX_USER_THREADS);
-    encl.maxsyscalls = encl.max_user_threads + getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
-    set_sysconf_params(&encl);
+    encl.maxsyscalls = encl.max_user_threads + ntenclave;
+    set_sysconf_params(&encl, ntenclave);
     set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
@@ -1233,8 +1234,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     /* Get system call thread number */
     ntsyscall = getenv_uint64("SGXLKL_STHREADS", 4, 1024);
-    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
-    ntenclave = getenv_uint64("SGXLKL_ETHREADS", 1, 1024);
     ts = calloc(sizeof(*ts), ntenclave + ntsyscall);
     if (ts == 0) sgxlkl_fail("Failed to allocate memory for thread identifiers: %s\n", strerror(errno));
 
