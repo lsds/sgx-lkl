@@ -86,10 +86,6 @@ int host_syscall_SYS_fstat(int fd, struct stat *buf) {
     return (int)__syscall_return_value;
 }
 
-long host_syscall_SYS_set_tid_address(int * tidptr) {
-    return 0;
-}
-
 int host_syscall_SYS_poll(struct pollfd * fds, nfds_t nfds, int timeout) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;
@@ -724,26 +720,6 @@ int host_syscall_SYS_msync(void *addr, size_t length, int flags) {
     __syscall_return_value = sc->ret_val;
     sc->status = 0;
     return (int)__syscall_return_value;
-}
-
-int host_syscall_SYS_sigaltstack(const stack_t * ss, stack_t * oss) {
-    /* Currently not supported */
-    return -ENOSYS;
-}
-
-int host_syscall_SYS_kill(pid_t pid, int sig) {
-    /* Currently not supported */
-    return -ENOSYS;
-}
-
-uintptr_t host_syscall_SYS_brk(int inc) {
-    /* Currently not supported */
-    return -ENOSYS;
-}
-
-int host_syscall_SYS_munlock(const void * addr, size_t len) {
-    /* No-op */
-    return 0;
 }
 
 /* Some host system calls are only needed for debug purposed. Don't include

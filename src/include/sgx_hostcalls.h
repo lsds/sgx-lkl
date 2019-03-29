@@ -52,15 +52,6 @@ int host_syscall_SYS_tkill(int tid, int sig);
 ssize_t host_syscall_SYS_write(int fd, const void *buf, size_t count);
 ssize_t host_syscall_SYS_writev(int fd, const struct iovec *iov, int iovcnt);
 
-/* Currently unsupported */
-uintptr_t host_syscall_SYS_brk(int inc);
-int host_syscall_SYS_kill(pid_t pid, int sig);
-int host_syscall_SYS_sigaltstack(const stack_t *ss, stack_t *oss);
-
-/* No-ops */
-int host_syscall_SYS_munlockall(void);
-long host_syscall_SYS_set_tid_address(int *tidptr);
-
 /* Handled within enclave */
 /* TODO: Move declarations to separate headers */
 int syscall_SYS_futex(int *uaddr, int op, int val, const struct timespec *timeout, int *uaddr2, int val3);
