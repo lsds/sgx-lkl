@@ -5,15 +5,19 @@
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
+#include <stdio.h>
 #define _GNU_SOURCE
 #include <sys/mman.h>
 #include <sys/sysinfo.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "bitops.h"
 #include "enclave_mem.h"
 #include "sgx_hostcalls.h"
-#include "ticketlock.h"
 #include "sgxlkl_debug.h"
+#include "sgxlkl_util.h"
+#include "ticketlock.h"
 
 static struct ticketlock mmaplock;
 
@@ -85,9 +89,9 @@ void *syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, o
     void *mem;
     if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE)) {
         errno = EINVAL;
-        return MAP_FAILED;
-    }
-    if (flags & MAP_ANON) {
+        mem = MAP_FAILED;
+    // Anonymous mapping/allocation
+    } else if (fd == -1 && (flags & MAP_ANONYMOUS)) {
         mem = enclave_mmap(addr, length, flags & MAP_FIXED);
         mprotect(mem, length , prot);
         if (mem == MAP_FAILED) {
@@ -95,10 +99,30 @@ void *syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, o
         }
         if(prot & PROT_WRITE)
             memset(mem, 0, length);
+    // File-backed mapping (if allowed)
+    } else if (fd >= 0 && enclave_mmap_flags_supported(flags, fd)) {
+        mem = enclave_mmap(addr, length, flags & MAP_FIXED);
+        if (mem > 0) {
+            // Make memory writeable
+            mprotect(mem, length, prot | PROT_WRITE);
+            // Read file into memory
+            lseek(fd, offset, SEEK_SET);
+            size_t readb = 0, ret;
+            while ((ret = read(fd, ((char *)mem) + readb, length - readb)) > 0) {
+                readb += ret;
+                offset += ret;
+            }
+            if (ret < 0) {
+                enclave_munmap(addr, length);
+                return MAP_FAILED;
+            }
+            // Set requested permissions
+            if ((prot | PROT_WRITE) != prot)
+                mprotect(mem, length, prot);
+        }
     } else {
-        //TODO: Do not allocate memory outside enclave for a system call that
-        //can be invoked by applications!
-        mem = host_syscall_SYS_mmap(addr, length, prot, flags, fd, offset);
+        errno = EINVAL;
+        mem = MAP_FAILED;
     }
     return mem;
 }
@@ -145,10 +169,10 @@ int syscall_SYS_sysinfo(struct sysinfo *info) {
 
 /*
  * Initializes the enclave memory management.
- * 
+ *
  * base specifies the base address of the enclave heap, and num_pages th
  * enumber of pages starting at the base address to manage.
- * 
+ *
  * A bitmap is used to keep track of mapped/unmapped pages in the range of base
  * to base + num_pages*PAGE_SIZE. The bitmap occupies the first few pages of
  * enclave memory.
@@ -170,6 +194,25 @@ void enclave_mman_init(void* base, size_t num_pages) {
     mmap_end = (char *)mmap_base + (mmap_num_pages - 1) * PAGE_SIZE;
     // Initialize bitmap
     bitmap_clear(mmap_bitmap, 0, mmap_num_pages);
+}
+
+/*
+ * Returns 1 if syscall_SYS_mmap can be called with the specified flags,
+ * returns 0 otherwise.
+ */
+int enclave_mmap_flags_supported(int flags, int fd) {
+    static int supported_flags = -1;
+    if (supported_flags == -1) {
+        char * mmap_file_support = getenv_str("SGXLKL_MMAP_FILES", "");
+        if (strcmp("SHARED", mmap_file_support))
+            supported_flags = MAP_PRIVATE|MAP_SHARED;
+        else if (strcmp("PRIVATE", mmap_file_support))
+            supported_flags = MAP_PRIVATE;
+        else
+            supported_flags = 0;
+        free(mmap_file_support);
+    }
+    return (fd == -1 && (flags & MAP_ANONYMOUS)) || (supported_flags & flags);
 }
 
 /*

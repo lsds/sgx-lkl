@@ -204,7 +204,7 @@ static void usage(char* prog) {
     printf("\n## Memory ##\n");
     printf("SGXLKL_HEAP: Total heap size (in bytes) available in the enclave. This includes memory used by the kernel.\n");
     printf("SGXLKL_STACK_SIZE: Stack size of in-enclave user-level threads.\n");
-    printf("SGXLKL_MMAP_FILE_SUPPORT: <Not yet supported>\n");
+    printf("SGXLKL_MMAP_FILES: Set to \"Private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"Shared\" to allow mmaping files with 'MAP_SHARED'. These files will be mapped as if 'MAP_PRIVATE' has been used instead. Default: No File mapping supported.\n");
     printf("SGXLKL_SHMEM_FILE: Name of the file to be used for shared memory between the enclave and the outside.\n");
     printf("SGXLKL_SHMEM_SIZE: Size of the file to be used for shared memory between the enclave and the outside.\n");
     printf("\n## Debugging ##\n");
