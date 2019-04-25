@@ -224,13 +224,13 @@ void lthread_run(void) {
                 SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (dequeue sched queue) \n", lt->tid);
                 _lthread_resume(lt);
             }
-        } while (dequeued);
 
-        spins--;
-        if (spins <= 0) {
-            futex_tick();
-            spins = futex_wake_spins;
-        }
+            spins--;
+            if (spins <= 0) {
+                futex_tick();
+                spins = futex_wake_spins;
+            }
+        } while (dequeued);
 
         pauses--;
         if (pauses == 0) {
