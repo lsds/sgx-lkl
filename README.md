@@ -350,7 +350,7 @@ tree my-python-root
 > │   ├── myapp.py
 > │   └── util.py
 
-sgx-lkl-create create --size=100M --alpine="python" --copy=./my-python-root sgxlkl-disk.img
+sgx-lkl-disk create --size=100M --alpine="python" --copy=./my-python-root sgxlkl-disk.img
 # Run with
 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/python /app/myapp.py
 ```
