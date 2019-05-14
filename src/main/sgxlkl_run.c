@@ -940,6 +940,11 @@ void sigsegv_handler(int sig, siginfo_t *si, void *unused) {
     // Just forward signal
     forward_signal(SIGSEGV, (void*) si);
 }
+
+void sigfpe_handler(int sig, siginfo_t *si, void *unused) {
+    // Just forward signal
+    forward_signal(SIGFPE, (void*) si);
+}
 #endif
 
 #ifdef DEBUG
@@ -1049,6 +1054,12 @@ void setup_signal_handlers(void) {
     sa.sa_sigaction = sigsegv_handler;
     if (sigaction(SIGSEGV, &sa, NULL) == -1)
         sgxlkl_fail("Failed to register SIGSEGV handler\n");
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_SIGINFO;
+    sa.sa_sigaction = sigfpe_handler;
+    if (sigaction(SIGFPE, &sa, NULL) == -1)
+        sgxlkl_fail("Failed to register SIGFPE handler\n");
 #endif /* SGXLKL_HW */
 }
 

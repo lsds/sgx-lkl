@@ -13,6 +13,7 @@
 void ocall_cpuid(unsigned int* request);
 static int handle_sigill(gprsgx_t *regs, void *arg);
 static int handle_sigsegv(gprsgx_t *regs, void *arg);
+static int handle_sigfpe(gprsgx_t *regs, void *arg);
 
 void __enclave_signal_handler(gprsgx_t *regs, enclave_signal_info_t *siginfo) {
     set_eh_handling(1);
@@ -30,6 +31,9 @@ void __enclave_signal_handler(gprsgx_t *regs, enclave_signal_info_t *siginfo) {
         break;
     case SIGILL:
         ret = handle_sigill(regs, siginfo->arg);
+        break;
+    case SIGFPE:
+        ret = handle_sigfpe(regs, siginfo->arg);
         break;
     default:
         ret = -1;
@@ -78,7 +82,56 @@ static int handle_sigsegv(gprsgx_t *regs, void *arg) {
     u.uc_mcontext.gregs[REG_R14] = regs->r14;
     u.uc_mcontext.gregs[REG_R15] = regs->r15;
 
-    (*segv_handler)(si.si_signo, &si, &u);
+    (*sigsegv_handler)(si.si_signo, &si, &u);
+
+    /* Restore the register values to the changed values */
+
+    regs->rdi = u.uc_mcontext.gregs[REG_RDI];
+    regs->rsi = u.uc_mcontext.gregs[REG_RSI];
+    regs->rdx = u.uc_mcontext.gregs[REG_RDX];
+    regs->rcx = u.uc_mcontext.gregs[REG_RCX];
+    regs->rax = u.uc_mcontext.gregs[REG_RAX];
+    regs->rsp = u.uc_mcontext.gregs[REG_RSP];
+    regs->rbp = u.uc_mcontext.gregs[REG_RBP];
+    regs->rip = u.uc_mcontext.gregs[REG_RIP];
+    regs->r8  = u.uc_mcontext.gregs[REG_R8];
+    regs->r9  = u.uc_mcontext.gregs[REG_R9];
+    regs->r10 = u.uc_mcontext.gregs[REG_R10];
+    regs->r11 = u.uc_mcontext.gregs[REG_R11];
+    regs->r12 = u.uc_mcontext.gregs[REG_R12];
+    regs->r13 = u.uc_mcontext.gregs[REG_R13];
+    regs->r14 = u.uc_mcontext.gregs[REG_R14];
+    regs->r15 = u.uc_mcontext.gregs[REG_R15];
+
+    return 0;
+}
+
+static int handle_sigfpe(gprsgx_t *regs, void *arg) {
+    siginfo_t si;
+    memcpy(&si, arg, sizeof(siginfo_t));
+
+    struct lthread *lt;
+    lt = ((struct schedctx *)regs->fsbase)->sched.current_lthread;
+
+    ucontext_t u;
+    u.uc_mcontext.gregs[REG_RDI] = regs->rdi;
+    u.uc_mcontext.gregs[REG_RSI] = regs->rsi;
+    u.uc_mcontext.gregs[REG_RDX] = regs->rdx;
+    u.uc_mcontext.gregs[REG_RCX] = regs->rcx;
+    u.uc_mcontext.gregs[REG_RAX] = regs->rax;
+    u.uc_mcontext.gregs[REG_RSP] = regs->rsp;
+    u.uc_mcontext.gregs[REG_RBP] = regs->rbp;
+    u.uc_mcontext.gregs[REG_RIP] = regs->rip;
+    u.uc_mcontext.gregs[REG_R8]  = regs->r8;
+    u.uc_mcontext.gregs[REG_R9]  = regs->r9;
+    u.uc_mcontext.gregs[REG_R10] = regs->r10;
+    u.uc_mcontext.gregs[REG_R11] = regs->r11;
+    u.uc_mcontext.gregs[REG_R12] = regs->r12;
+    u.uc_mcontext.gregs[REG_R13] = regs->r13;
+    u.uc_mcontext.gregs[REG_R14] = regs->r14;
+    u.uc_mcontext.gregs[REG_R15] = regs->r15;
+
+    (*sigfpe_handler)(si.si_signo, &si, &u);
 
     /* Restore the register values to the changed values */
 
