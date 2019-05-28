@@ -2,6 +2,7 @@
  * Copyright 2016, 2017, 2018 Imperial College London
  */
 
+#include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -16,17 +17,18 @@
 #include <time.h>
 #include <lkl_host.h>
 
+#include "libcryptsetup.h"
+#include "libdevmapper.h"
 #include "lkl/disk.h"
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 #include "lkl/virtio_net.h"
+#include "pthread.h"
 #include "sgx_enclave_config.h"
 #include "sgxlkl_debug.h"
 #include "sgxlkl_util.h"
-#include "libcryptsetup.h"
-#include "libdevmapper.h"
-#include "pthread.h"
-
+#include "wireguard.h"
+#include "wireguard_util.h"
 
 #define BIT(x) (1ULL << x)
 
@@ -608,6 +610,83 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     }
 }
 
+static void list_wg_devices(void) {
+    char *device_names, *device_name;
+    size_t len;
+
+    device_names = wg_list_device_names();
+    if (!device_names) {
+        perror("Unable to get device names");
+        exit(1);
+    }
+    wg_for_each_device_name(device_names, device_name, len) {
+        wg_device *device;
+        wg_peer *peer;
+        wg_key_b64_string key;
+
+        if (wg_get_device(&device, device_name) < 0) {
+            perror("Unable to get device");
+            continue;
+        }
+        wg_key_to_base64(key, device->public_key);
+        SGXLKL_VERBOSE("%s has public key %s\n", device_name, key);
+        wg_for_each_peer(device, peer) {
+            wg_key_to_base64(key, peer->public_key);
+            printf(" - peer %s\n", key);
+        }
+        wg_free_device(device);
+    }
+    free(device_names);
+}
+
+static void init_wireguard(enclave_config_t *encl) {
+    wg_device new_device = {
+        .name = "wg0",
+        .listen_port = encl->wg->listen_port,
+        .flags = WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_LISTEN_PORT,
+        .first_peer = NULL,
+        .last_peer = NULL
+    };
+
+    char *wg_key_b64 = encl->wg->key;
+    if (wg_key_b64) {
+        wg_key_from_base64(new_device.private_key, wg_key_b64);
+    } else {
+        wg_generate_private_key(new_device.private_key);
+    }
+
+    wg_peer new_peers[encl->wg->num_peers];;
+    for (int i = 0; i < encl->wg->num_peers; i++) {
+        enclave_wg_peer_config_t peer_cfg = encl->wg->peers[i];
+
+        memset(&new_peers[i], 0, sizeof(new_peers[i]));
+        new_peers[i].flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS;
+
+        wg_key_from_base64(new_peers[i].public_key, peer_cfg.key);
+        wg_allowedip *pallowedip = NULL;
+        wgu_parse_allowedips(&new_peers[i], &pallowedip, peer_cfg.allowed_ips);
+        wgu_parse_endpoint(&new_peers[i].endpoint.addr, peer_cfg.endpoint);
+
+        wgu_add_peer(&new_device, &new_peers[i], 0);
+    }
+
+    if (wg_add_device(new_device.name) < 0) {
+        perror("Unable to add wireguard device");
+        return;
+    }
+
+    if (wg_set_device(&new_device) < 0) {
+        perror("Unable to set wireguard device");
+        return;
+    }
+
+    int wgifindex = lkl_ifname_to_ifindex(new_device.name);
+    lkl_if_set_ipv4(wgifindex, encl->wg->ip.s_addr, 24);
+    lkl_if_up(wgifindex);
+
+    list_wg_devices();
+}
+
 static void init_random() {
     struct rand_pool_info *pool_info = 0;
     FILE *f;
@@ -771,6 +850,9 @@ void __lkl_start_init(enclave_config_t* encl) {
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network)
         lkl_poststart_net(encl, net_dev_id);
+
+    // Set up wireguard
+    init_wireguard(encl);
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
     sethostname(encl->hostname, strlen(encl->hostname));

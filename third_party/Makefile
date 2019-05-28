@@ -36,6 +36,9 @@ ${MAKE_ROOT}/popt.tar.gz:
 ${MAKE_ROOT}/json-c.tar.gz:
 	wget -O "$@" 'https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz'
 
+${MAKE_ROOT}/wireguard.tar.gz:
+	wget -O "$@" 'https://git.zx2c4.com/WireGuard/snapshot/WireGuard-0.0.20190227.tar.xz'
+
 ${CRYPTSETUP}: ${MAKE_ROOT}/cryptsetup.tar.gz
 	mkdir -p $@ && tar -C $@ --strip 1 -xf $<
 
@@ -49,6 +52,9 @@ ${POPT}: ${MAKE_ROOT}/popt.tar.gz
 	mkdir -p $@ && tar -C $@ --strip 1 -xf $<
 
 ${JSONC}: ${MAKE_ROOT}/json-c.tar.gz
+	mkdir -p $@ && tar -C $@ --strip 1 -xf $<
+
+${WIREGUARD}: ${MAKE_ROOT}/wireguard.tar.gz
 	mkdir -p $@ && tar -C $@ --strip 1 -xf $<
 
 ${CRYPTSETUP_BUILD}/lib/libdevmapper.a: ${DEVICEMAPPER} ${HOST_MUSL_CC} ${CRYPTSETUP_BUILD}

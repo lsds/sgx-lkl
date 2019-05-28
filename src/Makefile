@@ -91,7 +91,7 @@ $(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
 	$(RANLIB) $@
 
 # libsgxlkl.a ----
-SGXLKL_SRCS=sgx/sgx_enclave_config.c sgx/enclave_mem.c sgx/enclave_signal.c sgx/sgxlkl_debug.c $(wildcard shared/*.c) $(wildcard sched/*.c) $(wildcard host/*.c) $(wildcard lkl/*.c)
+SGXLKL_SRCS=sgx/sgx_enclave_config.c sgx/enclave_mem.c sgx/enclave_signal.c sgx/sgxlkl_debug.c $(wildcard shared/*.c) $(wildcard sched/*.c) $(wildcard host/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c)
 SGXLKL_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
 $(SGXLKL_OBJS): $(LIB_SGX_LKL_BUILD)/sgxlkl/%.o: %.c $(SGX_LKL_MUSL_BUILD)/include

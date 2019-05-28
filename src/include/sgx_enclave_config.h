@@ -48,6 +48,22 @@ typedef struct enclave_disk_config {
     char *mmap;
 } enclave_disk_config_t;
 
+typedef struct enclave_wg_peer_config {
+    char *key;
+    char *allowed_ips;
+    char *endpoint;
+
+} enclave_wg_peer_config_t;
+
+typedef struct enclave_wg_config {
+    struct in_addr ip;
+    uint16_t listen_port;
+    char *key;
+    size_t num_peers;
+    enclave_wg_peer_config_t *peers;
+} enclave_wg_config_t;
+
+
 /* Untrusted config provided by the user */
 typedef struct enclave_config {
     void *syscallpage;
@@ -59,12 +75,13 @@ typedef struct enclave_config {
     struct mpmcq syscallq;
     struct mpmcq returnq;
     size_t num_disks;
-    struct enclave_disk_config *disks; /* Array of disk configurations, length = num_disks */
+    enclave_disk_config_t *disks; /* Array of disk configurations, length = num_disks */
     int net_fd;
     struct in_addr net_ip4;
     struct in_addr net_gw4;
     int net_mask4;
     char hostname[32];
+    enclave_wg_config_t *wg;
     char **argv;
     int argc;
     Elf64_auxv_t* auxv;

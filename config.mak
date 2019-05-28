@@ -27,6 +27,7 @@ UTILLINUX ?= ${ROOT_DIR}/third_party/util-linux
 POPT ?= ${ROOT_DIR}/third_party/popt
 JSONC ?= ${ROOT_DIR}/third_party/json-c
 MBEDTLS ?= ${ROOT_DIR}/third_party/mbedtls
+WIREGUARD ?= ${ROOT_DIR}/third_party/wireguard
 
 LKL ?= $(ROOT_DIR)/lkl
 LKL_BUILD ?= ${BUILD_DIR}/lkl

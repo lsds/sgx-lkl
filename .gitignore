@@ -30,3 +30,4 @@ third_party/popt/
 third_party/json-c/
 third_party/mbedtls/*.o
 third_party/mbedtls/*.a
+third_party/wireguard/

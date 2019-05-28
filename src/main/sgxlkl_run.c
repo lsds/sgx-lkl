@@ -89,6 +89,7 @@ static const char* DEFAULT_IPV4_ADDR = "10.0.1.1";
 static const char* DEFAULT_IPV4_GW = "10.0.1.254";
 static const int   DEFAULT_IPV4_MASK = 24;
 static const char* DEFAULT_HOSTNAME = "lkl";
+static const char* DEFAULT_WG_IP = "10.0.2.1";
 
 /* The default heap size will only be used if no heap size is specified and
  * either we are in simulation mode, or we are in HW mode and a key is provided
@@ -782,6 +783,58 @@ void set_tls(enclave_config_t* conf) {
 #endif
 }
 
+/* Set up wireguard configuration */
+void set_wg(enclave_config_t *conf) {
+    struct enclave_wg_config *wg;
+    wg = (struct enclave_wg_config *)malloc(sizeof(struct enclave_wg_config));
+
+    char *wg_ip_str = getenv_str("SGXLKL_WG_IP", DEFAULT_WG_IP);
+    if (inet_pton(AF_INET, wg_ip_str, &wg->ip) != 1) {
+        free(wg);
+        sgxlkl_fail("Invalid Wireguard IPv4 address %s\n", wg_ip_str);
+    }
+
+    wg->listen_port = (uint16_t) getenv_uint64("SGXLKL_WG_PORT", 55000, 65535);
+    wg->key = getenv_str("SGXLKL_WG_KEY", NULL);
+
+    conf->wg = wg;
+
+    int num_peers = 0;
+    char *peers_str = getenv_str("SGXLKL_WG_PEERS", "");
+    if (peers_str[0]) {
+        num_peers++;
+        for (int i = 0; peers_str[i]; i++) {
+            if (peers_str[i] == ',') num_peers++;
+        }
+    }
+
+    wg->num_peers = 0;
+    if (!num_peers) return;
+
+    // Allocate space for wg peer configuration
+    wg->peers = (struct enclave_wg_peer_config*) malloc(sizeof(struct enclave_wg_peer_config) * num_peers);
+    while (*peers_str) {
+        char *key = peers_str;
+        char *ips = strchrnul(key, ':');
+        *ips = '\0';
+        ips++;
+        char *ips_end = strchrnul(ips, ':');
+        *ips_end = '\0';
+        char *endpoint = ++ips_end;
+        peers_str = strchrnul(endpoint, ',');
+        if (*peers_str == ',') {
+            *peers_str = '\0';
+            peers_str++;
+            while(*peers_str == ' ' || *peers_str == ',') peers_str++;
+        }
+
+        wg->peers[wg->num_peers].key = key;
+        wg->peers[wg->num_peers].allowed_ips = ips;
+        wg->peers[wg->num_peers].endpoint = endpoint;
+        wg->num_peers++;
+    }
+}
+
 /* Parses the string provided as config for CPU affinity specifications. The
  * specification must consist of a comma-separated list of core IDs. It can
  * contain ranges. For example, "0-2,4" is a valid specification.
@@ -1217,6 +1270,7 @@ int main(int argc, char *argv[], char *envp[]) {
     set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
+    set_wg(&encl);
     register_hds(&encl, root_hd);
     register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
     register_queues(&encl);
