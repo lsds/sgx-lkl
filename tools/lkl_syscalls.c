@@ -41,6 +41,7 @@ int main() {
 	EXPORT_LKL_SYSCALL(dup3)
 	EXPORT_LKL_SYSCALL(epoll_create1)
 	EXPORT_LKL_SYSCALL(epoll_ctl)
+	EXPORT_LKL_SYSCALL(epoll_pwait)
 	EXPORT_LKL_SYSCALL(eventfd2)
 	EXPORT_LKL_SYSCALL(execve)
 	EXPORT_LKL_SYSCALL(execveat)
