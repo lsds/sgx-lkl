@@ -114,6 +114,23 @@ void exit_enclave(uint64_t rdi, uint64_t rsi, void* exit_address, int exit_threa
         );
 }
 
+void ereport(void *target, char *report_data, char *report)  {
+    __asm__ volatile(
+            ".byte 0x0f \n"
+            ".byte 0x01 \n"
+            ".byte 0xd7 \n"
+            :
+            : "a"(0x0),         // EAX = 00H ENCLU[EREPORT]
+              "b"(target),      // RBX = Address of TARGETINFO (In)
+              "c"(report_data), // RCX = Address of REPORTDATA (In)
+              "d"(report)       // RDX = Address where the REPORT is
+                                //       written to
+            :
+            );
+}
+
+
+
 /* Exit enclave to do cpuid
  * TODO: We should do sanity checks on return values
  * Input: unsigned int request[4], eax in request[0], ecx in request[2]

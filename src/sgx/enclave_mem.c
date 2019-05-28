@@ -26,6 +26,8 @@ static void* mmap_base; // First page that can be mmap'ed.
 static void* mmap_end;  // Last page that can be mmap'ed.
 static size_t mmap_num_pages; // Total number of pages that can be mmap'ed.
 
+static int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
+
 static size_t used_pages = 0; // Tracks the number of used pages for the mmap tracing.
 
 #if DEBUG
@@ -177,7 +179,7 @@ int syscall_SYS_sysinfo(struct sysinfo *info) {
  * to base + num_pages*PAGE_SIZE. The bitmap occupies the first few pages of
  * enclave memory.
  */
-void enclave_mman_init(void* base, size_t num_pages) {
+void enclave_mman_init(void* base, size_t num_pages, int _mmap_files) {
     // Don't use page at address 0x0.
     if(base == 0x0) {
         base = (char *)base + PAGE_SIZE;
@@ -194,6 +196,8 @@ void enclave_mman_init(void* base, size_t num_pages) {
     mmap_end = (char *)mmap_base + (mmap_num_pages - 1) * PAGE_SIZE;
     // Initialize bitmap
     bitmap_clear(mmap_bitmap, 0, mmap_num_pages);
+
+    mmap_files = _mmap_files;
 }
 
 /*
@@ -203,14 +207,12 @@ void enclave_mman_init(void* base, size_t num_pages) {
 int enclave_mmap_flags_supported(int flags, int fd) {
     static int supported_flags = -1;
     if (supported_flags == -1) {
-        char * mmap_file_support = getenv_str("SGXLKL_MMAP_FILES", "");
-        if (strcmp("SHARED", mmap_file_support))
+        if (mmap_files == ENCLAVE_MMAP_FILES_SHARED)
             supported_flags = MAP_PRIVATE|MAP_SHARED;
-        else if (strcmp("PRIVATE", mmap_file_support))
+        else if (mmap_files == ENCLAVE_MMAP_FILES_PRIVATE)
             supported_flags = MAP_PRIVATE;
         else
             supported_flags = 0;
-        free(mmap_file_support);
     }
     return (fd == -1 && (flags & MAP_ANONYMOUS)) || (supported_flags & flags);
 }

@@ -12,6 +12,9 @@
 #include <net/if.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "sgx_enclave_config.h"
+#include "sgxlkl_util.h"
 #include "wireguard.h"
 
 bool wgu_parse_ip(wg_allowedip *allowedip, const char *value) {
@@ -186,7 +189,8 @@ bool wgu_parse_endpoint(struct sockaddr *endpoint, const char *value)
     return true;
 }
 
-void wgu_add_peer(wg_device *dev, wg_peer *new_peer, bool set_device) {
+int wgu_add_peer(wg_device *dev, wg_peer *new_peer, bool set_device) {
+    int ret;
     if (!dev->first_peer)
         dev->first_peer = dev->last_peer = new_peer;
     else {
@@ -194,7 +198,90 @@ void wgu_add_peer(wg_device *dev, wg_peer *new_peer, bool set_device) {
         dev->last_peer = new_peer;
     }
 
-    if (set_device && wg_set_device(dev) < 0) {
+    if (set_device && ((ret = wg_set_device(dev)) < 0)) {
         perror("Unable to add peer to wireguard device");
+        return ret;
     }
+
+    return 0;
 }
+
+int wgu_add_peers(wg_device *dev, enclave_wg_peer_config_t *peers, size_t num_peers, bool set_device) {
+    int ret;
+    wg_peer *new_peers = malloc(sizeof(*new_peers) * num_peers);
+    for (int i = 0; i < num_peers; i++) {
+        enclave_wg_peer_config_t peer_cfg = peers[i];
+
+        if (!peers[i].key || !strlen(peers[i].key)) {
+            sgxlkl_warn("Unable to add wireguard peer due to missing key.\n");
+            continue;
+        }
+        if (!peers[i].allowed_ips || !strlen(peers[i].allowed_ips)) {
+            sgxlkl_warn("Unable to add wireguard peer due to missing allowed ips configuration.\n");
+            continue;
+        }
+        if (!peers[i].endpoint || !strlen(peers[i].endpoint)) {
+            sgxlkl_warn("Unable to add wireguard peer due to missing endpoint.\n");
+            continue;
+        }
+
+        memset(&new_peers[i], 0, sizeof(new_peers[i]));
+        new_peers[i].flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS;
+
+        if (ret = wg_key_from_base64(new_peers[i].public_key, peer_cfg.key)) {
+            goto err;
+        }
+
+        wg_allowedip *pallowedip = NULL;
+        if (!wgu_parse_allowedips(&new_peers[i], &pallowedip, peer_cfg.allowed_ips)) {
+            ret = -EINVAL;
+            goto err;
+        }
+
+        if (!wgu_parse_endpoint(&new_peers[i].endpoint.addr, peer_cfg.endpoint)) {
+            ret = -EINVAL;
+            goto err;
+        }
+    }
+
+    for (int i = 0; i < num_peers; i++) {
+        if (ret = wgu_add_peer(dev, &new_peers[i], set_device))
+            return ret;
+    }
+
+    return 0;
+
+err:
+    free(new_peers);
+    return ret;
+}
+
+void wgu_list_devices(void) {
+    char *device_names, *device_name;
+    size_t len;
+
+    device_names = wg_list_device_names();
+    if (!device_names) {
+        perror("Unable to get device names");
+        exit(1);
+    }
+    wg_for_each_device_name(device_names, device_name, len) {
+        wg_device *device;
+        wg_peer *peer;
+        wg_key_b64_string key;
+
+        if (wg_get_device(&device, device_name) < 0) {
+            perror("Unable to get device");
+            continue;
+        }
+        wg_key_to_base64(key, device->public_key);
+        sgxlkl_info("%s has public key %s\n", device_name, key);
+        wg_for_each_peer(device, peer) {
+            wg_key_to_base64(key, peer->public_key);
+            sgxlkl_info(" - peer %s\n", key);
+        }
+        wg_free_device(device);
+    }
+    free(device_names);
+}
+

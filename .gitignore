@@ -31,3 +31,8 @@ third_party/json-c/
 third_party/mbedtls/*.o
 third_party/mbedtls/*.a
 third_party/wireguard/
+third_party/protobuf-c/
+third_party/protobuf-c-rpc/*.o
+third_party/protobuf-c-rpc/*.a
+*.pb-c.c
+*.pb-c.h

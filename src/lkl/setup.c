@@ -24,6 +24,7 @@
 #include "lkl/setup.h"
 #include "lkl/virtio_net.h"
 #include "pthread.h"
+#include "enclave_cmd.h"
 #include "sgx_enclave_config.h"
 #include "sgxlkl_debug.h"
 #include "sgxlkl_util.h"
@@ -42,7 +43,6 @@ int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_use_tap_offloading = 0;
-int sgxlkl_mmap_file_support = 0;
 int sgxlkl_mtu = 0;
 
 extern struct timespec sgxlkl_app_starttime;
@@ -50,8 +50,11 @@ extern struct timespec sgxlkl_app_starttime;
 size_t num_disks = 0;
 struct enclave_disk_config *disks;
 
-static void lkl_prestart_disks(struct enclave_disk_config *disks, size_t num_disks) {
+static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
     for (size_t i = 0; i < num_disks; ++i) {
+        if (disks[i].fd == -1)
+            continue;
+
         /* Set ops to NULL to use platform default ops */
         struct lkl_disk lkl_disk;
         lkl_disk.ops = NULL;
@@ -317,7 +320,6 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd) {
         exit(err);
     }
 
-    // Copy decryption keys into enclave (debug-only).
     char *key_outside = lkl_cd->disk_config->key;
     lkl_cd->disk_config->key = (char *) lkl_sys_mmap(NULL, lkl_cd->disk_config->key_len, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
     if ((int64_t) lkl_cd->disk_config->key <= 0) {
@@ -351,9 +353,6 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd) {
 
     return 0;
 }
-
-/* XXX(lukegb): don't abuse cryptsetup's internal, unexported hex-to-bytes function */
-extern ssize_t crypt_hex_to_bytes(const char *hex, char **result, int safe_alloc);
 
 static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd) {
     int err;
@@ -391,7 +390,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd) {
 
     char* volume_hash_bytes = NULL;
     ssize_t hash_size = crypt_get_volume_key_size(cd);
-    if (crypt_hex_to_bytes(lkl_cd->disk_config->roothash, &volume_hash_bytes, 0) != hash_size) {
+    if (hex_to_bytes(lkl_cd->disk_config->roothash, &volume_hash_bytes) != hash_size) {
         fprintf(stderr, "Invalid root hash string specified!\n");
         exit(1);
     }
@@ -444,8 +443,7 @@ static void lkl_run_in_kernel_stack(void *(*start_routine) (void *), void* arg) 
     }
 }
 
-static void lkl_poststart_root_disk(struct enclave_disk_config *disk) {
-    int err = 0;
+static void lkl_mount_virtual() {
     lkl_mount_devtmpfs("/dev");
     lkl_prepare_rootfs("/proc", 0700);
     lkl_mount_procfs();
@@ -453,6 +451,11 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk) {
     lkl_mount_sysfs();
     lkl_prepare_rootfs("/run", 0700);
     lkl_mount_runfs();
+    lkl_mknods();
+}
+
+static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
+    int err = 0;
     char mnt_point[] = {"/mnt/vda"};
     char dev_str_raw[] = {"/dev/vda"};
 
@@ -465,34 +468,34 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk) {
     int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
     int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
-    if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) && (getenv("SGXLKL_HD_VERITY") != NULL || disk->enc)) {
+    if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) && (disk->roothash || disk->enc)) {
         sgxlkl_trace_lkl_syscall = 0;
         sgxlkl_trace_internal_syscall = 0;
-        SGXLKL_VERBOSE("Disk encryption/integrity requested: temporarily disabling lkl_strace\n");
+        SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily disabling tracing.\n");
     }
 
-        struct lkl_crypt_device lkl_cd;
-        lkl_cd.disk_path = dev_str;
-        lkl_cd.readonly = disk->ro;
-        lkl_cd.disk_config = disk;
+    struct lkl_crypt_device lkl_cd;
+    lkl_cd.disk_path = dev_str;
+    lkl_cd.readonly = disk->ro;
+    lkl_cd.disk_config = disk;
 
 
-        if (disk->roothash != NULL) {
-            lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_verity_disk_thread, (void *) &lkl_cd);
+    if (disk->roothash != NULL) {
+        lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_verity_disk_thread, (void *) &lkl_cd);
 
-            // We now want to mount the verified volume
-            dev_str = dev_str_verity;
-            lkl_cd.disk_path = dev_str_verity;
-            // dm-verity is read only
-            disk->ro = 1;
-            lkl_cd.readonly = 1;
-        }
-        if (disk->enc) {
-            lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_crypto_disk_thread, (void *) &lkl_cd);
+        // We now want to mount the verified volume
+        dev_str = dev_str_verity;
+        lkl_cd.disk_path = dev_str_verity;
+        // dm-verity is read only
+        disk->ro = 1;
+        lkl_cd.readonly = 1;
+    }
+    if (disk->enc) {
+        lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_crypto_disk_thread, (void *) &lkl_cd);
 
-            // We now want to mount the decrypted volume
-            dev_str = dev_str_enc;
-        }
+        // We now want to mount the decrypted volume
+        dev_str = dev_str_enc;
+    }
 
     if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) || (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
         SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
@@ -501,11 +504,9 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk) {
     }
 
     err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
-    if (err < 0) {
-        fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n",
-            lkl_strerror(err), err);
-        exit(err);
-    }
+    if (err < 0)
+        sgxlkl_fail("Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
+    disk->mounted = 1;
 
     /* set up /dev in the new root */
     lkl_prepare_rootfs(new_dev_str, 0700);
@@ -546,15 +547,43 @@ static void lkl_poststart_root_disk(struct enclave_disk_config *disk) {
     lkl_mount_sysfs();
     lkl_mount_runfs();
     lkl_mount_procfs();
-    lkl_mknods();
 }
 
-static void lkl_poststart_disks(struct enclave_disk_config* disks, size_t num_disks) {
-    lkl_poststart_root_disk(&disks[0]);
+void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
+    num_disks = _num_disks;
+    if (num_disks <= 0)
+        sgxlkl_fail("No root disk provided. Aborting...\n");
+
+    // We copy the disk config as we need to keep track of mount paths and can't
+    // rely on the enclave_config to be around and unchanged for the lifetime of
+    // the enclave.
+    // (Decryption keys are copied in lkl_activate_crypto_thread)
+    disks = (struct enclave_disk_config*) malloc(sizeof(struct enclave_disk_config) * num_disks);
+    memcpy(disks, _disks, sizeof(struct enclave_disk_config) * num_disks);
+
+    lkl_add_disks(disks, num_disks);
+
+    // Find root disk
+    enclave_disk_config_t *root_disk = NULL;
+    for (size_t i = 0; i < num_disks; ++i) {
+        if (!strcmp(disks[i].mnt, "/")) {
+            root_disk = &disks[i];
+            break;
+        }
+    }
+
+    if (!root_disk) {
+        sgxlkl_fail("No root disk (mount point '/') provided.\n");
+    }
+
+    lkl_mount_root_disk(root_disk);
 
     char dev_path[] = { "/dev/vdXX" };
     size_t dev_path_len = strlen(dev_path);
-    for (size_t i = 1; i < num_disks; ++i) {
+    for (size_t i = 0; i < num_disks; ++i) {
+        if (root_disk == &disks[i] || disks[i].fd == -1)
+            continue;
+
         // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
         // support for more than 26 disks.
         if ('a' + i > 'z') {
@@ -565,14 +594,13 @@ static void lkl_poststart_disks(struct enclave_disk_config* disks, size_t num_di
         }
         snprintf(dev_path, dev_path_len, "/dev/vd%c", 'a' + i);
         int err = lkl_mount_blockdev(dev_path, disks[i].mnt, "ext4", disks[i].ro ? LKL_MS_RDONLY : 0, NULL);
-        if (err < 0) {
-            fprintf(stderr, "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
-            exit(err);
-        }
+        if (err < 0)
+            sgxlkl_fail("Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
+        disks[i].mounted = 1;
     }
 }
 
-static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
+void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     int res = 0;
     if (net_dev_id >= 0) {
         int ifidx = lkl_netdev_get_ifindex(net_dev_id);
@@ -610,35 +638,6 @@ static void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     }
 }
 
-static void list_wg_devices(void) {
-    char *device_names, *device_name;
-    size_t len;
-
-    device_names = wg_list_device_names();
-    if (!device_names) {
-        perror("Unable to get device names");
-        exit(1);
-    }
-    wg_for_each_device_name(device_names, device_name, len) {
-        wg_device *device;
-        wg_peer *peer;
-        wg_key_b64_string key;
-
-        if (wg_get_device(&device, device_name) < 0) {
-            perror("Unable to get device");
-            continue;
-        }
-        wg_key_to_base64(key, device->public_key);
-        SGXLKL_VERBOSE("%s has public key %s\n", device_name, key);
-        wg_for_each_peer(device, peer) {
-            wg_key_to_base64(key, peer->public_key);
-            printf(" - peer %s\n", key);
-        }
-        wg_free_device(device);
-    }
-    free(device_names);
-}
-
 static void init_wireguard(enclave_config_t *encl) {
     wg_device new_device = {
         .name = "wg0",
@@ -655,20 +654,7 @@ static void init_wireguard(enclave_config_t *encl) {
         wg_generate_private_key(new_device.private_key);
     }
 
-    wg_peer new_peers[encl->wg->num_peers];;
-    for (int i = 0; i < encl->wg->num_peers; i++) {
-        enclave_wg_peer_config_t peer_cfg = encl->wg->peers[i];
-
-        memset(&new_peers[i], 0, sizeof(new_peers[i]));
-        new_peers[i].flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS;
-
-        wg_key_from_base64(new_peers[i].public_key, peer_cfg.key);
-        wg_allowedip *pallowedip = NULL;
-        wgu_parse_allowedips(&new_peers[i], &pallowedip, peer_cfg.allowed_ips);
-        wgu_parse_endpoint(&new_peers[i].endpoint.addr, peer_cfg.endpoint);
-
-        wgu_add_peer(&new_device, &new_peers[i], 0);
-    }
+    wgu_add_peers(&new_device, encl->wg->peers, encl->wg->num_peers, 0);
 
     if (wg_add_device(new_device.name) < 0) {
         perror("Unable to add wireguard device");
@@ -683,8 +669,6 @@ static void init_wireguard(enclave_config_t *encl) {
     int wgifindex = lkl_ifname_to_ifindex(new_device.name);
     lkl_if_set_ipv4(wgifindex, encl->wg->ip.s_addr, 24);
     lkl_if_up(wgifindex);
-
-    list_wg_devices();
 }
 
 static void init_random() {
@@ -738,7 +722,7 @@ out:
         free(pool_info);
 }
 
-void __lkl_start_init(enclave_config_t* encl) {
+void lkl_start_init(enclave_config_t* encl) {
     size_t i;
 
     // Provide LKL host ops and virtio block device ops
@@ -748,6 +732,7 @@ void __lkl_start_init(enclave_config_t* encl) {
     else
         lkl_dev_blk_ops = sgxlkl_dev_blk_ops;
 
+    // TODO Make tracing options configurable via SGX-LKL config file.
     if (getenv_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
         sgxlkl_trace_lkl_syscall = 1;
 
@@ -765,31 +750,13 @@ void __lkl_start_init(enclave_config_t* encl) {
     if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
         sgxlkl_trace_thread = 1;
 
-    if (getenv_bool("SGXLKL_HOSTNET", 0))
+    if (encl->hostnet)
         sgxlkl_use_host_network = 1;
 
-    if (getenv_bool("SGXLKL_TAP_OFFLOAD", 0))
+    if (encl->tap_offload)
         sgxlkl_use_tap_offloading = 1;
 
-    sgxlkl_mtu = (int) getenv_uint64("SGXLKL_TAP_MTU", 0, INT_MAX);
-
-    if (getenv_bool("SGXLKL_MMAP_FILE_SUPPORT", 0))
-        sgxlkl_mmap_file_support = 1;
-
-    num_disks = encl->num_disks;
-    if (num_disks <= 0) {
-        fprintf(stderr, "Error: No root disk provided. Aborting...\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // We copy the disk config as we need to keep track of mount paths and can't
-    // rely on the enclave_config to be around and unchanged for the lifetime of
-    // the enclave.
-    disks = (struct enclave_disk_config*) malloc(sizeof(struct enclave_disk_config) * num_disks);
-    memcpy(disks, encl->disks, sizeof(struct enclave_disk_config) * num_disks);
-    // Decryption keys are copied in lkl_activate_crypto_thread.
-
-    lkl_prestart_disks(disks, num_disks);
+    sgxlkl_mtu = encl->tap_mtu;
 
     // Register network tap if given one
     int net_dev_id = -1;
@@ -797,15 +764,12 @@ void __lkl_start_init(enclave_config_t* encl) {
         net_dev_id = lkl_prestart_net(encl);
 
     // Start kernel threads (synchronous, doesn't return before kernel is ready)
-    const char *lkl_cmdline = getenv("SGXLKL_CMDLINE");
-    if (lkl_cmdline == NULL)
-        lkl_cmdline = DEFAULT_LKL_CMDLINE;
-    SGXLKL_VERBOSE("With command line: %s\n", lkl_cmdline);
-    SGXLKL_VERBOSE("Using host networking stack: %s\n", (sgxlkl_use_host_network ? "YES" : "no"));
-    SGXLKL_VERBOSE("Using LKL mmap file support: %s\n", (sgxlkl_mmap_file_support ? "YES" : "no"));
+    const char *lkl_cmdline = encl->kernel_cmd;
+    SGXLKL_VERBOSE("Kernel command line: \"%s\"\n", lkl_cmdline);
+
     for (i = 0; i < num_disks; ++i) {
         SGXLKL_VERBOSE("Disk %zu: Disk encryption: %s\n", i, (disks[i].enc ? "ON" : "off"));
-        SGXLKL_VERBOSE("Disk %zu: Rootfs is writable: %s\n", i, (!disks[i].ro ? "YES" : "no"));
+        SGXLKL_VERBOSE("Disk %zu: Disk is writable: %s\n", i, (!disks[i].ro ? "YES" : "no"));
     }
 
     long res = lkl_start_kernel(&lkl_host_ops, lkl_cmdline);
@@ -828,7 +792,7 @@ void __lkl_start_init(enclave_config_t* encl) {
     }
 
     // Now that our kernel is ready to handle syscalls, mount root
-    lkl_poststart_disks(disks, num_disks);
+    lkl_mount_virtual();
 
     init_random();
 
@@ -875,7 +839,7 @@ int timespec_diff(struct timespec *starttime, struct timespec *endtime, struct t
     return 0;
 }
 
-void __lkl_exit() {
+void lkl_exit() {
     if (getenv("SGXLKL_PRINT_APP_RUNTIME")) {
         struct timespec endtime, runtime;
         clock_gettime(CLOCK_MONOTONIC, &endtime);
@@ -883,8 +847,15 @@ void __lkl_exit() {
         printf("Application runtime: %lld.%.9lds\n", runtime.tv_sec, runtime.tv_nsec);
     }
 
+    // Stop attestation/remote control server
+    enclave_cmd_servers_stop();
+
+    // Unmount disks
     long res;
     for (int i = num_disks - 1; i >= 0; --i) {
+        if (!disks[i].mounted)
+            continue;
+
         res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
         if (res < 0) {
             fprintf(stderr, "Error: Could not unmount disk %d, %s\n", i, lkl_strerror(res));

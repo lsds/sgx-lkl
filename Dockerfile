@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
   curl \
   wget \
   pv \
-  make gcc bc python xutils-dev flex bison autogen autoconf libtool autopoint pkg-config libgcrypt20-dev libjson0 libjson0-dev libtool-bin \
+  make gcc g++ bc python xutils-dev flex bison autogen libgcrypt20-dev libjson-c-dev autopoint pkgconf autoconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev \
   sudo \
   git
 
@@ -82,4 +82,4 @@ CMD ["/bin/bash", "-c", "sudo ip tuntap add dev sgxlkl_tap0 mode tap user user \
     && sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE \
     && sudo sysctl -w net.ipv4.ip_forward=1 \
     && sudo chown user /dev/net/tun \
-    && SGXLKL_TAP=sgxlkl_tap0 SGXLKL_HEAP=2500M SGXLKL_GETTIME_VDSO=1 /sgx-lkl/build/sgx-lkl-run /sgx-lkl/enclave_rootfs.img ${env_binary_cmd} ${env_binary_args}"]
+    && SGXLKL_TAP=sgxlkl_tap0 SGXLKL_HEAP=2500M /sgx-lkl/build/sgx-lkl-run /sgx-lkl/enclave_rootfs.img ${env_binary_cmd} ${env_binary_args}"]

@@ -45,13 +45,13 @@ struct lkl_netdev_fd {
     int pipe[2];
 };
 
-static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct lkl__iovec *iov, int cnt) {
+static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
     int ret;
     struct lkl_netdev_fd *nd_fd =
         container_of(nd, struct lkl_netdev_fd, dev);
 
     do {
-        ret = host_syscall_SYS_writev(nd_fd->fd, (struct iovec *) iov, cnt);
+        ret = host_syscall_SYS_writev(nd_fd->fd, iov, cnt);
     } while (ret == -EINTR);
 
     if (ret < 0) {
@@ -69,13 +69,13 @@ static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct lkl__iovec *iov, int c
     return ret;
 }
 
-static int sgxlkl_fd_net_rx(struct lkl_netdev *nd, struct lkl__iovec *iov, int cnt) {
+static int sgxlkl_fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
     int ret;
     struct lkl_netdev_fd *nd_fd =
         container_of(nd, struct lkl_netdev_fd, dev);
 
     do {
-        ret = host_syscall_SYS_readv(nd_fd->fd, (struct iovec*) iov, cnt);
+        ret = host_syscall_SYS_readv(nd_fd->fd, iov, cnt);
     } while (ret == -EINTR);
 
     if (ret < 0) {

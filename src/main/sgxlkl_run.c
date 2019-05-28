@@ -32,15 +32,21 @@
 #include <netinet/ip.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
+#include <getopt.h>
 
-#include "sgx_enclave_config.h"
+#include "enclave_mem.h"
 #include "load_elf.h"
 #include "mpmc_queue.h"
+#include "sgx_enclave_config.h"
+#include "sgxlkl_config.h"
 #include "sgxlkl_util.h"
 
 #include "lkl/linux/virtio_net.h"
 
 #ifdef SGXLKL_HW
+#include "aesm.h"
+#include "attest_ias.h"
+#include "attest.h"
 #include "enclave_signal.h"
 #endif /* SGXLKL_HW */
 
@@ -69,7 +75,8 @@ static const char* const _enclave_exit_reasons[] = {
     "ERROR",
     "SLEEP",
     "CPUID",
-    "DORESUME"
+    "DORESUME",
+    "REPORT"
 };
 
 static unsigned long _host_syscall_stats[MAX_SYSCALL_NUMBER];
@@ -85,38 +92,27 @@ extern unsigned long hw_exceptions;
 #define MAX_HASH_DIGITS 512
 #define MAX_HASHOFFSET_DIGITS 16
 
-static const char* DEFAULT_IPV4_ADDR = "10.0.1.1";
-static const char* DEFAULT_IPV4_GW = "10.0.1.254";
-static const int   DEFAULT_IPV4_MASK = 24;
-static const char* DEFAULT_HOSTNAME = "lkl";
-static const char* DEFAULT_WG_IP = "10.0.2.1";
-
-/* The default heap size will only be used if no heap size is specified and
- * either we are in simulation mode, or we are in HW mode and a key is provided
- * via SGXLKL_KEY.
- */
-#define DEFAULT_HEAP_SIZE 200 * 1024 * 1024
-
-#define DEFAULT_MAX_USER_THREADS 256
-#define MAX_MAX_USER_THREADS 65536
-
+// Keep track of enclave disk image files so we can flush changes to them
+// on exit.
+static struct enclave_disk_config *_encl_disks = 0;
+static size_t _encl_disk_cnt = 0;
 
 // Is set to 1 when terminating the enclave to prevent concurrent threads from
 // trying to reenter.
 static int __state_exiting = 0;
 
-// Keep track of enclave disk image files so we can flush changes to them
-// on exit.
-static struct enclave_disk_config *encl_disks = 0;
-static size_t encl_disk_cnt = 0;
+static pthread_spinlock_t _stdout_print_lock = {0};
+static pthread_spinlock_t _stderr_print_lock = {0};
 
+static size_t backoff_maxpause;
+static size_t backoff_factor;
 
-static pthread_spinlock_t __stdout_print_lock = {0};
-static pthread_spinlock_t __stderr_print_lock = {0};
+#ifdef SGXLKL_HW
+void get_quote(sgx_report_t *report, sgx_quote_t *quote, uint32_t quote_size);
+attestation_verification_report_t *get_attestation_report(sgx_quote_t *quote, size_t quote_size);
 
 extern void eresume(uint64_t tcs_id);
 
-#ifdef SGXLKL_HW
 char* init_sgx();
 int   get_tcs_num();
 void  enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
@@ -130,6 +126,9 @@ typedef struct {
 } args_t;
 
 __thread int my_tcs_id;
+
+static struct attestation_config _attn_config;
+static int _aemsd_fd;
 #else /* SGXLKL_HW */
 /* By default non-PIE Linux binaries expect their text segment to be mapped to
  * address 0x400000. However, we use the first few pages of the enclave heap
@@ -165,11 +164,20 @@ static void version() {
 }
 
 static void usage(char* prog) {
-    printf("Usage: %s path/to/encl/file/system path/to/executable <args>\n", prog);
+    printf("Usage: %s [--config=path/to/config]  [--app=path/to/appconfig] path/to/encl/file/system path/to/executable <args>\n", prog);
+    printf("  path/to/config: Optional: Path to JSON configuration file. If file system image is provided via configuration file it must not be provided on the command line (see below).\n");
+    printf("  path/to/appconfig: Optional: Path to JSON application configuration file. Can be used to provide application configuration (executable path, arguments, environment variables). Not available in release mode.\n");
     printf("  path/to/encl/file/system: Path to the ext4 enclave file system image.\n");
     printf("  path/to/executable: Path to executable on enclave file system.\n");
     printf("  <args>: Arguments for executable.\n");
-    printf("\nSGX-LKL configuration via environment variables:\n");
+    printf("\n%s --version to print version information.\n", prog);
+    printf("%s --help to print this help.\n", prog);
+    printf("%s --help-tls to print help on how to enable thread-local storage support in hardware mode.\n", prog);
+}
+
+static void help(char* prog) {
+    usage(prog);
+    printf("\n\nSGX-LKL configuration via environment variables:\n");
     printf("## General ##\n");
     printf("SGXLKL_CMDLINE: Linux kernel command line.\n");
     printf("SGXLKL_SIGPIPE: Set to 1 to enable delivery of SIGPIPE.\n");
@@ -190,11 +198,15 @@ static void usage(char* prog) {
     printf("SGXLKL_TAP: Tap for LKL to use as a network interface.\n");
     printf("SGXLKL_TAP_OFFLOAD: Set to 1 to enable partial checksum support, TSOv4, TSOv6, and mergeable receive buffers for the TAP interface.\n");
     printf("SGXLKL_TAP_MTU: Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).\n");
-    printf("SGXLKL_IP4: IPv4 address to assign to LKL (Default: %s).\n", DEFAULT_IPV4_ADDR);
-    printf("SGXLKL_GW4: IPv4 gateway to assign to LKL (Default: %s).\n", DEFAULT_IPV4_GW);
-    printf("SGXLKL_MASK4: CIDR mask for LKL to use (Default: %d).\n", DEFAULT_IPV4_MASK);
-    printf("SGXLKL_HOSTNAME: Host name for LKL to use (Default: %s).\n", DEFAULT_HOSTNAME);
-    printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
+    printf("SGXLKL_IP4: IPv4 address to assign to LKL (Default: %s).\n", DEFAULT_SGXLKL_IP4);
+    printf("SGXLKL_GW4: IPv4 gateway to assign to LKL (Default: %s).\n", DEFAULT_SGXLKL_GW4);
+    printf("SGXLKL_MASK4: CIDR mask for LKL to use (Default: %d).\n", DEFAULT_SGXLKL_MASK4);
+    printf("SGXLKL_HOSTNAME: Host name for LKL to use (Default: %s).\n", DEFAULT_SGXLKL_HOSTNAME);
+    //printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
+    printf("SGXLKL_WG_IP: IPv4 address to assign to Wireguard interface (Default: %s).\n", DEFAULT_SGXLKL_WG_IP);
+    printf("SGXLKL_WG_PORT: Port to use on eth0 interface for the Wireguard endpoint (Default: %d).\n", DEFAULT_SGXLKL_WG_PORT);
+    printf("SGXLKL_WG_KEY: Private Wireguard key. Will be ignored in release mode in which a new key pair is generated inside the enclave on startup.\n");
+    printf("SGXLKL_WG_PEERS: Comma-separated list of Wireguard peers in the format \"key1:allowedips1:endpointhost1:port1, key2:allowedips2:...\".\n");
     printf("\n## Disk ##\n");
     printf("SGXLKL_HD_VERITY: Root hash or file path to root hash for the root file system image (Debug only).\n");
     printf("SGXLKL_HD_VERITY_OFFSET: Offset or file path to offset of the dm-verity merkle tree on the root file system image (Debug only). If omitted and <path/to/diskimage>.hashoffset exists, this offset will be used if possible.\n");
@@ -208,6 +220,17 @@ static void usage(char* prog) {
     printf("SGXLKL_MMAP_FILES: Set to \"Private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"Shared\" to allow mmaping files with 'MAP_SHARED'. These files will be mapped as if 'MAP_PRIVATE' has been used instead. Default: No File mapping supported.\n");
     printf("SGXLKL_SHMEM_FILE: Name of the file to be used for shared memory between the enclave and the outside.\n");
     printf("SGXLKL_SHMEM_SIZE: Size of the file to be used for shared memory between the enclave and the outside.\n");
+    printf("\n## Attestation ##\n");
+    printf("SGXLKL_IAS_SPID: Specifies the Service Provider ID (SPID) required for communication with the Intel Attestation Service (IAS).\n");
+    printf("SGXLKL_IAS_QUOTE_TYPE: Specifies the quote type: '0' for unlinkable quotes (default), '1' for linkable quotes.\n");
+    printf("SGXLKL_IAS_KEY_FILE: Path to the private key file.\n");
+    printf("SGXLKL_IAS_CERT: Path to the IAS certificate file.\n");
+    printf("SGXLKL_IAS_SERVER: IAS server to use (Default: %s).\n", DEFAULT_SGXLKL_IAS_SERVER);
+    printf("\n## Remote control ##\n");
+    printf("SGXLKL_REMOTE_ATTEST_PORT: Port to use on public interface for attestation server (Default: %d).\n", DEFAULT_SGXLKL_REMOTE_ATTEST_PORT);
+    printf("SGXLKL_REMOTE_CMD_PORT: Port to use on Wireguard interface for remote control server (Default: %d).\n", DEFAULT_SGXLKL_REMOTE_CMD_PORT);
+    printf("SGXLKL_REMOTE_CMD_ETH0: Set to 1 to expose server on eth0 interface instead. If specified no separate attestation server is created. Will be ignored in release mode.\n");
+    printf("SGXLKL_REMOTE_CONFIG: Set to 1 to ignore application and application arguments specified via command line and wait for application configuration to be provided via remote control server (Default: 0, always 1 in release mode).\n");
     printf("\n## Debugging ##\n");
     printf("SGXLKL_VERBOSE: Print information about the SGX-LKL start up process as well as kernel messages.\n");
     printf("SGXLKL_TRACE_MMAP: Print detailed information about in-enclave mmap/munmap operations.\n");
@@ -218,12 +241,9 @@ static void usage(char* prog) {
     printf("SGXLKL_TRACE_HOST_SYSCALL: Print detailed information about host system calls.\n");
     printf("SGXLKL_PRINT_HOST_SYSCALL_STATS: Print statistics on the number of host system calls and enclave exits.\n");
     printf("SGXLKL_PRINT_APP_RUNTIME: Measure and print total runtime of the application itself excluding the enclave and SGX-LKL startup and shutdown time.\n");
-    printf("\n%s --version to print version information.\n", prog);
-    printf("%s --help to print this help.\n", prog);
-    printf("%s --help-tls to print help on how to enable thread-local storage support in hardware mode.\n", prog);
 }
 
-static void usage_tls() {
+static void help_tls() {
     printf("Support for Thread-Local Storage (TLS) in hardware mode\n"
            "\n"
            "On x86-64 platforms thread-local storage for applications and their initially\n"
@@ -259,23 +279,6 @@ static void usage_tls() {
            "\n");
 }
 
-static void sgxlkl_fail(char *msg, ...) {
-    va_list(args);
-    fprintf(stderr, "[    SGX-LKL   ] Error: ");
-    va_start(args, msg);
-    vfprintf(stderr, msg, args);
-    exit(EXIT_FAILURE);
-}
-
-static void sgxlkl_warn(char *msg, ...) {
-    va_list(args);
-    fprintf(stderr, "[    SGX-LKL   ] Warning: ");
-    va_start(args, msg);
-    vfprintf(stderr, msg, args);
-}
-
-size_t backoff_maxpause = 100;
-size_t backoff_factor = 4000;
 __attribute__((noinline)) unsigned backoffslow(unsigned n) {
     const size_t maxbackoff = 800;
     struct timespec ts = {0, 0};
@@ -294,13 +297,6 @@ static inline unsigned backoff(unsigned n) {
         return backoffslow(n);
     }
 }
-
-/* find tls phdr inside the shared library that we dlopened;
-   HW version should do this inside the enclave */
-struct dliterdata {
-    const char *name;
-    enclave_config_t *e;
-};
 
 static inline void do_syscall(syscall_t *sc) {
     unsigned long ret;
@@ -334,11 +330,11 @@ void *host_syscall_thread(void *v) {
         if (scall[i].syscallno == SYS_write || scall[i].syscallno == SYS_writev) {
             int fd = (int) scall[i].arg1;
             if (fd == STDOUT_FILENO) {
-                pthread_spin_lock(&__stdout_print_lock);
-                curr_print_lock = &__stdout_print_lock;
+                pthread_spin_lock(&_stdout_print_lock);
+                curr_print_lock = &_stdout_print_lock;
             } else if (fd == STDERR_FILENO) {
-                pthread_spin_lock(&__stderr_print_lock);
-                curr_print_lock = &__stderr_print_lock;
+                pthread_spin_lock(&_stderr_print_lock);
+                curr_print_lock = &_stderr_print_lock;
             }
         }
 
@@ -358,10 +354,10 @@ void *host_syscall_thread(void *v) {
         }
 
 #ifdef DEBUG
-        if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0) || getenv_bool("SGXLKL_TRACE_HOST_SYSCALL", 0)) {
-            pthread_spin_lock(&__stdout_print_lock);
+        if (sgxlkl_config_bool(SGXLKL_TRACE_SYSCALL) || sgxlkl_config_bool(SGXLKL_TRACE_HOST_SYSCALL)) {
+            pthread_spin_lock(&_stdout_print_lock);
             log_host_syscall(syscallno, scall[i].ret_val, scall[i].arg1, scall[i].arg2, scall[i].arg3, scall[i].arg4, scall[i].arg5, scall[i].arg6);
-            pthread_spin_unlock(&__stdout_print_lock);
+            pthread_spin_unlock(&_stdout_print_lock);
         }
 #endif /* DEBUG */
 
@@ -465,15 +461,12 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
 
     int fd = open(path, readonly ? O_RDONLY : O_RDWR);
     if (fd == -1) sgxlkl_fail("Unable to open disk file %s for %s access: %s\n", path, readonly ? "read" : "read/write", strerror(errno));
+
     struct stat disk_stat;
     fstat(fd, &disk_stat);
-
-    char * disk_mmap = NULL;
-    if (getenv_bool("SGXLKL_HD_MMAP", 0)) {
-        disk_mmap = mmap(NULL, disk_stat.st_size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
-        if (disk_mmap == MAP_FAILED)
-            sgxlkl_fail("Could not map memory for disk image: %s\n", strerror(errno));
-    }
+    char * disk_mmap = mmap(NULL, disk_stat.st_size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
+    if (disk_mmap == MAP_FAILED)
+        sgxlkl_fail("Could not map memory for disk image: %s\n", strerror(errno));
 
     int flags = fcntl(fd, F_GETFL);
     if (flags == -1) sgxlkl_fail("fcntl(disk_fd, F_GETFL)");
@@ -489,7 +482,12 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
     disk->enc = is_disk_encrypted(fd);
-    if (disk->enc) {
+#ifndef SGXLKL_RELEASE
+    if (disk->enc && !sgxlkl_config_bool(SGXLKL_REMOTE_CONFIG)) {
+#else
+    // In release mode the key will be provided remotely.
+    if (0) {
+#endif
         if (!keyfile_or_passphrase)
             sgxlkl_fail("No passphrase or key file provided via SGXLKL_HD_KEY for encrypted disk %s.\n", path);
 
@@ -520,7 +518,9 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
         }
     }
 
+#ifndef SGXLKL_RELEASE
     prepare_verity(disk, path, verity_file_or_roothash, verity_file_or_hashoffset);
+#endif
 
     ++encl->num_disks;
 }
@@ -528,7 +528,7 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
 static void register_hds(enclave_config_t *encl, char *root_hd) {
     // Count disks to register
     size_t num_disks = 1; // Root disk
-    char *hds_str = getenv_str("SGXLKL_HDS", "");
+    char *hds_str = sgxlkl_config_str(SGXLKL_HDS);
     if (hds_str[0]) {
         num_disks++;
         for (int i = 0; hds_str[i]; i++) {
@@ -541,8 +541,8 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
     // Initialize encl->num_disks, will be adjusted by register_hd
     encl->num_disks = 0;
     // Register root disk
-    register_hd(encl, root_hd, "/", getenv_bool("SGXLKL_HD_RO", 0), getenv_str("SGXLKL_HD_KEY", NULL),
-                getenv_str("SGXLKL_HD_VERITY", NULL), getenv_str("SGXLKL_HD_VERITY_OFFSET", NULL));
+    register_hd(encl, root_hd, "/", sgxlkl_config_bool(SGXLKL_HD_RO), sgxlkl_config_str(SGXLKL_HD_KEY),
+                sgxlkl_config_str(SGXLKL_HD_VERITY), sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
     // Register secondary disks
     while (*hds_str) {
         char *hd_path = hds_str;
@@ -559,8 +559,8 @@ static void register_hds(enclave_config_t *encl, char *root_hd) {
     }
 
     // Keep track of disks in order to close fds properly at exit
-    encl_disks = encl->disks;
-    encl_disk_cnt = encl->num_disks;
+    _encl_disks = encl->disks;
+    _encl_disk_cnt = encl->num_disks;
 }
 
 static void *register_shm(char* path, size_t len) {
@@ -589,20 +589,16 @@ static void *register_shm(char* path, size_t len) {
 }
 
 static void register_net(enclave_config_t* encl, const char* tapstr, const char* ip4str,
-        const char* mask4str, const char* gw4str, const char* hostname) {
+        int mask4, const char* gw4str, const char* hostname) {
     // Set hostname
-    if(hostname) {
-        strncpy(encl->hostname, hostname, sizeof(encl->hostname));
-    } else {
-        strncpy(encl->hostname, DEFAULT_HOSTNAME, sizeof(encl->hostname));
-    }
+    strncpy(encl->hostname, hostname, sizeof(encl->hostname));
     encl->hostname[sizeof(encl->hostname) - 1] = '\0';
 
     if (encl->net_fd != 0) sgxlkl_fail("Multiple network interfaces not supported yet\n");
 
     // Open tap device FD
     if (tapstr == NULL || strlen(tapstr) == 0) {
-        if (getenv_bool("SGXLKL_VERBOSE", 0))
+        if (sgxlkl_config_bool(SGXLKL_VERBOSE))
             printf("[    SGX-LKL   ] No tap device specified, networking will not be available.\n");
         return;
     }
@@ -611,7 +607,7 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
     int vnet_hdr_sz = 0;
-    if (getenv_bool("SGXLKL_TAP_OFFLOAD", 0)) {
+    if (sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD)) {
         ifr.ifr_flags |= IFF_VNET_HDR;
         vnet_hdr_sz = sizeof(struct lkl_virtio_net_hdr_v1);
     }
@@ -626,30 +622,29 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
         sgxlkl_fail("Failed to TUNSETVNETHDRSZ: /dev/net/tun: %s\n", strerror(errno));
 
     int offload_flags = 0;
-    if (getenv_bool("SGXLKL_TAP_OFFLOAD", 0)) {
+    if (sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD)) {
         offload_flags = TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_CSUM;
     }
 
     if (ioctl(fd, TUNSETOFFLOAD, offload_flags) != 0)
         sgxlkl_fail("Failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
 
-    // Read IPv4 addr if there is one
-    if (ip4str == NULL) ip4str = DEFAULT_IPV4_ADDR;
+    encl->tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
+    encl->tap_mtu = (int) sgxlkl_config_uint64(SGXLKL_TAP_MTU);
+
+    encl->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
+
     struct in_addr ip4 = { 0 };
     if (inet_pton(AF_INET, ip4str, &ip4) != 1)
         sgxlkl_fail("Invalid IPv4 address %s\n", ip4str);
 
-    // Read IPv4 gateway if there is one
-    if (gw4str == NULL) gw4str = DEFAULT_IPV4_GW;
     struct in_addr gw4 = { 0 };
     if (gw4str != NULL && strlen(gw4str) > 0 &&
             inet_pton(AF_INET, gw4str, &gw4) != 1) {
         sgxlkl_fail("Invalid IPv4 gateway %s\n", ip4str);
     }
 
-    // Read IPv4 mask str if there is one
-    int mask4 = (mask4str == NULL ? DEFAULT_IPV4_MASK : atoi(mask4str));
-    if (mask4 < 1 || mask4 > 32) sgxlkl_fail("Invalid IPv4 mask %s\n", mask4str);
+    if (mask4 < 1 || mask4 > 32) sgxlkl_fail("Invalid IPv4 mask %d\n", mask4);
 
     encl->net_fd = fd;
     encl->net_ip4 = ip4;
@@ -686,8 +681,6 @@ void set_sysconf_params(enclave_config_t *conf, long no_ethreads) {
     conf->sysconf_nproc_onln = no_ethreads;
 }
 
-
-
 static void *find_vvar_base(void) {
     FILE *maps;
     char mapping[128];
@@ -714,7 +707,7 @@ static void *find_vvar_base(void) {
 
 void set_vdso(enclave_config_t* conf) {
     conf->vvar = 0;
-    if (!getenv_bool("SGXLKL_GETTIME_VDSO", 1)) return;
+    if (!sgxlkl_config_bool(SGXLKL_GETTIME_VDSO)) return;
 
     // Try to locate vvar pages
     if (!(conf->vvar = find_vvar_base()))
@@ -723,8 +716,8 @@ void set_vdso(enclave_config_t* conf) {
 
 /* Sets up shared memory with the outside */
 void set_shared_mem(enclave_config_t *conf) {
-    char *shm_file = getenv("SGXLKL_SHMEM_FILE");
-    size_t shm_len = getenv_uint64("SGXLKL_SHMEM_SIZE", 0, (size_t) 1024*1024*1024);
+    char *shm_file = sgxlkl_config_str(SGXLKL_SHMEM_FILE);
+    size_t shm_len = sgxlkl_config_uint64(SGXLKL_SHMEM_SIZE);
     if (shm_file == 0 || strlen(shm_file) <= 0 || shm_len <= 0)
         return;
 
@@ -788,19 +781,19 @@ void set_wg(enclave_config_t *conf) {
     struct enclave_wg_config *wg;
     wg = (struct enclave_wg_config *)malloc(sizeof(struct enclave_wg_config));
 
-    char *wg_ip_str = getenv_str("SGXLKL_WG_IP", DEFAULT_WG_IP);
+    char *wg_ip_str = sgxlkl_config_str(SGXLKL_WG_IP);
     if (inet_pton(AF_INET, wg_ip_str, &wg->ip) != 1) {
         free(wg);
         sgxlkl_fail("Invalid Wireguard IPv4 address %s\n", wg_ip_str);
     }
 
-    wg->listen_port = (uint16_t) getenv_uint64("SGXLKL_WG_PORT", 55000, 65535);
-    wg->key = getenv_str("SGXLKL_WG_KEY", NULL);
+    wg->listen_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_WG_PORT);
+    wg->key = sgxlkl_config_str(SGXLKL_WG_KEY);
 
     conf->wg = wg;
 
     int num_peers = 0;
-    char *peers_str = getenv_str("SGXLKL_WG_PEERS", "");
+    char *peers_str = sgxlkl_config_str(SGXLKL_WG_PEERS);
     if (peers_str[0]) {
         num_peers++;
         for (int i = 0; peers_str[i]; i++) {
@@ -834,6 +827,30 @@ void set_wg(enclave_config_t *conf) {
         wg->num_peers++;
     }
 }
+
+#ifndef SGXLKL_RELEASE
+void set_app_config(enclave_config_t* conf, char *app_config_path) {
+    int fd;
+    if ((fd = open(app_config_path, O_RDONLY)) < 0)
+        sgxlkl_fail("Failed to open %s: %s.\n", app_config_path, strerror(errno));
+
+    off_t len = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+    char *buf = (char *) malloc(len + 1);
+    ssize_t ret;
+    int off = 0;
+    while ((ret = read(fd, &buf[off], len - off)) > 0) {
+        off += ret;
+    }
+    buf[len] = 0;
+    close(fd);
+
+    if (ret < 0)
+        sgxlkl_fail("Failed to read %s: %s.\n", app_config_path, strerror(errno));
+
+    conf->app_config = buf;
+}
+#endif /* SGXLKL_RELEASE */
 
 /* Parses the string provided as config for CPU affinity specifications. The
  * specification must consist of a comma-separated list of core IDs. It can
@@ -918,13 +935,13 @@ void* enclave_thread(void* parm) {
             case SGXLKL_EXIT_CPUID: {
                 unsigned int* reg = (unsigned int*)ret[1];
                 do_cpuid(reg);
-                args->call_id = SGXLKL_ENTER_SYSCALL_RESUME;
+                args->call_id = SGXLKL_ENTER_RESUME;
                 break;
             }
             case SGXLKL_EXIT_SLEEP: {
                 struct timespec sleep = {0, ret[1]};
                 nanosleep(&sleep, NULL);
-                args->call_id = SGXLKL_ENTER_SYSCALL_RESUME;
+                args->call_id = SGXLKL_ENTER_RESUME;
                 break;
             }
             case SGXLKL_EXIT_ERROR: {
@@ -932,6 +949,31 @@ void* enclave_thread(void* parm) {
             }
             case SGXLKL_EXIT_DORESUME: {
                 eresume(my_tcs_id);
+            }
+            case SGXLKL_EXIT_REPORT: {
+                uint32_t quote_size;
+                sgx_quote_t *quote = aesm_alloc_quote(&quote_size);
+                if (!quote)
+                    sgxlkl_fail("Could not allocate memory for SGX quote.\n");
+                get_quote(*(sgx_report_t **)ret[1], quote, quote_size);
+
+                attestation_info_t *att_info = (attestation_info_t*) ret[1];
+                att_info->quote = quote;
+                att_info->quote_size = quote_size;
+
+                if (sgxlkl_config_str(SGXLKL_IAS_SPID)) {
+                    if (!_attn_config.ias_key_file && sgxlkl_config_bool(SGXLKL_VERBOSE))
+                        sgxlkl_info("No IAS key file provided (via SGXLKL_IAS_KEY_FILE). Skipping IAS attestation...\n");
+                    else if (!_attn_config.ias_cert_file && sgxlkl_config_bool(SGXLKL_VERBOSE))
+                        sgxlkl_info("No IAS certificate provided (via SGXLKL_IAS_CERT). Skipping IAS attestation...\n");
+
+                    if (_attn_config.ias_key_file && _attn_config.ias_cert_file)
+                        att_info->ias_report = get_attestation_report(quote, quote_size);
+                }
+
+
+                args->call_id = SGXLKL_ENTER_RESUME;
+                break;
             }
             default:
                 fprintf(stderr, "Unexpected exit reason from enclave: %lu.\n", ret[0]);
@@ -963,7 +1005,7 @@ reenter:
         case SGXLKL_EXIT_CPUID: {
             unsigned int* reg = (unsigned int*)ret[1];
             do_cpuid(reg);
-            call_id = SGXLKL_ENTER_SYSCALL_RESUME;
+            call_id = SGXLKL_ENTER_RESUME;
             goto reenter;
         }
         case SGXLKL_EXIT_DORESUME: {
@@ -998,6 +1040,83 @@ void sigfpe_handler(int sig, siginfo_t *si, void *unused) {
     // Just forward signal
     forward_signal(SIGFPE, (void*) si);
 }
+
+void init_attestation(enclave_config_t *conf) {
+    char *spid, *spid_str;
+    ssize_t spid_len;
+
+    // Initialize quote, get target info from quoting enclave.
+    // The target info is needed within the enclave to generate a report for
+    // the quoting enclave.
+    sgx_target_info_t *ti = malloc(sizeof(sgx_target_info_t));
+
+    sgx_epid_group_id_t gid;
+    if (aesm_init_quote(ti, &gid)) {
+        sgxlkl_warn("Failed to initialize quote. Remote attestation will not be possible.\n");
+        free(ti);
+        return;
+    }
+    conf->quote_target_info = ti;
+
+    // Set up attestation config
+    spid_str = sgxlkl_config_str(SGXLKL_IAS_SPID);
+    if (spid_str) {
+        spid_len = hex_to_bytes(spid_str, &spid);
+        if (spid_len != sizeof(sgx_spid_t))
+            sgxlkl_fail("Provided IAS SPID \"%s\" invalid.\n", spid_str);
+        memcpy(&_attn_config.spid, spid, spid_len);
+
+        char *quote_type = sgxlkl_config_str(SGXLKL_IAS_QUOTE_TYPE);
+        _attn_config.quote_type = !strcmp(quote_type, "Unlinkable") ? SGX_UNLINKABLE_SIGNATURE : SGX_LINKABLE_SIGNATURE;
+
+        _attn_config.ias_key_file = sgxlkl_config_str(SGXLKL_IAS_KEY_FILE);
+        _attn_config.ias_cert_file = sgxlkl_config_str(SGXLKL_IAS_CERT);
+        _attn_config.ias_server = sgxlkl_config_str(SGXLKL_IAS_SERVER);
+    } else if (sgxlkl_config_bool(SGXLKL_VERBOSE))
+        sgxlkl_info("No IAS SPID provided, enclave quote will not be verifiable by IAS.\n");
+
+    sgx_report_t *report = malloc(sizeof(sgx_report_t));
+    conf->report = report;
+
+    conf->report_nonce = sgxlkl_config_uint64(SGXLKL_REPORT_NONCE);
+}
+
+void get_quote(sgx_report_t *report, sgx_quote_t *quote, uint32_t quote_size) {
+    if (aesm_get_quote(&_attn_config.spid,
+                      _attn_config.quote_type,
+                      report,
+                      quote,
+                      quote_size)) {
+        sgxlkl_warn("Failed to get quote from AESM. Remote attestation will not be possible.\n");
+        return;
+    }
+
+    if (sgxlkl_config_bool(SGXLKL_VERBOSE)) {
+        sgx_report_body_t* body = &quote->report_body;
+        sgxlkl_info("Received quote from launch enclave:\n");
+        sgxlkl_info(" MRENCLAVE: ");
+        for (int i=0; i < SGX_HASH_SIZE; ++i) fprintf(stderr, "%02x", body->mr_enclave.m[i]);
+        fprintf(stderr, "\n");
+        sgxlkl_info(" MRSIGNER:  ");
+        for (int i=0; i < SGX_HASH_SIZE; ++i) fprintf(stderr, "%02x", body->mr_signer.m[i]);
+        fprintf(stderr, "\n");
+    }
+}
+
+attestation_verification_report_t *get_attestation_report(sgx_quote_t *quote, size_t quote_size) {
+    attestation_verification_report_t *attn_report = malloc(sizeof(*attn_report));
+    if (ias_get_attestation_verification_report(quote,
+                                            quote_size,
+                                            &_attn_config,
+                                            attn_report,
+                                            sgxlkl_config_bool(SGXLKL_VERBOSE))) {
+        free(attn_report);
+        return NULL;
+    }
+
+    return attn_report;
+}
+
 #endif
 
 #ifdef DEBUG
@@ -1078,7 +1197,7 @@ void setup_signal_handlers(void) {
     sigemptyset(&sa.sa_mask);
 
 #ifdef DEBUG
-    if (getenv_bool("SGXLKL_PRINT_HOST_SYSCALL_STATS", 0)) {
+    if (sgxlkl_config_bool(SGXLKL_PRINT_HOST_SYSCALL_STATS)) {
         atexit(&print_host_syscall_stats);
         sa.sa_flags = SA_SIGINFO;
         sa.sa_handler = stats_sigint_handler;
@@ -1088,7 +1207,7 @@ void setup_signal_handlers(void) {
 #endif /* DEBUG */
 
     /* ignore sigpipe? */
-    if (getenv_bool("SGXLKL_SIGPIPE", 0) == 0) {
+    if (!sgxlkl_config_bool(SGXLKL_SIGPIPE)) {
         sigemptyset(&sa.sa_mask);
         sa.sa_handler = SIG_IGN;
         sa.sa_flags = 0;
@@ -1159,8 +1278,8 @@ static void setup_sim_exit_handler(struct enclave_config *encl) {
 
 static void sgxlkl_cleanup(void) {
     // Close disk image fds
-    while (encl_disk_cnt) {
-        close(encl_disks[--encl_disk_cnt].fd);
+    while (_encl_disk_cnt) {
+        close(_encl_disks[--_encl_disk_cnt].fd);
     }
 }
 
@@ -1211,39 +1330,147 @@ void get_libsgxlkl_path(char *path_buf, size_t len) {
     sgxlkl_fail("Unable to locate libsgxlkl.so.\n");
 }
 
+//Assumes format --longopt[=optarg] or -shortopt[=optarg]
+int getopt_sgxlkl(int argc, char *argv[], struct option long_options[]) {
+    optarg = NULL;
+    optopt = 0;
+    if (optind >= argc)
+        return -1;
+
+    char *arg = argv[optind];
+    if (arg[0] != '-')
+        return -1;
+
+    struct option *opt = long_options;
+    for (; opt->name; opt++) {
+        size_t optidx = 1;
+        // Long opt
+        if (arg[1] == '-' && !strncmp(opt->name, &arg[2], strlen(opt->name))) {
+            optidx += 1 + strlen(opt->name);
+        // Short opt
+        } else if (arg[1] == opt->val) {
+            optidx += 1;
+        } else
+            continue;
+
+        // Handle no argument options
+        if (opt->has_arg == no_argument)
+            if (arg[optidx])
+                return -1;
+            else
+                break;
+
+        // Handle required argument options
+        if (opt->has_arg == required_argument)
+            if (arg[optidx] == '=') {
+                optidx++;
+            } else if (arg[optidx] == '\0') {
+                if (++optind >= argc) {
+                    fprintf(stderr, "Error: %s requires argument.\n", opt->name);
+                    return '?';
+                } else
+                    optidx = 0;
+            }
+            optarg = &argv[optind][optidx];
+            break;
+    }
+
+    if (opt) {
+        optind++;
+        return opt->val;
+    } else
+        return -1;
+}
+
 int main(int argc, char *argv[], char *envp[]) {
     size_t ecs = 0;
     size_t ntsyscall = 1;
     size_t ntenclave = 1;
     pthread_t *ts;
     enclave_config_t encl = {0};
-    char *root_hd;
+    char *root_hd, *app_config;
     char** auxvp;
     int i, r, rtprio;
     void *_retval;
-    int mmapflags = MAP_PRIVATE|MAP_ANONYMOUS;
     int encl_mmap_flags;
     pthread_attr_t eattr;
     cpu_set_t set;
-    struct sched_param schparam = {0};
-    schparam.sched_priority = 10;
     int *ethreads_cores, *sthreads_cores;
     size_t ethreads_cores_len, sthreads_cores_len;
 
-    if (argc >= 2 && (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v"))) {
-        version();
-        exit(EXIT_SUCCESS);
+    // We reuse getopt features but do the parsing ourselves (not via
+    // getopt_long) as we must allow unrecognized options. We need to stop
+    // parsing as soon as we hit the first unrecognized option.
+    static struct option long_options[] = {
+        {"version",  no_argument,       0, 'v' },
+        {"usage",    no_argument,       0, 'u' },
+        {"help",     no_argument,       0, 'h' },
+        {"help-tls", no_argument,       0, 't' },
+        {"config",   required_argument, 0, 'c' },
+        {"app",      required_argument, 0, 'a' },
+        {0,          0,                 0,  0  }
+    };
+
+    int c;
+    char *err;
+    while ((c = getopt_sgxlkl(argc, argv, long_options)) != -1) {
+        switch (c) {
+        case 'v':
+            version();
+            exit(EXIT_SUCCESS);
+        case 'u':
+            usage(argv[0]);
+            exit(EXIT_SUCCESS);
+        case 'h':
+            help(argv[0]);
+            exit(EXIT_SUCCESS);
+        case 't':
+            help_tls();
+            exit(EXIT_SUCCESS);
+        case 'c':
+            if (parse_sgxlkl_config(optarg, &err))
+                sgxlkl_fail("Failed to parse configuration file: %s\n", err);
+            break;
+        case 'a':
+            app_config = optarg;
+            break;
+        default:
+            // Should never happen
+            sgxlkl_fail("Unexpected command line option: %c\n", c);
+        }
     }
 
-    if (argc >= 2 && !strcmp(argv[1], "--help-tls")) {
-        usage_tls();
-        exit(EXIT_SUCCESS);
-    } else if (argc <= 2 || (argc >= 2 && (!strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")))) {
+    encl.argc = argc - optind;
+    encl.argv = argv + optind;
+
+    // Determine path to root disk. Either configured via env/json config or
+    // as first command line argument.
+    if (sgxlkl_configured(SGXLKL_HD)) {
+        root_hd = sgxlkl_config_str(SGXLKL_HD);
+    } else if (encl.argc) {
+        root_hd = encl.argv[0];
+        encl.argc -= 1;
+        encl.argv += 1;
+    } else {
+        sgxlkl_warn("Insufficient arguments. No root disk image path provided.\n");
         usage(argv[0]);
-        exit(argc <= 2 ? EXIT_FAILURE : EXIT_SUCCESS);
+        exit(EXIT_FAILURE);
     }
 
-    root_hd = argv[1];
+// In release mode any host-provided application configuration is ignored
+// and has to be provided remotely.
+#ifndef SGXLKL_RELEASE
+    // Check if app_config has been provided
+    if (app_config)
+        set_app_config(&encl, app_config);
+    else if (sgxlkl_configured(SGXLKL_APP_CONFIG))
+        encl.app_config = sgxlkl_config_str(SGXLKL_APP_CONFIG);
+    else if(!encl.argc && !sgxlkl_config_bool(SGXLKL_REMOTE_CONFIG)) {
+        sgxlkl_warn("Insufficient arguments. No application path provided.\n");
+        usage(argv[0]);
+        exit(EXIT_FAILURE);
+    }
+#endif /* SGXLKL_RELEASE */
 
     const size_t pagesize = sysconf(_SC_PAGESIZE);
     ecs = sizeof(encl) + (pagesize - (sizeof(encl)%pagesize));
@@ -1259,46 +1486,68 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Use numbers of cores as default.
     long nproc = sysconf(_SC_NPROCESSORS_ONLN);
-    ntenclave = getenv_uint64("SGXLKL_ETHREADS", (size_t) nproc, 1024);
+    ntenclave = sgxlkl_config_uint64(SGXLKL_ETHREADS);
 
-    backoff_maxpause = getenv_uint64("SGXLKL_SSPINS", 100, ULONG_MAX);
-    backoff_factor = getenv_uint64("SGXLKL_SSLEEP", 4000, ULONG_MAX);
-    encl.stacksize = getenv_uint64("SGXLKL_STACK_SIZE", 512*1024, ULONG_MAX);
-    encl.max_user_threads = getenv_uint64("SGXLKL_MAX_USER_THREADS", DEFAULT_MAX_USER_THREADS, MAX_MAX_USER_THREADS);
-    encl.maxsyscalls = encl.max_user_threads + ntenclave;
+    // Sthread config
+    backoff_maxpause = sgxlkl_config_uint64(SGXLKL_SSPINS);
+    backoff_factor = sgxlkl_config_uint64(SGXLKL_SSLEEP);
+
+    // Ethread config
+    encl.stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
+    encl.max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
+    encl.maxsyscalls = encl.max_user_threads + sgxlkl_config_uint64(SGXLKL_ETHREADS);
+    encl.espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
+    encl.esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
+    encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
+    encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
+    encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    encl.remote_attest_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_ATTEST_PORT);
+    encl.remote_cmd_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_CMD_PORT);
+    encl.remote_cmd_eth0 = sgxlkl_config_bool(SGXLKL_REMOTE_CMD_ETH0);
+    encl.remote_config = sgxlkl_config_bool(SGXLKL_REMOTE_CONFIG);
+    char *mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
+    encl.mmap_files = !strcmp(mmap_files, "Shared") ? ENCLAVE_MMAP_FILES_SHARED :
+                     (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE :
+                     ENCLAVE_MMAP_FILES_NONE);
     set_sysconf_params(&encl, ntenclave);
     set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
     set_wg(&encl);
     register_hds(&encl, root_hd);
-    register_net(&encl, getenv("SGXLKL_TAP"), getenv("SGXLKL_IP4"), getenv("SGXLKL_MASK4"), getenv("SGXLKL_GW4"), getenv("SGXLKL_HOSTNAME"));
+    register_net(&encl, sgxlkl_config_str(SGXLKL_TAP),
+                        sgxlkl_config_str(SGXLKL_IP4),
+                        (int) sgxlkl_config_uint64(SGXLKL_MASK4),
+                        sgxlkl_config_str(SGXLKL_GW4),
+                        sgxlkl_config_str(SGXLKL_HOSTNAME));
     register_queues(&encl);
 
-#ifndef SGXLKL_HW
+#ifdef SGXLKL_HW
+    init_attestation(&encl);
+#else
     setup_sim_exit_handler(&encl);
 #endif
-
-    atexit(sgxlkl_cleanup);
 
     // This has to be called after calling set_tls as set_tls registers a
     // temporary SIGILL handler.
     setup_signal_handlers();
 
+    atexit(sgxlkl_cleanup);
+
     char libsgxlkl[PATH_MAX];
     get_libsgxlkl_path(libsgxlkl, PATH_MAX);
 
-    parse_cpu_affinity_params(getenv("SGXLKL_STHREADS_AFFINITY"), &sthreads_cores, &sthreads_cores_len);
-    parse_cpu_affinity_params(getenv("SGXLKL_ETHREADS_AFFINITY"), &ethreads_cores, &ethreads_cores_len);
+    parse_cpu_affinity_params(sgxlkl_config_str(SGXLKL_STHREADS_AFFINITY), &sthreads_cores, &sthreads_cores_len);
+    parse_cpu_affinity_params(sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY), &ethreads_cores, &ethreads_cores_len);
 
     /* Initialize print spin locks */
-    if (pthread_spin_init(&__stdout_print_lock, PTHREAD_PROCESS_PRIVATE) ||
-        pthread_spin_init(&__stderr_print_lock, PTHREAD_PROCESS_PRIVATE) ) {
+    if (pthread_spin_init(&_stdout_print_lock, PTHREAD_PROCESS_PRIVATE) ||
+        pthread_spin_init(&_stderr_print_lock, PTHREAD_PROCESS_PRIVATE) ) {
         sgxlkl_fail("Could not initialize print spin locks.\n");
     }
 
     /* Get system call thread number */
-    ntsyscall = getenv_uint64("SGXLKL_STHREADS", 4, 1024);
+    ntsyscall = sgxlkl_config_uint64(SGXLKL_STHREADS);
     ts = calloc(sizeof(*ts), ntenclave + ntsyscall);
     if (ts == 0) sgxlkl_fail("Failed to allocate memory for thread identifiers: %s\n", strerror(errno));
 
@@ -1315,12 +1564,12 @@ int main(int argc, char *argv[], char *envp[]) {
     char* enclave_start = mmap(0, lkl_lib_stat.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, lkl_lib_fd, 0);
 
     init_sgx();
-    if (getenv("SGXLKL_HEAP") || getenv("SGXLKL_KEY")) {
-        if (!getenv("SGXLKL_KEY"))
+    if (sgxlkl_configured(SGXLKL_HEAP) || sgxlkl_configured(SGXLKL_KEY)) {
+        if (!sgxlkl_configured(SGXLKL_KEY))
             sgxlkl_fail("Heap size but no enclave signing key specified. Please specify a signing key via SGXLKL_KEY.\n");
-        enclave_update_heap(enclave_start, getenv_uint64("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX), getenv("SGXLKL_KEY"));
+        enclave_update_heap(enclave_start, sgxlkl_config_uint64(SGXLKL_HEAP), sgxlkl_config_str(SGXLKL_KEY));
     }
-    create_enclave_mem(enclave_start, getenv_bool("SGXLKL_NON_PIE", 0), &__sgxlklrun_text_segment_start);
+    create_enclave_mem(enclave_start, sgxlkl_config_bool(SGXLKL_NON_PIE), &__sgxlklrun_text_segment_start);
 
     // Check if there are enough TCS for all ethreads.
     int num_tcs = get_tcs_num();
@@ -1328,9 +1577,9 @@ int main(int argc, char *argv[], char *envp[]) {
     if (num_tcs < ntenclave) sgxlkl_fail("Not enough TCS \n");
 #else
     /* Initialize heap memory */
-    encl.heapsize = getenv_uint64("SGXLKL_HEAP", DEFAULT_HEAP_SIZE, ULONG_MAX);
-    encl_mmap_flags = mmapflags;
-    if (getenv_bool("SGXLKL_NON_PIE", 0)) {
+    encl.heapsize = sgxlkl_config_uint64(SGXLKL_HEAP);
+    encl_mmap_flags = MAP_PRIVATE|MAP_ANONYMOUS;
+    if (sgxlkl_config_bool(SGXLKL_NON_PIE)) {
         if ((char*) SIM_NON_PIE_ENCL_MMAP_OFFSET + encl.heapsize > &__sgxlklrun_text_segment_start) {
             sgxlkl_fail("SGXLKL_HEAP must be smaller than %lu bytes to not overlap with sgx-lkl-run when SGXLKL_NON_PIE is set to 1.\n", (size_t) (&__sgxlklrun_text_segment_start - SIM_NON_PIE_ENCL_MMAP_OFFSET));
         }
@@ -1367,9 +1616,6 @@ int main(int argc, char *argv[], char *envp[]) {
     __gdb_hook_starter_ready(&encl, libsgxlkl);
 #endif
 
-    encl.argc = argc - 2;
-    encl.argv = (argv + 2);
-
     // Find aux vector (after envp vector)
     for (auxvp = envp; *auxvp; auxvp++);
     encl.auxv = (Elf64_auxv_t*) (++auxvp);
@@ -1385,7 +1631,7 @@ int main(int argc, char *argv[], char *envp[]) {
     pthread_join(init_thread, &continuation_location);
 #endif
 
-    rtprio = getenv_bool("SGXLKL_REAL_TIME_PRIO", 0);
+    rtprio = sgxlkl_config_bool(SGXLKL_REAL_TIME_PRIO);
     for (i = 0; i < ntenclave; i++) {
         pthread_attr_init(&eattr);
         CPU_ZERO(&set);
@@ -1397,6 +1643,8 @@ int main(int argc, char *argv[], char *envp[]) {
         pthread_attr_setaffinity_np(&eattr, sizeof(set), &set);
 
         if (rtprio) {
+            struct sched_param schparam = {0};
+            schparam.sched_priority = 10;
             pthread_attr_setschedpolicy(&eattr, SCHED_FIFO);
             pthread_attr_setschedparam(&eattr, &schparam);
             pthread_attr_setinheritsched(&eattr, PTHREAD_EXPLICIT_SCHED);

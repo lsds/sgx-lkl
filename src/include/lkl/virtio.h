@@ -5,10 +5,9 @@
 #ifndef _LKL_LIB_VIRTIO_H
 #define _LKL_LIB_VIRTIO_H
 
-#include <stdint.h>
+#include <limits.h>
 #include <lkl_host.h>
-
-#define PAGE_SIZE		4096
+#include <stdint.h>
 
 /* The following are copied from skbuff.h */
 #if (65536/PAGE_SIZE + 1) < 16

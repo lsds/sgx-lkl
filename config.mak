@@ -26,8 +26,16 @@ DEVICEMAPPER ?= ${ROOT_DIR}/third_party/devicemapper
 UTILLINUX ?= ${ROOT_DIR}/third_party/util-linux
 POPT ?= ${ROOT_DIR}/third_party/popt
 JSONC ?= ${ROOT_DIR}/third_party/json-c
+
+PROTOBUFC ?= ${ROOT_DIR}/third_party/protobuf-c
+PROTOBUFC_BUILD ?= ${BUILD_DIR}/protobuf-c
+PROTOBUFC_RPC ?= ${ROOT_DIR}/third_party/protobuf-c-rpc
+
 MBEDTLS ?= ${ROOT_DIR}/third_party/mbedtls
 WIREGUARD ?= ${ROOT_DIR}/third_party/wireguard
+
+LINUX_SGX ?= ${ROOT_DIR}/third_party/linux-sgx
+EPID_SDK ?= ${ROOT_DIR}/third_party/linux-sgx/external/epid-sdk-3.0.0
 
 LKL ?= $(ROOT_DIR)/lkl
 LKL_BUILD ?= ${BUILD_DIR}/lkl
@@ -44,26 +52,32 @@ LKL_SGXMUSL_HEADERS ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/
 # Location of enclave debug key (used for signing the enclave)
 ENCLAVE_DEBUG_KEY=${BUILD_DIR}/config/enclave_debug.key
 
-SGXLKL_CFLAGS ?= -std=c11 -Wall -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y
+SGXLKL_CFLAGS ?= -std=c11 -Wall -Werror -isystem ${SGX_LKL_MUSL}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y -DOPENSSL_EXTRA
 
 MUSL_CONFIGURE_OPTS ?=
 MUSL_CFLAGS ?= -fPIC -D__USE_GNU
 
-CRYPTSETUP_CFLAGS ?=
+THIRD_PARTY_CFLAGS ?=
 
 DEBUG ?= false
+
+ifeq ($(RELEASE),true)
+	SGXLKL_CFLAGS += -DSGXLKL_RELEASE
+	MUSL_CFLAGS += -DSGXLKL_RELEASE
+	THIRD_PARTY_CFLAGS += -DSGXLKL_RELEASE
+endif
 
 ifeq ($(DEBUG),true)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O0
 	MUSL_CONFIGURE_OPTS += --disable-optimize --enable-debug
 	MUSL_CFLAGS += -g3 -ggdb3 -O0 -DDEBUG
-	CRYPTSETUP_CFLAGS += -g3 -ggdb3 -O0
+	THIRD_PARTY_CFLAGS += -g3 -ggdb3 -O0
 else ifeq ($(DEBUG),opt)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O3
 	MUSL_CFLAGS += -g3 -ggdb3 -O3
-	CRYPTSETUP_CFLAGS += -g3 -ggdb3 -O3
+	THIRD_PARTY_CFLAGS += -g3 -ggdb3 -O3
 else
 	SGXLKL_CFLAGS += -O3
 	MUSL_CFLAGS += -O3
-	CRYPTSETUP_CFLAGS += -O3
+	THIRD_PARTY_CFLAGS += -O3
 endif

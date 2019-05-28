@@ -37,6 +37,9 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 ${WIREGUARD}:
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
+${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a: ${LKL_BUILD}/include
+	+${MAKE} -C ${MAKE_ROOT}/third_party $@
+
 # LKL's static library and include/ header directory
 lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} ${WIREGUARD} src/lkl/override/defconfig
 	# Add Wireguard
@@ -65,9 +68,6 @@ tools: ${TOOLS_OBJ}
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
 
-${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a: ${LKL_BUILD}/include
-	+${MAKE} -C ${MAKE_ROOT}/third_party $@
-
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output
 ${LKL_SGXMUSL_HEADERS}: ${LKL_BUILD}/include/lkl/%.h: ${TOOLS_BUILD}/lkl_%
 	$< > $@
@@ -79,14 +79,13 @@ sgx-lkl-musl-config:
 		--prefix=${SGX_LKL_MUSL_BUILD} \
 		--lklheaderdir=${LKL_BUILD}/include/ \
 		--lkllib=${LIBLKL} \
-		--sgxlklheaderdir=${MAKE_ROOT}/src/include \
+		--sgxlklincludes="${MAKE_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal"\
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/libsgxlkl.a \
-		--cryptsetupheaderdir=${CRYPTSETUP_BUILD}/include/ \
-		--cryptsetuplib="${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a" \
+		--sgxlkllibs="${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a" \
 		--disable-shared \
 		--enable-sgx-hw=${HW_MODE}
 
-sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
+sgx-lkl-musl: ${LIBLKL} ${LKL_SGXMUSL_HEADERS} ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a sgx-lkl-musl-config sgx-lkl $(ENCLAVE_DEBUG_KEY) | ${SGX_LKL_MUSL_BUILD}
 	+${MAKE} -C ${SGX_LKL_MUSL} CFLAGS="$(MUSL_CFLAGS)"
 	cp $(SGX_LKL_MUSL)/lib/libsgxlkl.so $(BUILD_DIR)/libsgxlkl.so
 # This way the debug info will be automatically picked up when debugging with gdb. TODO: Fix...
@@ -119,6 +118,7 @@ install: $(BUILD_DIR)/libsgxlkl.so $(BUILD_DIR)/sgx-lkl-run
 	cp $(BUILD_DIR)/libsgxlkl.so $(PREFIX)/lib
 	cp $(BUILD_DIR)/sgx-lkl-run $(PREFIX)/bin
 	cp $(BUILD_DIR)/sgx-lkl-sign $(PREFIX)/bin
+	cp $(BUILD_DIR)/sgx-lkl-ctl $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-disk $(PREFIX)/bin
 
@@ -127,6 +127,7 @@ uninstall:
 	rm -f $(PREFIX)/lib/libsgxlkl.so
 	rm -f $(PREFIX)/bin/sgx-lkl-run
 	rm -f $(PREFIX)/bin/sgx-lkl-sign
+	rm -f $(PREFIX)/bin/sgx-lkl-ctl
 	rm -f $(PREFIX)/bin/sgx-lkl-java
 	rm -f $(PREFIX)/bin/sgx-lkl-disk
 
