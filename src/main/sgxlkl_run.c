@@ -483,7 +483,8 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
     disk->enc = is_disk_encrypted(fd);
 #ifndef SGXLKL_RELEASE
-    if (disk->enc && !sgxlkl_config_bool(SGXLKL_REMOTE_CONFIG)) {
+    // If key/root hash is provided remotely or is set via app config, don't set it here.
+    if (disk->enc && !sgxlkl_config_bool(SGXLKL_REMOTE_CONFIG) && !encl->app_config) {
 #else
     // In release mode the key will be provided remotely.
     if (0) {
