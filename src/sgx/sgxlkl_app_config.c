@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <json-c/json_object.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -56,18 +57,27 @@ static int parse_args(sgxlkl_app_config_t *config, struct json_object *args_val)
 }
 
 static int parse_env(sgxlkl_app_config_t *config, struct json_object *env_val) {
-    if (json_object_get_type(env_val) != json_type_array)
+    if (json_object_get_type(env_val) != json_type_object)
         return 1;
 
-    int env_len = json_object_array_length(env_val);
-    config->envp = malloc(sizeof(char*) * (config->argc + 1));
+    int env_len = json_object_object_length(env_val);
+    config->envp = malloc(sizeof(char*) * (env_len + 1));
     config->envp[env_len] = NULL;
-    int i;
-    for (i = 0; i < env_len; i++){
-        json_object *val = json_object_array_get_idx(env_val, i);
+
+    struct json_object_iterator it;
+    const char* key;
+    struct json_object* val;
+    int i = 0;
+    JSON_OBJECT_FOREACH(it, env_val, key, val) {
         if (json_object_get_type(val) != json_type_string)
             return 1;
-        config->envp[i] = strdup(json_object_get_string(val));
+        const char *str_val = json_object_get_string(val);
+        size_t kv_len = strlen(key) +  strlen(str_val) + 2 /* for '=' and '\0' */;
+        char *env_kv = malloc(kv_len);
+        if (!env_kv)
+            sgxlkl_fail("Failed to allocate memory for environment key value pair.\n");
+        snprintf(env_kv, kv_len, "%s=%s", key, str_val);
+        config->envp[i++] = env_kv;
     }
 
     return 0;
