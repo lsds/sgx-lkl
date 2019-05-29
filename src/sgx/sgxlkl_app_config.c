@@ -98,7 +98,7 @@ static int parse_enclave_disk_config_entry(const char *key, struct json_object *
     } else if (!strcmp("key", key)) {
         const char *enc_key = json_object_get_string(value);
         disk->key_len = hex_to_bytes(enc_key, &disk->key);
-        if (disk->key_len <= 0)
+        if (disk->key_len < 0)
             err = disk->key_len;
         else
             disk->enc = 1;
@@ -166,6 +166,9 @@ static int parse_enclave_wg_peer_config_entry(const char *key, struct json_objec
 }
 
 static int parse_network(sgxlkl_app_config_t *config, struct json_object *net_val) {
+    if (json_object_get_type(net_val) != json_type_object)
+        return 1;
+
     struct json_object_iterator it;
     const char* key;
     struct json_object* value;
