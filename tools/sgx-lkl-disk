@@ -66,7 +66,7 @@ Create ('create') options
   -k, --key-file[=<path>]   Use key file for key. If no path is specified, a new
                             key file IMAGEFILE.key is generated.
   -K, --keyfile-size=bytes  If --key-file specifies no path, generate a new key
-                            (file) of size <bytes> (Default: 512).
+                            (file) of size <bytes> (Default: 64).
   -p, --passphrase=<pass>   Use <pass> as a passphrase to unlock the disk.
   -P, --pbkdf=<pbkdf>       Use <pbkdf> to derive encryption key for LUKS key
                             slot (Default: PBKDF2) (Requires cryptsetup version
@@ -527,8 +527,8 @@ function encrypt() {
         echo "Using passphrase for disk encryption..."
     elif [[ "$k" == 1 ]]; then
         if [[ -z "${keyfile:-}" ]]; then
-            echo "Generating new key file ${disk_image}.key of size ${keyfile_size:-512} bytes..."
-            keyfile="$(gen_keyfile ${keyfile_size:-512} ${disk_image}.key)"
+            echo "Generating new key file ${disk_image}.key of size ${keyfile_size:-64} bytes..."
+            keyfile="$(gen_keyfile ${keyfile_size:-64} ${disk_image}.key)"
         fi
         keyfile_cmd="--key-file=${keyfile}"
         echo "Using key file ${keyfile} for disk encryption..."
