@@ -81,12 +81,12 @@ static int parse_enclave_disk_config_entry(const char *key, struct json_object *
         return 1;
 
     if (!strcmp("disk", key)) {
-        char *mnt_point = json_object_get_string(value);
+        const char *mnt_point = json_object_get_string(value);
         if (strlen(mnt_point) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
             sgxlkl_warn("Truncating configured disk mount point...\n"); // TODO pass back to client.
         strncpy(disk->mnt, mnt_point, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     } else if (!strcmp("key", key)) {
-        char *enc_key = json_object_get_string(value);
+        const char *enc_key = json_object_get_string(value);
         disk->key_len = hex_to_bytes(enc_key, &disk->key);
         if (disk->key_len <= 0)
             err = disk->key_len;
@@ -218,10 +218,18 @@ static int parse_sgxlkl_app_config_entry(const char *key, struct json_object *va
     return err;
 }
 
+/*
+If a parsing error occurs, err will be set to a pointer to an error description
+and to NULL otherwise.
+*/
 int parse_sgxlkl_app_config_from_str(char *str, sgxlkl_app_config_t *config, char **err) {
+    *err = NULL;
     int res = parse_json_from_str(str, parse_sgxlkl_app_config_entry, config, err);
-    if (res)
+    if (res) {
+        if (!*err)
+            *err = strdup("Unexpected application configuration format");
         return res;
+    }
 
     if (!config->run) {
         *err = "No executable path provided via 'run'.";

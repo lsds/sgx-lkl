@@ -26,7 +26,13 @@ int parse_json(struct json_object *jobj, parse_json_callback cb, void *userarg) 
     }
 }
 
+/*
+If a JSON parsing error occurs, err will be set to a pointer to an error
+description. If the provided callback returns a non-zero return value, -1 will
+be returned, and err will not be set.
+*/
 int parse_json_from_str(char *str, parse_json_callback cb, void *userarg, char **err) {
+    int ret = 0;
     struct json_object *jobj;
     enum json_tokener_error error = json_tokener_success;
 
@@ -57,12 +63,13 @@ int parse_json_from_str(char *str, parse_json_callback cb, void *userarg, char *
     //int rv;
     //rv = json_c_visit(jobj, 0, parse, null);
 
-    parse_json(jobj, cb, userarg);
+    if (parse_json(jobj, cb, userarg))
+        ret = -1;
 
     // Decrement reference count on jobj and free memory
     json_object_put(jobj);
 
-    return 0;
+    return ret;
 }
 
 // TODO Return error description in err.
