@@ -21,9 +21,14 @@ matrix:
     env:
       - TARGET=sim
       - DEBUG=true
+  - name: "Release"
+    env:
+      - TARGET=
+      - DEBUG=false
+      - RELEASE=true
 dist: xenial
 compiler: gcc
 before_install:
   - travis_wait 45 git submodule update --init --recursive
-  - sudo apt-get install make gcc bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf -y
-script: make $TARGET DEBUG=$DEBUG
+  - sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf autoconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev -y
+script: make $TARGET DEBUG=$DEBUG RELEASE=$RELEASE
