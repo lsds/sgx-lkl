@@ -156,20 +156,26 @@ static void cmd__run(Sgxlkl__Control_Service *service,
     if (app_config == NULL) {
         result.err = SGXLKL__ERROR__APP_RUNNING;
     } else if (!parse_sgxlkl_app_config_from_str(req->json_config, app_config, &err_desc)) {
-        int ret;
-        if ((ret = pthread_mutex_lock(server_config->run_mtx)) ||
-            (ret = pthread_cond_signal(server_config->run_cv))) {
-            result.err = SGXLKL__ERROR__INTERNAL;
-            result.err_msg = strerror(errno);
+        if (!app_config->disks) {
+            result.err = SGXLKL__ERROR__PARSE;
+            result.err_msg = "Missing disk configuration";
         } else {
-            pthread_mutex_unlock(server_config->run_mtx);
-            app_config = NULL;
-            result.err = SGXLKL__ERROR__SUCCESS;
+            int ret;
+            if ((ret = pthread_mutex_lock(server_config->run_mtx)) ||
+                (ret = pthread_cond_signal(server_config->run_cv))) {
+                result.err = SGXLKL__ERROR__INTERNAL;
+                result.err_msg = strerror(errno);
+            } else {
+                pthread_mutex_unlock(server_config->run_mtx);
+                app_config = NULL;
+                result.err = SGXLKL__ERROR__SUCCESS;
+            }
         }
     } else {
         result.err = SGXLKL__ERROR__PARSE;
         result.err_msg = err_desc;
     }
+
     closure (&result, closure_data);
 
     if (err_desc)
