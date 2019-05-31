@@ -439,37 +439,6 @@ protection. For more information on cryptsetup as well as
 dm-crypt/dm-verity/dm-integrity see
 https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt.
 
-### Support for non-PIE binaries
-
-SGX-LKL supports non-PIE binaries, but in order to do so needs to be able to
-map to address 0x0 of the virtual address space. Non-PIE Linux binaries by
-default expect their `.text` segments to be mapped at address 0x400000. SGX
-requires the base address to be naturally aligned to the enclave size.
-Therefore, it is not possible to use 0x400000 as base address in cases where
-the enclave is larger than 4 MB (0x400000 bytes). Instead, the enclaves needs
-to be mapped to address 0x0 to adhere to the alignment requirement. By default,
-Linux does not allow fixed mappings at address 0x0. To permit this, run:
-
-```
-sysctl -w vm.mmap_min_addr="0"
-```
-
-To change the system configuration permanently use:
-
-```
-echo "vm.mmap_min_addr = 0" > /etc/sysctl.d/mmap_min_addr.conf
-/etc/init.d/procps restart
-```
-
-By default, SGX-LKL maps the enclave at an arbitrary free space in memory. To
-run a non-PIE binary and map the enclave at the beginning of the address space,
-use `SGXLKL_NON_PIE=1`, e.g.:
-
-```
-cd apps/helloworld
-make sgxlkl-disk.img
-SGXLKL_NON_PIE=1 sgx-lkl-run sgxlkl-disk.img app/helloworld-nonpie
-```
 
 ### Configuring SGX-LKL
 
@@ -569,9 +538,6 @@ signal handler for `SIGSEGV` signals, gdb will pause execution. When
 continuing, SGX-LKL will pass on the signal to the in-enclave signal handler
 registered by the application.
 
-Support for profiling SGX-LKL with perf is currently limited to simulation
-mode. Only SGX-LKL symbols but no symbols of the application or its
-dependencies are available to perf due to the in-enclave linking/loading.
-
-Take a look in the [wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging) for
-further debugging options.
+Take a look in the
+[wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging-and-Profiling) for more
+information on debugging, tracing and profiling.
