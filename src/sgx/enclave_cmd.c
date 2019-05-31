@@ -182,6 +182,12 @@ static void cmd__run(Sgxlkl__Control_Service *service,
         free(err_desc);
 }
 
+/*
+ * Memory pointed to by config will be freed within this function!  This is
+ * done as enclave_cmd_server_run is most likely run in a new thread and the
+ * parent thread would not know for how long to keep config around before it had
+ * been parsed/used by this function and can be free'd.
+ */
 void enclave_cmd_server_run(cmd_server_config_t *config) {
     // Ensure this is still supposed to run. This function will likely be
     // called in a separate thread. If SGX-LKL fails at startup and this
@@ -207,6 +213,9 @@ void enclave_cmd_server_run(cmd_server_config_t *config) {
         sgxlkl_fail("Failed to allocate memory for cmd_server struct.\n");
     cmd_srv->service = &service;
     cmd_srv->config = *config;
+    // No need to keep the passed in config in memory after this.
+    free(config);
+
     cmd_srv->running = 1;
     SLIST_INSERT_HEAD(&servers, cmd_srv, entries);
 
