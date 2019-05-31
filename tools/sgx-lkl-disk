@@ -594,7 +594,7 @@ function verity() {
     sudo chown ${USER}:${GROUP} "${tmp_image}"
 
     echo "  Hash Algorithm: ${hash}"
-    echo "  Hash Offset: ${disk_size}"
+    echo "  Hash Offset: $((${data_blocks} * 512))"
     echo "  Root Hash: ${root_hash}"
 
     echo "${root_hash}" > "${disk_image}.roothash"
