@@ -61,34 +61,47 @@ The interface can be removed again by running the following command:
 sudo ip tuntap del dev sgxlkl_tap0 mode tap
 ```
 
-If you require your application to be reachable from/reach other hosts,
-additional `iptable` rules to forward corresponding traffic might be needed.
-For example, for redis which listens on port 6379 by default:
+In order to communicate with an SGX-LKL enclave from a different host and/or
+allowing an application to reach other hosts, additional `iptable` rules to
+forward corresponding traffic might be needed.
 
+```
+# Enable packet forwarding
+sudo sysctl -w net.ipv4.ip_forward=1
+# Forward traffic to enclave attestation endpoint
+sudo iptables -t nat -I PREROUTING -p tcp -i eth0 --dport 56000 -j DNAT --to-destination 10.0.1.1:56000
+# Forward traffic to enclave Wireguard endpoint
+sudo iptables -t nat -I PREROUTING -p udp -i eth0 --dport 56002 -j DNAT --to-destination 10.0.1.1:56002
+
+# Allow forwarding to/from TAP
+sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
+
+# If enclave needs establish new connections to external hosts, masquerade
+# outgoing traffic from enclave
+sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
+```
+
+If you run an application that needs to be publicly accessible (i.e. not over
+Wireguard), additional rules to forward corresponding traffic might be needed.
+For example, for redis which listens on port 6379 by default:
 
 ```
 # Forward traffic from host's public interface port 60321 to SGX-LKL port 6379
 sudo iptables -t nat -I PREROUTING -p tcp -d `hostname -i` --dport 60321 -j DNAT --to-destination 10.0.1.1:6379
-sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
-sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
-
-sudo sysctl -w net.ipv4.ip_forward=1
-```
-
-If SGX-LKL should be allowed to access the internet or other networks,
-masquerading might also be needed:
-
-```
-# Same as above, can be skipped if run before
-sudo sysctl -w net.ipv4.ip_forward=1
-
-sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
 ```
 
 DNS resolution is configured via `/etc/resolv.conf` as usual, so if this is
 required, ensure that a valid nameserver configuration is in place on the root
 disk image, e.g. by copying the host configuration (see
 `apps/miniroot/Makefile` for an example).
+
+### Network encryption
+
+SGX-LKL uses Wireguard for protecting network traffic between an SGX-LKL
+application and other trusted nodes. See [Network
+encryption](https://github.com/lsds/sgx-lkl/wiki/Network-encryption) for
+information how to set up and use network encryption for SGX-LKL.
 
 Building SGX-LKL manually
 -------------------------
@@ -509,6 +522,15 @@ sgx-lkl-run --help
 Note that for the debugging options to have an effect, SGX-LKL must be built
 with `DEBUG=true`.
 
+
+Remote attestation
+---------------------------------
+SGX-LKL provides capabilities for remote attestation including support for
+Intel Attestation Service (IAS) verification. See [Remote Attestation and
+Remote
+Control](https://github.com/lsds/sgx-lkl/wiki/Remote-Attestation-and-Remote-Control)
+for information on how to remotely attest an SGX-LKL application and how to
+provide enclave secrets securely.
 
 
 Debugging SGX-LKL (applications)
