@@ -87,7 +87,7 @@ Wireguard), additional rules to forward corresponding traffic might be needed.
 For example, for redis which listens on port 6379 by default:
 
 ```
-# Forward traffic from host's public interface port 60321 to SGX-LKL port 6379
+# Forward traffic from host's public interface TCP port 60321 to SGX-LKL port 6379
 sudo iptables -t nat -I PREROUTING -p tcp -d `hostname -i` --dport 60321 -j DNAT --to-destination 10.0.1.1:6379
 ```
 
@@ -112,6 +112,24 @@ To build sgx-lkl in hardware mode run:
 
 ```
     make
+    make sgx-lkl-sign
+```
+
+### Release mode
+
+SGX-LKL has a "Release Mode" which enables/disables certain features for
+hardening. In particuar, it ensures that enclave secrets are provided to
+SGX-LKL over a secure channel and that an untrusted party is unable to control
+SGX-LKL remotely. In release mode, the application configuration must be
+provided remotely (`SGXLKL_REMOTE_CONFIG` is always set to `1`), remote control
+is only available over Wireguard (`SGXLKL_REMOTE_CMD_ETH0` is always set to
+`0`), and it requires that exactly one Wireguard peer is provided at startup.
+You can find more information in the
+[wiki](https://github.com/lsds/sgx-lkl/wiki/Remote-Attestation-and-Remote-Control#4-server-launch-enclave)
+on why this is necessary. To build SGX-LKL in release mode run:
+
+```
+    make RELEASE=true
     make sgx-lkl-sign    # This signs the SGX-LKL enclave library as a debug enclave
 ```
 
