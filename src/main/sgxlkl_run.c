@@ -153,6 +153,11 @@ int sim_exit_code;
 #else
 #define DEBUG_INFO ""
 #endif /* DEBUG */
+#ifdef SGXLKL_RELEASE
+#define RELEASE_INFO " RELEASE"
+#else
+#define RELEASE_INFO ""
+#endif /* RELEASE */
 #ifdef SGXLKL_HW
 #define SGX_MODE "Hardware Mode"
 #else
@@ -160,7 +165,7 @@ int sim_exit_code;
 #endif /* SGXLKL_HW */
 
 static void version() {
-    printf("SGX-LKL version %s %s%s\n", VERSION, SGX_MODE, DEBUG_INFO);
+    printf("SGX-LKL version %s %s%s%s\n", VERSION, SGX_MODE, DEBUG_INFO, RELEASE_INFO);
 }
 
 static void usage(char* prog) {
