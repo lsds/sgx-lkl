@@ -7,6 +7,7 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <string.h>
+#include "mpmc_queue.h"
 #include "sgx_enclave_config.h"
 #include "sgx_hostcall_interface.h"
 #include "pthread_impl.h"
@@ -34,8 +35,8 @@ enclave_parms_t* get_enclave_parms() {
 }
 
 /*
- * Do not delete. This is required to prevent the thread-local variable to be
- * removed during optimization.
+ * Do not delete. This is required to prevent the thread-local variable from
+ * being removed during optimization.
  */
 void* never_called() {
     return &enclave_parms;
@@ -176,6 +177,87 @@ void ecall_rdtsc(gprsgx_t *regs, uint64_t ts) {
     regs->rdx = (ts & ~mask) >> 32;
     regs->rip += 2;
 
+}
+
+int in_enclave_range(void *addr, size_t len) {
+    char *encl_start = (char *) get_enclave_parms()->base;
+    char *encl_end = encl_start + get_enclave_parms()->enclave_size;
+    return !((char *)addr >= encl_end || (char *)addr + len <= encl_start);
+}
+
+static char *enclave_safe_str_copy(char *s) {
+    char *safe_s = NULL;
+    if (s) {
+        size_t s_len = strlen(s);
+        if (in_enclave_range(s, s_len)) a_crash();
+        if (!(safe_s = strndup(s, s_len + 1)))
+            a_crash();
+    }
+
+    return safe_s;
+}
+
+enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted) {
+    enclave_config_t *encl;
+    if (!(encl = malloc(sizeof(*encl)))) a_crash();
+    *encl = *untrusted;
+
+    // Check pointers
+
+    // Panic on assertion failure. The enclave is not set up yet to print
+    // anything/fail gracefully.
+    // TODO Leave the enclave with exit code to indicate assertion failure?
+
+    // Set base/heap/heapsize to known good values
+    encl->base = (void*)get_enclave_parms()->base;
+    encl->heap = (void*)get_enclave_parms()->heap;
+    encl->heapsize = get_enclave_parms()->heap_size;
+
+    // Must be outside enclave range
+    if (in_enclave_range(encl->syscallpage, PAGE_SIZE)) a_crash();
+    if (in_enclave_range(encl->syscallq, sizeof(struct mpmcq))) a_crash();
+    if (in_enclave_range(encl->returnq, sizeof(struct mpmcq))) a_crash();
+    if (in_enclave_range(encl->disks, sizeof(*encl->disks) * encl->num_disks)) a_crash();
+    if (in_enclave_range(encl->vvar, PAGE_SIZE)) a_crash();
+
+    // TODO Should the kernel command line arguments actually be trusted at
+    // all?
+    // Copy kernel cmd line into enclave
+    encl->kernel_cmd = enclave_safe_str_copy(encl->kernel_cmd);
+    // Copy WG key and peers into enclave
+    encl->wg.key = enclave_safe_str_copy(encl->wg.key);
+    enclave_wg_peer_config_t *safe_peers = malloc(encl->wg.num_peers * sizeof(*safe_peers));
+    for (int i = 0; i < encl->wg.num_peers; i++) {
+        safe_peers[i].key = enclave_safe_str_copy(encl->wg.peers[i].key);
+        safe_peers[i].allowed_ips = enclave_safe_str_copy(encl->wg.peers[i].allowed_ips);
+        safe_peers[i].endpoint = enclave_safe_str_copy(encl->wg.peers[i].endpoint);
+    }
+    encl->wg.peers = safe_peers;
+
+    if (in_enclave_range(encl->quote_target_info, sizeof(sgx_target_info_t))) a_crash();
+    if (in_enclave_range(encl->report, sizeof(sgx_report_t))) a_crash();
+
+
+    // Comments on other fields
+    // encl->disks:     Individual disk configurations are checked in startmain
+    // encl->auxv:      auxv is handled in init_auxv
+    // encl->argv:      argv/envp are set before application launch. Host-provided
+    //                  argv/envp are ignored in release mode
+    // encl->app_config app config is provided remotely in release mode
+
+    return encl;
+}
+
+void enclave_config_free(enclave_config_t *encl) {
+    free(encl->kernel_cmd);
+    free(encl->wg.key);
+    for (int i = 0; i < encl->wg.num_peers; i++) {
+        free(encl->wg.peers[i].key);
+        free(encl->wg.peers[i].allowed_ips);
+        free(encl->wg.peers[i].endpoint);
+    }
+    free(encl->wg.peers);
+    free(encl);
 }
 
 #endif

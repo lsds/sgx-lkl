@@ -86,8 +86,8 @@ typedef struct enclave_config {
     void *heap;
     size_t heapsize;
     size_t stacksize;
-    struct mpmcq syscallq;
-    struct mpmcq returnq;
+    struct mpmcq *syscallq;
+    struct mpmcq *returnq;
     size_t num_disks;
     enclave_disk_config_t *disks; /* Array of disk configurations, length = num_disks */
     int mmap_files; /* ENCLAVE_MMAP_FILES_{NONE, SHARED, or PRIVATE} */
@@ -99,10 +99,10 @@ typedef struct enclave_config {
     int hostnet;
     int tap_offload;
     int tap_mtu;
-    enclave_wg_config_t *wg;
+    enclave_wg_config_t wg;
     char **argv;
     int argc;
-    Elf64_auxv_t* auxv;
+    Elf64_auxv_t *auxv;
     void* base; /* Base address of lkl/libc code */
     void *(*ifn)(struct enclave_config *);
     size_t espins;
@@ -124,14 +124,14 @@ typedef struct enclave_config {
     int remote_config;
 #ifdef SGXLKL_HW
     sgx_target_info_t *quote_target_info;
-    union {
-        /* Pointer to report struct that will be used by enclave to store
-         * generated enclave report. */
-        sgx_report_t *report;
-        /* Attestation info containing quote and IAS attestation report
-         * generated from enclave report. */
-        attestation_info_t att_info;
-    };
+    /* Pointer to report struct that will be used by enclave to store
+     * generated enclave report. */
+    sgx_report_t *report;
+    /* Pointer to attestation info containing quote and
+     * IAS attestation report generated from enclave
+     * report. "Populated" outside after enclave has
+     * generated report. */
+    attestation_info_t *att_info;
     uint64_t report_nonce;
 #else
     void (*sim_exit_handler) (int);
@@ -247,6 +247,11 @@ void ecall_cpuid(gprsgx_t *regs);
 void ecall_rdtsc(gprsgx_t *regs, uint64_t ts);
 
 void ereport(void *target, char *report_data, char *report);
+
+int in_enclave_range(void *addr, size_t len);
+enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted);
+void enclave_config_free(enclave_config_t *encl);
+
 #endif
 
 #endif /* SGX_ENCLAVE_CONFIG_H */

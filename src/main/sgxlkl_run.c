@@ -128,6 +128,7 @@ typedef struct {
 __thread int my_tcs_id;
 
 static struct attestation_config _attn_config;
+static struct attestation_info _attn_info;
 static int _aemsd_fd;
 #else /* SGXLKL_HW */
 /* By default non-PIE Linux binaries expect their text segment to be mapped to
@@ -323,7 +324,7 @@ void *host_syscall_thread(void *v) {
     union {void *ptr; size_t i;} u;
     u.ptr = MAP_FAILED;
     while (1) {
-        for (s = 0; !mpmc_dequeue(&conf->syscallq, &u.ptr);) {s = backoff(s);}
+        for (s = 0; !mpmc_dequeue(conf->syscallq, &u.ptr);) {s = backoff(s);}
         i = u.i;
 
 #ifdef DEBUG
@@ -370,7 +371,7 @@ void *host_syscall_thread(void *v) {
             /* This was submitted by the scheduler or a pinned thread, no need to push anything to queue */
             __atomic_store_n(&scall[i].status, 2, __ATOMIC_RELEASE);
         } else {
-            for (s = 0; !mpmc_enqueue(&conf->returnq, u.ptr);) {s = backoff(s);}
+            for (s = 0; !mpmc_enqueue(conf->returnq, u.ptr);) {s = backoff(s);}
         }
     }
 
@@ -663,8 +664,8 @@ static void register_queues(enclave_config_t* encl) {
 
     // Maximum number of syscall and return queue elements is user-level
     // threads + ethreads.
-    size_t sqs = encl->maxsyscalls * sizeof(*encl->syscallq.buffer);
-    size_t rqs = encl->maxsyscalls * sizeof(*encl->returnq.buffer);
+    size_t sqs = encl->maxsyscalls * sizeof(*encl->syscallq->buffer);
+    size_t rqs = encl->maxsyscalls * sizeof(*encl->returnq->buffer);
     // The mpmc implementation requires the buffer size to be a power of two.
     sqs = next_pow2(sqs);
     rqs = next_pow2(rqs);
@@ -676,8 +677,13 @@ static void register_queues(enclave_config_t* encl) {
     encl->syscallpage = calloc(sizeof(syscall_t), encl->maxsyscalls);
     if (encl->syscallpage == NULL) sgxlkl_fail("Could not allocate memory for syscall pages: %s\n", strerror(errno));
 
-    newmpmcq(&encl->syscallq, sqs, sq);
-    newmpmcq(&encl->returnq, rqs, rq);
+    if (!(encl->returnq = malloc(sizeof(struct mpmcq))))
+        sgxlkl_fail("Could not allocate memory for return queue struct: %s\n, strerror(errno)");
+    if (!(encl->syscallq = malloc(sizeof(struct mpmcq))))
+        sgxlkl_fail("Could not allocate memory for syscall queue struct: %s\n, strerror(errno)");
+
+    newmpmcq(encl->syscallq, sqs, sq);
+    newmpmcq(encl->returnq, rqs, rq);
 }
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -784,19 +790,15 @@ void set_tls(enclave_config_t* conf) {
 
 /* Set up wireguard configuration */
 void set_wg(enclave_config_t *conf) {
-    struct enclave_wg_config *wg;
-    wg = (struct enclave_wg_config *)malloc(sizeof(struct enclave_wg_config));
+    struct enclave_wg_config *wg = &conf->wg;
 
     char *wg_ip_str = sgxlkl_config_str(SGXLKL_WG_IP);
     if (inet_pton(AF_INET, wg_ip_str, &wg->ip) != 1) {
-        free(wg);
         sgxlkl_fail("Invalid Wireguard IPv4 address %s\n", wg_ip_str);
     }
 
     wg->listen_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_WG_PORT);
     wg->key = sgxlkl_config_str(SGXLKL_WG_KEY);
-
-    conf->wg = wg;
 
     int num_peers = 0;
     char *peers_str = sgxlkl_config_str(SGXLKL_WG_PEERS);
@@ -961,11 +963,10 @@ void* enclave_thread(void* parm) {
                 sgx_quote_t *quote = aesm_alloc_quote(&quote_size);
                 if (!quote)
                     sgxlkl_fail("Could not allocate memory for SGX quote.\n");
-                get_quote(*(sgx_report_t **)ret[1], quote, quote_size);
+                get_quote((sgx_report_t *)ret[1], quote, quote_size);
 
-                attestation_info_t *att_info = (attestation_info_t*) ret[1];
-                att_info->quote = quote;
-                att_info->quote_size = quote_size;
+                _attn_info.quote = quote;
+                _attn_info.quote_size = quote_size;
 
                 if (sgxlkl_config_str(SGXLKL_IAS_SPID)) {
                     if (!_attn_config.ias_key_file && sgxlkl_config_bool(SGXLKL_VERBOSE))
@@ -974,9 +975,8 @@ void* enclave_thread(void* parm) {
                         sgxlkl_info("No IAS certificate provided (via SGXLKL_IAS_CERT). Skipping IAS attestation...\n");
 
                     if (_attn_config.ias_key_file && _attn_config.ias_cert_file)
-                        att_info->ias_report = get_attestation_report(quote, quote_size);
+                        _attn_info.ias_report = get_attestation_report(quote, quote_size);
                 }
-
 
                 args->call_id = SGXLKL_ENTER_RESUME;
                 break;
@@ -1083,7 +1083,7 @@ void init_attestation(enclave_config_t *conf) {
 
     sgx_report_t *report = malloc(sizeof(sgx_report_t));
     conf->report = report;
-
+    conf->att_info = &_attn_info;
     conf->report_nonce = sgxlkl_config_uint64(SGXLKL_REPORT_NONCE);
 }
 
@@ -1394,7 +1394,7 @@ int main(int argc, char *argv[], char *envp[]) {
     size_t ntenclave = 1;
     pthread_t *ts;
     enclave_config_t encl = {0};
-    char *root_hd, *app_config;
+    char *root_hd = NULL, *app_config = NULL;
     char** auxvp;
     int i, r, rtprio;
     void *_retval;
@@ -1632,7 +1632,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Run the relocation routine inside the new environment
     pthread_t init_thread;
     void* continuation_location;
-    r = pthread_create(&init_thread, NULL, (void *)encl.ifn, &encl);
+    r = pthread_create(&init_thread, NULL, (void *)encl.ifn, encl.base);
     pthread_setname_np(init_thread, "INIT");
     pthread_join(init_thread, &continuation_location);
 #endif

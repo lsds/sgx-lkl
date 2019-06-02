@@ -641,20 +641,20 @@ void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
 static void init_wireguard(enclave_config_t *encl) {
     wg_device new_device = {
         .name = "wg0",
-        .listen_port = encl->wg->listen_port,
+        .listen_port = encl->wg.listen_port,
         .flags = WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_LISTEN_PORT,
         .first_peer = NULL,
         .last_peer = NULL
     };
 
-    char *wg_key_b64 = encl->wg->key;
+    char *wg_key_b64 = encl->wg.key;
     if (wg_key_b64) {
         wg_key_from_base64(new_device.private_key, wg_key_b64);
     } else {
         wg_generate_private_key(new_device.private_key);
     }
 
-    wgu_add_peers(&new_device, encl->wg->peers, encl->wg->num_peers, 0);
+    wgu_add_peers(&new_device, encl->wg.peers, encl->wg.num_peers, 0);
 
     if (wg_add_device(new_device.name) < 0) {
         perror("Unable to add wireguard device");
@@ -667,7 +667,7 @@ static void init_wireguard(enclave_config_t *encl) {
     }
 
     int wgifindex = lkl_ifname_to_ifindex(new_device.name);
-    lkl_if_set_ipv4(wgifindex, encl->wg->ip.s_addr, 24);
+    lkl_if_set_ipv4(wgifindex, encl->wg.ip.s_addr, 24);
     lkl_if_up(wgifindex);
 }
 
