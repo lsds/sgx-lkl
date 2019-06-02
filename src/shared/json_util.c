@@ -18,18 +18,19 @@ int parse_json(struct json_object *jobj, parse_json_callback cb, void *userarg) 
     const char* key;
     struct json_object* value;
     JSON_OBJECT_FOREACH(it, jobj, key, value) {
-        //printf("%s\n", key);
         int retval = cb(key, value, userarg);
         if (retval != 0) {
             return retval;
         }
     }
+
+    return 0;
 }
 
 /*
 If a JSON parsing error occurs, err will be set to a pointer to an error
 description. If the provided callback returns a non-zero return value, -1 will
-be returned, and err will not be set.
+be returned, and *err will be set to NULL (if err provided).
 */
 int parse_json_from_str(char *str, parse_json_callback cb, void *userarg, char **err) {
     int ret = 0;
@@ -63,8 +64,11 @@ int parse_json_from_str(char *str, parse_json_callback cb, void *userarg, char *
     //int rv;
     //rv = json_c_visit(jobj, 0, parse, null);
 
-    if (parse_json(jobj, cb, userarg))
+    if (parse_json(jobj, cb, userarg)) {
+        if (err)
+            *err = NULL;
         ret = -1;
+    }
 
     // Decrement reference count on jobj and free memory
     json_object_put(jobj);
@@ -85,7 +89,14 @@ int parse_json_from_file(char *path, parse_json_callback cb, void *userarg, char
 
     off_t len = lseek(fd, 0, SEEK_END);
     lseek(fd, 0, SEEK_SET);
-    char *buf = (char *) malloc(len + 1);
+    char *buf;
+    if (!(buf = (char *) malloc(len + 1))) {
+        if (err)
+            *err = strdup("Failed to alloate memory for JSON buffer");
+        else
+            perror("Failed to alloate memory for JSON buffer");
+        return -1;
+    }
     ssize_t ret;
     int off = 0;
     while ((ret = read(fd, &buf[off], len - off)) > 0) {

@@ -1435,7 +1435,7 @@ int main(int argc, char *argv[], char *envp[]) {
             exit(EXIT_SUCCESS);
         case 'c':
             if (parse_sgxlkl_config(optarg, &err))
-                sgxlkl_fail("Failed to parse configuration file: %s\n", err);
+                sgxlkl_fail("Failed to parse configuration file %s: %s\n", optarg, err);
             break;
         case 'a':
             app_config = optarg;
