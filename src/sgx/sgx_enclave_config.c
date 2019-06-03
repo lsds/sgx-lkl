@@ -185,13 +185,17 @@ int in_enclave_range(void *addr, size_t len) {
     return !((char *)addr >= encl_end || (char *)addr + len <= encl_start);
 }
 
+static void enclave_config_fail(void) {
+    exit_enclave(SGXLKL_EXIT_ERROR, SGXLKL_CONFIG_ASSERT_VIOLATION, get_exit_address(), UNUSED);
+}
+
 static char *enclave_safe_str_copy(char *s) {
     char *safe_s = NULL;
     if (s) {
         size_t s_len = strlen(s);
-        if (in_enclave_range(s, s_len)) a_crash();
+        if (in_enclave_range(s, s_len)) enclave_config_fail();
         if (!(safe_s = strndup(s, s_len + 1)))
-            a_crash();
+            enclave_config_fail();
     }
 
     return safe_s;
@@ -199,7 +203,7 @@ static char *enclave_safe_str_copy(char *s) {
 
 enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted) {
     enclave_config_t *encl;
-    if (!(encl = malloc(sizeof(*encl)))) a_crash();
+    if (!(encl = malloc(sizeof(*encl)))) enclave_config_fail();
     *encl = *untrusted;
 
     // Check pointers
@@ -214,11 +218,11 @@ enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted) {
     encl->heapsize = get_enclave_parms()->heap_size;
 
     // Must be outside enclave range
-    if (in_enclave_range(encl->syscallpage, PAGE_SIZE)) a_crash();
-    if (in_enclave_range(encl->syscallq, sizeof(struct mpmcq))) a_crash();
-    if (in_enclave_range(encl->returnq, sizeof(struct mpmcq))) a_crash();
-    if (in_enclave_range(encl->disks, sizeof(*encl->disks) * encl->num_disks)) a_crash();
-    if (in_enclave_range(encl->vvar, PAGE_SIZE)) a_crash();
+    if (in_enclave_range(encl->syscallpage, PAGE_SIZE)) enclave_config_fail();
+    if (in_enclave_range(encl->syscallq, sizeof(struct mpmcq))) enclave_config_fail();
+    if (in_enclave_range(encl->returnq, sizeof(struct mpmcq))) enclave_config_fail();
+    if (in_enclave_range(encl->disks, sizeof(*encl->disks) * encl->num_disks)) enclave_config_fail();
+    if (in_enclave_range(encl->vvar, PAGE_SIZE)) enclave_config_fail();
 
     // TODO Should the kernel command line arguments actually be trusted at
     // all?
@@ -234,8 +238,8 @@ enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted) {
     }
     encl->wg.peers = safe_peers;
 
-    if (in_enclave_range(encl->quote_target_info, sizeof(sgx_target_info_t))) a_crash();
-    if (in_enclave_range(encl->report, sizeof(sgx_report_t))) a_crash();
+    if (in_enclave_range(encl->quote_target_info, sizeof(sgx_target_info_t))) enclave_config_fail();
+    if (in_enclave_range(encl->report, sizeof(sgx_report_t))) enclave_config_fail();
 
 
     // Comments on other fields

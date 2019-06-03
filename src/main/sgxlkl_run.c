@@ -953,7 +953,9 @@ void* enclave_thread(void* parm) {
                 break;
             }
             case SGXLKL_EXIT_ERROR: {
-                sgxlkl_fail("Error inside enclave, error code: %lu \n", ret[1]);
+                sgxlkl_fail("Error inside enclave, error code: %lu (%s)\n", ret[1],
+                            ret[1] == SGXLKL_UNEXPECTED_CALLID ? "Unexpected call ID"
+                                               : "Enclave config assertion violation");
             }
             case SGXLKL_EXIT_DORESUME: {
                 eresume(my_tcs_id);
@@ -1575,7 +1577,7 @@ int main(int argc, char *argv[], char *envp[]) {
             sgxlkl_fail("Heap size but no enclave signing key specified. Please specify a signing key via SGXLKL_KEY.\n");
         enclave_update_heap(enclave_start, sgxlkl_config_uint64(SGXLKL_HEAP), sgxlkl_config_str(SGXLKL_KEY));
     }
-    create_enclave_mem(enclave_start, sgxlkl_config_bool(SGXLKL_NON_PIE), &__sgxlklrun_text_segment_start);
+    encl.base = create_enclave_mem(enclave_start, sgxlkl_config_bool(SGXLKL_NON_PIE), &__sgxlklrun_text_segment_start);
 
     // Check if there are enough TCS for all ethreads.
     int num_tcs = get_tcs_num();

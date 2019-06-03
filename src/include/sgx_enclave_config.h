@@ -186,21 +186,22 @@ typedef enum { ACTIVE = 0, OUTSIDE = 1, UNUSED = 2, AVAILABLE = 3 } thread_state
  * In-calls
  * These values are used in sgxcrt.c directly. Adjust when making changes here.
  */
-#define SGXLKL_ENTER_THREAD_CREATE    0
-#define SGXLKL_ENTER_RESUME           1
-#define SGXLKL_ENTER_HANDLE_SIGNAL    2
+#define SGXLKL_ENTER_THREAD_CREATE     0
+#define SGXLKL_ENTER_RESUME            1
+#define SGXLKL_ENTER_HANDLE_SIGNAL     2
 
 /* Exit reasons */
-#define SGXLKL_EXIT_TERMINATE        0
-#define SGXLKL_EXIT_SYSCALL          1
-#define SGXLKL_EXIT_ERROR            2
-#define SGXLKL_EXIT_SLEEP            3
-#define SGXLKL_EXIT_CPUID            4
-#define SGXLKL_EXIT_DORESUME         5
-#define SGXLKL_EXIT_REPORT           6
+#define SGXLKL_EXIT_TERMINATE          0
+#define SGXLKL_EXIT_SYSCALL            1
+#define SGXLKL_EXIT_ERROR              2
+#define SGXLKL_EXIT_SLEEP              3
+#define SGXLKL_EXIT_CPUID              4
+#define SGXLKL_EXIT_DORESUME           5
+#define SGXLKL_EXIT_REPORT             6
 
 /* Error codes */
-#define SGXLKL_UNEXPECTED_CALLID     1
+#define SGXLKL_UNEXPECTED_CALLID       1
+#define SGXLKL_CONFIG_ASSERT_VIOLATION 2
 
 /* Enclave parameters, maintained within enclave */
 typedef struct {
