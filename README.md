@@ -27,14 +27,14 @@ tested SGX-LKL with driver versions 1.9 to 2.5. SGX-LKL also provides a
 simulation mode for which no SGX-enabled CPU is needed. Furthermore the
 following packages are required to build SGX-LKL:
 `make`, `gcc`, `g++`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`,
-`flex`, `libgcrypt20-dev`, `libjson-c-dev`, `autopoint`, `pkgconf`, `autoconf`,
-`libtool`, `libcurl4-openssl-dev`, `libprotobuf-dev`, `libprotobuf-c-dev`,
-`protobuf-compiler`, `protobuf-c-compiler`, `libssl-dev`.
+`flex`, `libgcrypt20-dev`, `libjson-c-dev`, `automake`, `autopoint`,
+`autoconf`, `pkgconf`, `libtool`, `libcurl4-openssl-dev`, `libprotobuf-dev`,
+`libprotobuf-c-dev`, `protobuf-compiler`, `protobuf-c-compiler`, `libssl-dev`.
 
 Install these with:
 
 ```
-sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev autopoint pkgconf autoconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev
+sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev
 ```
 
 Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions
