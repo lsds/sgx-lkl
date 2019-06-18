@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <elf.h>
 #include "mpmc_queue.h"
-//#include "ring_buff.h"
+#include "time.h"
 
 #ifdef SGXLKL_HW
 #include "attest_ias.h"
@@ -109,6 +109,7 @@ typedef struct enclave_config {
     size_t esleep;
     long sysconf_nproc_conf;
     long sysconf_nproc_onln;
+    struct timespec clock_res[8];
     void *shm_common;
     void *shm_enc_to_out;
     void *shm_out_to_enc;

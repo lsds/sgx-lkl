@@ -693,6 +693,15 @@ void set_sysconf_params(enclave_config_t *conf, long no_ethreads) {
     conf->sysconf_nproc_onln = no_ethreads;
 }
 
+void set_clock_res(enclave_config_t *conf) {
+    clock_getres(CLOCK_REALTIME, &conf->clock_res[CLOCK_REALTIME]);
+    clock_getres(CLOCK_MONOTONIC, &conf->clock_res[CLOCK_MONOTONIC]);
+    clock_getres(CLOCK_MONOTONIC_RAW, &conf->clock_res[CLOCK_MONOTONIC_RAW]);
+    clock_getres(CLOCK_REALTIME_COARSE, &conf->clock_res[CLOCK_REALTIME_COARSE]);
+    clock_getres(CLOCK_MONOTONIC_COARSE, &conf->clock_res[CLOCK_MONOTONIC_COARSE]);
+    clock_getres(CLOCK_BOOTTIME, &conf->clock_res[CLOCK_BOOTTIME]);
+}
+
 static void *find_vvar_base(void) {
     FILE *maps;
     char mapping[128];
@@ -1518,6 +1527,7 @@ int main(int argc, char *argv[], char *envp[]) {
                      (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE :
                      ENCLAVE_MMAP_FILES_NONE);
     set_sysconf_params(&encl, ntenclave);
+    set_clock_res(&encl);
     set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);

@@ -20,7 +20,6 @@
  */
 typedef struct k_sigaction k_sigaction_t;
 
-int host_syscall_SYS_clock_getres(clockid_t clk_id, struct timespec *res);
 int host_syscall_SYS_clock_gettime(clockid_t clk_id, struct timespec *tp);
 int host_syscall_SYS_close(int fd);
 int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg);
