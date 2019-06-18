@@ -153,6 +153,7 @@ struct lthread {
     void                    (*yield_cb)(void*);
     void                    *yield_cbarg;
     struct futex_q fq;
+    int cpu;
     struct {
         volatile void *volatile head;
         long off;
@@ -182,6 +183,7 @@ struct lthread_sched {
     struct lthread      *current_lthread;
     size_t              current_syscallslot;
     Arena               *current_arena;
+    int                 id;
 };
 
 typedef struct lthread *lthread_t;
@@ -206,6 +208,15 @@ extern "C" {
     struct lthread* lthread_self(void);
     int     lthread_setcancelstate(int, int*);
     void    lthread_set_expired(struct lthread *lt);
+    void    lthread_set_sched_id(int);
+    int     lthread_get_sched_id(void);
+    void    lthread_set_cpu(int cpu);
+    int     lthread_get_cpu(void);
+    void   *lthread_getspecific(pthread_key_t key);
+    int     lthread_setspecific(pthread_key_t key, const void *value);
+    int     lthread_key_create(pthread_key_t *k, void (*destructor)(void*));
+    int     lthread_key_delete(pthread_key_t key);
+
 
     static inline void __scheduler_enqueue(struct lthread *lt) {
         if (!lt) {a_crash();}

@@ -55,6 +55,8 @@
 #include "tree.h"
 #include "sgx_enclave_config.h"
 
+long __yields = 0;
+
 extern int errno;
 
 int __init_utp(void *, int);
@@ -323,12 +325,18 @@ void _lthread_yield_cb(struct lthread *lt, void (*f)(void*), void *arg) {
     struct lthread_sched *sched = lthread_get_sched();
     lt->yield_cb = f;
     lt->yield_cbarg = arg;
+    __yields++;
     _switch(&sched->ctx, &lt->ctx);
 }
 
 void _lthread_yield(struct lthread *lt) {
     struct lthread_sched *sched = lthread_get_sched();
+    __yields++;
     _switch(&sched->ctx, &lt->ctx);
+}
+
+void _lthread_yield_and_resched(struct lthread *lt) {
+   _lthread_yield_cb(lt, __scheduler_enqueue, lt);
 }
 
 void _lthread_free(struct lthread *lt) {
@@ -540,6 +548,28 @@ int _lthread_sched_init(size_t stack_size) {
     return (0);
 }
 
+void lthread_set_sched_id(int id) {
+    lthread_get_sched()->id = id;
+}
+
+int lthread_get_sched_id(void) {
+    return lthread_get_sched()->id;
+}
+
+void lthread_set_cpu(int cpu) {
+    struct lthread *lt = lthread_self();
+    if (lt)
+        lt->cpu = cpu;
+}
+
+int lthread_get_cpu(void) {
+    struct lthread *lt = lthread_self();
+    if (lt)
+        return lt->cpu;
+    return 1;
+}
+
+
 static FILE *volatile dummy_file = 0;
 weak_alias(dummy_file, __stdin_used);
 weak_alias(dummy_file, __stdout_used);
@@ -599,6 +629,7 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
     LIST_INIT(&lt->tls);
     lt->syscall = allocslot(lt);
     lt->robust_list.head = &lt->robust_list.head;
+    lt->cpu = 0;
 
     // Inherit name from parent
     if (lthread_self() && lthread_self()->funcname) {

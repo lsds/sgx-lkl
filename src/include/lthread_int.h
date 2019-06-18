@@ -53,6 +53,7 @@ int         _lthread_resume(struct lthread *lt);
 void        _lthread_renice(struct lthread *lt);
 void        _lthread_yield(struct lthread *lt);
 void        _lthread_yield_cb(struct lthread *lt, void (*f)(void*), void *arg);
+void        _lthread_yield_and_resched(struct lthread *lt);
 void        _lthread_free(struct lthread *lt);
 void        _lthread_desched_sleep(struct lthread *lt);
 //void        _lthread_sched_sleep(struct lthread *lt, uint64_t msecs);

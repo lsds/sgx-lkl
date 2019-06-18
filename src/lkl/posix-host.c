@@ -21,14 +21,13 @@
 #include <lkl_host.h>
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
+#include <lthread.h>
 
 /* Let's see if the host has semaphore.h */
 #include <unistd.h>
 
 #ifdef _POSIX_SEMAPHORES
 #include <semaphore.h>
-/* TODO(pscollins): We don't support fork() for now, but maybe one day
- * we will? */
 #define SHARE_SEM 0
 #endif /* _POSIX_SEMAPHORES */
 
@@ -233,18 +232,18 @@ static struct lkl_tls_key *tls_alloc(void (*destructor)(void *)) {
 }
 
 static void tls_free(struct lkl_tls_key *key) {
-        WARN_PTHREAD(pthread_key_delete(key->key));
+        WARN_PTHREAD(lthread_key_delete(key->key));
         free(key);
 }
 
 static int tls_set(struct lkl_tls_key *key, void *data) {
-        if (WARN_PTHREAD(pthread_setspecific(key->key, data)))
+        if (WARN_PTHREAD(lthread_setspecific(key->key, data)))
                 return -1;
         return 0;
 }
 
 static void *tls_get(struct lkl_tls_key *key) {
-        return pthread_getspecific(key->key);
+        return lthread_getspecific(key->key);
 }
 
 static unsigned long long time_ns(void) {
@@ -435,5 +434,6 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .gettid = _gettid,
     .jmp_buf_set = sgxlkl_jmp_buf_set,
     .jmp_buf_longjmp = sgxlkl_jmp_buf_longjmp,
+    .sysconf = sysconf
 };
 
