@@ -222,7 +222,8 @@ class LogAllLts(gdb.Command):
             lt = gdb.execute('p/x ((struct lthread_queue*)%s)->lt'%ltq, to_string=True).split('=')[1].strip()
             lt_tid = gdb.execute('p/d ((struct lthread_queue*)%s)->lt->tid'%ltq, to_string=True).split('=')[1].strip()
             lt_name = gdb.execute('p/s ((struct lthread_queue*)%s)->lt->funcname'%ltq, to_string=True).split('=')[1].strip().split(',')[0]
-            gdb.write('#%3d Lthread: TID: %3s, Addr: %s, Name: %s\n'%(no, lt_tid, lt, lt_name))
+            lt_cpu = gdb.execute('p/d ((struct lthread_queue*)%s)->lt->cpu'%ltq, to_string=True).split('=')[1].strip()
+            gdb.write('#%3d Lthread: TID: %3s, Addr: %s, Name: %s, CPU: %s\n'%(no, lt_tid, lt, lt_name, lt_cpu))
             gdb.execute('lthread-bt %s %s'%(lt, btdepth))
             gdb.write('\n')
             gdb.flush()
