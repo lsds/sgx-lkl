@@ -28,7 +28,6 @@ int host_syscall_SYS_fdatasync(int fd);
 int host_syscall_SYS_fstat(int fd, struct stat *buf);
 pid_t host_syscall_SYS_gettid(void);
 int host_syscall_SYS_ioctl(int fd, unsigned long request, void *arg);
-off_t host_syscall_SYS_lseek(int fd, off_t offset, int whence);
 void *host_syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 int host_syscall_SYS_mprotect(void *addr, size_t len, int prot);
 void *host_syscall_SYS_mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address);

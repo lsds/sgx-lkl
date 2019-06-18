@@ -177,21 +177,6 @@ int host_syscall_SYS_ioctl(int fd, unsigned long request, void * arg) {
     return (int)__syscall_return_value;
 }
 
-off_t host_syscall_SYS_lseek(int fd, off_t offset, int whence) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    sc->syscallno = SYS_lseek;
-    sc->arg1 = (uintptr_t)fd;
-    sc->arg2 = (uintptr_t)offset;
-    sc->arg3 = (uintptr_t)whence;
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (off_t)sc->ret_val;
-    sc->status = 0;
-    return (off_t)__syscall_return_value;
-}
-
 int host_syscall_SYS_pipe(int pipefd[2]) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;
