@@ -335,58 +335,6 @@ ssize_t host_syscall_SYS_writev(int fd, const struct iovec * iov, int iovcnt) {
     return (ssize_t)__syscall_return_value;
 }
 
-ssize_t host_syscall_SYS_preadv(int fd, struct iovec * iov, int iovcnt, off_t offset, long ofs32) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    size_t len2;
-    len2 = 0;
-    for(size_t i = 0; i < iovcnt; i++) {len2 += deepsizeiovec(&iov[i]);}
-    sc = arena_ensure(a, len2, (syscall_t*) sc);
-    sc->syscallno = SYS_preadv;
-    sc->arg1 = (uintptr_t)fd;
-    struct iovec * val2;
-    val2 = arena_alloc(a, sizeof(*iov) * iovcnt);
-    for(size_t i = 0; i < iovcnt; i++) {deepinitiovec(a, &val2[i], &iov[i]);}
-    sc->arg2 = (uintptr_t)val2;
-    sc->arg3 = (uintptr_t)iovcnt;
-    sc->arg4 = (uintptr_t)offset;
-    sc->arg5 = (uintptr_t)ofs32;
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->ret_val;
-    for(size_t i = 0; i < iovcnt; i++) {deepcopyiovec(&iov[i], &val2[i]);}
-    arena_free(a);
-    sc->status = 0;
-    return (ssize_t)__syscall_return_value;
-}
-
-ssize_t host_syscall_SYS_pwritev(int fd, const struct iovec * iov, int iovcnt, off_t offset, long ofs32) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    size_t len2;
-    len2 = 0;
-    for(size_t i = 0; i < iovcnt; i++) {len2 += deepsizeiovec(&iov[i]);}
-    sc = arena_ensure(a, len2, (syscall_t*) sc);
-    sc->syscallno = SYS_pwritev;
-    sc->arg1 = (uintptr_t)fd;
-    struct iovec * val2;
-    val2 = arena_alloc(a, sizeof(*iov) * iovcnt);
-    for(size_t i = 0; i < iovcnt; i++) {deepinitiovec(a, &val2[i], &iov[i]);}
-    for(size_t i = 0; i < iovcnt; i++) {deepcopyiovec(&val2[i], &iov[i]);}
-    sc->arg2 = (uintptr_t)val2;
-    sc->arg3 = (uintptr_t)iovcnt;
-    sc->arg4 = (uintptr_t)offset;
-    sc->arg5 = (uintptr_t)ofs32;
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->ret_val;
-    arena_free(a);
-    sc->status = 0;
-    return (ssize_t)__syscall_return_value;
-}
-
 int host_syscall_SYS_mprotect(void * addr, size_t len, int prot) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;

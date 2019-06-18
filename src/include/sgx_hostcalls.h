@@ -38,8 +38,6 @@ ssize_t host_syscall_SYS_read(int fd, void *buf, size_t count);
 ssize_t host_syscall_SYS_readv(int fd, struct iovec *iov, int iovcnt);
 int host_syscall_SYS_pipe(int pipefd[2]);
 int host_syscall_SYS_poll(struct pollfd *fds, nfds_t nfds, int timeout);
-ssize_t host_syscall_SYS_preadv(int fd, struct iovec *iov, int iovcnt, off_t offset, long ofs32);
-ssize_t host_syscall_SYS_pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset, long ofs32);
 ssize_t host_syscall_SYS_pread64(int fd, void *buf, size_t count, off_t offset);
 ssize_t host_syscall_SYS_pwrite64(int fd, const void *buf, size_t count, off_t offset);
 int host_syscall_SYS_rt_sigaction(int signum, struct sigaction *act, struct sigaction *oldact, unsigned long nsig);

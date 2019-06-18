@@ -60,19 +60,9 @@ static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req) {
     switch (req->type) {
     case LKL_DEV_BLK_TYPE_READ:
         err = do_plain_rw(&host_syscall_SYS_pread64, disk, req);
-        // Uncomment the following and comment the previous line if
-        // you need scatter-gather I/O functions.
-        /*err = host_syscall_SYS_preadv(disk.fd, (struct iovec*)(req->buf), req->count,
-            (long)(req->sector*512), // offset low 32 bits
-            (long)((req->sector*512)>>32) // offset high 32 bits
-        );*/
         break;
     case LKL_DEV_BLK_TYPE_WRITE:
         err = do_plain_rw(&host_syscall_SYS_pwrite64, disk, req);
-        /*err = host_syscall_SYS_pwritev(disk.fd, (struct iovec*)(req->buf), req->count,
-            (long)(req->sector*512),
-            (long)((req->sector*512)>>32)
-        );*/
         break;
     case LKL_DEV_BLK_TYPE_FLUSH:
     case LKL_DEV_BLK_TYPE_FLUSH_OUT:
