@@ -24,6 +24,7 @@
 #include <sys/auxv.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -470,7 +471,15 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
 
     struct stat disk_stat;
     fstat(fd, &disk_stat);
-    char * disk_mmap = mmap(NULL, disk_stat.st_size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
+
+    off_t size = disk_stat.st_size;
+    if ((disk_stat.st_mode & S_IFMT) == S_IFBLK) {
+        if (ioctl(fd, BLKGETSIZE64, &size) < 0) {
+            sgxlkl_fail("Failed to get block device size of %s: %s\n", path, strerror(errno));
+        }
+    }
+
+    char * disk_mmap = mmap(NULL, size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
     if (disk_mmap == MAP_FAILED)
         sgxlkl_fail("Could not map memory for disk image: %s\n", strerror(errno));
 
@@ -483,7 +492,7 @@ static void register_hd(enclave_config_t* encl, char* path, char* mnt, int reado
     struct enclave_disk_config *disk = &encl->disks[idx];
     disk->fd = fd;
     disk->ro = readonly;
-    disk->capacity = disk_stat.st_size;
+    disk->capacity = size;
     disk->mmap = disk_mmap;
     strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
