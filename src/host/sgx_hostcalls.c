@@ -657,7 +657,7 @@ int host_syscall_SYS_msync(void *addr, size_t length, int flags) {
 
 /* Some host system calls are only needed for debug purposed. Don't include
  * them in a non-debug build. */
-#if DEBUG
+#if DEBUGMOUNT
 int host_syscall_SYS_open(const char *pathname, int flags, mode_t mode) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;
@@ -679,4 +679,4 @@ int host_syscall_SYS_open(const char *pathname, int flags, mode_t mode) {
     sc->status = 0;
     return (int)__syscall_return_value;
 }
-#endif /* DEBUG */
+#endif /* DEBUGMOUNT */

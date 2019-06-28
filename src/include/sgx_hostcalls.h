@@ -59,8 +59,8 @@ int syscall_SYS_sysinfo(struct sysinfo* info);
 
 /* Some host system calls are only needed for debug purposed. Don't include
  * them in a non-debug build. */
-#if DEBUG
+#if DEBUGMOUNT
 int host_syscall_SYS_open(const char *pathname, int flags, mode_t mode);
-#endif
+#endif /* DEBUGMOUNT */
 
 #endif /* SGX_HOSTCALLS_H */
