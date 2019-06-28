@@ -604,8 +604,10 @@ static void *register_shm(char* path, size_t len) {
     return addr;
 }
 
-static void register_net(enclave_config_t* encl, const char* tapstr, const char* ip4str,
-        int mask4, const char* gw4str, const char* hostname) {
+static void register_net(enclave_config_t* encl, const char* tapstr,
+                         const char* ip4str, int mask4, const char* gw4str,
+                         const char* ip6str, int mask6, const char* gw6str,
+                         const char* hostname) {
     // Set hostname
     strncpy(encl->hostname, hostname, sizeof(encl->hostname));
     encl->hostname[sizeof(encl->hostname) - 1] = '\0';
@@ -662,10 +664,26 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
 
     if (mask4 < 1 || mask4 > 32) sgxlkl_fail("Invalid IPv4 mask %d\n", mask4);
 
+    struct in6_addr ip6 = { 0 };
+    if (inet_pton(AF_INET6, ip6str, &ip6) != 1)
+        sgxlkl_fail("Invalid IPv6 address %s\n", ip6str);
+
+    struct in6_addr gw6 = { 0 };
+    if (gw6str != NULL && strlen(gw6str) > 0 &&
+        inet_pton(AF_INET6, gw6str, &gw6) != 1) {
+        sgxlkl_fail("Invalid IPv6 gateway %s\n", gw6str);
+    }
+
+    // Read IPv6 mask str if there is one
+    if (mask6 < 1 || mask6 > 128) sgxlkl_fail("Invalid IPv6 mask %d\n", mask6);
+
     encl->net_fd = fd;
     encl->net_ip4 = ip4;
     encl->net_gw4 = gw4;
     encl->net_mask4 = mask4;
+    encl->net_ip6 = ip6;
+    encl->net_gw6 = gw6;
+    encl->net_mask6 = mask6;
 }
 
 static void register_queues(enclave_config_t* encl) {
@@ -1546,6 +1564,9 @@ int main(int argc, char *argv[], char *envp[]) {
                         sgxlkl_config_str(SGXLKL_IP4),
                         (int) sgxlkl_config_uint64(SGXLKL_MASK4),
                         sgxlkl_config_str(SGXLKL_GW4),
+                        sgxlkl_config_str(SGXLKL_IP6),
+                        (int) sgxlkl_config_uint64(SGXLKL_MASK6),
+                        sgxlkl_config_str(SGXLKL_GW6),
                         sgxlkl_config_str(SGXLKL_HOSTNAME));
     register_queues(&encl);
 
