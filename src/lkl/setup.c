@@ -44,6 +44,7 @@ int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_use_tap_offloading = 0;
 int sgxlkl_mtu = 0;
+static char *initial_cwd = NULL;
 
 extern struct timespec sgxlkl_app_starttime;
 
@@ -454,6 +455,17 @@ static void lkl_mount_virtual() {
     lkl_mknods();
 }
 
+static void setworkingdir(char* path) {
+    SGXLKL_VERBOSE("set initial working directory %s\n", path);
+    int ret = lkl_sys_chdir(path);
+    if (ret == 0) {
+        return;
+    }
+
+    fprintf(stderr, "Error: lkl_sys_chdir(%s): %s\n", path, lkl_strerror(ret));
+    exit(1);
+}
+
 static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     int err = 0;
     char mnt_point[] = {"/mnt/vda"};
@@ -598,6 +610,8 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
             sgxlkl_fail("Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
         disks[i].mounted = 1;
     }
+
+    setworkingdir(initial_cwd);
 }
 
 void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
@@ -834,6 +848,8 @@ void lkl_start_init(enclave_config_t* encl) {
     if (!sgxlkl_use_host_network)
         lkl_poststart_net(encl, net_dev_id);
 
+    initial_cwd = encl->cwd;
+
     // Set up wireguard
     init_wireguard(encl);
 
@@ -868,6 +884,9 @@ void lkl_exit() {
 
     // Stop attestation/remote control server
     enclave_cmd_servers_stop();
+
+    // switch back to root so we can unmount all filesystems
+    setworkingdir("/");
 
     // Unmount disks
     long res;
