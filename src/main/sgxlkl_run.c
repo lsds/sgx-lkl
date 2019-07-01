@@ -1545,6 +1545,7 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
     encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
     encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
     encl.remote_attest_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_ATTEST_PORT);
     encl.remote_cmd_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_CMD_PORT);
     encl.remote_cmd_eth0 = sgxlkl_config_bool(SGXLKL_REMOTE_CMD_ETH0);
