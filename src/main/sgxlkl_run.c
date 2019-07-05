@@ -1448,8 +1448,8 @@ int main(int argc, char *argv[], char *envp[]) {
     static struct option long_options[] = {
         {"version",  no_argument,       0, 'v' },
         {"usage",    no_argument,       0, 'u' },
-        {"help",     no_argument,       0, 'h' },
-        {"help-tls", no_argument,       0, 't' },
+        {"help-tls", no_argument,       0, 't' }, // Check for help-tls first
+        {"help",     no_argument,       0, 'h' }, // as help is a prefix of it.
         {"config",   required_argument, 0, 'c' },
         {"app",      required_argument, 0, 'a' },
         {0,          0,                 0,  0  }
