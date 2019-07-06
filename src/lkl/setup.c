@@ -44,7 +44,6 @@ int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_use_tap_offloading = 0;
 int sgxlkl_mtu = 0;
-static char *initial_cwd = NULL;
 
 extern struct timespec sgxlkl_app_starttime;
 
@@ -455,8 +454,8 @@ static void lkl_mount_virtual() {
     lkl_mknods();
 }
 
-static void setworkingdir(char* path) {
-    SGXLKL_VERBOSE("set initial working directory %s\n", path);
+static void lkl_set_working_dir(char* path) {
+    SGXLKL_VERBOSE("Set working directory %s\n", path);
     int ret = lkl_sys_chdir(path);
     if (ret == 0) {
         return;
@@ -561,7 +560,7 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     lkl_mount_procfs();
 }
 
-void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
+void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks, const char *cwd) {
     num_disks = _num_disks;
     if (num_disks <= 0)
         sgxlkl_fail("No root disk provided. Aborting...\n");
@@ -611,7 +610,9 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks) {
         disks[i].mounted = 1;
     }
 
-    setworkingdir(initial_cwd);
+    if (cwd) {
+        lkl_set_working_dir(cwd);
+    }
 }
 
 void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
@@ -848,8 +849,6 @@ void lkl_start_init(enclave_config_t* encl) {
     if (!sgxlkl_use_host_network)
         lkl_poststart_net(encl, net_dev_id);
 
-    initial_cwd = encl->cwd;
-
     // Set up wireguard
     init_wireguard(encl);
 
@@ -885,8 +884,8 @@ void lkl_exit() {
     // Stop attestation/remote control server
     enclave_cmd_servers_stop();
 
-    // switch back to root so we can unmount all filesystems
-    setworkingdir("/");
+    // Switch back to root so we can unmount all filesystems
+    lkl_set_working_dir("/");
 
     // Unmount disks
     long res;

@@ -8,5 +8,5 @@
 
 void lkl_start_init(enclave_config_t* encl);
 void lkl_exit();
-void lkl_mount_disks(struct enclave_disk_config* disks, size_t num_disks);
+void lkl_mount_disks(struct enclave_disk_config* disks, size_t num_disks, const char *cwd);
 
