@@ -244,6 +244,7 @@ int main() {
 	EXPORT_LKL_SYSCALL(socketpair)
 	EXPORT_LKL_SYSCALL(splice)
 	EXPORT_LKL_SYSCALL(statfs)
+	EXPORT_LKL_SYSCALL(statx)
 	EXPORT_LKL_SYSCALL(swapoff)
 	EXPORT_LKL_SYSCALL(swapon)
 	EXPORT_LKL_SYSCALL(symlinkat)
