@@ -36,9 +36,12 @@
 #define NSEC_PER_SEC 1000000000L
 
 static void panic(void) {
-    // Even a simple print or abort(0) uses syscalls.
-    // We cannot use syscalls in this case, since we might never
-    // get rescheduled.
+    if (lthread_self()) {
+        // Pin lthread so that we can make sure the host call performed by
+        // fprintf completes before we crash
+        lthread_self()->attr.state & BIT(LT_ST_PINNED);
+    }
+        fprintf(stderr, "[SGX-LKL] Kernel panic! Run with SGXLKL_KERNEL_VERBOSE=1 for more information. Aborting...\n");
     a_crash();
 }
 
