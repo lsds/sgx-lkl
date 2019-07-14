@@ -26,6 +26,7 @@ struct sgxlkl_config_elem {
         struct sgxlkl_config_uint_def def_uint;
         int def_bool;
     };
+    int configured; // Configured via config file
     int inited;
     union {
         uint64_t val_uint;
@@ -158,6 +159,7 @@ static int parse_sgxlkl_config_entry(const char *key, struct json_object *value,
             sgxlkl_warn("Value of configuration key %s has unknown type.\n", key);
     }
     ce->inited = 1;
+    ce->configured = 1;
 
 end:
     return 0;
@@ -174,7 +176,7 @@ int parse_sgxlkl_config_from_str(char *str, char **err) {
 int sgxlkl_configured(int opt) {
     assert(opt < sizeof(sgxlkl_config));
 
-    if (sgxlkl_config[opt].inited)
+    if (sgxlkl_config[opt].configured)
         return 1;
 
     return getenv(sgxlkl_config[opt].env_key) != NULL;
