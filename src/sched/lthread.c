@@ -703,11 +703,20 @@ int lthread_join(struct lthread *lt, void **ptr, uint64_t timeout) {
 
 void lthread_detach(void) {
     struct lthread *current = lthread_get_sched()->current_lthread;
-    current->attr.state |= BIT(LT_ST_DETACH);
+    //current->attr.state |= BIT(LT_ST_DETACH);
+    lthread_detach2(current);
 }
 
 void lthread_detach2(struct lthread *lt) {
-    lt->attr.state |= BIT(LT_ST_DETACH);
+    //lt->attr.state |= BIT(LT_ST_DETACH);
+    int state, newstate;
+    for (;;) {
+        state = __atomic_load_n(&lt->attr.state, __ATOMIC_SEQ_CST);
+        if (state & BIT(LT_ST_BUSY)) continue;
+        newstate = state|BIT(LT_ST_DETACH);
+        if (a_cas(&lt->attr.state, state, newstate) != state) continue;
+        break;
+    }
 }
 
 void lthread_set_funcname(struct lthread *lt, const char *f) {
