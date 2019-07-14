@@ -105,7 +105,10 @@ void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...) {
         snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", lkl_strerror(res));
 
     int tid = lthread_self() ? lthread_self()->tid : 0;
-    if (n == SYS_openat) {
+    if (n == SYS_newfstatat) {
+        SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%ld, %s, %ld, %ld) = %ld %s\n", tid, name, n,
+            params[0], (const char*)params[1], params[2], params[3], res, errmsg);
+    } else if (n == SYS_openat) {
         SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%ld, %s, %ld, %ld) = %ld %s\n", tid, name, n,
             params[0], (const char*)params[1], params[2], params[3], res, errmsg);
     } else if (n == SYS_execve) {
