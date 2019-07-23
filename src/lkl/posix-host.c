@@ -175,6 +175,10 @@ static struct lkl_mutex *mutex_alloc(int recursive) {
     return _mutex;
 }
 
+static int mutex_trylock(struct lkl_mutex *mutex) {
+    return pthread_mutex_trylock(&mutex->mutex);
+}
+
 static void mutex_lock(struct lkl_mutex *mutex) {
     WARN_PTHREAD(pthread_mutex_lock(&mutex->mutex));
 }
@@ -415,6 +419,7 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .sem_down = sem_down,
     .mutex_alloc = mutex_alloc,
     .mutex_free = mutex_free,
+    .mutex_trylock = mutex_trylock,
     .mutex_lock = mutex_lock,
     .mutex_unlock = mutex_unlock,
     .tls_alloc = tls_alloc,
