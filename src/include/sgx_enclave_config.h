@@ -95,9 +95,6 @@ typedef struct enclave_config {
     struct in_addr net_ip4;
     struct in_addr net_gw4;
     int net_mask4;
-    struct in6_addr net_ip6;
-    struct in6_addr net_gw6;
-    int net_mask6;
     char hostname[32];
     int hostnet;
     int tap_offload;

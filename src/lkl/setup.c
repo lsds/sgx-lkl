@@ -640,25 +640,6 @@ void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
             }
         }
 
-        res = lkl_if_set_ipv6(ifidx, encl->net_ip6.s6_addr, encl->net_mask6);
-        if (res < 0) {
-            fprintf(stderr, "Error: lkl_if_set_ipv6(): %s\n",
-                    lkl_strerror(res));
-            exit(res);
-        }
-
-        if (encl->net_gw6.s6_addr > 0) {
-          res = lkl_if_set_ipv6_gateway(ifidx,
-                                        encl->net_ip6.s6_addr,
-                                        encl->net_mask6,
-                                        encl->net_gw6.s6_addr);
-          if (res < 0) {
-            fprintf(stderr, "Error: lkl_set_ipv6_gateway(): %s\n",
-                    lkl_strerror(res));
-            exit(res);
-          }
-        }
-
         if (sgxlkl_mtu) {
             lkl_if_set_mtu(ifidx, sgxlkl_mtu);
         }
