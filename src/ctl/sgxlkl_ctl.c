@@ -231,13 +231,13 @@ static void handle_attest_response(const Sgxlkl__AttestResult *result,
             free(report);
             break;
         case SGXLKL__ERROR__SIM_MODE:
-            sgxlkl_warn("Could not attest. Enclave runs in simulation mode.\n");
+            sgxlkl_fail("Could not attest. Enclave runs in simulation mode.\n");
             break;
         case SGXLKL__ERROR__REP_NOT_AVAILABLE:
-            sgxlkl_warn("Could not attest. Attestation report is unavailable.\n");
+            sgxlkl_fail("Could not attest. Attestation report is unavailable.\n");
             break;
         default:
-            sgxlkl_err("Unknown error.\n");
+            sgxlkl_fail("Unknown error.\n");
             break;
     }
 
@@ -265,16 +265,16 @@ static void handle_run_response(const Sgxlkl__RunResult *result,
             sgxlkl_info("Request successful.\n");
             break;
         case SGXLKL__ERROR__PARSE:
-            sgxlkl_warn("Error parsing the configuration: %s\n", result->err_msg);
+            sgxlkl_fail("Error parsing the configuration: %s\n", result->err_msg);
             break;
         case SGXLKL__ERROR__APP_RUNNING:
-            sgxlkl_warn("Application is already running. Request is ignored.\n");
+            sgxlkl_fail("Application is already running. Request is ignored.\n");
             break;
         case SGXLKL__ERROR__NOT_PERMITTED:
-            sgxlkl_warn("Request not permitted: %s\n", result->err_msg);
+            sgxlkl_fail("Request not permitted: %s\n", result->err_msg);
             break;
         default:
-            sgxlkl_err("Unknown error.\n");
+            sgxlkl_fail("Unknown error.\n");
             break;
     }
 
