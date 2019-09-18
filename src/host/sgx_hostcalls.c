@@ -395,7 +395,7 @@ int host_syscall_SYS_rt_sigpending(sigset_t * set, unsigned long nsig) {
     Arena *a = NULL;
     sc = getsyscallslot(&a);
     size_t len1;
-    len1 = sizeof(*set);
+    len1 = nsig;
     sc = arena_ensure(a, len1, (syscall_t*) sc);
     sc->syscallno = SYS_rt_sigpending;
     sigset_t * val1;
@@ -416,9 +416,9 @@ int host_syscall_SYS_rt_sigprocmask(int how, void * set, sigset_t * oldset, unsi
     Arena *a = NULL;
     sc = getsyscallslot(&a);
     size_t len2;
-    len2 = sizeof(sigset_t);
+    len2 = nsig;
     size_t len3;
-    len3 = sizeof(sigset_t);
+    len3 = nsig;
     sc = arena_ensure(a, len2 + len3, (syscall_t*) sc);
     sc->syscallno = SYS_rt_sigprocmask;
     sc->arg1 = (uintptr_t)how;
