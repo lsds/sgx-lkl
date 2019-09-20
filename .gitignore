@@ -36,3 +36,7 @@ third_party/protobuf-c-rpc/*.o
 third_party/protobuf-c-rpc/*.a
 *.pb-c.c
 *.pb-c.h
+
+#dotnet
+bin
+obj

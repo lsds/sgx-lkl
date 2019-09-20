@@ -6,7 +6,7 @@ ALPINE_TAR=alpine-minirootfs.tar.gz
 
 ROOT_FS=sgxlkl-dotnet-fs.img
 MOUNTPOINT=/media/ext4disk
-IMAGE_SIZE_MB=800
+IMAGE_SIZE_MB=400
 
 ESCALATE_CMD=sudo
 
