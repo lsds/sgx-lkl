@@ -29,9 +29,23 @@ WORKDIR /sgx-lkl
 RUN apt-get update && apt-get install -y \
   curl \
   openjdk-8-jdk-headless \
+  libjson-c2 \
   sudo \
   make \
   && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y wget libssl1.0
+
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+RUN wget -q https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb && \
+  sudo dpkg -i packages-microsoft-prod.deb && \
+  sudo apt-get install -y apt-transport-https && \
+  sudo apt-get update && \
+  sudo apt-get install -y dotnet-sdk-2.2
 
 RUN useradd --create-home -s /bin/bash user && \
     adduser user sudo && \

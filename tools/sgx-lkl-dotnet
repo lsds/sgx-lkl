@@ -1,0 +1,28 @@
+#!/bin/bash
+
+BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+
+ENCLAVE_HEAP_SIZE=${SGXLKL_HEAP:-256M}
+ENCLAVE_DEBUG_KEY=${SGXLKL_KEY:-${BASE_DIR}/build/config/enclave_debug.key}
+
+SGX_LKL_RUN_EXEC=${BASE_DIR}/build/sgx-lkl-run
+SGX_LKL_OPTIONS="\
+  SGXLKL_MMAP_FILES=${SGXLKL_MMAP_FILES:-Shared} \
+  SGXLKL_STHREADS=${SGXLKL_STHREADS:-4} \
+  SGXLKL_ETHREADS=${SGXLKL_ETHREADS:-4} \
+  SGXLKL_HEAP=${ENCLAVE_HEAP_SIZE} \
+  SGXLKL_KEY=${ENCLAVE_DEBUG_KEY}"
+
+JRE_LIB_PATH="/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64/server:/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64:/usr/lib/jvm/java-1.8-openjdk/jre/../lib/amd64:/usr/lib/jvm/java-1.8-openjdk/lib/amd64/jli"
+
+DISK_IMAGE=$1
+ARGS="${@:2}"
+
+#ulimit -c unlimited
+echo "${SGX_LKL_RUN_EXEC}"
+echo "${DISK_IMAGE}"
+echo "${ARGS}"
+
+env LD_LIBRARY_PATH=${JRE_LIB_PATH} ${SGX_LKL_OPTIONS} ${SGX_LKL_RUN_EXEC}  ${DISK_IMAGE} /usr/bin/dotnet -v diag ${ARGS}
+
+

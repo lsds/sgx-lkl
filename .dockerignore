@@ -2,6 +2,7 @@
 !/build/**
 !/apps/jvm/helloworld-java/**
 !/apps/miniroot/**
+!/apps/dotnet/helloworld-dotnet/**
 !/tools/**
 !/enclave_rootfs.img
 **/*.o

@@ -108,6 +108,12 @@ function deploy-app() {
             APP_IMG="/sgx-lkl/apps/jvm/helloworld-java/sgxlkl-java-fs.img"
             APP_CMD="HelloWorld"
             ;;
+        dotnet-helloworld)
+            APP_BUILD="(cd /sgx-lkl/apps/dotnet/helloworld-dotnet && make) &&"
+            LAUNCH_CMD="/sgx-lkl/tools/sgx-lkl-dotnet"
+            APP_IMG="/sgx-lkl/apps/dotnet/helloworld-dotnet/sgxlkl-dotnet-fs.img"
+            APP_CMD="app/HelloWorld.dll"
+            ;;
         *)
             LOGIN=true
             DOCKER_CMD="/bin/bash"
@@ -135,10 +141,15 @@ function deploy-app() {
 
     [ ! -z "${LOGIN}" ] && DOCKER_CMD="(cd /sgx-lkl/apps/miniroot && make) && ${DOCKER_CMD}"
 
+    echo "--"
+    echo "docker run -it --rm --privileged=true $SGX_DOCKER lsds/sgx-lkl:deploy \\"
+    echo "/bin/bash -c $SGX_LKL_SIGN ${DOCKER_CMD}"
+    echo "--"
+    
     docker run -it --rm --privileged=true \
            $SGX_DOCKER \
            lsds/sgx-lkl:deploy \
-           /bin/bash -c "$SGX_LKL_SIGN ${DOCKER_CMD}" 
+           /bin/bash #-c "$SGX_LKL_SIGN ${DOCKER_CMD}" 
 }
 
 function deploy-container() {
