@@ -1,8 +1,6 @@
 build/
 results/
 *.pyc
-tests/60-iozone/*.o
-tests/60-iozone/iozone
 *.csv
 *.img
 *.tmp
@@ -36,3 +34,4 @@ third_party/protobuf-c-rpc/*.o
 third_party/protobuf-c-rpc/*.a
 *.pb-c.c
 *.pb-c.h
+src/lkl/x86mods
