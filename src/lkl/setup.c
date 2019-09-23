@@ -68,7 +68,7 @@ static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
 }
 
 static int lkl_prestart_net(enclave_config_t* encl) {
-    struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd);
+    struct lkl_netdev *netdev = sgxlkl_register_netdev_fd(encl->net_fd, encl->wait_on_io_host_calls);
     if (netdev == NULL) {
         fprintf(stderr, "Error: unable to register netdev\n");
         exit(2);

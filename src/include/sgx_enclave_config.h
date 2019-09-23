@@ -45,7 +45,7 @@ typedef struct enclave_disk_config {
     /* Provided by user via sgx-lkl-run config together with the host file
      * system path. */
     char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];  // "/" for root disk
-    /* Provided by user at runtime after (remote attestation). */
+    /* Provided by user at runtime (after remote attestation). */
     int ro;                 // Read-only?
     char *key;              // Encryption key
     size_t key_len;         // Key length
@@ -53,6 +53,8 @@ typedef struct enclave_disk_config {
     size_t roothash_offset; // Merkle tree offset (for dm-verity)
     /* Used at runtime */
     int mounted;            // Has been mounted
+    int wait_on_io; // SGX-LKL: Set to 1 to busy wait for I/O request to finish
+                    // rather than yield.
 } enclave_disk_config_t;
 
 typedef struct enclave_wg_peer_config {
@@ -139,6 +141,9 @@ typedef struct enclave_config {
     void (*sim_exit_handler) (int);
 #endif
     char *app_config;
+    int wait_on_io_host_calls;
+    int wait_on_all_host_calls;
+    int exit_on_host_calls;
 } enclave_config_t;
 
 enum SlotState { DONE, WRITTEN };

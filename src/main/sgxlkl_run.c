@@ -105,6 +105,7 @@ static int __state_exiting = 0;
 static pthread_spinlock_t _stdout_print_lock = {0};
 static pthread_spinlock_t _stderr_print_lock = {0};
 
+static syscall_t *_syscallpage;
 static size_t backoff_maxpause;
 static size_t backoff_factor;
 
@@ -189,6 +190,8 @@ static void help(char* prog) {
     printf("SGXLKL_CMDLINE: Linux kernel command line.\n");
     printf("SGXLKL_SIGPIPE: Set to 1 to enable delivery of SIGPIPE.\n");
     printf("SGXLKL_NON_PIE: Set to 1 when running applications not compiled as position-independent. In this case the size of the enclave is limited to the available space at the beginning of the address space.\n");
+    printf("SGXLKL_VERBOSE: Set to 1 to enable verbose SGX-LKL output.\n");
+    printf("SGXLKL_KERNEL_VERBOSE: Set to 1 to print kernel messages.\n");
     printf("\n## Scheduling & Host system calls ##\n");
     printf("SGXLKL_ESLEEP: Sleep timeout in the scheduler (in ns).\n");
     printf("SGXLKL_ESPINS: Number of spins inside scheduler before sleeping begins.\n");
@@ -201,6 +204,9 @@ static void help(char* prog) {
     printf("SGXLKL_GETTIME_VDSO: Set to 1 to use the host kernel vdso mechanism to handle clock_gettime calls (Default: 1).\n");
     printf("SGXLKL_ETHREADS_AFFINITY: Specifies the CPU core affinity for enclave threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
     printf("SGXLKL_STHREADS_AFFINITY: Specifies the CPU core affinity for system call threads as a comma-separated list of cores to use, e.g. \"0-2,4\".\n");
+    printf("SGXLKL_WAIT_ON_IO_HOST_CALLS: Set to 1 to make SGX-LKL busy wait on read/write network or disk I/O host calls rather than yield.\n");
+    printf("SGXLKL_WAIT_ON_HOST_CALLS: Set to 1 to make SGX-LKL busy wait on all host calls rather than yield. Note: This includes blocking calls such as poll (used for network I/O) and the corresponding enclave thread will not schedule any other application thread until the call returns. Should not be used with a single enclave thread.\n");
+    printf("SGXLKL_EXIT_ON_HOST_CALLS: Set to 1 to make SGX-LKL exit the enclave to execute host calls and reenter after completion. Note: This only applies when SGX-LKL would otherwise busy wait for the call to return (see SGXLKL_WAIT_ON_HOST_CALLS and SGXLKL_WAIT_ON_IO_HOST_CALLS).\n");
     printf("\n## Network ##\n");
     printf("SGXLKL_TAP: Tap for LKL to use as a network interface.\n");
     printf("SGXLKL_TAP_OFFLOAD: Set to 1 to enable partial checksum support, TSOv4, TSOv6, and mergeable receive buffers for the TAP interface.\n");
@@ -239,7 +245,6 @@ static void help(char* prog) {
     printf("SGXLKL_REMOTE_CMD_ETH0: Set to 1 to expose server on eth0 interface instead. If specified no separate attestation server is created. Will be ignored in release mode.\n");
     printf("SGXLKL_REMOTE_CONFIG: Set to 1 to ignore application and application arguments specified via command line and wait for application configuration to be provided via remote control server (Default: 0, always 1 in release mode).\n");
     printf("\n## Debugging ##\n");
-    printf("SGXLKL_VERBOSE: Print information about the SGX-LKL start up process as well as kernel messages.\n");
     printf("SGXLKL_TRACE_MMAP: Print detailed information about in-enclave mmap/munmap operations.\n");
     printf("SGXLKL_TRACE_THREAD: Print detailed information about in-enclave user level thread scheduling.\n");
     printf("SGXLKL_TRACE_SYSCALL: Print detailed information about all system calls.\n");
@@ -316,18 +321,9 @@ static inline void do_syscall(syscall_t *sc) {
     sc->ret_val = ret;
 }
 
-void *host_syscall_thread(void *v) {
-    enclave_config_t *conf = v;
-    volatile syscall_t *scall = conf->syscallpage;
+static void handle_syscall(size_t i) {
+    syscall_t *scall = _syscallpage;
     pthread_spinlock_t* curr_print_lock = NULL;
-    size_t i;
-    unsigned s;
-    union {void *ptr; size_t i;} u;
-    u.ptr = MAP_FAILED;
-    while (1) {
-        for (s = 0; !mpmc_dequeue(conf->syscallq, &u.ptr);) {s = backoff(s);}
-        i = u.i;
-
 #ifdef DEBUG
         long syscallno = scall[i].syscallno;
         __sync_fetch_and_add(&_host_syscall_stats[syscallno], 1);
@@ -351,7 +347,7 @@ void *host_syscall_thread(void *v) {
                 scall[i].ret_val = -errno;
             }
         } else {
-            do_syscall((syscall_t*)&scall[i]);
+            do_syscall(&scall[i]);
         }
 
         /* Release ticket lock if previously acquired */
@@ -367,6 +363,21 @@ void *host_syscall_thread(void *v) {
             pthread_spin_unlock(&_stdout_print_lock);
         }
 #endif /* DEBUG */
+}
+
+void *host_syscall_thread(void *v) {
+    enclave_config_t *conf = v;
+    volatile syscall_t *scall = conf->syscallpage;
+    pthread_spinlock_t* curr_print_lock = NULL;
+    size_t i;
+    unsigned s;
+    union {void *ptr; size_t i;} u;
+    u.ptr = MAP_FAILED;
+    while (1) {
+        for (s = 0; !mpmc_dequeue(conf->syscallq, &u.ptr);) {s = backoff(s);}
+        i = u.i;
+
+        handle_syscall(i);
 
         if (scall[i].status == 1) {
             /* This was submitted by the scheduler or a pinned thread, no need to push anything to queue */
@@ -685,6 +696,7 @@ static void register_queues(enclave_config_t* encl) {
     if (rq == MAP_FAILED) sgxlkl_fail("Could not allocate memory for syscall queue: %s\n", strerror(errno));
     encl->syscallpage = calloc(sizeof(syscall_t), encl->maxsyscalls);
     if (encl->syscallpage == NULL) sgxlkl_fail("Could not allocate memory for syscall pages: %s\n", strerror(errno));
+    _syscallpage = encl->syscallpage;
 
     if (!(encl->returnq = malloc(sizeof(struct mpmcq))))
         sgxlkl_fail("Could not allocate memory for return queue struct: %s\n, strerror(errno)");
@@ -977,6 +989,12 @@ void* enclave_thread(void* parm) {
             }
             case SGXLKL_EXIT_DORESUME: {
                 eresume(my_tcs_id);
+            }
+            case SGXLKL_EXIT_SYSCALL: {
+                size_t syscall_slot = (size_t) ret[1];
+                handle_syscall(syscall_slot);
+                args->call_id = SGXLKL_ENTER_RESUME;
+                break;
             }
             case SGXLKL_EXIT_REPORT: {
                 uint32_t quote_size;
@@ -1524,6 +1542,9 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.maxsyscalls = encl.max_user_threads + sgxlkl_config_uint64(SGXLKL_ETHREADS);
     encl.espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
     encl.esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
+    encl.wait_on_all_host_calls = sgxlkl_config_bool(SGXLKL_WAIT_ON_HOST_CALLS);
+    encl.wait_on_io_host_calls = sgxlkl_config_bool(SGXLKL_WAIT_ON_IO_HOST_CALLS);
+    encl.exit_on_host_calls = sgxlkl_config_bool(SGXLKL_EXIT_ON_HOST_CALLS);
     encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
     encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
     encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
