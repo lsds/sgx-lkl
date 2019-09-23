@@ -122,6 +122,7 @@ typedef struct enclave_config {
     int verbose;
     int kernel_verbose;
     char *kernel_cmd;
+    char *sysctl;
     uint16_t remote_attest_port;
     uint16_t remote_cmd_port;
     int remote_cmd_eth0;

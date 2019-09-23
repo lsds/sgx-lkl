@@ -4,6 +4,7 @@
  */
 
 #ifdef SGXLKL_HW
+#include <assert.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <string.h>
@@ -182,7 +183,7 @@ void ecall_rdtsc(gprsgx_t *regs, uint64_t ts) {
 int in_enclave_range(void *addr, size_t len) {
     char *encl_start = (char *) get_enclave_parms()->base;
     char *encl_end = encl_start + get_enclave_parms()->enclave_size;
-    return !((char *)addr >= encl_end || (char *)addr + len <= encl_start);
+    return (char *)addr >= encl_start && (char *)addr + len < encl_end;
 }
 
 static void enclave_config_fail(void) {
@@ -228,6 +229,8 @@ enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted) {
     // all?
     // Copy kernel cmd line into enclave
     encl->kernel_cmd = enclave_safe_str_copy(encl->kernel_cmd);
+    // Same with sysctl
+    encl->sysctl = enclave_safe_str_copy(encl->sysctl);
 
     // Copy WG key and peers into enclave
     encl->wg.key = enclave_safe_str_copy(encl->wg.key);

@@ -188,6 +188,7 @@ static void help(char* prog) {
     printf("\n\nSGX-LKL configuration via environment variables:\n");
     printf("## General ##\n");
     printf("SGXLKL_CMDLINE: Linux kernel command line.\n");
+    printf("SGXLKL_SYSCTL: 'sysctl' configurations. Semicolon-separated list of key value pairs in the form 'key1=value1;key2=value2;[...]'.\n");
     printf("SGXLKL_SIGPIPE: Set to 1 to enable delivery of SIGPIPE.\n");
     printf("SGXLKL_NON_PIE: Set to 1 when running applications not compiled as position-independent. In this case the size of the enclave is limited to the available space at the beginning of the address space.\n");
     printf("SGXLKL_VERBOSE: Set to 1 to enable verbose SGX-LKL output.\n");
@@ -1548,6 +1549,7 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
     encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
     encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    encl.sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
     encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
     encl.remote_attest_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_ATTEST_PORT);
     encl.remote_cmd_port = (uint16_t) sgxlkl_config_uint64(SGXLKL_REMOTE_CMD_PORT);

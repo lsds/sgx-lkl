@@ -10,11 +10,14 @@
 #include <linux/random.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define _GNU_SOURCE // Needed for strchrnul
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <syscall.h>
 #include <unistd.h>
 #include <time.h>
+#include <lkl.h>
 #include <lkl_host.h>
 
 #include "libcryptsetup.h"
@@ -653,6 +656,42 @@ void lkl_poststart_net(enclave_config_t* encl, int net_dev_id) {
     }
 }
 
+static void do_sysctl(enclave_config_t *encl) {
+    if (!encl->sysctl)
+        return;
+
+    char *sysctl_all = strdup(encl->sysctl);
+    char *sysctl = sysctl_all;
+    while (*sysctl) {
+        while (*sysctl == ' ')
+            sysctl++;
+
+        char *path = sysctl;
+        char *val = strchrnul(path, '=');
+        if (!*val) {
+            sgxlkl_warn("Failed to set sysctl config \"%s\", key and value not seperated by '='.\n", path);
+            break;
+        }
+
+        *val = '\0';
+        val++;
+        char *val_end = strchrnul(val, ';');
+        if (*val_end) {
+            *val_end = '\0';
+            val_end++;
+        }
+        sysctl = val_end;
+
+        SGXLKL_VERBOSE("Setting sysctl config: %s=%s\n", path, val);
+        if (lkl_sysctl(path, val)) {
+            sgxlkl_warn("Failed to set sysctl config %s=%s\n", path, val);
+            break;
+        }
+    }
+
+    free(sysctl_all);
+}
+
 static void init_wireguard(enclave_config_t *encl) {
     wg_device new_device = {
         .name = "wg0",
@@ -825,6 +864,9 @@ void lkl_start_init(enclave_config_t* encl) {
     putenv(shm_common);
     putenv(shm_enc_to_out_addr);
     putenv(shm_out_to_enc_addr);
+
+    // Sysctl
+    do_sysctl(encl);
 
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network)
