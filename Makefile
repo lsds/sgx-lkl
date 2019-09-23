@@ -20,6 +20,10 @@ all: sgx-lkl-musl sgx-lkl
 sim: HW_MODE=no
 sim: all
 
+ifeq ($(X86MODULES),true)
+  X86MODULES_DEP=${X86_MODULES}
+endif
+
 MAKE_ROOT=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 # Vanilla Musl compiler
@@ -29,7 +33,11 @@ host-musl ${HOST_MUSL_CC}: | ${HOST_MUSL}/.git ${HOST_MUSL_BUILD}
 		--prefix=${HOST_MUSL_BUILD}
 	+${MAKE} -C ${HOST_MUSL} CFLAGS="$(MUSL_CFLAGS)" install
 	ln -fs ${LINUX_HEADERS_INC}/linux/ ${HOST_MUSL_BUILD}/include/linux
+ifeq ($(DISTRO),CentOS)
+	ln -fs ${LINUX_HEADERS_INC}/asm/ ${HOST_MUSL_BUILD}/include/asm
+else
 	ln -fs ${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm/ ${HOST_MUSL_BUILD}/include/asm
+endif
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_MUSL_BUILD}/include/asm-generic
 	# Fix musl-gcc for gcc version that have been built with --enable-default-pie
 	gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_MUSL_BUILD}/bin/musl-gcc || true
@@ -40,10 +48,18 @@ ${WIREGUARD}:
 ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a ${CRYPTSETUP_BUILD}/lib/libpopt.a ${CRYPTSETUP_BUILD}/lib/libdevmapper.a ${CRYPTSETUP_BUILD}/lib/libuuid.a ${CRYPTSETUP_BUILD}/lib/libjson-c.a ${MBEDTLS}/mbedtls.a ${PROTOBUFC_BUILD}/lib/libprotobuf-c.a ${PROTOBUFC_RPC}/protobuf-c-rpc.a: ${LKL_BUILD}/include
 	+${MAKE} -C ${MAKE_ROOT}/third_party $@
 
+${X86_MODULES}: ${LKL}/.git ${TOOLS}/build_linux_4.17_x86_crypto_modules.sh
+	${TOOLS}/build_linux_4.17_x86_crypto_modules.sh ${LKL} ${X86_MODULE_DIR}
+
 # LKL's static library and include/ header directory
-lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} ${WIREGUARD} src/lkl/override/defconfig
+lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${X86MODULES_DEP} ${LKL_BUILD} ${WIREGUARD} src/lkl/override/defconfig
 	# Add Wireguard
-	cd ${LKL} && (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
+	cd ${LKL}; (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi); cd -
+	# Patch Wireguard includes for x86 hardware acceleration
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/CONFIG_X86_64/CONFIG_LKL/g' {} \;
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/asm\/fpu\/api\.h/asm\/x86\/fpu\/api\.h/g' {} \;
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/asm\/cpufeature\.h/asm\/x86\/cpufeature\.h/g' {} \;
+	find ${LKL}/net/wireguard -type f -exec sed -i 's/asm\/intel-family\.h/asm\/x86\/intel-family\.h/g' {} \;
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/defconfig
 	cp -Rv src/lkl/override/include/uapi/asm-generic/stat.h ${LKL}/include/uapi/asm-generic/stat.h

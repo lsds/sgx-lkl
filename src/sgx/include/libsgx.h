@@ -29,9 +29,8 @@ void     eresume(uint64_t tcs_id);
 int      add_page(uint64_t base, uint64_t offset, uint64_t prot, const void* page);
 
 /* High-level API */
-void     enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcs);
-uint64_t create_enclave(char* path);
-uint64_t create_enclave_mem(char* p, int base_zero, void *base_zero_max);
+void     enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcs, int heap_first);
+uint64_t create_enclave_mem(char* p, int base_zero, void *base_zero_max, int map_heap_first);
 void     enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
 int      get_free_tcs_id();
 int      get_tcs_num();

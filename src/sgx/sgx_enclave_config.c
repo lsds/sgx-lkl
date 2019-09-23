@@ -13,6 +13,13 @@
 #include "sgx_hostcall_interface.h"
 #include "pthread_impl.h"
 
+//TODO We should not keep another copy of the capabilities here.  A copy of
+//this feature map (as defined in lkl/arch/lkl/include/asm/x86/cpufeatures.h) is
+//already stored within the kernel (see 'boot_cpu'). We also might decide in
+//the future to keep a copy of the original enclave configuration around which
+//does include the feature map.
+static uint32_t x86_capabilities[X86NCAPINTS];
+
 /* we need this initializer for signer to find this struct in the TLS image */
 static __thread enclave_parms_t enclave_parms = {.base = 0xbaadf00ddeadbabe};
 
@@ -156,17 +163,43 @@ void ecall_cpuid(gprsgx_t *regs) {
     request[0] = (unsigned int)regs->rax;
     request[2] = (unsigned int)regs->rcx;
     if (request[0] == 1) clear_tsc = 1;
-    ocall_cpuid(request);
+
+    // Use cached results if possible
+
+    // TODO The x86_capabilities feature map does not hold complete CPUID
+    // results for most leafs/subleafs, so we can't use it for caching.
+    // Obtain and cache CPUID results separately instead.
+
+    //if (request[0] == 0x1) {
+    //    regs->rax = 0;
+    //    regs->rbx = 0;
+    //    regs->rcx = x86_capabilities[4];
+    //    regs->rdx = x86_capabilities[0];
+    //} else if (request[0] == 0x7 && request[2] == 0x0) {
+    if (request[0] == 0x7 && request[2] == 0x0) {
+        regs->rax = 0;
+        regs->rbx = x86_capabilities[9];
+        regs->rcx = x86_capabilities[16];
+        regs->rdx = x86_capabilities[18];
+    //} else if (request[0] == 0xd && request[2] == 0x1) {
+    //    regs->rax = x86_capabilities[10];
+    //    regs->rbx = 0;
+    //    regs->rcx = 0;
+    //    regs->rdx = 0;
+    } else {
+        ocall_cpuid(request);
+        regs->rax = request[0];
+        regs->rbx = request[1];
+        regs->rcx = request[2];
+        regs->rdx = request[3];
+    }
+
     if (clear_tsc) {
         /* clear TSC bit in edx, CPUID_FEAT_EDX_TSC - 5th bit */
-        unsigned int mask;
+        uint64_t mask;
         mask = ~(1<<4);
-        request[3] &= mask;
+        regs->rdx &= mask;
     }
-    regs->rax = request[0];
-    regs->rbx = request[1];
-    regs->rcx = request[2];
-    regs->rdx = request[3];
     regs->rip += 2;
 }
 
@@ -252,6 +285,11 @@ enclave_config_t *enclave_config_copy_and_check(enclave_config_t *untrusted) {
     // encl->argv:      argv/envp are set before application launch. Host-provided
     //                  argv/envp are ignored in release mode
     // encl->app_config app config is provided remotely in release mode
+
+    // Keep copy of x86 capability feature map to satisfy CPUID from the
+    // feature map rather than requiring a host call.
+    assert(sizeof(x86_capabilities) == sizeof(encl->x86_capabilities));
+    memcpy(x86_capabilities, encl->x86_capabilities, sizeof(x86_capabilities));
 
     return encl;
 }

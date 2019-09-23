@@ -54,6 +54,9 @@ struct gengetopt_args_info
   long threads_arg;	/**< @brief Maximum number of enclave threads. This determines the number   of TCS. This does not restrict the number of user-level threads used by an   application. (default='8').  */
   char * threads_orig;	/**< @brief Maximum number of enclave threads. This determines the number   of TCS. This does not restrict the number of user-level threads used by an   application. original value given at command line.  */
   const char *threads_help; /**< @brief Maximum number of enclave threads. This determines the number   of TCS. This does not restrict the number of user-level threads used by an   application. help description.  */
+  int support_non_pie_arg;	/**< @brief Specify this if sgx-lkl-run needs to run with   SGXLKL_NON_PIE=1. (default='0').  */
+  char * support_non_pie_orig;	/**< @brief Specify this if sgx-lkl-run needs to run with   SGXLKL_NON_PIE=1. original value given at command line.  */
+  const char *support_non_pie_help; /**< @brief Specify this if sgx-lkl-run needs to run with   SGXLKL_NON_PIE=1. help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -62,6 +65,7 @@ struct gengetopt_args_info
   unsigned int stacksize_given ;	/**< @brief Whether stacksize was given.  */
   unsigned int heapsize_given ;	/**< @brief Whether heapsize was given.  */
   unsigned int threads_given ;	/**< @brief Whether threads was given.  */
+  unsigned int support_non_pie_given ;	/**< @brief Whether support-non-pie was given.  */
 
 } ;
 

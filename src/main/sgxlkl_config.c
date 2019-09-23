@@ -101,6 +101,7 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
  /* 62 */ {"SGXLKL_WG_PORT",                  "wg_port",                  TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_WG_PORT, USHRT_MAX}}, 0},
  /* 63 */ {"SGXLKL_WG_KEY",                   "wg_key",                   TYPE_CHAR, {.def_char = NULL}, 0},
  /* 64 */ {"SGXLKL_WG_PEERS",                 "wg_peers",                 TYPE_CHAR, {.def_char = ""}, 0},
+ /* 65 */ {"SGXLKL_X86_ACC",                  "x86_acc",                  TYPE_BOOL, {.def_bool = 0}, 0},
 };
 
 static inline struct sgxlkl_config_elem *config_elem_by_key(const char *key) {

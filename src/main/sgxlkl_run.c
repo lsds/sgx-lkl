@@ -34,6 +34,7 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <getopt.h>
+#include <cpuid.h>
 
 #include "enclave_mem.h"
 #include "load_elf.h"
@@ -118,8 +119,8 @@ extern void eresume(uint64_t tcs_id);
 char* init_sgx();
 int   get_tcs_num();
 void  enter_enclave(int tcs_id, uint64_t call_id, void* arg, uint64_t* ret);
-uint64_t create_enclave_mem(char* p, int base_zero, void *base_zero_max);
-void     enclave_update_heap(void *p, size_t new_heap, char* key_path);
+uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max, int map_heap_first);
+void enclave_update_heap(void *p, size_t new_heap, char* key_path, int map_heap_first);
 
 typedef struct {
     int   tcs_id;
@@ -132,14 +133,26 @@ __thread int my_tcs_id;
 static struct attestation_config _attn_config;
 static struct attestation_info _attn_info;
 static int _aemsd_fd;
+
 #else /* SGXLKL_HW */
 /* By default non-PIE Linux binaries expect their text segment to be mapped to
  * address 0x400000. However, we use the first few pages of the enclave heap
  * for the mmap bitmap containing metadata about mapped/unmapped pages.
  * Therefore, we map the enclave at a lower address to ensure that 0x400000 is
  * available when the executable is mapped.
+ *
+ * Similarly, when x86 kernel modules are used (SGXLKL_X86_ACC), the kernel
+ * (as part of libsgxl.so) is mapped at this offset as some of the kernel
+ * modules require kernel symbols to be 32-bit (signed) addressable. In this
+ * case, libsgxl.so is mapped at this address followed by the heap.
  */
-#define SIM_NON_PIE_ENCL_MMAP_OFFSET 0x200000
+#define SIM_MMAP_LOW_OFFSET 0x200000
+
+/* The X86 kernel modules in src/lkl/x86mods have signed 32-bit relocations for
+ * kernel symbols which means libsgxlkl.so has to be mapped into the lowest 2GB
+ * of memory.
+ */
+#define SGXLKL_LIBSGXLKL_X86_MAX_ADDR ((uint64_t) 2*1024*1024*1024)
 
 /* Conditional variable to indicate exit, only used in simulation mode.
    exit_mtx protects the cv. exit_code is set to the exit code set by the
@@ -724,6 +737,93 @@ void set_clock_res(enclave_config_t *conf) {
     clock_getres(CLOCK_BOOTTIME, &conf->clock_res[CLOCK_BOOTTIME]);
 }
 
+#define XCR_XFEATURE_ENABLED_MASK 0
+
+// __get_cpuid_count is only available from gcc 6.3 onwards.
+#if __GNUC__ < 6 || (__GNUC__ == 6 && (__GNUC_MINOR__ < 3))
+static inline int __get_cpuid_count (unsigned int __leaf, unsigned int __subleaf,
+                                     unsigned int *__eax, unsigned int *__ebx,
+                                     unsigned int *__ecx, unsigned int *__edx) {
+    unsigned int __ext = __leaf & 0x80000000;
+    unsigned int __maxlevel = __get_cpuid_max (__ext, 0);
+
+    if (__maxlevel == 0 || __maxlevel < __leaf)
+      return 0;
+
+    __cpuid_count (__leaf, __subleaf, *__eax, *__ebx, *__ecx, *__edx);
+    return 1;
+}
+#endif /* GCC < 6.3 */
+
+/* Set CPU info. Determine CPU vendor, family, model, features (such as AES-NI,
+ * AVX, SSE support) and xfeature map (for features that can be
+ * enabled/disabled by the OS via an extended control register). This info is
+ * used to enable x86-specific hardware acceleration sindie the enclave, in
+ * particular for the in-kernel crypto implementations and Wireguard. */
+void set_cpu_info(enclave_config_t *conf) {
+    uint32_t eax, ebx, ecx, edx;
+
+    /* Determine CPU vendor, family, and model as well as the xfeature mask
+     * (for OS-controlled features) */
+    uint32_t cpuid_level, extended_family, extended_model;
+    if (__get_cpuid(0x0, &cpuid_level,
+                    (unsigned int *)&conf->x86_vendor_id[0],
+                    (unsigned int *)&conf->x86_vendor_id[8],
+                    (unsigned int *)&conf->x86_vendor_id[4])) {
+    }
+
+    if (__get_cpuid(0x1, &eax, &ebx, &ecx, &edx)) {
+        conf->x86_model = (eax >> 4) & 0x0f;
+        conf->x86_family = (eax >> 8) & 0x0f;
+        extended_model = (eax >> 12) & 0xf0;
+        extended_family = (eax >> 20) & 0xff;
+
+        if (conf->x86_family == 0x0f) {
+          conf->x86_family += extended_family;
+          conf->x86_model += extended_model;
+        } else if (conf->x86_family == 0x06)
+            conf->x86_model += extended_model;
+
+        /* Determine xfeature mask for OS-enabled (via XCR0) features. */
+        int os_uses_xsave = ecx & (1 << 27);
+        if (os_uses_xsave) {
+            ecx = XCR_XFEATURE_ENABLED_MASK;
+            __asm__ ("xgetbv" : "=a" (eax), "=d" (edx) : "c" (ecx));
+            conf->x86_xfeature_mask = ((uint64_t)edx << 32) | eax;
+        }
+    }
+
+    /* For now we assume an Intel CPU, so we only care about Intel features
+     * here. The feature map will be used within the enclave by LKL and follows
+     * the structure defined in lkl/arch/lkl/include/asm/x86/cpufeatures.h. */
+    uint32_t *f = conf->x86_capabilities;
+    memset(f, 0, X86NCAPINTS*4);
+
+    /* CPUID level 0x00000001 */
+    if (__get_cpuid(0x1, &eax, &ebx, &ecx, &edx)) {
+         /* Intel-defined CPU features, CPUID level 0x00000001 (EDX), word 0 */
+        f[0] = edx;
+        /* Intel-defined CPU features, CPUID level 0x00000001 (ECX), word 4 */
+        f[4] = ecx;
+    }
+
+    /* CPUID level 0x00000007:0 */
+    if (__get_cpuid_count(0x7, 0x0, &eax, &ebx, &ecx, &edx)) {
+        /* Intel-defined CPU features, CPUID level 0x00000007:0 (EBX), word 9 */
+        f[9] = ebx;
+        /* Intel-defined CPU features, CPUID level 0x00000007:0 (ECX), word 16 */
+        f[16] = ecx;
+        /* Intel-defined CPU features, CPUID level 0x00000007:0 (EDX), word 18 */
+        f[18] = edx;
+    }
+
+    /* CPUID level 0x0000000d */
+    if (__get_cpuid_count(0xd,0x1, &eax, &ebx, &ecx, &edx)) {
+        /* Extended state features, CPUID level 0x0000000d:1 (EAX), word 10 */
+        f[10] = eax;
+    }
+}
+
 static void *find_vvar_base(void) {
     FILE *maps;
     char mapping[128];
@@ -1165,10 +1265,6 @@ attestation_verification_report_t *get_attestation_report(sgx_quote_t *quote, si
 #endif
 
 #ifdef DEBUG
-void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf, char *libsgxlkl_path) {
-    __asm__ volatile ( "nop" : : "m" (conf), "m" (libsgxlkl_path) );
-}
-
 void print_host_syscall_stats() {
     // If we are exiting from the SIGINT handler, we already printed the
     // syscall stats.
@@ -1329,7 +1425,7 @@ static void sgxlkl_cleanup(void) {
 }
 
 /* Determines path of libsgxlkl.so (lkl + musl) */
-void get_libsgxlkl_path(char *path_buf, size_t len) {
+static void get_libsgxlkl_path(char *path_buf, size_t len) {
     /* Look for libsgxlkl.so in:
      *  1. .
      *  2. ../lib
@@ -1373,6 +1469,99 @@ void get_libsgxlkl_path(char *path_buf, size_t len) {
     }
 
     sgxlkl_fail("Unable to locate libsgxlkl.so.\n");
+}
+
+void __attribute__ ((noinline)) __gdb_hook_starter_ready(enclave_config_t *conf, char *libsgxlkl_path) {
+    __asm__ volatile ( "nop" : : "m" (conf), "m" (libsgxlkl_path) );
+}
+
+static void setup_enclave(enclave_config_t *conf, int ethreads) {
+    char libsgxlkl[PATH_MAX];
+    get_libsgxlkl_path(libsgxlkl, PATH_MAX);
+
+    uint64_t heap_size = sgxlkl_config_uint64(SGXLKL_HEAP);
+    int non_pie = sgxlkl_config_bool(SGXLKL_NON_PIE);
+    int use_x86_acc = sgxlkl_config_bool(SGXLKL_X86_ACC);
+
+    /* SGXLKL_NON_PIE and SGXLKL_X86_ACC cannot be used together. Non-PIEs
+     * require the low address range to be kept free for the executable itself
+     * while X86 kernel module support requires the kernel as well as the modules
+     * themselves to be mapped within the low 2GB of the address space, resulting
+     * in a conflict between the two. For small heap sizes it would potentially be
+     * possible to combine the two, but as non-PIEs become increasingly uncommon
+     * and combining both makes things a lot more complicated, we just disallow
+     * combining both for now. */
+    if (non_pie && use_x86_acc)
+        sgxlkl_fail("SGXLKL_NON_PIE and SGXLKL_X86_ACC cannot be used together.\n");
+
+#ifdef SGXLKL_HW
+    char *signing_key = sgxlkl_config_str(SGXLKL_KEY);
+
+    /* Map enclave file into memory */
+    int sgxlkl_lib_fd;
+    struct stat sgxlkl_lib_stat;
+    if (!(sgxlkl_lib_fd = open(libsgxlkl, O_RDONLY)))
+        sgxlkl_fail("Failed to open %s: %s\n", libsgxlkl, strerror(errno));
+
+    if (fstat(sgxlkl_lib_fd, &sgxlkl_lib_stat) == -1)
+        sgxlkl_fail("Failed to call fstat on %s: %s\n", libsgxlkl, strerror(errno));
+
+    char* lib = mmap(0, sgxlkl_lib_stat.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, sgxlkl_lib_fd, 0);
+
+    init_sgx();
+    if (sgxlkl_configured(SGXLKL_HEAP) || sgxlkl_configured(SGXLKL_KEY)) {
+        if (!sgxlkl_configured(SGXLKL_KEY))
+            sgxlkl_fail("Heap size but no enclave signing key specified. Please specify a signing key via SGXLKL_KEY.\n");
+        enclave_update_heap(lib, heap_size, signing_key, non_pie);
+    }
+
+    conf->base = create_enclave_mem(lib, non_pie || use_x86_acc, &__sgxlklrun_text_segment_start, non_pie);
+    munmap(lib, sgxlkl_lib_stat.st_size);
+
+    // Check if there are enough TCS for all ethreads.
+    int num_tcs = get_tcs_num();
+    if (num_tcs == 0) sgxlkl_fail("No TCS number specified \n");
+    if (num_tcs < ethreads) sgxlkl_fail("Not enough TCS \n");
+#else
+    char *encl_heap_addr = 0;
+    int encl_mmap_flags = MAP_PRIVATE|MAP_ANONYMOUS;
+
+    /* Load libsgxlkl */
+    struct encl_map_info encl_map;
+    void *libsgxlkl_base_addr = 0;
+    if (use_x86_acc)
+        libsgxlkl_base_addr = (void *)SIM_MMAP_LOW_OFFSET;
+
+    load_elf(libsgxlkl, libsgxlkl_base_addr, &encl_map);
+    if (encl_map.base < 0)
+        sgxlkl_fail("Could not load libsgxlkl.\n");
+    if (use_x86_acc && (uint64_t) encl_map.base + encl_map.size > SGXLKL_LIBSGXLKL_X86_MAX_ADDR)
+        sgxlkl_fail("Could not map libsgxlkl into the lowest 2GB of the address space which is required for X86 kernel module relocations (SGXLKL_X86_ACC).");
+
+    conf->base = encl_map.base;
+    conf->ifn = encl_map.entry_point;
+
+    /* Initialize heap memory */
+    if (non_pie) {
+        if ((char*) SIM_MMAP_LOW_OFFSET + heap_size > &__sgxlklrun_text_segment_start)
+            sgxlkl_fail("SGXLKL_HEAP must be smaller than %lu bytes to not overlap with sgx-lkl-run when SGXLKL_NON_PIE is set to 1.\n", (size_t) (&__sgxlklrun_text_segment_start - SIM_MMAP_LOW_OFFSET));
+
+        encl_heap_addr = (void *)SIM_MMAP_LOW_OFFSET;
+        encl_mmap_flags |= MAP_FIXED;
+    } else if (use_x86_acc) {
+        encl_heap_addr = (char *)encl_map.base + encl_map.size;
+        encl_heap_addr = (void *) ((uint64_t)(encl_heap_addr + getpagesize() - 1) & ~((uint64_t)getpagesize() - 1));
+        encl_mmap_flags |= MAP_FIXED;
+    }
+
+    conf->heap = mmap(encl_heap_addr, heap_size, PROT_EXEC|PROT_READ|PROT_WRITE, encl_mmap_flags, -1, 0);
+    if (conf->heap == MAP_FAILED)
+        sgxlkl_fail("Failed to allocate memory for enclave heap: %s\n", strerror(errno));
+
+    conf->heapsize = heap_size;
+#endif
+
+    __gdb_hook_starter_ready(conf, libsgxlkl);
 }
 
 //Assumes format --longopt[=optarg] or -shortopt[=optarg]
@@ -1437,7 +1626,6 @@ int main(int argc, char *argv[], char *envp[]) {
     char** auxvp;
     int i, r, rtprio;
     void *_retval;
-    int encl_mmap_flags;
     pthread_attr_t eattr;
     cpu_set_t set;
     int *ethreads_cores, *sthreads_cores;
@@ -1559,8 +1747,10 @@ int main(int argc, char *argv[], char *envp[]) {
     encl.mmap_files = !strcmp(mmap_files, "Shared") ? ENCLAVE_MMAP_FILES_SHARED :
                      (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE :
                      ENCLAVE_MMAP_FILES_NONE);
+    encl.use_x86_acc = sgxlkl_config_bool(SGXLKL_X86_ACC);
     set_sysconf_params(&encl, ntenclave);
     set_clock_res(&encl);
+    set_cpu_info(&encl);
     set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
@@ -1597,57 +1787,12 @@ int main(int argc, char *argv[], char *envp[]) {
         sgxlkl_fail("Could not initialize print spin locks.\n");
     }
 
+    setup_enclave(&encl, ntenclave);
+
     /* Get system call thread number */
     ntsyscall = sgxlkl_config_uint64(SGXLKL_STHREADS);
     ts = calloc(sizeof(*ts), ntenclave + ntsyscall);
     if (ts == 0) sgxlkl_fail("Failed to allocate memory for thread identifiers: %s\n", strerror(errno));
-
-#ifdef SGXLKL_HW
-    /* Map enclave file into memory */
-    int lkl_lib_fd;
-    struct stat lkl_lib_stat;
-    if(!(lkl_lib_fd = open(libsgxlkl, O_RDONLY)))
-        sgxlkl_fail("Failed to open %s: %s\n", libsgxlkl, strerror(errno));
-
-    if(fstat(lkl_lib_fd, &lkl_lib_stat) == -1)
-        sgxlkl_fail("Failed to call fstat on %s: %s\n", libsgxlkl, strerror(errno));
-
-    char* enclave_start = mmap(0, lkl_lib_stat.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, lkl_lib_fd, 0);
-
-    init_sgx();
-    if (sgxlkl_configured(SGXLKL_HEAP) || sgxlkl_configured(SGXLKL_KEY)) {
-        if (!sgxlkl_configured(SGXLKL_KEY))
-            sgxlkl_fail("Heap size but no enclave signing key specified. Please specify a signing key via SGXLKL_KEY.\n");
-        enclave_update_heap(enclave_start, sgxlkl_config_uint64(SGXLKL_HEAP), sgxlkl_config_str(SGXLKL_KEY));
-    }
-    encl.base = create_enclave_mem(enclave_start, sgxlkl_config_bool(SGXLKL_NON_PIE), &__sgxlklrun_text_segment_start);
-
-    // Check if there are enough TCS for all ethreads.
-    int num_tcs = get_tcs_num();
-    if (num_tcs == 0) sgxlkl_fail("No TCS number specified \n");
-    if (num_tcs < ntenclave) sgxlkl_fail("Not enough TCS \n");
-#else
-    /* Initialize heap memory */
-    encl.heapsize = sgxlkl_config_uint64(SGXLKL_HEAP);
-    encl_mmap_flags = MAP_PRIVATE|MAP_ANONYMOUS;
-    if (sgxlkl_config_bool(SGXLKL_NON_PIE)) {
-        if ((char*) SIM_NON_PIE_ENCL_MMAP_OFFSET + encl.heapsize > &__sgxlklrun_text_segment_start) {
-            sgxlkl_fail("SGXLKL_HEAP must be smaller than %lu bytes to not overlap with sgx-lkl-run when SGXLKL_NON_PIE is set to 1.\n", (size_t) (&__sgxlklrun_text_segment_start - SIM_NON_PIE_ENCL_MMAP_OFFSET));
-        }
-        encl_mmap_flags |= MAP_FIXED;
-    }
-    encl.heap = mmap((void*) SIM_NON_PIE_ENCL_MMAP_OFFSET, encl.heapsize, PROT_EXEC|PROT_READ|PROT_WRITE, encl_mmap_flags, -1, 0);
-    if (encl.heap == MAP_FAILED)
-        sgxlkl_fail("Failed to allocate memory for enclave heap: %s\n", strerror(errno));
-
-    /* Load libsgxlkl */
-    struct encl_map_info encl_map;
-    load_elf(libsgxlkl, &encl_map);
-    if (encl_map.base < 0) sgxlkl_fail("Could not load liblkl.\n");
-
-    encl.base = encl_map.base;
-    encl.ifn = encl_map.entry_point;
-#endif
 
     /* Launch system call threads */
     for (i = 0; i < ntsyscall; i++) {
@@ -1662,10 +1807,6 @@ int main(int argc, char *argv[], char *envp[]) {
         pthread_create(&ts[i], &eattr, host_syscall_thread, &encl);
         pthread_setname_np(ts[i], "HOST_SYSCALL");
     }
-
-#ifdef DEBUG
-    __gdb_hook_starter_ready(&encl, libsgxlkl);
-#endif
 
     // Find aux vector (after envp vector)
     for (auxvp = envp; *auxvp; auxvp++);

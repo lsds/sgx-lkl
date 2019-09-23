@@ -21,8 +21,9 @@ int main(int argc, char** argv) {
     long threads = args_info.threads_arg;
     char* key = args_info.key_arg;
     char* libpath = args_info.file_arg;
+    int support_non_pie = args_info.support_non_pie_arg;
 
-    enclave_sign(libpath, key, heapsize, stacksize, threads);
+    enclave_sign(libpath, key, heapsize, stacksize, threads, support_non_pie);
     cmdline_parser_free(&args_info);
     return 0;
 }

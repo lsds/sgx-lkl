@@ -13,6 +13,7 @@
 #include <time.h>
 #include <stdint.h>
 #include <sys/uio.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "syscall.h"
@@ -34,6 +35,16 @@
 
 #define LKL_STDOUT_FILENO 1
 #define NSEC_PER_SEC 1000000000L
+
+static void *sgxlkl_executable_alloc(size_t length) {
+    void* res = mmap(0, length, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+    return res;
+}
+
+static void *sgxlkl_executable_free(void *addr, size_t length) {
+    void* res = munmap(addr, length);
+    return res;
+}
 
 static void panic(void) {
     if (lthread_self()) {
@@ -432,6 +443,8 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .print = print,
     .mem_alloc = malloc,
     .mem_free = free,
+    .mem_executable_alloc = sgxlkl_executable_alloc,
+    .mem_executable_free = sgxlkl_executable_free,
     .ioremap = lkl_ioremap,
     .iomem_access = lkl_iomem_access,
     .virtio_devices = lkl_virtio_devs,

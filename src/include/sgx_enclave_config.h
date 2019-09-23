@@ -36,6 +36,9 @@ typedef struct {
 /* Maximum path length of mount points for secondary disks */
 #define SGXLKL_DISK_MNT_MAX_PATH_LEN 255
 
+/* See lkl/arch/lkl/incluade/asm/cpufeatures.h */
+#define X86NCAPINTS 19
+
 typedef struct enclave_disk_config {
     /* Provided by sgx-lkl-run at runtime. */
     int fd;
@@ -119,6 +122,12 @@ typedef struct enclave_config {
     int mode; /* SGXLKL_HW_MODE or SGXLKL_SIM_MODE */
     void *vvar;
     int fsgsbase; /* Can we use FSGSBASE instructions within the enclave? */
+    char x86_vendor_id[12];
+    uint32_t x86_model;
+    uint32_t x86_family;
+    uint32_t x86_capabilities[X86NCAPINTS];
+    uint64_t x86_xfeature_mask;
+    int use_x86_acc;
     int verbose;
     int kernel_verbose;
     char *kernel_cmd;

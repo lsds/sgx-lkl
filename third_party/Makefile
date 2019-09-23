@@ -101,7 +101,7 @@ ${MBEDTLS}/mbedtls.a: ${MBEDTLS_OBJS}
 	ar rc $@ $^
 
 $(MBEDTLS_OBJS): $(MBEDTLS)/%.o: ${MBEDTLS}/%.c
-	$(CC) -c --std=gnu11 -I${MBEDTLS}/include $(THIRD_PARTY_CFLAGS) $< -o $@
+	$(CC) -c -fPIC --std=gnu11 -I${MBEDTLS}/include $(THIRD_PARTY_CFLAGS) $< -o $@
 
 PROTOBUFC_RPC_SRCS = $(wildcard ${PROTOBUFC_RPC}/*.c)
 PROTOBUFC_RPC_OBJS = $(PROTOBUFC_RPC_SRCS:.c=.o)

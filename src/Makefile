@@ -40,11 +40,15 @@ ifeq ($(DEBUG),true)
   CFLAGS_LIBSGX += -DDEBUG -O1 -g3 -ggdb3
   CFLAGS_SGX += -DDEBUG -O0 -g3 -ggdb3
 else ifeq ($(DEBUG),opt)
-  CFLAGS_LIBSGX += -O3 -g3 -ggdb3
-  CFLAGS_SGX += -O3 -g3 -ggdb3
+  CFLAGS_LIBSGX += -O2 -g3 -ggdb3
+  CFLAGS_SGX += -O1 -g3 -ggdb3
 else
-  CFLAGS_SGX += -O3
-  CFLAGS_LIBSGX = -O3
+  CFLAGS_LIBSGX = -O2
+  CFLAGS_SGX += -O1
+endif
+
+ifeq ($(X86MODULES),true)
+  CFLAGS_SGX += -DX86MODULES
 endif
 
 CFLAGS_MAIN += $(CFLAGS_SGX)
@@ -85,7 +89,7 @@ $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a: $(LIBSGX_OBJS)
 
 # libsgx needs can't be built with -O0, force -O1
 $(LIBSGX_OBJS): ${LIB_SGX_LKL_BUILD}/sgx/%.o: sgx/%.c
-	$(CC) -c --std=gnu11 -Isgx/include  -I$(MBEDTLS)/include $(CFLAGS_LIBSGX) $< -o $@
+	$(CC) -c -fPIC --std=gnu11 -Isgx/include  -I$(MBEDTLS)/include $(CFLAGS_LIBSGX) $< -o $@
 
 # sgx-lkl-sign ----
 SIGN_SRCS = sgxlkl_sign.c sgxlkl_sign_cmdline.c
@@ -117,14 +121,14 @@ else
 endif
 
 $(LIB_SGX_LKL_BUILD)/sgx-lkl-run: $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a $(ATTEST_DEPS) builddirs
-	$(CC) $(CFLAGS_MAIN) -o $@ $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a -ljson-c $(LINK_MAIN) -pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
+	$(CC) $(CFLAGS_MAIN) -pie -fPIE -o $@ $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a -ljson-c $(LINK_MAIN) -pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
 
 MAIN_SRCS+=$(wildcard main/*.c) $(wildcard shared/*.c)
 MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
 
 $(MAIN_OBJS): $(LIB_SGX_LKL_BUILD)/main/%.o: %.c | $(ATTEST_DEPS)
 	mkdir -p $(dir $@)
-	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/ $(CFLAGS_MAIN) -c -o $@ $<
+	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/ $(CFLAGS_MAIN) -fPIC -c -o $@ $<
 
 $(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
 	$(AR) rc $@ $(MAIN_OBJS)
@@ -143,15 +147,29 @@ sgx/sgxlkl_ctl.pb-c.c include/sgxlkl_ctl.pb-c.h:
 	mv sgx/sgxlkl_ctl.pb-c.h include
 
 # libsgxlkl.a ----
+ifeq ($(X86MODULES),true)
+  KMODS_X86=${wildcard lkl/x86mods/*.ko}
+else
+  KMODS_X86=
+endif
+KMODS_X86_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgxlkl/,$(KMODS_X86:.ko=.ko.o))
+
+$(KMODS_X86_OBJS): $(LIB_SGX_LKL_BUILD)/sgxlkl/%.ko.o: %.ko
+	mkdir -p $(dir $@)
+	ld -r -b binary -o $@ $<
+
 SGXLKL_SRCS=sgx/sgx_enclave_config.c sgx/enclave_mem.c sgx/enclave_signal.c sgx/sgxlkl_debug.c sgx/sgx_enclave_report.c sgx/enclave_cmd.c sgx/sgxlkl_app_config.c sgx/sgxlkl_ctl.pb-c.c $(wildcard shared/*.c) $(wildcard sched/*.c) $(wildcard host/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c)
 SGXLKL_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
+CFLAGS_futex.o += -mno-sse
+CFLAGS_posix-host.o += -mno-sse
+
 $(SGXLKL_OBJS): $(LIB_SGX_LKL_BUILD)/sgxlkl/%.o: %.c | $(SGX_LKL_MUSL_BUILD)/include ${LINUX_SGX} $(PROTOBUFC_BUILD)/include include/sgxlkl_ctl.pb-c.h
 	mkdir -p $(dir $@)
-	$(CC) -I$(srcdir)/include $(CFLAGS_MUSL_ALL) -c -o $@ $<
+	$(CC) -I$(srcdir)/include $(CFLAGS_MUSL_ALL) $(CFLAGS_$(notdir $@)) -c -o $@ $<
 
-$(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a: $(SGXLKL_OBJS) builddirs
-	$(AR) rc $@ $(SGXLKL_OBJS)
+$(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a: $(SGXLKL_OBJS) $(KMODS_X86_OBJS) builddirs
+	$(AR) rc $@ $(SGXLKL_OBJS) $(KMODS_X86_OBJS)
 	$(RANLIB) $@
 
 $(SGX_LKL_MUSL_BUILD)/include:
