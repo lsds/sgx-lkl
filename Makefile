@@ -53,7 +53,7 @@ ${X86_MODULES}: ${LKL}/.git ${TOOLS}/build_linux_4.17_x86_crypto_modules.sh
 
 # LKL's static library and include/ header directory
 lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${X86MODULES_DEP} ${LKL_BUILD} ${WIREGUARD} src/lkl/override/defconfig
-	cd ${LKL}; git remote show origin | grep "github.com/lsds/lkl" || (echo -n "\nERROR: The location of the lkl submodule repository has changed and needs to be updated. Run the following to switch to the correct submodule repository (github.com/lsds/lkl):\n  git submodule sync\n  git submodule update\n\n"; exit 1)
+	cd ${LKL}; git remote show origin | grep -E "github.com/lsds/lkl|github.com:lsds/lkl" || (echo -n "\nERROR: The location of the lkl submodule repository has changed and needs to be updated. Run the following to switch to the correct submodule repository (github.com/lsds/lkl):\n  git submodule sync\n  git submodule update\n\n"; exit 1)
 	# Add Wireguard
 	cd ${LKL}; (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi); cd -
 	# Patch Wireguard includes for x86 hardware acceleration
