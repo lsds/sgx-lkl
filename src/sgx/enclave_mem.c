@@ -26,9 +26,11 @@ static void* mmap_base; // First page that can be mmap'ed.
 static void* mmap_end;  // Last page that can be mmap'ed.
 static size_t mmap_num_pages; // Total number of pages that can be mmap'ed.
 
+static size_t used_pages = 0; // Tracks the number of used pages for the mmap tracing.
+
 static int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
 
-static size_t used_pages = 0; // Tracks the number of used pages for the mmap tracing.
+static int mmap_topdown; // Allocate higher addresses first?
 
 #if DEBUG
 extern int sgxlkl_trace_mmap;
@@ -75,16 +77,37 @@ static inline unsigned long bitmap_find_next_zero_area(unsigned long *map,
     }
 }
 
-static int in_mmap_range(void* addr, size_t size) {
+static int in_mmap_range(void *addr, size_t size) {
     return addr >= mmap_base && ((char *)addr + size) <= (char *)mmap_end;
 }
 
-static void* index_to_addr(size_t index) {
-    return (char *)mmap_end - (index * PAGE_SIZE);
+static void *index_to_addr(size_t index) {
+    if (mmap_topdown)
+        return (char *)mmap_end - (index * PAGE_SIZE);
+    else
+        return (char *)mmap_base + (index * PAGE_SIZE);
 }
 
-static size_t addr_to_index(void* addr) {
-    return ((char *)mmap_end - (char *)addr) / PAGE_SIZE;
+static size_t addr_to_index(void *addr) {
+    if (mmap_topdown)
+        return ((char *)mmap_end - (char *)addr) / PAGE_SIZE;
+    else
+        return ((char *)addr - (char *)mmap_base) / PAGE_SIZE;
+}
+
+static void *index_range_to_base_addr(size_t index, size_t pages) {
+    if (mmap_topdown)
+        return index_to_addr(index + (pages - 1));
+    else
+        return index_to_addr(index);
+}
+
+static size_t addr_range_to_index(void *addr, size_t pages) {
+    if (mmap_topdown)
+        // Get index for last page since the bitmap is used in reverse.
+        return addr_to_index(addr) - (pages - 1);
+    else
+        return addr_to_index(addr);
 }
 
 void *syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
@@ -178,8 +201,11 @@ int syscall_SYS_sysinfo(struct sysinfo *info) {
  * A bitmap is used to keep track of mapped/unmapped pages in the range of base
  * to base + num_pages*PAGE_SIZE. The bitmap occupies the first few pages of
  * enclave memory.
+ *
+ * If topdown is specified, memory will be allocated top down, i.e. higher
+ * addresses will be used first.
  */
-void enclave_mman_init(void* base, size_t num_pages, int _mmap_files) {
+void enclave_mman_init(void* base, size_t num_pages, int topdown, int _mmap_files) {
     // Don't use page at address 0x0.
     if(base == 0x0) {
         base = (char *)base + PAGE_SIZE;
@@ -197,6 +223,7 @@ void enclave_mman_init(void* base, size_t num_pages, int _mmap_files) {
     // Initialize bitmap
     bitmap_clear(mmap_bitmap, 0, mmap_num_pages);
 
+    mmap_topdown = topdown;
     mmap_files = _mmap_files;
 }
 
@@ -237,37 +264,34 @@ void* enclave_mmap(void* addr, size_t length, int mmap_fixed) {
             errno = ENOMEM;
             ret = MAP_FAILED;
         } else {
-            // Get index for last page since the bitmap is used in reverse.
-            size_t index_top = addr_to_index(addr) - (pages - 1);
+            size_t index = addr_range_to_index(addr, pages);
 
 #if DEBUG
             if(sgxlkl_trace_mmap)
-                replaced_pages = bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index_top, pages);
+                replaced_pages = bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index, pages);
 #endif /* DEBUG */
 
-            bitmap_set(mmap_bitmap, index_top, pages);
+            bitmap_set(mmap_bitmap, index, pages);
             ret = addr;
         }
     } else if(addr != 0 && in_mmap_range(addr, length)) {
-        // Get index for last page since the bitmap is used in reverse.
-        size_t index_top = addr_to_index(addr) - (pages - 1);
+        size_t index = addr_range_to_index(addr, pages);
         // Address provided as a hint, check if range is available.
-        if(!bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index_top, pages)) {
-            bitmap_set(mmap_bitmap, index_top, pages);
+        if(!bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index, pages)) {
+            bitmap_set(mmap_bitmap, index, pages);
             ret = addr;
         }
     }
 
     // Find next area with enough space.
     if(ret == 0) {
-        size_t index_top = bitmap_find_next_zero_area(mmap_bitmap, mmap_num_pages, 0, pages);
-        if(index_top + pages  > mmap_num_pages) {
+        size_t index = bitmap_find_next_zero_area(mmap_bitmap, mmap_num_pages, 0, pages);
+        if(index + pages  > mmap_num_pages) {
             errno = ENOMEM;
             ret = MAP_FAILED;
         } else {
-            bitmap_set(mmap_bitmap, index_top, pages);
-            size_t index = index_top + (pages - 1);
-            ret = index_to_addr(index);
+            bitmap_set(mmap_bitmap, index, pages);
+            ret = index_range_to_base_addr(index, pages);
         }
     }
 
@@ -307,16 +331,15 @@ int enclave_munmap(void* addr, size_t length) {
         return -1;
     }
 
-    size_t index = addr_to_index(addr);
-    size_t index_top = index - (pages - 1);
+    size_t index = addr_range_to_index(addr, pages);
 
     ticket_lock(&mmaplock);
 
     // Only count pages that have been marked as mmapped before.
-    size_t occupied_pages = bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index_top, pages);
+    size_t occupied_pages = bitmap_count_set_bits(mmap_bitmap, mmap_num_pages, index, pages);
     used_pages -= occupied_pages;
 
-    bitmap_clear(mmap_bitmap, index_top, pages);
+    bitmap_clear(mmap_bitmap, index, pages);
     ticket_unlock(&mmaplock);
 
 #if DEBUG

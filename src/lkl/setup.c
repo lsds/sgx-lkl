@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/random.h>
+#include <linux/module.h>
 #include <stdio.h>
 #include <stdlib.h>
 #define _GNU_SOURCE // Needed for strchrnul
@@ -57,6 +58,9 @@ static void lkl_add_disks(struct enclave_disk_config *disks, size_t num_disks) {
     for (size_t i = 0; i < num_disks; ++i) {
         if (disks[i].fd == -1)
             continue;
+
+        SGXLKL_VERBOSE("Disk %zu: Disk encryption: %s\n", i, (disks[i].enc ? "ON" : "off"));
+        SGXLKL_VERBOSE("Disk %zu: Disk is read-only: %s\n", i, (disks[i].ro ? "YES" : "no"));
 
         /* Set ops to NULL to use platform default ops */
         struct lkl_disk lkl_disk;
@@ -383,6 +387,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd) {
         .data_size = lkl_cd->disk_config->roothash_offset / 512, // In blocks, divide by block size
         .data_block_size = 512,
         .hash_block_size = 512,
+        .hash_name = "sha256"
     };
 
     err = crypt_load(cd, CRYPT_VERITY, &verity_params);
@@ -457,8 +462,8 @@ static void lkl_mount_virtual() {
     lkl_mknods();
 }
 
-static void lkl_set_working_dir(char* path) {
-    SGXLKL_VERBOSE("Set working directory %s\n", path);
+static void lkl_set_working_dir(const char* path) {
+    SGXLKL_VERBOSE("Setting working directory: %s\n", path);
     int ret = lkl_sys_chdir(path);
     if (ret == 0) {
         return;
@@ -776,6 +781,67 @@ out:
         free(pool_info);
 }
 
+#ifdef X86MODULES
+#define init_module(addr, length, param_values) syscall(SYS_init_module, addr, length, param_values)
+
+// We are not using _binary_lkl_x86mods_*_ko_size as it seems to be unreliable.
+// Instead use end - start to calculate size.
+extern char _binary_lkl_x86mods_aes_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_aes_x86_64_ko_end[];
+extern char _binary_lkl_x86mods_aesni_intel_ko_start[];
+extern char _binary_lkl_x86mods_aesni_intel_ko_end[];
+extern char _binary_lkl_x86mods_chacha20_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_chacha20_x86_64_ko_end[];
+extern char _binary_lkl_x86mods_poly1305_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_poly1305_x86_64_ko_end[];
+extern char _binary_lkl_x86mods_salsa20_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_salsa20_x86_64_ko_end[];
+extern char _binary_lkl_x86mods_serpent_avx_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_serpent_avx_x86_64_ko_end[];
+extern char _binary_lkl_x86mods_serpent_avx2_ko_start[];
+extern char _binary_lkl_x86mods_serpent_avx2_ko_end[];
+extern char _binary_lkl_x86mods_sha1_ssse3_ko_start[];
+extern char _binary_lkl_x86mods_sha1_ssse3_ko_end[];
+extern char _binary_lkl_x86mods_sha256_ssse3_ko_start[];
+extern char _binary_lkl_x86mods_sha256_ssse3_ko_end[];
+extern char _binary_lkl_x86mods_sha512_ssse3_ko_start[];
+extern char _binary_lkl_x86mods_sha512_ssse3_ko_end[];
+extern char _binary_lkl_x86mods_twofish_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_twofish_x86_64_ko_end[];
+extern char _binary_lkl_x86mods_twofish_x86_64_3way_ko_start[];
+extern char _binary_lkl_x86mods_twofish_x86_64_3way_ko_end[];
+extern char _binary_lkl_x86mods_twofish_avx_x86_64_ko_start[];
+extern char _binary_lkl_x86mods_twofish_avx_x86_64_ko_end[];
+
+void load_x86_kernel_modules(void) {
+    const struct {
+            const char *name; const char *addr; size_t size;
+    } kmods[] = {
+      {"aes-x86_64.ko",           _binary_lkl_x86mods_aes_x86_64_ko_start,          (size_t) (_binary_lkl_x86mods_aes_x86_64_ko_end - _binary_lkl_x86mods_aes_x86_64_ko_start)},
+      {"aesni-intel.ko",          _binary_lkl_x86mods_aesni_intel_ko_start,         (size_t) (_binary_lkl_x86mods_aesni_intel_ko_end - _binary_lkl_x86mods_aesni_intel_ko_start)},
+      {"chacha20-x86_64.ko",      _binary_lkl_x86mods_chacha20_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_chacha20_x86_64_ko_end - _binary_lkl_x86mods_chacha20_x86_64_ko_start)},
+      {"poly1305-x86_64.ko",      _binary_lkl_x86mods_poly1305_x86_64_ko_start,     (size_t) (_binary_lkl_x86mods_poly1305_x86_64_ko_end - _binary_lkl_x86mods_poly1305_x86_64_ko_start)},
+      {"salsa20-x86_64.ko",       _binary_lkl_x86mods_salsa20_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_salsa20_x86_64_ko_end - _binary_lkl_x86mods_salsa20_x86_64_ko_start)},
+      {"serpent-avx-x86_64.ko",   _binary_lkl_x86mods_serpent_avx_x86_64_ko_start,  (size_t) (_binary_lkl_x86mods_serpent_avx_x86_64_ko_end - _binary_lkl_x86mods_serpent_avx_x86_64_ko_start)},
+      {"serpent-avx2.ko",         _binary_lkl_x86mods_serpent_avx2_ko_start,        (size_t) (_binary_lkl_x86mods_serpent_avx2_ko_end - _binary_lkl_x86mods_serpent_avx2_ko_start)},
+      {"sha1-ssse3.ko",           _binary_lkl_x86mods_sha1_ssse3_ko_start,          (size_t) (_binary_lkl_x86mods_sha1_ssse3_ko_end - _binary_lkl_x86mods_sha1_ssse3_ko_start)},
+      {"sha256-ssse3.ko",         _binary_lkl_x86mods_sha256_ssse3_ko_start,        (size_t) (_binary_lkl_x86mods_sha256_ssse3_ko_end - _binary_lkl_x86mods_sha256_ssse3_ko_start)},
+      {"sha512-ssse3.ko",         _binary_lkl_x86mods_sha512_ssse3_ko_start,        (size_t) (_binary_lkl_x86mods_sha512_ssse3_ko_end - _binary_lkl_x86mods_sha512_ssse3_ko_start)},
+      {"twofish-x86_64.ko",       _binary_lkl_x86mods_twofish_x86_64_ko_start,      (size_t) (_binary_lkl_x86mods_twofish_x86_64_ko_end - _binary_lkl_x86mods_twofish_x86_64_ko_start)},
+      {"twofish-x86_64-3way.ko",  _binary_lkl_x86mods_twofish_x86_64_3way_ko_start, (size_t) (_binary_lkl_x86mods_twofish_x86_64_3way_ko_end - _binary_lkl_x86mods_twofish_x86_64_3way_ko_start)},
+      {"twofish-avx-x86_64.ko",   _binary_lkl_x86mods_twofish_avx_x86_64_ko_start,  (size_t) (_binary_lkl_x86mods_twofish_avx_x86_64_ko_end - _binary_lkl_x86mods_twofish_avx_x86_64_ko_start)},
+    };
+
+    for (int i = 0; i < sizeof(kmods)/sizeof(kmods[0]); i++) {
+        if (init_module(kmods[i].addr, kmods[i].size, "") != 0) {
+            SGXLKL_VERBOSE("Failed to load kernel module %s: %s\n", kmods[i].name, strerror(errno));
+        } else {
+            SGXLKL_VERBOSE("Successfully loaded kernel module %s\n", kmods[i].name);
+        }
+    }
+}
+#endif /* X86MODULES */
+
 void lkl_start_init(enclave_config_t* encl) {
     size_t i;
 
@@ -812,6 +878,12 @@ void lkl_start_init(enclave_config_t* encl) {
 
     sgxlkl_mtu = encl->tap_mtu;
 
+    lkl_setup_x86_cpu(encl->x86_vendor_id,
+                      encl->x86_family,
+                      encl->x86_model,
+                      (char *)encl->x86_capabilities,
+                      encl->x86_xfeature_mask);
+
     // Register network tap if given one
     int net_dev_id = -1;
     if (encl->net_fd != 0)
@@ -820,11 +892,6 @@ void lkl_start_init(enclave_config_t* encl) {
     // Start kernel threads (synchronous, doesn't return before kernel is ready)
     const char *lkl_cmdline = encl->kernel_cmd;
     SGXLKL_VERBOSE("Kernel command line: \"%s\"\n", lkl_cmdline);
-
-    for (i = 0; i < num_disks; ++i) {
-        SGXLKL_VERBOSE("Disk %zu: Disk encryption: %s\n", i, (disks[i].enc ? "ON" : "off"));
-        SGXLKL_VERBOSE("Disk %zu: Disk is writable: %s\n", i, (!disks[i].ro ? "YES" : "no"));
-    }
 
     long res = lkl_start_kernel(&lkl_host_ops, lkl_cmdline);
     if (res < 0) {
@@ -844,6 +911,12 @@ void lkl_start_init(enclave_config_t* encl) {
             exit(err);
         }
     }
+
+
+#ifdef X86MODULES
+    if (encl->use_x86_acc)
+        load_x86_kernel_modules();
+#endif
 
     // Now that our kernel is ready to handle syscalls, mount root
     lkl_mount_virtual();

@@ -49,6 +49,7 @@ class StarterExecBreakpoint(gdb.Breakpoint):
         self.inited = False
 
     def stop(self):
+        gdb.write('__gdb_hook_starter_ready.\n')
         base_addr = gdb.parse_and_eval('conf->base')
         in_hw_mode = gdb.parse_and_eval('conf->mode == SGXLKL_HW_MODE')
         if in_hw_mode:
@@ -59,9 +60,11 @@ class StarterExecBreakpoint(gdb.Breakpoint):
                 libsgxlkl, int(base_addr)))
             add_symbol_file(libsgxlkl, int(base_addr))
 
+        gdb.write('Looking up __gdb_load_debug_symbols_alive symbol.\n');
         if not self.inited and gdb.lookup_global_symbol("__gdb_load_debug_symbols_alive"):
             gdb.write('Enabled loading in-enclave debug symbols\n')
             gdb.execute('set __gdb_load_debug_symbols_alive = 1')
+            gdb.write('set __gdb_load_debug_symbols_alive = 1\n')
             self.inited = True
             LoadLibraryBreakpoint()
             LoadLibraryFromFileBreakpoint()

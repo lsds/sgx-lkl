@@ -2,6 +2,7 @@
 #.SUFFIXES:
 #MAKEFLAGS += --no-print-directory
 
+DISTRO=$(shell lsb_release -si)
 #TODO: use autoconf or auto detect
 LINUX_HEADERS_INC ?= /usr/include
 
@@ -19,6 +20,8 @@ TOOLS ?= ${ROOT_DIR}/tools
 TOOLS_BUILD ?= $(BUILD_DIR)/tools
 TOOLS_SRC ?= $(wildcard $(TOOLS)/*.c)
 TOOLS_OBJ ?= $(addprefix $(TOOLS_BUILD)/, $(notdir $(TOOLS_SRC:.c=)))
+
+SRC_DIR ?= ${ROOT_DIR}/src
 
 CRYPTSETUP ?= ${ROOT_DIR}/third_party/cryptsetup
 CRYPTSETUP_BUILD ?= ${BUILD_DIR}/cryptsetup
@@ -60,6 +63,23 @@ MUSL_CFLAGS ?= -fPIC -D__USE_GNU
 THIRD_PARTY_CFLAGS ?=
 
 DEBUG ?= false
+
+X86_MODULE_DIR ?= ${SRC_DIR}/lkl/x86mods
+
+X86_MODULES ?= \
+${X86_MODULE_DIR}/aes-x86_64.ko \
+${X86_MODULE_DIR}/aesni-intel.ko \
+${X86_MODULE_DIR}/chacha20-x86_64.ko \
+${X86_MODULE_DIR}/poly1305-x86_64.ko \
+${X86_MODULE_DIR}/salsa20-x86_64.ko \
+${X86_MODULE_DIR}/serpent-avx-x86_64.ko \
+${X86_MODULE_DIR}/serpent-avx2.ko \
+${X86_MODULE_DIR}/sha1-ssse3.ko \
+${X86_MODULE_DIR}/sha256-ssse3.ko \
+${X86_MODULE_DIR}/sha512-ssse3.ko \
+${X86_MODULE_DIR}/twofish-x86_64.ko \
+${X86_MODULE_DIR}/twofish-x86_64-3way.ko \
+${X86_MODULE_DIR}/twofish-avx-x86_64.ko
 
 ifeq ($(RELEASE),true)
 	SGXLKL_CFLAGS += -DSGXLKL_RELEASE

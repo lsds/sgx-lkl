@@ -83,6 +83,7 @@ typedef struct {
 } enclave_parms_t;
 
 static uintptr_t ubase = BASE_ADDR_UNDEFINED;
+static volatile int __gdb_hook_heap_first = 0;
 static int sgxfd = 0;
 static size_t esize = 0;
 static volatile size_t heap_size = 0;
@@ -270,11 +271,15 @@ uint64_t ecreate(size_t npages, int ssaSize, const void* sigstruct, void* basead
     secs.ssaFrameSize = ssaSize;
     secs.size         = get_next_power2(npages * PAGE_SIZE);
 
-    /* Allow enclave to be mapped at address 0x0. We need this non-PIE Linux binaries by default expect their
+    /* Allow enclave to be mapped at address 0x0. We need this as non-PIE Linux binaries by default expect their
        .text segments to be mapped at address 0x40000. SGX requires the base address to be naturally aligned
        to the enclave size. Therefore, we cannot use 0x400000 as base address in cases where the enclave is
        larger than 4 MB (0x400000 bytes). Instead, we allow mappings to address 0x0 to adhere to the alignment
        requirement.
+
+       We also need this for x86 crypto kernel module support as they have
+       (signed) 32-bit relocation and assume both libsgxlkl.so as well as themselves
+       to live in the low 2GB of memory.
      */
     if(baseaddr == ECREATE_NO_FIXED_ADDR) {
         base = mmap(0x0, secs.size, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_SHARED, sgxfd, 0);
@@ -518,21 +523,32 @@ static uintptr_t get_symbol_address(char* elf, char* name) {
 }
 
 static size_t get_enclave_size(size_t heap, size_t stack, int tcsp, int ssaFrameSize, int nssa, int code, int tls) {
-    return heap + tcsp * (1 + stack + ssaFrameSize * nssa + tls) + code;
+    return 1 /*null_page*/ + heap + tcsp * (1 + stack + ssaFrameSize * nssa + tls) + code;
 }
 
-static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, int tcsp, int nssa, process_func_t process_page) {
+static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, int tcsp, int nssa, process_func_t process_page, int map_heap_first) {
     size_t pageoffset = 0;
+    uint64_t heap_offset = 0;
     int prot = 0;
     char page[PAGE_SIZE] = {};
     char* srcpge;
 
-    prot = PAGE_READ|PAGE_WRITE|PAGE_EXEC|PAGE_NOEXTEND;
-    uint64_t heap_offset = pageoffset;
-    D printf("heap: %lx, size: %lu\n", pageoffset, heap);
-    for (size_t i = 0; i < heap; i++) {
-        process_page(ubase, pageoffset, prot, page);
-        pageoffset += PAGE_SIZE;
+    // If base is zero, we need to keep the first page (containing 0x0) free to avoid issues with null pointers.
+    // As we only know at runtime where the enclave is mapped, we always keep the first enclave page free.
+    prot = PAGE_NOEXTEND;
+    //prot = PAGE_READ|PAGE_WRITE|PAGE_EXEC|PAGE_NOEXTEND;
+    D printf("null page: %lx, size: %d\n", ubase + pageoffset, 1);
+    process_page(ubase, pageoffset, prot, page);
+    pageoffset += PAGE_SIZE;
+
+    if (map_heap_first) {
+        prot = PAGE_READ|PAGE_WRITE|PAGE_EXEC|PAGE_NOEXTEND;
+        heap_offset = pageoffset;
+        D printf("heap: %lx, size: %lu\n", ubase + pageoffset, heap);
+        for (size_t i = 0; i < heap; i++) {
+            process_page(ubase, pageoffset, prot, page);
+            pageoffset += PAGE_SIZE;
+        }
     }
 
     Elf_Ehdr *ehdr = (Elf_Ehdr*)p;
@@ -611,9 +627,22 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
         }
     }
 
-    uint64_t enclave_size = get_enclave_size(heap, stack, tcsp, 1, nssa, pageoffset / PAGE_SIZE, 1);
+    D printf("code: %lx, size: %lu\n", ubase + libbase, pageoffset / PAGE_SIZE);
 
+    uint64_t enclave_size = get_enclave_size(heap, stack, tcsp, 1, nssa, pageoffset / PAGE_SIZE, 1);
     pageoffset = libbase + pageoffset;
+
+    if (!map_heap_first) {
+        prot = PAGE_READ|PAGE_WRITE|PAGE_EXEC|PAGE_NOEXTEND;
+        heap_offset = pageoffset;
+        D printf("heap: %lx, size: %lu\n", ubase + pageoffset, heap);
+        for (size_t i = 0; i < heap; i++) {
+            process_page(ubase, pageoffset, prot, page);
+            pageoffset += PAGE_SIZE;
+        }
+    }
+
+
 
     prot = PAGE_READ|PAGE_WRITE;
     memset(page, 0, PAGE_SIZE);
@@ -641,7 +670,7 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
     }
 
     for (int i = 0; i < tcsp; i++) {
-        D printf("stack(%d): %lx\n", i, pageoffset);
+        D printf("stack(%d): %lx\n", i, ubase + pageoffset);
         uint64_t stack_start = pageoffset;
         for (int i = 0; i < stack; i++) {
             process_page(ubase, pageoffset, PAGE_READ|PAGE_WRITE, page);
@@ -649,7 +678,7 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
         }
 
         uint64_t ossa = pageoffset;
-        D printf("ossa: %lx\n", ossa);
+        D printf("ossa: %lx\n", ubase + ossa);
         for (int i = 0; i < nssa; i++) {
             process_page(ubase, pageoffset, prot, page);
             pageoffset += PAGE_SIZE;
@@ -693,7 +722,8 @@ static void process_pages(char* p, uint64_t ubase, size_t heap, size_t stack, in
         process_page(ubase, pageoffset, PAGE_TCS, page);
         threads[i].addr = (void*)(pageoffset + ubase);
         threads[i].busy = 0;
-        D printf("tcs(%d): %lx\n", i, pageoffset);
+        D printf("tcs(%d): %lx\n", i, ubase + pageoffset);
+        D printf("tcs(%d) oentry: %lx\n", i, ubase + tcs->oentry);
         pageoffset += PAGE_SIZE;
     }
 }
@@ -740,7 +770,7 @@ enclave_parms_t* get_enclave_parms(void *p) {
     return (enclave_parms_t *)start;
 }
 
-uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max) {
+uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max, int map_heap_first) {
     sigstruct_t  *s = 0;
 
     s = (sigstruct_t*)get_section_address(p, ".note.sigstruct");
@@ -769,7 +799,7 @@ uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max) {
 
     ubase = ecreate(size, ssaFrameSize, s, encl_base_addr);
     heap_size = enc->heap_size; // Used by GDB plugin
-    process_pages(p, (uint64_t)ubase, heap, stack, tcsp, nssa, &add_page);
+    process_pages(p, (uint64_t)ubase, heap, stack, tcsp, nssa, &add_page, map_heap_first);
 
     int res = einit(ubase, s);
     if (res != 0) {
@@ -778,6 +808,7 @@ uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max) {
         exit(EXIT_FAILURE);
     }
 
+    __gdb_hook_heap_first = map_heap_first;
     __gdb_hook_init_done();
 
     /* enable performance counters */
@@ -786,29 +817,6 @@ uintptr_t create_enclave_mem(char *p, int base_zero, void *base_zero_max) {
 
     return ubase;
 }
-
-uint64_t create_enclave(char* path) {
-    int fd = open(path, O_RDONLY);
-    if (fd == -1) {
-        fprintf(stderr, "cannot open enclave file\n");
-        exit(EXIT_FAILURE);
-    }
-
-    struct stat sb;
-    fstat(fd, &sb);
-    char* p = mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (p == MAP_FAILED) {
-        fprintf(stderr, "cannot map enclave file\n");
-        exit(EXIT_FAILURE);
-    }
-    close(fd);
-
-    ubase = create_enclave_mem(p, 0, (void*) 0);
-
-    munmap(p, sb.st_size);
-    return (uint64_t)ubase;
-}
-
 
 void destroy_enclave(unsigned long enclave) {
     munmap((void *)enclave, esize);
@@ -881,7 +889,7 @@ static void fill_sigstruct_section(void* p, void* s) {
     memcpy(offset + p, s, 1808);
 }
 
-void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
+void enclave_update_heap(void *p, size_t new_heap, char* key_path, int map_heap_first) {
     if (p == 0) return;
     if (key_path == 0) {
         fprintf(stderr, "Need a key to update heap size \n");
@@ -904,10 +912,10 @@ void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     size *= PAGE_SIZE;
     size = get_next_power2(size);
 
-    int heap_offset  = 0x0;
-    int init_offset  = new_heap * PAGE_SIZE + get_symbol_address(p, "entry");
-    int npages       = lib_size;
-    int ossa_offset  = new_heap * PAGE_SIZE + npages * PAGE_SIZE;
+    int base = PAGE_SIZE; // Null page at 0x0
+    int init_offset  = (map_heap_first ? base + new_heap*PAGE_SIZE : base) + get_symbol_address(p, "entry");
+    int heap_offset  = map_heap_first ? base + lib_size : base;
+    int ossa_offset  = base + new_heap * PAGE_SIZE + lib_size * PAGE_SIZE;
     int stack_offset = ossa_offset + 2 * PAGE_SIZE + stack * PAGE_SIZE; //+ 0xfff;
     fill_enclave_parms(p, heap_offset, stack_offset, init_offset, ossa_offset, tcsp, new_heap * PAGE_SIZE, stack * PAGE_SIZE);
 
@@ -920,7 +928,7 @@ void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     memcpy((unsigned char*)&tmp_update_field[1], &ssaFrameSize, 4);
     memcpy((unsigned char*)&tmp_update_field[1] + 4, &size, 8);
     mbedtls_sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
-    process_pages(p, 0, new_heap, stack, tcsp, nssa, &measure_page);
+    process_pages(p, 0, new_heap, stack, tcsp, nssa, &measure_page, map_heap_first);
     mbedtls_sha256_finish(&ctx, (unsigned char*)hash);
 
     sigstruct_t *s = (sigstruct_t*)get_section_address(p, ".note.sigstruct");
@@ -933,10 +941,10 @@ void enclave_update_heap(void *p, size_t new_heap, char* key_path) {
     D printf("\n");
 }
 
-void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp) {
+void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp, int heap_first) {
     int fd = open(path, O_RDWR);
     if (fd == -1) {
-        fprintf(stderr, "could not open enclave library \n");
+        fprintf(stderr, "Could not open enclave library \n");
         exit(EXIT_FAILURE);
     }
     struct stat sb;
@@ -962,6 +970,7 @@ void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp) {
     }
 
     D printf("enclave memory: \n");
+    D printf("\tnull page: 1 page \n");
     D printf("\theap:      %lu pages \n", heap);
     D printf("\tcode+data: %lu pages \n", lib_size);
     D printf("\ttcs:       %d pages \n", tcsp);
@@ -974,13 +983,13 @@ void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp) {
     size *= PAGE_SIZE;
     size = get_next_power2(size);
 
-    int heap_offset  = 0x0;
-    int init_offset  = heap*PAGE_SIZE + get_symbol_address(p, "entry");
-    int npages       = lib_size;
-    int ossa_offset  = heap * PAGE_SIZE + npages * PAGE_SIZE;
+    int base = PAGE_SIZE; // Null page at 0x0
+    int init_offset  = (heap_first ? base + heap*PAGE_SIZE : base) + get_symbol_address(p, "entry");
+    int heap_offset  = heap_first ? base + lib_size : base;
+    int ossa_offset  = base + heap * PAGE_SIZE + lib_size * PAGE_SIZE;
     int stack_offset = ossa_offset + 2 * PAGE_SIZE + stack * PAGE_SIZE; //+ 0xfff;
     fill_enclave_parms(p, heap_offset, stack_offset, init_offset, ossa_offset, tcsp, heap * PAGE_SIZE, stack * PAGE_SIZE);
-    D printf("stack start %lx, enclave size %lx\n", heap_offset + heap * PAGE_SIZE, size);
+    D printf("enclave size %lx\n", size);
 
     unsigned char hash[32];
     mbedtls_sha256_init(&ctx);
@@ -991,7 +1000,7 @@ void enclave_sign(char* path, char* key, size_t heap, size_t stack, int tcsp) {
     memcpy((unsigned char*)&tmp_update_field[1], &ssaFrameSize, 4);
     memcpy((unsigned char*)&tmp_update_field[1] + 4, &size, 8);
     mbedtls_sha256_update(&ctx, (unsigned char *)tmp_update_field, 64);
-    process_pages(p, 0, heap, stack, tcsp, nssa, &measure_page);
+    process_pages(p, 0, heap, stack, tcsp, nssa, &measure_page, heap_first);
     mbedtls_sha256_finish(&ctx, (unsigned char*)hash);
 
     unsigned char header [16] = SIG_HEADER1;

@@ -66,6 +66,7 @@
 #define SGXLKL_WG_PORT                  62
 #define SGXLKL_WG_KEY                   63
 #define SGXLKL_WG_PEERS                 64
+#define SGXLKL_X86_ACC                  65
 
 
 #define DEFAULT_SGXLKL_CWD "/"

@@ -56,11 +56,11 @@ static void *memcopy(void *dest, const void *src, unsigned long n);
 static void *map_file(char *file_to_map, struct stat* sb);
 static int copy_in(char *filename, void *address);
 
-void load_elf(char* file_to_map, encl_map_info* result) {
+void load_elf(char* file_to_map, void *base_addr, encl_map_info* result) {
     char *mapped;
     struct stat sb;
     Elf64_Ehdr *hdr;
-    Elf64_Phdr *pdr, *interp = 0;
+    Elf64_Phdr *pdr;
     int i, anywhere;
     void *text_segment = 0, *segment_base = 0;
     void *entry_point = 0;
@@ -108,17 +108,10 @@ void load_elf(char* file_to_map, encl_map_info* result) {
         off_t offset;
         void *segment;
 
-        if (pdr->p_type == 0x03)  /* PT_INTERP */
-        {
-            interp = pdr;
-            continue;
-        }
-
         if (pdr->p_type != PT_LOAD)  /* Segment not "loadable" */
             continue;
 
-        if (text_segment != 0 && anywhere)
-        {
+        if (text_segment != 0 && anywhere) {
             unaligned_map_addr
                 = (unsigned long)text_segment
                 + ((unsigned long)pdr->p_vaddr - (unsigned long)initial_vaddr)
@@ -128,7 +121,9 @@ void load_elf(char* file_to_map, encl_map_info* result) {
         } else if (!anywhere) {
             map_addr = ALIGNDOWN(pdr->p_vaddr, 0x1000);
         } else {
-            map_addr = 0UL;
+            map_addr = ROUNDUP((unsigned long) base_addr, 0x1000);
+            if (map_addr)
+                mapflags |= MAP_FIXED;
         }
 
         if (!anywhere && initial_vaddr == 0)
@@ -150,10 +145,9 @@ void load_elf(char* file_to_map, encl_map_info* result) {
             PROT_WRITE); // Force writeable
         segment = mmap((void *)map_addr, map_len, protflags, mapflags, fd, offset);
 
-        if (segment == (void *) -1)
-        {
+        if (segment == (void *) -1) {
             result->base = (void *)-1;
-            fprintf(stderr, "Could not map segment (%p) of %s: %s", (void*)pdr->p_vaddr, file_to_map, strerror(errno));
+            fprintf(stderr, "Could not map segment (%p) of %s: %s\n", (void*)pdr->p_vaddr, file_to_map, strerror(errno));
             return;
         }
 
@@ -163,7 +157,7 @@ void load_elf(char* file_to_map, encl_map_info* result) {
             memset((void *)brk, 0, pgbrk - ALIGNDOWN(brk, 0x1000));
             if (pgbrk - (size_t)segment < map_len && mmap((void *)pgbrk, (size_t)segment + map_len - pgbrk, protflags, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) == MAP_FAILED) {
                 result->base = (void *)-1;
-                fprintf(stderr, "Could not map segment (%p) of %s: %s", (void*)pdr->p_vaddr, file_to_map, strerror(errno));
+                fprintf(stderr, "Could not map segment (%p) of %s: %s\n", (void*)pdr->p_vaddr, file_to_map, strerror(errno));
                 return;
             }
         }
@@ -182,6 +176,7 @@ void load_elf(char* file_to_map, encl_map_info* result) {
     close(fd);
 
     result->base = text_segment;
+    result->size = load_segments_size;
     result->entry_point = entry_point;
 
 done:

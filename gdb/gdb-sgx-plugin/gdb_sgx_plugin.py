@@ -341,13 +341,20 @@ class CreateEnclaveBreakpoint(gdb.Breakpoint):
         try:
             ubase = gdb.parse_and_eval("(uint64_t)ubase")
             heap_size = gdb.parse_and_eval("(uint64_t)heap_size")
+            heap_first = gdb.parse_and_eval("__gdb_hook_heap_first")
+            # Add PAGE_SIZE for null page at start of enclave range
+            if heap_first:
+                lib_offset = PAGE_SIZE + heap_size
+            else:
+                lib_offset = PAGE_SIZE
+
             print("Enclave base: %x" % int(ubase))
             print("Enclave heap size: %d" % int(heap_size))
         except:
             print("Error while trying to determine enclave base address")
             return False
 
-        gdb_cmd = load_symbol_cmd.GetLoadSymbolCommand(debug_file.filename + ".debug", str(ubase), str(heap_size))
+        gdb_cmd = load_symbol_cmd.GetLoadSymbolCommand(debug_file.filename + ".debug", str(ubase), str(lib_offset))
         if gdb_cmd == -1:
             return 0
         print (gdb_cmd)

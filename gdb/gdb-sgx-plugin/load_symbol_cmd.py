@@ -37,7 +37,7 @@ except ImportError:
 
 import traceback, errno, string, re, sys, time, readelf;
 
-def GetLoadSymbolCommand(EnclaveFile, Base, HeapSize):
+def GetLoadSymbolCommand(EnclaveFile, Base, Offset):
     text = readelf.ReadElf(EnclaveFile)
     if text == None:
         return -1
@@ -72,12 +72,12 @@ def GetLoadSymbolCommand(EnclaveFile, Base, HeapSize):
                         if(list[SegOffset+1] == ".text"):
                             Out[99][0] = "-s";
                             Out[99][1] = list[SegOffset+1];
-                            Out[99][2] = str(int(list[SegOffset+3], 16) + int(Base, 10) + int(HeapSize, 10));
+                            Out[99][2] = str(int(list[SegOffset+3], 16) + int(Base, 10) + int(Offset, 10));
                             Out[99][3] = " ";
                         elif(int(list[SegOffset+3], 16) != 0):
                             Out[i][0] = "-s";
                             Out[i][1] = list[SegOffset+1];
-                            Out[i][2] = str(int(list[SegOffset+3], 16) + int(Base, 10) + int(HeapSize, 10));
+                            Out[i][2] = str(int(list[SegOffset+3], 16) + int(Base, 10) + int(Offset, 10));
                             Out[i][3] = " ";
                             i = i+1;
         if('0' != Out[99][2]):

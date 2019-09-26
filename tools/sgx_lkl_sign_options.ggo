@@ -1,5 +1,5 @@
 # Generate src/sign/cmdline.c/*.h by running:
-# gengetopt --input sgx_lkl_sign_options.ggo --output-dir ../src/sign
+# gengetopt --input sgx_lkl_sign_options.ggo --output-dir ../src/sgx --file-name sgxlkl_sign_cmdline
 
 package "sgx-lkl-sign"
 version "1.0"
@@ -15,3 +15,5 @@ option "heapsize" h "Size of the heap in bytes. If set to zero the heap will \
 option "threads" t "Maximum number of enclave threads. This determines the number \
   of TCS. This does not restrict the number of user-level threads used by an \
   application." long default="8" optional
+option "support-non-pie" n "Specify this if sgx-lkl-run needs to run with \
+  SGXLKL_NON_PIE=1." int default="0" optional
