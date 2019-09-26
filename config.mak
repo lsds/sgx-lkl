@@ -70,11 +70,11 @@ endif
 ifeq ($(DEBUG),true)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O0
 	MUSL_CONFIGURE_OPTS += --disable-optimize --enable-debug
-	MUSL_CFLAGS += -g3 -ggdb3 -O0 -DDEBUG
+	MUSL_CFLAGS += -g3 -ggdb3 -O0 -DDEBUG -DDEBUGMOUNT
 	THIRD_PARTY_CFLAGS += -g3 -ggdb3 -O0
 else ifeq ($(DEBUG),opt)
 	SGXLKL_CFLAGS += -g3 -ggdb3 -O3
-	MUSL_CFLAGS += -g3 -ggdb3 -O3
+	MUSL_CFLAGS += -g3 -ggdb3 -O3 -DDEBUGMOUNT
 	THIRD_PARTY_CFLAGS += -g3 -ggdb3 -O3
 else
 	SGXLKL_CFLAGS += -O3

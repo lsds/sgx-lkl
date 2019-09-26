@@ -65,7 +65,7 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_CC} | ${LKL}/.git ${LKL_BUILD} $
 tools: ${TOOLS_OBJ}
 
 # Generic tool rule (doesn't actually depend on lkl_lib, but on LKL headers)
-${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LKL_LIB} | ${TOOLS_BUILD}
+${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_CC} ${LIBLKL} | ${TOOLS_BUILD}
 	${HOST_MUSL_CC} ${SGXLKL_CFLAGS} --static -I${LKL_BUILD}/include/ -o $@ $<
 
 # More headers required by SGX-Musl not exported by LKL, given by a custom tool's output

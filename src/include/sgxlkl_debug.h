@@ -10,8 +10,6 @@
 
 void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...);
 
-#ifdef DEBUG
-
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -20,17 +18,8 @@ void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...);
 #include <unistd.h>
 
 extern int sgxlkl_verbose;
-extern int sgxlkl_trace_thread;
-extern int sgxlkl_trace_mmap;
-extern int sgxlkl_trace_lkl_syscall;
-extern int sgxlkl_trace_internal_syscall;
 
 #define SGXLKL_VERBOSE(x, ...) if (sgxlkl_verbose) {sgxlkl_debug_printf("[    SGX-LKL   ] " x, ##__VA_ARGS__);}
-#define SGXLKL_TRACE_THREAD(x, ...) if (sgxlkl_trace_thread) {sgxlkl_debug_printf("[    THREAD    ] " x, ##__VA_ARGS__);}
-#define SGXLKL_TRACE_MMAP(x, ...) if (sgxlkl_trace_mmap) {sgxlkl_debug_printf("[     MMAP     ] " x, ##__VA_ARGS__);}
-#define SGXLKL_TRACE_SYSCALL(type, x, ...) if ((sgxlkl_trace_lkl_syscall &&  type == SGXLKL_LKL_SYSCALL) || (sgxlkl_trace_internal_syscall &&  type == SGXLKL_INTERNAL_SYSCALL)) { \
-                                                        sgxlkl_debug_printf(type == SGXLKL_LKL_SYSCALL ? "[  LKL SYSCALL ] " x : \
-                                                                            "[INTRNL SYSCALL] " x, ##__VA_ARGS__);}
 
 #define LKL_STDERR_FILENO 2
 #define DEBUG_TRACE_BUF_SIZE 512
@@ -76,8 +65,20 @@ static int sgxlkl_debug_printf(const char *fmt, ...) {
     va_end(args);
     return n;
 }
+
+#ifdef DEBUG
+
+extern int sgxlkl_trace_thread;
+extern int sgxlkl_trace_mmap;
+extern int sgxlkl_trace_lkl_syscall;
+extern int sgxlkl_trace_internal_syscall;
+
+#define SGXLKL_TRACE_THREAD(x, ...) if (sgxlkl_trace_thread) {sgxlkl_debug_printf("[    THREAD    ] " x, ##__VA_ARGS__);}
+#define SGXLKL_TRACE_MMAP(x, ...) if (sgxlkl_trace_mmap) {sgxlkl_debug_printf("[     MMAP     ] " x, ##__VA_ARGS__);}
+#define SGXLKL_TRACE_SYSCALL(type, x, ...) if ((sgxlkl_trace_lkl_syscall &&  type == SGXLKL_LKL_SYSCALL) || (sgxlkl_trace_internal_syscall &&  type == SGXLKL_INTERNAL_SYSCALL)) { \
+                                                        sgxlkl_debug_printf(type == SGXLKL_LKL_SYSCALL ? "[  LKL SYSCALL ] " x : \
+                                                                            "[INTRNL SYSCALL] " x, ##__VA_ARGS__);}
 #else
-#define SGXLKL_VERBOSE(x, ...)
 #define SGXLKL_TRACE_THREAD(x, ...)
 #define SGXLKL_TRACE_MMAP(x, ...)
 #define SGXLKL_TRACE_SYSCALL(x, ...)

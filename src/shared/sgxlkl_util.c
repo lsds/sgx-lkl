@@ -20,7 +20,7 @@ void sgxlkl_fail(char *msg, ...) {
 
 void sgxlkl_err(char *msg, ...) {
     va_list(args);
-    fprintf(stderr, "[    SGX-LKL   ] Errror: ");
+    fprintf(stderr, "[    SGX-LKL   ] Error: ");
     va_start(args, msg);
     vfprintf(stderr, msg, args);
 }

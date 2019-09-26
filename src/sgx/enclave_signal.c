@@ -50,8 +50,13 @@ void __enclave_signal_handler(gprsgx_t *regs, enclave_signal_info_t *siginfo) {
 }
 
 static int handle_sigsegv(gprsgx_t *regs, void *arg) {
+    // Copy siginfo into enclave and set all fields to 0 except for no, code,
+    // and addr.
     siginfo_t si;
-    memcpy(&si, arg, sizeof(siginfo_t));
+    memset(&si, 0, sizeof(siginfo_t));
+    si.si_signo = ((siginfo_t *)arg)->si_signo;
+    si.si_code = ((siginfo_t *)arg)->si_code;
+    si.si_addr = ((siginfo_t *)arg)->si_addr;
 
     // We have to map the zero page in order to support position-dependent
     // executables. However, typically the zero page is not mapped by

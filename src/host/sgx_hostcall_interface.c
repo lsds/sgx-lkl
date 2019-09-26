@@ -19,7 +19,12 @@
 #include "pthread_impl.h"
 #include "ticketlock.h"
 
+#include "sgx_enclave_config.h"
 #include "sgx_hostcall_interface.h"
+#include "sgxlkl_util.h"
+
+static int always_sync = 0;
+static int exit_on_host_calls = 0;
 
 static syscall_t* S;
 
@@ -105,6 +110,8 @@ syscall_t *getsyscallslot(Arena **a) {
 }
 
 int hostsyscallclient_init(enclave_config_t *encl) {
+    always_sync = encl->wait_on_all_host_calls;
+    exit_on_host_calls = encl->exit_on_host_calls;
     S = encl->syscallpage;
     maxsyscalls = encl->maxsyscalls;
     slotlthreads = calloc(maxsyscalls, sizeof(*slotlthreads));
@@ -132,15 +139,33 @@ void threadswitch(syscall_t *sc) {
     union {size_t s; void *a;} slot;
     slot.s = sch->current_syscallslot;
     struct lthread *lt = sch->current_lthread;
-    if (lt != NULL && !(lt->attr.state & BIT(LT_ST_PINNED)) ) {
+    if (!always_sync && lt != NULL && !(lt->attr.state & BIT(LT_ST_PINNED)) ) {
         /* avoid race condition -- another worker can pick up this thread while it's running on
            current worker */
         _lthread_yield_cb(lt, submitsc, slot.a);
     } else {
         a_barrier();
         S[slot.s].status = 1;
+#ifdef SGXLKL_HW
+        if (exit_on_host_calls) {
+            leave_enclave(SGXLKL_EXIT_SYSCALL, slot.s);
+        } else {
+            /* syscall thread won't push anything into return queue if S[slot].status is 1, so there
+               is no risk of race condition in this branch */
+            submitsc(slot.a);
+            /* busy wait to get return value from the syscall threads
+               this can happen only in two cases: initialization of the library
+               and waking sleeping threads. */
+            while (__atomic_load_n(&sc->status, __ATOMIC_ACQUIRE) != 2) {
+                /* This either causes bugs or unmasks them.
+                   Concurrency is hard. */
+                a_spin();
+            }
+        }
+    }
+#else /* !SGXLKL_HW */
         /* syscall thread won't push anything into return queue if S[slot].status is 1, so there
-           is no risc of race condition in this branch */
+           is no risk of race condition in this branch */
         submitsc(slot.a);
         /* busy wait to get return value from the syscall threads
            this can happen only in two cases: initialization of the library
@@ -151,6 +176,7 @@ void threadswitch(syscall_t *sc) {
             a_spin();
         }
     }
+#endif
 }
 
 size_t allocslot(struct lthread *lt) {

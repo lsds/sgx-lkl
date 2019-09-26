@@ -23,6 +23,8 @@
 #include "lkl/virtio_net.h"
 
 #include "sgx_hostcalls.h"
+#include "sgxlkl_util.h"
+#include "lthread.h"
 
 struct lkl_netdev_fd {
     struct lkl_netdev dev;
@@ -43,6 +45,10 @@ struct lkl_netdev_fd {
     int poll_tx, poll_rx;
     /* controle pipe */
     int pipe[2];
+    /* SGX-LKL: Set to 1 to busy wait for I/O request to finish rather than
+     * yield.
+     */
+    int wait_on_io;
 };
 
 static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
@@ -50,9 +56,17 @@ static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
     struct lkl_netdev_fd *nd_fd =
         container_of(nd, struct lkl_netdev_fd, dev);
 
+    struct lthread *lt = lthread_self();
+    // Remember old state of lthread
+    int lt_old_state = lt->attr.state;
+    // Pin lthread
+    if (nd_fd->wait_on_io)
+        lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
     do {
         ret = host_syscall_SYS_writev(nd_fd->fd, iov, cnt);
     } while (ret == -EINTR);
+    // Restore lthread state
+    lt->attr.state = lt_old_state;
 
     if (ret < 0) {
         if (ret != -EAGAIN) {
@@ -61,7 +75,14 @@ static int sgxlkl_fd_net_tx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
             char tmp;
 
             nd_fd->poll_tx = 1;
+            // Remember old state of lthread
+            int lt_old_state = lt->attr.state;
+            // Pin lthread
+            if (nd_fd->wait_on_io)
+                lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
             int pipe_ret = host_syscall_SYS_write(nd_fd->pipe[1], &tmp, 1);
+            // Restore lthread state
+            lt->attr.state = lt_old_state;
             if (pipe_ret <= 0)
                 fprintf(stderr, "[    SGX-LKL   ] Write to virtio net fd pipe failed: %s", strerror(-pipe_ret));
         }
@@ -74,9 +95,17 @@ static int sgxlkl_fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
     struct lkl_netdev_fd *nd_fd =
         container_of(nd, struct lkl_netdev_fd, dev);
 
+    struct lthread *lt = lthread_self();
+    // Remember old state of lthread
+    int lt_old_state = lt->attr.state;
+    // Pin lthread
+    if (nd_fd->wait_on_io)
+        lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
     do {
         ret = host_syscall_SYS_readv(nd_fd->fd, iov, cnt);
     } while (ret == -EINTR);
+    // Restore lthread state
+    lt->attr.state = lt_old_state;
 
     if (ret < 0) {
         if (ret != -EAGAIN) {
@@ -85,7 +114,14 @@ static int sgxlkl_fd_net_rx(struct lkl_netdev *nd, struct iovec *iov, int cnt) {
             char tmp;
 
             nd_fd->poll_rx = 1;
+            // Remember old state of lthread
+            int lt_old_state = lt->attr.state;
+            // Pin lthread
+            if (nd_fd->wait_on_io)
+                lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
             int pipe_ret = host_syscall_SYS_write(nd_fd->pipe[1], &tmp, 1);
+            // Restore lthread state
+            lt->attr.state = lt_old_state;
             if (pipe_ret < 0)
                 fprintf(stderr, "[    SGX-LKL   ] Write to virtio net fd pipe failed: %s", strerror(-pipe_ret));
         }
@@ -127,7 +163,15 @@ static int sgxlkl_fd_net_poll(struct lkl_netdev *nd) {
     if (pfds[1].revents & POLLIN) {
         char tmp[PIPE_BUF];
 
+        struct lthread *lt = lthread_self();
+        // Remember old state of lthread
+        int lt_old_state = lt->attr.state;
+        // Pin lthread
+        if (nd_fd->wait_on_io)
+            lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
         ret = host_syscall_SYS_read(nd_fd->pipe[0], tmp, PIPE_BUF);
+        // Restore lthread state
+        lt->attr.state = lt_old_state;
         if (ret == 0)
             return LKL_DEV_NET_POLL_HUP;
         if (ret < 0)
@@ -174,7 +218,7 @@ struct lkl_dev_net_ops sgxlkl_fd_net_ops = {
     .free = sgxlkl_fd_net_free,
 };
 
-struct lkl_netdev* sgxlkl_register_netdev_fd(int fd) {
+struct lkl_netdev* sgxlkl_register_netdev_fd(int fd, int wait_on_io) {
     struct lkl_netdev_fd *nd;
 
     nd = malloc(sizeof(*nd));
@@ -186,6 +230,7 @@ struct lkl_netdev* sgxlkl_register_netdev_fd(int fd) {
     memset(nd, 0, sizeof(*nd));
 
     nd->fd = fd;
+    nd->wait_on_io = wait_on_io;
     int ret = host_syscall_SYS_pipe(nd->pipe);
     if (ret < 0) {
         fprintf(stderr, "[    SGX-LKL   ] virtio net pipe call failed: %s", strerror(-ret));

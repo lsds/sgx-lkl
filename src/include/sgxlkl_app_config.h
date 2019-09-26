@@ -5,6 +5,7 @@
 
 typedef struct sgxlkl_app_config {
     const char *run; /* Will ultimately point at the same location as argv[0] */
+    const char *cwd; /* Working directory */
     int argc;
     char **argv; /* Array of application arguments of length argc */
     char **envp; /* Null-terminated array of environment variables */

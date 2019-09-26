@@ -8,6 +8,7 @@
 #include "syscall.h"
 
 #include "sgx_enclave_config.h"
+#include "sgxlkl_util.h"
 
 extern size_t num_disks;
 extern struct enclave_disk_config *disks;
@@ -43,14 +44,29 @@ static int do_plain_rw(ssize_t (*fn)(), struct lkl_disk disk, struct lkl_blk_req
     for (i = 0; i < req->count; i++) {
         addr = req->buf[i].iov_base;
         len = req->buf[i].iov_len;
+
+        struct lthread *lt = lthread_self();
+        // Remember old state of lthread
+        int lt_old_state = lt->attr.state;
+        // Pin lthread
+        struct enclave_disk_config *disk_config;
+        if ((disk_config = get_disk_config(disk.fd)) != NULL && disk_config->wait_on_io)
+            lt->attr.state = lt->attr.state | BIT(LT_ST_PINNED);
+
         do {
             ret = fn(disk.fd, addr, len, off);
-            if (ret <= 0)
+            if (ret <= 0) {
+                // Restore lthread state
+                lt->attr.state = lt_old_state;
                 return ret;
+            }
             addr += ret;
             len -= ret;
             off += ret;
         } while (len > 0);
+
+        // Restore lthread state
+        lt->attr.state = lt_old_state;
     }
     return ret;
 }

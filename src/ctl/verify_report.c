@@ -207,7 +207,7 @@ static int verify_enclave_quote_status(int strict,
          sgxlkl_info("Quote status: OK\n");
          return 0;
     } else if (0 == strncmp(p_begin, STATUS_OUT_OF_DATE, strlen(STATUS_OUT_OF_DATE))) {
-        sgxlkl_warn("Quote status: GROUP_OUT_OF_DATE (Platform software/firmare is out of date)\n");
+        sgxlkl_warn("Quote status: GROUP_OUT_OF_DATE (Platform software/firmware is out of date)\n");
         return strict ? 1 : 0;
     } else if (0 == strncmp(p_begin, STATUS_CONFIG_NEEDED, strlen(STATUS_CONFIG_NEEDED))) {
         int ret = strict ? 1 : 0;

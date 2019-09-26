@@ -202,6 +202,8 @@ void enclave_cmd_server_run(cmd_server_config_t *config) {
     ProtobufC_RPC_Server *server;
     ProtobufC_RPC_AddressType address_type = PROTOBUF_C_RPC_ADDRESS_TCP;
     ProtobufCRPCDispatch *dispatch = protobuf_c_rpc_dispatch_default_new();
+    // Check again as protobuf_c_rpc_dispatch_default_new might yield.
+    if (_servers_stopped) return;
     server = protobuf_c_rpc_server_new(address_type,
                                        "sgxlkl_cmd",
                                        addr,

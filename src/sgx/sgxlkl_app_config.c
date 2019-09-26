@@ -8,7 +8,7 @@
 #include "sgxlkl_app_config.h"
 #include "sgxlkl_util.h"
 
-static const char* STRING_KEYS[] = {"run", "disk", "key", "roothash", "allowedips", "endpoint"};
+static const char* STRING_KEYS[] = {"run", "cwd", "disk", "key", "roothash", "allowedips", "endpoint"};
 static const char* BOOL_KEYS[] = {"readonly"};
 static const char* INT_KEYS[] = {"roothash_offset"};
 static const char* ARRAY_KEYS[] = {"disk_config", "peers"};
@@ -216,6 +216,12 @@ static int parse_sgxlkl_app_config_entry(const char *key, struct json_object *va
             return 1;
         }
         config->run = strdup(json_object_get_string(value));
+    } else if (!strcmp("cwd", key)) {
+        if (json_object_get_type(value) != json_type_string) {
+            fprintf(stderr, "String expected for 'cwd' configuration.\n");
+            return 1;
+        }
+        config->cwd = strdup(json_object_get_string(value));
     } else if (!strcmp("args", key)) {
         err = parse_args(config, value);
     } else if (!strcmp("environment", key)) {

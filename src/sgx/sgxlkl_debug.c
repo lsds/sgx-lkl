@@ -105,12 +105,18 @@ void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...) {
         snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", lkl_strerror(res));
 
     int tid = lthread_self() ? lthread_self()->tid : 0;
-    if (n == SYS_openat) {
+    if (n == SYS_newfstatat) {
+        SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%ld, %s, %ld, %ld) = %ld %s\n", tid, name, n,
+            params[0], (const char*)params[1], params[2], params[3], res, errmsg);
+    } else if (n == SYS_openat) {
         SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%ld, %s, %ld, %ld) = %ld %s\n", tid, name, n,
             params[0], (const char*)params[1], params[2], params[3], res, errmsg);
     } else if (n == SYS_execve) {
         SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%s, %s, %s, %ld, %ld) = %ld %s\n", tid, name, n,
             (const char*)(params[0]), ((const char**)params[1])[0], ((const char**)params[1])[1], params[2], params[3], res, errmsg);
+    } else if (n == SYS_statx) {
+        SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%ld, %s, %ld, %ld, %ld) = %ld %s\n", tid, name, n,
+            params[0], (const char*)params[1], params[2], params[3], params[4], res, errmsg);
     } else if (n == SYS_epoll_ctl) {
         char event_flags[EPOLL_EVENT_FLAG_BUFFER_LEN];
         struct epoll_event *evt = (struct epoll_event *) params[3];
