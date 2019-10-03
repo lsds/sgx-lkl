@@ -97,7 +97,6 @@ LIST_HEAD(lthread_tlsdestr_l, lthread_tls_destructors);
 
 struct lthread_attr {
     size_t                  stack_size;      /* current stack_size */
-    size_t                  last_stack_size; /* last yield  stack_size */
     int                     state;           /* current lthread state */
     void                    *stack;          /* ptr to lthread_stack */
 };

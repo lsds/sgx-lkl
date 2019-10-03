@@ -60,7 +60,6 @@ extern int errno;
 int __init_utp(void *, int);
 void *__copy_utls(struct lthread *, uint8_t *, size_t);
 static void _exec(void *lt);
-static inline void _lthread_madvise(struct lthread *lt);
 static void _lthread_init(struct lthread *lt);
 static void _lthread_resume_expired(struct timespec *ts);
 static void _lthread_lock(struct lthread *lt);
@@ -463,7 +462,6 @@ int _lthread_resume(struct lthread *lt) {
     sched->current_syscallslot = sched->syscall;
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
-    _lthread_madvise(lt);
     if (lt->attr.state & BIT(LT_ST_EXITED)) {
         /* lt is always locked before LT_ST_EXITED is set */
         arena_destroy(&lt->syscallarena);
@@ -485,13 +483,6 @@ int _lthread_resume(struct lthread *lt) {
     }
 
     return (0);
-}
-
-static inline void _lthread_madvise(struct lthread *lt) {
-    size_t current_stack = ((uintptr_t)lt->attr.stack + lt->attr.stack_size) - (uintptr_t)lt->ctx.esp;
-    /* make sure function did not overflow stack, we can't recover from that */
-    assert(current_stack <= lt->attr.stack_size);
-    lt->attr.last_stack_size = current_stack;
 }
 
 int lthread_init(size_t size) {
