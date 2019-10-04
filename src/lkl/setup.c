@@ -303,6 +303,7 @@ struct lkl_crypt_device {
     char *disk_path;
     int readonly;
     struct enclave_disk_config *disk_config;
+    char *crypt_name;
 };
 
 static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd) {
@@ -331,7 +332,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd) {
     }
     memcpy(lkl_cd->disk_config->key, key_outside, lkl_cd->disk_config->key_len);
 
-    err = crypt_activate_by_passphrase(cd, "cryptroot", CRYPT_ANY_SLOT, lkl_cd->disk_config->key, lkl_cd->disk_config->key_len, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
+    err = crypt_activate_by_passphrase(cd, lkl_cd->crypt_name, CRYPT_ANY_SLOT, lkl_cd->disk_config->key, lkl_cd->disk_config->key_len, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
     if (err == -1) {
         fprintf(stderr, "Error: Unable to activate encrypted disk. Please ensure you have provided the correct passphrase/keyfile!\n");
         exit(err);
@@ -398,7 +399,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd) {
         exit(1);
     }
 
-    err = crypt_activate_by_volume_key(cd, "verityroot", volume_hash_bytes, 32, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
+    err = crypt_activate_by_volume_key(cd, lkl_cd->crypt_name, volume_hash_bytes, 32, lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
     if (err != 0) {
         fprintf(stderr, "Error: crypt_activate_by_volume_key(): %s (%d)\n", strerror(err), err);
         exit(err);
@@ -468,16 +469,14 @@ static void lkl_set_working_dir(char* path) {
     exit(1);
 }
 
-static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
-    int err = 0;
-    char mnt_point[] = {"/mnt/vda"};
-    char dev_str_raw[] = {"/dev/vda"};
+static void lkl_mount_disk(struct enclave_disk_config *disk, char device, const char* mnt_point) {
+    char dev_str_raw[] = {"/dev/vdX"};
+    char dev_str_enc[] = {"/dev/mapper/cryptX"};
+    char dev_str_verity[] = {"/dev/mapper/verityX"};
+    const size_t offset_dev_str_crypt_name = sizeof "/dev/mapper/" - 1;
 
-    char dev_str_enc[] = {"/dev/mapper/cryptroot"};
-    char dev_str_verity[] = {"/dev/mapper/verityroot"};
-
+    dev_str_raw[sizeof dev_str_raw - 2] = device;
     char *dev_str = dev_str_raw;
-    char new_dev_str[] = {"/mnt/vda/dev/"};
 
     int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
     int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
@@ -493,8 +492,9 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
     lkl_cd.readonly = disk->ro;
     lkl_cd.disk_config = disk;
 
-
     if (disk->roothash != NULL) {
+        dev_str_verity[sizeof dev_str_verity - 2] = device;
+        lkl_cd.crypt_name = dev_str_verity + offset_dev_str_crypt_name;
         lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_verity_disk_thread, (void *) &lkl_cd);
 
         // We now want to mount the verified volume
@@ -505,6 +505,8 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
         lkl_cd.readonly = 1;
     }
     if (disk->enc) {
+        dev_str_enc[sizeof dev_str_enc - 2] = device;
+        lkl_cd.crypt_name = dev_str_enc + offset_dev_str_crypt_name;
         lkl_run_in_kernel_stack((void * (*)(void *)) &lkl_activate_crypto_disk_thread, (void *) &lkl_cd);
 
         // We now want to mount the decrypted volume
@@ -517,10 +519,18 @@ static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
         sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
     }
 
-    err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
+    const int err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
     if (err < 0)
         sgxlkl_fail("Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
     disk->mounted = 1;
+}
+
+static void lkl_mount_root_disk(struct enclave_disk_config *disk) {
+    int err = 0;
+    char mnt_point[] = {"/mnt/vda"};
+    char new_dev_str[] = {"/mnt/vda/dev/"};
+
+    lkl_mount_disk(disk, 'a', mnt_point);
 
     /* set up /dev in the new root */
     lkl_prepare_rootfs(new_dev_str, 0700);
@@ -606,11 +616,7 @@ void lkl_mount_disks(struct enclave_disk_config* _disks, size_t _num_disks, cons
             num_disks = 26;
             return;
         }
-        snprintf(dev_path, dev_path_len, "/dev/vd%c", 'a' + i);
-        int err = lkl_mount_blockdev(dev_path, disks[i].mnt, "ext4", disks[i].ro ? LKL_MS_RDONLY : 0, NULL);
-        if (err < 0)
-            sgxlkl_fail("Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
-        disks[i].mounted = 1;
+        lkl_mount_disk(&disks[i], 'a' + i, disks[i].mnt);
     }
 
     if (cwd) {
