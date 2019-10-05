@@ -28,7 +28,7 @@ static int strict_mode = 0;
 static int print_wg_key = 0;
 static int force_ias_attestation = 0;
 
-#define DEFAULT_IAS_SERVER "test-as.sgx.trustedservices.intel.com:443"
+#define DEFAULT_IAS_SERVER "api.trustedservices.intel.com/sgx/dev"
 static struct attestation_config attn_config = {
     // Default values
     .ias_server = DEFAULT_IAS_SERVER,
@@ -39,8 +39,8 @@ static void usage(char *cmd, int exit_code) {
     printf(
         "Usage: %s [attest|run|addpeer] --server=HOST:PORT [--app=<json-path>] \n"
         "[--ias-sign-ca-cert=<pem-ca-cert-path] [--ias-spid=<SPID>]\n"
-        "[--ias-key=<ias-key-file-path>] [--ias-cert=<ias-cert-path>]\n"
         "[--ias-server=<host:port>] [--ias-quote-type=<\"Unlinkable\"|\"Linkable\">]\n"
+        "[--ias-skey=<ias-subscription-key>]\n"
         "[--force-ias-attestation] [--mrenclave=<expected-mrenclave>]\n"
         "[--mrsigner=<expected-mrsigner>] [--nonce=<nonce>] [--strict]\n"
         "[--print-wg-key] [--key=<peer-key>] [--endpoint=<peer-endpoint>]\n"
@@ -61,18 +61,16 @@ static void usage(char *cmd, int exit_code) {
         "Attestation ('attest') options\n"
         " -i, -ias-spid=<SPID>        IAS service provider ID (SPID) as HEX string to\n"
         "                             use for IAS verification.\n"
-        " -k, --ias-key=<path>        Path to IAS private key file to use for IAS\n"
-        "                             verification.\n"
-        " -c, --ias-cert=<path>       Path to IAS private certificate to use for IAS\n"
-        "                             verification.\n"
         " -I, --ias-sign-ca-cert=<path>\n"
         "                             Path to the IAS signing CA certificate\n"
         "                             in PEM format to use for IAS verification.\n"
         " -e, --ias-server<host:port> Hostname/IP and port of IAS server to use for\n"
         "                             verification (Default:\n"
-        "                             test-as.sgx.trustedservices.intel.com:443).\n"
+        "                             api.trustedservices.intel.com/sgx/dev).\n"
         " -q, --ias-quote-type=<type> Quote type, either \"Unlinkable\" or \"Linkable\"\n"
         "                             (Default: \"Unlinkable\").\n"
+        " -k, --ias-skey=<hex>        IAS subscription key to use for IAS\n"
+        "                             verification.\n"
         " -f, --force-ias-attestation If specified, a new IAS report is requested\n"
         "                             regardless of whether a server-side report exists.\n"
         " -E, --mrenclave=<hex>       Expected MRENCLAVE measurement as HEX string.\n"
@@ -171,12 +169,10 @@ static void handle_attest_response(const Sgxlkl__AttestResult *result,
             if (result->quote.len && (!result->ias_report.len || force_ias_attestation)) {
                 if (!spid_provided)
                     sgxlkl_warn("No IAS SPID provided, skipping IAS verification.\n");
-                else if (!attn_config.ias_key_file)
-                    sgxlkl_warn("No IAS key file provided (via --ias-key), skipping IAS verification.\n");
-                else if (!attn_config.ias_cert_file)
-                    sgxlkl_warn("No IAS certificate provided (via --ias-cert), skipping IAS verification.\n");
+                else if (!attn_config.ias_subscription_key)
+                    sgxlkl_warn("No IAS subscription key provided (via --ias-skey), skipping IAS verification.\n");
 
-                if (spid_provided && attn_config.ias_key_file && attn_config.ias_cert_file) {
+                if (spid_provided && attn_config.ias_subscription_key) {
                     if (ias_get_attestation_verification_report((sgx_quote_t *)result->quote.data,
                                                             result->quote.len,
                                                         &attn_config,
@@ -326,10 +322,9 @@ int main(int argc, char**argv) {
         {"app",                   required_argument, 0, 'a' },
         {"ias-spid",              required_argument, 0, 'i' },
         {"ias-quote-type",        required_argument, 0, 'q' },
-        {"ias-key",               required_argument, 0, 'k' },
-        {"ias-cert",              required_argument, 0, 'C' },
         {"ias-server",            required_argument, 0, 'e' },
         {"ias-sign-ca-cert",      required_argument, 0, 'I' },
+        {"ias-skey",              required_argument, 0, 'k' },
         {"force-ias-attestation", no_argument,       0, 'f' },
         {"mrenclave",             required_argument, 0, 'E' },
         {"mrsigner",              required_argument, 0, 'g' },
@@ -369,14 +364,11 @@ int main(int argc, char**argv) {
         case 'q':
             attn_config.quote_type = !strcmp(optarg, "Unlinkable") ? SGX_UNLINKABLE_SIGNATURE : SGX_LINKABLE_SIGNATURE;
             break;
-        case 'k':
-            attn_config.ias_key_file = optarg;
-            break;
-        case 'C':
-            attn_config.ias_cert_file = optarg;
-            break;
         case 'e':
             attn_config.ias_server = optarg;
+            break;
+        case 'k':
+            attn_config.ias_subscription_key = optarg;
             break;
         case 'I':
             ias_sign_ca_cert_path = optarg;

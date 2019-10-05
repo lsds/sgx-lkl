@@ -237,8 +237,6 @@ static void help(char* prog) {
     printf("\n## Attestation ##\n");
     printf("SGXLKL_IAS_SPID: Specifies the Service Provider ID (SPID) required for communication with the Intel Attestation Service (IAS).\n");
     printf("SGXLKL_IAS_QUOTE_TYPE: Specifies the quote type: '0' for unlinkable quotes (default), '1' for linkable quotes.\n");
-    printf("SGXLKL_IAS_KEY_FILE: Path to the private key file.\n");
-    printf("SGXLKL_IAS_CERT: Path to the IAS certificate file.\n");
     printf("SGXLKL_IAS_SERVER: IAS server to use (Default: %s).\n", DEFAULT_SGXLKL_IAS_SERVER);
     printf("\n## Remote control ##\n");
     printf("SGXLKL_REMOTE_ATTEST_PORT: Port to use on public interface for attestation server (Default: %d).\n", DEFAULT_SGXLKL_REMOTE_ATTEST_PORT);
@@ -1008,12 +1006,10 @@ void* enclave_thread(void* parm) {
                 _attn_info.quote_size = quote_size;
 
                 if (sgxlkl_config_str(SGXLKL_IAS_SPID)) {
-                    if (!_attn_config.ias_key_file && sgxlkl_config_bool(SGXLKL_VERBOSE))
-                        sgxlkl_info("No IAS key file provided (via SGXLKL_IAS_KEY_FILE). Skipping IAS attestation...\n");
-                    else if (!_attn_config.ias_cert_file && sgxlkl_config_bool(SGXLKL_VERBOSE))
-                        sgxlkl_info("No IAS certificate provided (via SGXLKL_IAS_CERT). Skipping IAS attestation...\n");
+                    if (!_attn_config.ias_subscription_key && sgxlkl_config_bool(SGXLKL_VERBOSE))
+                        sgxlkl_info("No IAS subscription key provided (via SGXLKL_IAS_SUBSCRIPT_KEY). Skipping IAS attestation...\n");
 
-                    if (_attn_config.ias_key_file && _attn_config.ias_cert_file)
+                    if (_attn_config.ias_subscription_key)
                         _attn_info.ias_report = get_attestation_report(quote, quote_size);
                 }
 
@@ -1114,9 +1110,8 @@ void init_attestation(enclave_config_t *conf) {
         char *quote_type = sgxlkl_config_str(SGXLKL_IAS_QUOTE_TYPE);
         _attn_config.quote_type = !strcmp(quote_type, "Unlinkable") ? SGX_UNLINKABLE_SIGNATURE : SGX_LINKABLE_SIGNATURE;
 
-        _attn_config.ias_key_file = sgxlkl_config_str(SGXLKL_IAS_KEY_FILE);
-        _attn_config.ias_cert_file = sgxlkl_config_str(SGXLKL_IAS_CERT);
         _attn_config.ias_server = sgxlkl_config_str(SGXLKL_IAS_SERVER);
+        _attn_config.ias_subscription_key = sgxlkl_config_str(SGXLKL_IAS_SUBSCRIPT_KEY);
     } else if (sgxlkl_config_bool(SGXLKL_VERBOSE))
         sgxlkl_info("No IAS SPID provided, enclave quote will not be verifiable by IAS.\n");
 
