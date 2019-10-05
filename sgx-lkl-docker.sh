@@ -6,6 +6,13 @@
 
 set -e
 
+# Support windows msys environments
+if  [ "${OSTYPE}" == "msys" ]; then
+    # See https://github.com/git-for-windows/msys2-runtime/pull/11 for context
+    export MSYS_NO_PATHCONV=1
+    echo "Detected msys: Disabled msys mangling."
+fi
+
 VOLUME_MOUNTS=$PWD:/sgx-lkl
 SSH_AGENT_WORKAROUND=
 
