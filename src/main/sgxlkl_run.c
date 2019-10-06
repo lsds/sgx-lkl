@@ -216,7 +216,6 @@ static void help(char* prog) {
     printf("SGXLKL_GW4: IPv4 gateway to assign to LKL (Default: %s).\n", DEFAULT_SGXLKL_GW4);
     printf("SGXLKL_MASK4: CIDR mask for LKL to use (Default: %d).\n", DEFAULT_SGXLKL_MASK4);
     printf("SGXLKL_HOSTNAME: Host name for LKL to use (Default: %s).\n", DEFAULT_SGXLKL_HOSTNAME);
-    //printf("SGXLKL_HOSTNET: Use host network directly without going through the in-enclave network stack.\n");
     printf("SGXLKL_WG_IP: IPv4 address to assign to Wireguard interface (Default: %s).\n", DEFAULT_SGXLKL_WG_IP);
     printf("SGXLKL_WG_PORT: Port to use on eth0 interface for the Wireguard endpoint (Default: %d).\n", DEFAULT_SGXLKL_WG_PORT);
     printf("SGXLKL_WG_KEY: Private Wireguard key. Will be ignored in release mode in which a new key pair is generated inside the enclave on startup.\n");
@@ -236,6 +235,7 @@ static void help(char* prog) {
     printf("SGXLKL_SHMEM_SIZE: Size of the file to be used for shared memory between the enclave and the outside.\n");
     printf("\n## Attestation ##\n");
     printf("SGXLKL_IAS_SPID: Specifies the Service Provider ID (SPID) required for communication with the Intel Attestation Service (IAS).\n");
+    printf("SGXLKL_IAS_SUBSCRIPT_KEY: Specifies the Intel Attestation Service (IAS) subscription key.\n");
     printf("SGXLKL_IAS_QUOTE_TYPE: Specifies the quote type: '0' for unlinkable quotes (default), '1' for linkable quotes.\n");
     printf("SGXLKL_IAS_SERVER: IAS server to use (Default: %s).\n", DEFAULT_SGXLKL_IAS_SERVER);
     printf("\n## Remote control ##\n");
