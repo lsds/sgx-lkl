@@ -278,8 +278,10 @@ static int lkl_mount_blockdev(const char* dev_str, const char* mnt_point,
             goto fail;
     }
 
-    err = lkl_sys_mkdir(mnt_point, 0700);
-    if (err < 0)
+    // Create mount directory if it does not exist.
+    // Allow existing directories so that disks can be mounted in read-only root fs.
+    const int mkdir_err = lkl_sys_mkdir(mnt_point, 0700);
+    if (mkdir_err < 0 && mkdir_err != -LKL_EEXIST)
         goto fail;
 
     if (data) {
@@ -291,7 +293,8 @@ static int lkl_mount_blockdev(const char* dev_str, const char* mnt_point,
 
     err = lkl_sys_mount((char*)dev_str, (char*)mnt_point, (char*)fs_type, flags, _data);
     if (err < 0) {
-        lkl_sys_rmdir(mnt_point);
+        if (mkdir_err >= 0)
+            lkl_sys_rmdir(mnt_point);
         goto fail;
     }
 
