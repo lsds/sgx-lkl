@@ -153,43 +153,70 @@ function deploy-container() {
     [ -z "${SRC_CONTAINER}" ] && (echo "Missing source container <container_tag>" && usage)
 
     shift
-    BINARY_CMD=$1
-    [ -z "${BINARY_CMD}" ] && (echo "Missing command <cmd> to run" && usage)
-
-    shift
-    BINARY_ARGS=$@
+    BINARY_CMD=$@
 
     SEC_CONTAINER="${SRC_CONTAINER}-secure"
 
-    echo "Creating secure container '${SEC_CONTAINER}' from container '${SRC_CONTAINER}' with default enclave launch command '${BINARY_CMD} ${BINARY_ARGS}'"
-
-    CONTAINER_TAR=${SRC_CONTAINER}.tar
+    CONTAINER_TAR=$(echo "${SRC_CONTAINER}" | sed 's/:/_/g').tar
     ENCLAVE_ROOT_IMG=enclave_rootfs.img
     MOUNTPOINT="/mnt/ext4disk"
 
-    echo -n "Exporting existing container to image file... "
-    docker export -o ${CONTAINER_TAR} ${SRC_CONTAINER}
+    echo -n "Exporting existing container configuration...."
+    SRC_CONTAINER_ENV=$(docker image inspect -f '{{range $conf := .Config.Env}}{{($conf)}} {{end}}' ${SRC_CONTAINER})
+    SRC_CONTAINER_ENTRY=$(docker image inspect -f '{{range $conf := .Config.Entrypoint}}{{($conf)}} {{end}}' ${SRC_CONTAINER})
+    SRC_CONTAINER_WD=$(docker image inspect -f '{{ .Config.WorkingDir }}' ${SRC_CONTAINER})
     echo "Done."
+
+    if [[ ! -z "${BINARY_CMD}" ]]; then
+        echo "Overriding container ENTRYPOINT with: $BINARY_CMD"
+        SRC_CONTAINER_ENTRY=$BINARY_CMD
+    fi
+
+    if [[ -z "${SRC_CONTAINER_ENTRY}" ]]; then
+        echo "Container had no ENTRYPOINT, and nothing was specified via arguments. Exiting."
+        exit 1
+    fi
+
+    if [[ -z "${SRC_CONTAINER_WD}" ]]; then
+        echo "Container had no WORKDIR. Setting to '/'."
+        SRC_CONTAINER_WD=/
+    fi
+
+    echo "Creating secure container '${SEC_CONTAINER}' from container '${SRC_CONTAINER}' with the following configuration:"
+    echo "Launch Command: ${SRC_CONTAINER_ENTRY}"
+    echo "Launch Working Directory: ${SRC_CONTAINER_WD}"
+    echo "Environment Variables: ${SRC_CONTAINER_ENV}"
+
+    LIVE_CONTAINER_ID=$(docker run -d "${SRC_CONTAINER}")
+    echo "Created container '${LIVE_CONTAINER_ID}'"
+
+    echo -n "Exporting container to image file... "
+    docker export -o ${CONTAINER_TAR} ${LIVE_CONTAINER_ID}
+    echo "Done."
+
+    LIVE_CONTAINER_STOPPED=$(docker stop "${LIVE_CONTAINER_ID}")
+    echo "Stopped container: '${LIVE_CONTAINER_STOPPED}'."
 
     TAR_FILESIZE=`du -m ${CONTAINER_TAR} | cut -f1`
     IMG_SIZE=$(( ${TAR_FILESIZE} + ${IMG_SLACK_SIZE} ))
 
     echo "Creating secure container image... "
+
     docker run -it --rm --privileged=true -u `id -u $USER` -v $VOLUME_MOUNTS $SSH_AGENT_WORKAROUND lsds/sgx-lkl:build /bin/bash -c "\\
 
-        dd if=/dev/zero of=${ENCLAVE_ROOT_IMG} count=${IMG_SIZE} bs=1M 2>/dev/null\
-            && mkfs.ext4 -q ${ENCLAVE_ROOT_IMG}\
-            && ${ESCALATE_CMD} mkdir -p ${MOUNTPOINT}\
-            && ${ESCALATE_CMD} mount -t ext4 -o loop ${ENCLAVE_ROOT_IMG} ${MOUNTPOINT}\
+        dd if=/dev/zero of=${ENCLAVE_ROOT_IMG} count=${IMG_SIZE} bs=1M 2>/dev/null \
+            && mkfs.ext4 -q ${ENCLAVE_ROOT_IMG} \
+            && ${ESCALATE_CMD} mkdir -p ${MOUNTPOINT} \
+            && ${ESCALATE_CMD} mount -t ext4 -o loop ${ENCLAVE_ROOT_IMG} ${MOUNTPOINT} \
             && ${ESCALATE_CMD} pv ${CONTAINER_TAR} | ${ESCALATE_CMD} tar xp -C ${MOUNTPOINT} \
-            && ${ESCALATE_CMD} sh -c 'echo \"nameserver 8.8.8.8\" > ${MOUNTPOINT}/etc/resolv.conf'\
-            && ${ESCALATE_CMD} umount ${MOUNTPOINT}\
+            && ${ESCALATE_CMD} sh -c 'echo \"nameserver 8.8.8.8\" > ${MOUNTPOINT}/etc/resolv.conf' \
+            && ${ESCALATE_CMD} umount ${MOUNTPOINT} \
             && ${ESCALATE_CMD} rm -f ${CONTAINER_TAR}"
     echo "Done."
 
     echo -n "Building secure container... "
-    docker build -q --build-arg binary_cmd="${BINARY_CMD}" --build-arg binary_args="${BINARY_ARGS}" --target min-deploy -t ${SEC_CONTAINER} .
-    echo "Done."
+    docker build -q --build-arg binary_cwd="${SRC_CONTAINER_WD}" --build-arg binary_env="${SRC_CONTAINER_ENV}" --build-arg binary_cmd="${SRC_CONTAINER_ENTRY}" --target min-deploy -t ${SEC_CONTAINER} .
+    echo "Done. Tagged '${SEC_CONTAINER}'. Please note, it must be run with the '--privileged' flag to configure networking."
 
     rm -f ${ENCLAVE_ROOT_IMG}
 }

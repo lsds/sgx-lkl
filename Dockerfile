@@ -55,7 +55,7 @@ WORKDIR /sgx-lkl
 
 RUN apt-get update && apt-get install -y \
   sudo \
-  iproute2 iptables net-tools \
+  iproute2 iptables net-tools libjson-c-dev libprotobuf-c-dev \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home -s /bin/bash user && \
@@ -65,10 +65,12 @@ RUN useradd --create-home -s /bin/bash user && \
 USER user
 ENV USER=user
 
+ARG binary_cwd=/
+ENV env_binary_cwd="${binary_cwd}"
+ARG binary_env
+ENV env_binary_env=${binary_env}
 ARG binary_cmd
 ENV env_binary_cmd="${binary_cmd}"
-ARG binary_args
-ENV env_binary_args=${binary_args}
 
 COPY --chown=user:user build build/
 COPY --chown=user:user enclave_rootfs.img  .
@@ -80,6 +82,8 @@ CMD ["/bin/bash", "-c", "sudo ip tuntap add dev sgxlkl_tap0 mode tap user user \
     && sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT \
     && sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT \
     && sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE \
-    && sudo sysctl -w net.ipv4.ip_forward=1 \
+    && sudo sysctl -w net.ipv4.ip_forward=1 > /dev/null \
     && sudo chown user /dev/net/tun \
-    && SGXLKL_TAP=sgxlkl_tap0 SGXLKL_HEAP=2500M /sgx-lkl/build/sgx-lkl-run /sgx-lkl/enclave_rootfs.img ${env_binary_cmd} ${env_binary_args}"]
+    && export SGXLKL_HEAP=2500M \
+    && export ${env_binary_env} \
+    && SGXLKL_CWD=${env_binary_cwd} SGXLKL_TAP=sgxlkl_tap0 /sgx-lkl/build/sgx-lkl-run /sgx-lkl/enclave_rootfs.img ${env_binary_cmd}"]
