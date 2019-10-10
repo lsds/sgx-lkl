@@ -66,7 +66,6 @@ extern "C" {
 #endif
 
 int sgx_accept_forward(si_flags_t sfl, size_t lo, size_t hi);
-void do_ereport(const sgx_target_info_t *target_info, const sgx_report_data_t *report_data, sgx_report_t *report);
 int do_egetkey(const sgx_key_request_t *key_request, sgx_key_128bit_t *key);
 uint32_t do_rdrand(uint32_t *rand);
 int do_eaccept(const sec_info_t *, size_t);
