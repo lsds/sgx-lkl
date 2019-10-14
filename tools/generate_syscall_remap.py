@@ -8,8 +8,6 @@
 LKL_UNISTD_PATH="../lkl/tools/lkl/include/lkl/asm-generic/unistd.h"
 NATIVE_TBL_PATH="../lkl/arch/x86/entry/syscalls/syscall_64.tbl"
 
-LKL_PREFIX='#define __lkl__NR_'
-
 class Syscall:
     def __init__(self, name):
         self.name = name
@@ -34,27 +32,36 @@ def parse_table(f, syscall_tab, attr):
         setattr(syscall_tab[name], attr, num)
 
 
-def parse_unistd(f, prefix, syscall_tab, attr):
+def parse_unistd(f, syscall_tab, attr):
     for ln in f:
-        if not ln.startswith(LKL_PREFIX):
-            continue
-        name, _, num = ln[len(LKL_PREFIX):].strip().partition(' ')
-        if name == 'syscalls':
-            # this is the syscall count!
-            continue
-        try:
-            num = int(num)
-        except ValueError:
-            # we've probably reached the end...
-            break
-        if name not in syscall_tab:
-            syscall_tab[name] = Syscall(name)
-        setattr(syscall_tab[name], attr, num)
+        for prefix in ('#define __lkl__NR_', '#define __lkl__NR3264_'):
+            if not ln.startswith(prefix):
+                continue
+            name, _, num = ln[len(prefix):].strip().partition(' ')
+            if name == 'syscalls':
+                # this is the syscall count!
+                continue
+            try:
+                num = int(num)
+            except ValueError:
+                # we've probably reached the end...
+                break
+            if name not in syscall_tab:
+                syscall_tab[name] = Syscall(name)
+            setattr(syscall_tab[name], attr, num)
+        for prefix in ('__LKL__SC_3264(__lkl__NR3264_',):
+            if not ln.startswith(prefix):
+                continue
+            name, _, new_name = ln[len(prefix):].strip().rstrip(')').split(', sys_')
+            num = getattr(syscall_tab[name], attr)
+            if new_name not in syscall_tab:
+                syscall_tab[new_name] = Syscall(new_name)
+            setattr(syscall_tab[new_name], attr, num)
 
 
 syscall_tab = {}
 with open(LKL_UNISTD_PATH, 'r') as f:
-    parse_unistd(f, LKL_PREFIX, syscall_tab, 'lkl_num')
+    parse_unistd(f, syscall_tab, 'lkl_num')
 with open(NATIVE_TBL_PATH, 'r') as f:
     parse_table(f, syscall_tab, 'native_num')
 
