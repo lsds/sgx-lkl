@@ -78,10 +78,7 @@ void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...) {
     const char* name = NULL;
     char errmsg[255] = {0};
 
-    if (!sgxlkl_trace_lkl_syscall && type == SGXLKL_LKL_SYSCALL)
-        return;
-
-    if (!sgxlkl_trace_internal_syscall && type == SGXLKL_INTERNAL_SYSCALL)
+    if (!(type & sgxlkl_trace_syscall))
         return;
 
     long params[6] = {0};
@@ -105,7 +102,11 @@ void log_sgxlkl_syscall(int type, long n, long res, int params_len, ...) {
         snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", lkl_strerror(res));
 
     int tid = lthread_self() ? lthread_self()->tid : 0;
-    if (n == SYS_newfstatat) {
+    if (type == SGXLKL_REDIRECT_SYSCALL) {
+        // n is x64 syscall number, name is not available.
+        SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] \t%ld\t(%ld, %ld, %ld, %ld, %ld, %ld) = %ld%s\n", tid, n,
+            params[0], params[1], params[2], params[3], params[4], params[5], res, errmsg);
+    } else if (n == SYS_newfstatat) {
         SGXLKL_TRACE_SYSCALL(type, "[tid=%-3d] %s\t%ld\t(%ld, %s, %ld, %ld) = %ld %s\n", tid, name, n,
             params[0], (const char*)params[1], params[2], params[3], res, errmsg);
     } else if (n == SYS_openat) {
