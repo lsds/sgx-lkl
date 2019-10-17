@@ -40,8 +40,7 @@
 
 int sethostname(const char *, size_t);
 
-int sgxlkl_trace_lkl_syscall = 0;
-int sgxlkl_trace_internal_syscall = 0;
+unsigned int sgxlkl_trace_syscall = 0;
 int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_thread = 0;
 int sgxlkl_use_host_network = 0;
@@ -481,12 +480,10 @@ static void lkl_mount_disk(struct enclave_disk_config *disk, char device, const 
     dev_str_raw[sizeof dev_str_raw - 2] = device;
     char *dev_str = dev_str_raw;
 
-    int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
-    int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
+    int lkl_trace_syscall_bak = sgxlkl_trace_syscall;
 
-    if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) && (disk->roothash || disk->enc)) {
-        sgxlkl_trace_lkl_syscall = 0;
-        sgxlkl_trace_internal_syscall = 0;
+    if (sgxlkl_trace_syscall && (disk->roothash || disk->enc)) {
+        sgxlkl_trace_syscall = 0;
         SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily disabling tracing.\n");
     }
 
@@ -516,10 +513,9 @@ static void lkl_mount_disk(struct enclave_disk_config *disk, char device, const 
         dev_str = dev_str_enc;
     }
 
-    if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) || (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall)) {
+    if ((lkl_trace_syscall_bak && !sgxlkl_trace_syscall)) {
         SGXLKL_VERBOSE("Devicemapper setup complete: reenabling lkl_strace\n");
-        sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
-        sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
+        sgxlkl_trace_syscall = lkl_trace_syscall_bak;
     }
 
     const int err = lkl_mount_blockdev(dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
@@ -797,15 +793,16 @@ void lkl_start_init(enclave_config_t* encl) {
 
     // TODO Make tracing options configurable via SGX-LKL config file.
     if (getenv_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
-        sgxlkl_trace_lkl_syscall = 1;
+        sgxlkl_trace_syscall |= SGXLKL_LKL_SYSCALL;
 
     if (getenv_bool("SGXLKL_TRACE_INTERNAL_SYSCALL", 0))
-        sgxlkl_trace_internal_syscall = 1;
+        sgxlkl_trace_syscall |= SGXLKL_INTERNAL_SYSCALL;
 
-    if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0)) {
-        sgxlkl_trace_lkl_syscall = 1;
-        sgxlkl_trace_internal_syscall = 1;
-        }
+    if (getenv_bool("SGXLKL_TRACE_REDIRECT_SYSCALL", 0))
+        sgxlkl_trace_syscall |= SGXLKL_REDIRECT_SYSCALL;
+
+    if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0))
+        sgxlkl_trace_syscall = -1;  // trace all types
 
     if (getenv_bool("SGXLKL_TRACE_MMAP", 0))
         sgxlkl_trace_mmap = 1;
