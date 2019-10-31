@@ -95,12 +95,14 @@ void *syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, o
     // Anonymous mapping/allocation
     } else if (fd == -1 && (flags & MAP_ANONYMOUS)) {
         mem = enclave_mmap(addr, length, flags & MAP_FIXED);
-        mprotect(mem, length , prot);
         if (mem == MAP_FAILED) {
             return mem;
         }
-        if(prot & PROT_WRITE)
-            memset(mem, 0, length);
+        // Zero out memory, make sure memory is writeable
+        mprotect(mem, length, prot | PROT_WRITE);
+        memset(mem, 0, length);
+        // Set requested permissions
+        mprotect(mem, length , prot);
     // File-backed mapping (if allowed)
     } else if (fd >= 0 && enclave_mmap_flags_supported(flags, fd)) {
         mem = enclave_mmap(addr, length, flags & MAP_FIXED);
