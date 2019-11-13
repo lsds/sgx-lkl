@@ -1058,6 +1058,11 @@ reenter:
             int exit_code = (int)ret[1];
             exit(exit_code);
         }
+        case SGXLKL_EXIT_ERROR: {
+            sgxlkl_fail("Error inside enclave, error code: %lu (%s)\n", ret[1],
+                        ret[1] == SGXLKL_UNEXPECTED_CALLID ? "Unexpected call ID"
+                                           : "Enclave config assertion violation");
+        }
         default:
             fprintf(stderr, "Unexpected exit reason from signal handler.\n");
             //TODO: Other exit reasons (possible for SIGSEGV)
