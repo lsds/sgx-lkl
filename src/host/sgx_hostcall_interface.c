@@ -93,7 +93,13 @@ int deepinitiovec(Arena *a, struct iovec *dst, const struct iovec *src) {
 }
 
 void deepcopyiovec(struct iovec *dst, const struct iovec *src) {
-    if (dst->iov_len != src->iov_len) {*(int *)NULL = 0;}
+    if (dst->iov_len != src->iov_len) {
+#ifdef SGXLKL_HW
+        exit_enclave(SGXLKL_EXIT_ERROR, SGXLKL_CONFIG_ASSERT_VIOLATION, get_exit_address(), UNUSED);
+#else
+        a_crash();
+#endif
+    }
     memcpy(dst->iov_base, src->iov_base, src->iov_len);
     dst->iov_len = src->iov_len;
 }
@@ -207,4 +213,18 @@ void freeslot(size_t slotno) {
     nthreads--;
     freeslots[slotno] = 0;
     ticket_unlock(&slotslock);
+}
+
+/* Verifies host call return values of type ssize_t as used by the *write* and
+ * *read* host calls to be either -1 or positive and smaller than the specified
+ * count.
+ */
+void verify_ssize_ret(ssize_t ret, size_t count) {
+    if (ret > -1 && ret > count) {
+#ifdef SGXLKL_HW
+        exit_enclave(SGXLKL_EXIT_ERROR, SGXLKL_CONFIG_ASSERT_VIOLATION, get_exit_address(), UNUSED);
+#else
+        a_crash();
+#endif
+    }
 }

@@ -58,7 +58,7 @@ int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg) {
     if (len == 0) { sc->arg3 = (uintptr_t)arg; }
     else {val = arena_alloc(a, len); if (arg != 0) memcpy(val, (void*)arg, len); sc->arg3 = (uintptr_t)val;}
     threadswitch((syscall_t*) sc);
-    __syscall_return_value = (ssize_t)sc->ret_val;
+    __syscall_return_value = (int)sc->ret_val;
     if (len > 0 && arg != 0) {memcpy((void*)arg, val, len);}
     arena_free(a);
     sc->status = 0;
@@ -214,6 +214,7 @@ ssize_t host_syscall_SYS_pread64(int fd, void * buf, size_t count, off_t offset)
     sc->arg4 = (uintptr_t)offset;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
+    verify_ssize_ret(__syscall_return_value, count);
     if (val2 != NULL && buf != NULL) memcpy(buf, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -238,6 +239,7 @@ ssize_t host_syscall_SYS_pwrite64(int fd, const void * buf, size_t count, off_t 
     sc->arg4 = (uintptr_t)offset;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
+    verify_ssize_ret(__syscall_return_value, count);
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -259,6 +261,7 @@ ssize_t host_syscall_SYS_read(int fd, void * buf, size_t count) {
     sc->arg3 = (uintptr_t)count;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
+    verify_ssize_ret(__syscall_return_value, count);
     if (val2 != NULL && buf != NULL) memcpy(buf, val2, len2);
     arena_free(a);
     sc->status = 0;
@@ -283,6 +286,9 @@ ssize_t host_syscall_SYS_readv(int fd, struct iovec * iov, int iovcnt) {
     sc->arg3 = (uintptr_t)iovcnt;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
+    size_t max_ret_length = 0;
+    for(size_t i = 0; i < iovcnt; i++) {max_ret_length += iov[i].iov_len;}
+    verify_ssize_ret(__syscall_return_value, max_ret_length);
     for(size_t i = 0; i < iovcnt; i++) {deepcopyiovec(&iov[i], &val2[i]);}
     arena_free(a);
     sc->status = 0;
@@ -306,6 +312,7 @@ ssize_t host_syscall_SYS_write(int fd, const void * buf, size_t count) {
     sc->arg3 = (uintptr_t)count;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
+    verify_ssize_ret(__syscall_return_value, count);
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -330,6 +337,9 @@ ssize_t host_syscall_SYS_writev(int fd, const struct iovec * iov, int iovcnt) {
     sc->arg3 = (uintptr_t)iovcnt;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (ssize_t)sc->ret_val;
+    size_t max_ret_length = 0;
+    for(size_t i = 0; i < iovcnt; i++) {max_ret_length += iov[i].iov_len;}
+    verify_ssize_ret(__syscall_return_value, max_ret_length);
     arena_free(a);
     sc->status = 0;
     return (ssize_t)__syscall_return_value;
@@ -356,6 +366,7 @@ int host_syscall_SYS_mprotect(void * addr, size_t len, int prot) {
     return (int)__syscall_return_value;
 }
 
+#ifndef SGXLKL_HW
 int host_syscall_SYS_rt_sigaction(int signum, struct sigaction * act, struct sigaction * oldact, unsigned long nsig) {
     volatile syscall_t *sc;
     volatile intptr_t __syscall_return_value;
@@ -388,6 +399,7 @@ int host_syscall_SYS_rt_sigaction(int signum, struct sigaction * act, struct sig
     sc->status = 0;
     return (int)__syscall_return_value;
 }
+#endif /* SGXLKL_HW */
 
 int host_syscall_SYS_rt_sigpending(sigset_t * set, unsigned long nsig) {
     volatile syscall_t *sc;
@@ -595,6 +607,8 @@ int host_syscall_SYS_gettid() {
     return (int)__syscall_return_value;
 }
 
+/* TODO: mmap/mremap/munmap aren't strictly needed and should be replaced by
+ * pre-allocating host memory for host call arguments instead. */
 void *host_syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset) {
     volatile syscall_t *sc;
     volatile uintptr_t __syscall_return_value;
@@ -608,6 +622,10 @@ void *host_syscall_SYS_mmap(void *addr, size_t length, int prot, int flags, int 
     sc->arg6 = (uintptr_t)offset;
     threadswitch((syscall_t*)sc);
     __syscall_return_value = sc->ret_val;
+#ifdef SGXLKL_HW
+    if (__syscall_return_value != -1 && in_enclave_range((void *) __syscall_return_value, length))
+        exit_enclave(SGXLKL_EXIT_ERROR, SGXLKL_CONFIG_ASSERT_VIOLATION, get_exit_address(), UNUSED);
+#endif
     sc->status = 0;
     return (void *)__syscall_return_value;
 }
@@ -624,6 +642,10 @@ void *host_syscall_SYS_mremap(void *old_addr, size_t old_size, size_t new_size, 
     sc->arg5 = (uintptr_t)new_addr;
     threadswitch((syscall_t*)sc);
     __syscall_return_value = sc->ret_val;
+#ifdef SGXLKL_HW
+    if (__syscall_return_value != -1 && in_enclave_range((void *) __syscall_return_value, new_size))
+        exit_enclave(SGXLKL_EXIT_ERROR, SGXLKL_CONFIG_ASSERT_VIOLATION, get_exit_address(), UNUSED);
+#endif
     sc->status = 0;
     return (void *)__syscall_return_value;
 }

@@ -31,5 +31,7 @@ size_t deepsizeiovec(const struct iovec *dst);
 int deepinitiovec(struct Arena *a, struct iovec *dst, const struct iovec *src);
 void deepcopyiovec(struct iovec *dst, const struct iovec *src);
 
+void verify_ssize_ret(ssize_t ret, size_t count);
+
 #endif /* SGX_HOSTCALL_INTERFACE_H */
 
