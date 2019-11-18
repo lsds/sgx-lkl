@@ -14,9 +14,11 @@ struct ifreq;
  * @fd - a POSIX file descriptor number for input/output
  * @sync_io - 1 if I/O should be synchronous, i.e. threads should busy wait for
  * I/O to complete.
+ * @pipe_fds - array with fds for ends of pipe used to control virtio net
+ * polling.
  * @returns a struct lkl_netdev_linux_fdnet entry for virtio-net
  */
-struct lkl_netdev* sgxlkl_register_netdev_fd(int fd, int sync_io);
+struct lkl_netdev* sgxlkl_register_netdev_fd(int fd, int sync_io, int pipe_fds[]);
 
 #endif
 

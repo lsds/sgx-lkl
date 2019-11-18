@@ -94,6 +94,7 @@ typedef struct enclave_config {
     enclave_disk_config_t *disks; /* Array of disk configurations, length = num_disks */
     int mmap_files; /* ENCLAVE_MMAP_FILES_{NONE, SHARED, or PRIVATE} */
     int net_fd;
+    int net_pipe_fds[2]; /* Used by virtio net backend to cause POLLHUP */
     struct in_addr net_ip4;
     struct in_addr net_gw4;
     int net_mask4;

@@ -218,7 +218,7 @@ struct lkl_dev_net_ops sgxlkl_fd_net_ops = {
     .free = sgxlkl_fd_net_free,
 };
 
-struct lkl_netdev* sgxlkl_register_netdev_fd(int fd, int wait_on_io) {
+struct lkl_netdev* sgxlkl_register_netdev_fd(int fd, int wait_on_io, int pipe_fds[]) {
     struct lkl_netdev_fd *nd;
 
     nd = malloc(sizeof(*nd));
@@ -231,22 +231,9 @@ struct lkl_netdev* sgxlkl_register_netdev_fd(int fd, int wait_on_io) {
 
     nd->fd = fd;
     nd->wait_on_io = wait_on_io;
-    int ret = host_syscall_SYS_pipe(nd->pipe);
-    if (ret < 0) {
-        fprintf(stderr, "[    SGX-LKL   ] virtio net pipe call failed: %s", strerror(-ret));
-        free(nd);
-        return NULL;
-    }
-
-    ret = host_syscall_SYS_fcntl(nd->pipe[0], F_SETFL, O_NONBLOCK);
-    if (ret < 0) {
-        fprintf(stderr, "[    SGX-LKL   ] virtio net fnctl call failed: %s", strerror(-ret));
-        host_syscall_SYS_close(nd->pipe[0]);
-        host_syscall_SYS_close(nd->pipe[1]);
-        free(nd);
-        return NULL;
-    }
-
+    nd->pipe[0] = pipe_fds[0];
+    nd->pipe[1] = pipe_fds[1];
     nd->dev.ops = &sgxlkl_fd_net_ops;
+
     return &nd->dev;
 }

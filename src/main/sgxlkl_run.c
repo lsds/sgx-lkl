@@ -656,6 +656,14 @@ static void register_net(enclave_config_t* encl, const char* tapstr, const char*
     if (ioctl(fd, TUNSETOFFLOAD, offload_flags) != 0)
         sgxlkl_fail("Failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
 
+    int ret = pipe(encl->net_pipe_fds);
+    if (ret < 0)
+        sgxlkl_fail("Failed to create virtio net control pipe: %s", strerror(ret));
+
+    ret = fcntl(encl->net_pipe_fds[0], F_SETFL, O_NONBLOCK);
+    if (ret < 0)
+        sgxlkl_fail("Failed to make virtio net control pipe non-blocking: %s", strerror(ret));
+
     encl->tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
     encl->tap_mtu = (int) sgxlkl_config_uint64(SGXLKL_TAP_MTU);
 

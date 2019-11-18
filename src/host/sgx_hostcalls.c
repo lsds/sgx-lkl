@@ -9,7 +9,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <net/if.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,36 +30,6 @@ int host_syscall_SYS_close(int fd) {
     sc->arg1 = (uintptr_t)fd;
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (int)sc->ret_val;
-    sc->status = 0;
-    return (int)__syscall_return_value;
-}
-
-int host_syscall_SYS_fcntl(int fd, intptr_t cmd, intptr_t arg) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    size_t len = 0;
-    void *val= 0;
-    if (cmd == F_OFD_SETLK) { len = 1*sizeof(struct flock);}
-    if (cmd == F_SETOWN_EX) { len = 1*sizeof(struct f_owner_ex);}
-    if (cmd == F_OFD_GETLK) { len = 1*sizeof(struct flock);}
-    if (cmd == F_GETOWN_EX) { len = 1*sizeof(struct f_owner_ex);}
-    if (cmd == F_SETLKW) { len = 1*sizeof(struct flock);}
-    if (cmd == F_OFD_SETLKW) { len = 1*sizeof(struct flock);}
-    if (cmd == F_GETLK) { len = 1*sizeof(struct flock);}
-    if (cmd == F_GETOWNER_UIDS) { len = 2*sizeof(uid_t);}
-    if (cmd == F_SETLK) { len = 1*sizeof(struct flock);}
-    if (len > 0) sc = arena_ensure(a, len, (syscall_t*) sc);
-    sc->syscallno = SYS_fcntl;
-    sc->arg1 = (uintptr_t)fd;
-    sc->arg2 = (uintptr_t)cmd;
-    if (len == 0) { sc->arg3 = (uintptr_t)arg; }
-    else {val = arena_alloc(a, len); if (arg != 0) memcpy(val, (void*)arg, len); sc->arg3 = (uintptr_t)val;}
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->ret_val;
-    if (len > 0 && arg != 0) {memcpy((void*)arg, val, len);}
-    arena_free(a);
     sc->status = 0;
     return (int)__syscall_return_value;
 }
@@ -172,26 +141,6 @@ int host_syscall_SYS_ioctl(int fd, unsigned long request, void * arg) {
     threadswitch((syscall_t*) sc);
     __syscall_return_value = (int)sc->ret_val;
     if (len3!= 0 && val3 != NULL && arg != NULL) memcpy(arg, val3, len3);
-    arena_free(a);
-    sc->status = 0;
-    return (int)__syscall_return_value;
-}
-
-int host_syscall_SYS_pipe(int pipefd[2]) {
-    volatile syscall_t *sc;
-    volatile intptr_t __syscall_return_value;
-    Arena *a = NULL;
-    sc = getsyscallslot(&a);
-    size_t len1;
-    len1 = sizeof(*pipefd) * 2;
-    sc = arena_ensure(a, len1, (syscall_t*) sc);
-    sc->syscallno = SYS_pipe;
-    int * val1;
-    val1 = arena_alloc(a, len1);
-    sc->arg1 = (uintptr_t)val1;
-    threadswitch((syscall_t*) sc);
-    __syscall_return_value = (int)sc->ret_val;
-    if (val1 != NULL && pipefd != NULL) memcpy(pipefd, val1, len1);
     arena_free(a);
     sc->status = 0;
     return (int)__syscall_return_value;
