@@ -1,9 +1,9 @@
 ### How to setup and run:
-The SGX-LKL gdb version has a dependancy on the OE SDK installation.
+The SGX-LKL gdb version has a dependency on the OE SDK installation.
 
 #### Source the openenclaverc file (Required)
 
-Before the SGX-LKL gdb setup, you need to source the `openenclaverc` file to setup environment variables. The `openenclaverc` file can be found in the `share/openenclave` subdirectory of the OE SDK installation destination. 
+Before using SGX-LKL gdb, if you haven't installed Open Enclave in its default location (/opt/openenclave), you need to source the `openenclaverc` file to setup environment variables. The `openenclaverc` file can be found in the `share/openenclave` subdirectory of the OE SDK installation destination. 
 
 You can use `.` in Bash to `source`:
 
@@ -17,15 +17,7 @@ For example, if your package_installation_destination is /opt/openenclave:
 . /opt/openenclave/share/openenclave/openenclaverc
 ```
 
-#### Setup SGX-LKL gdb:
-
-Create the SGX-LKL gdb wrapper (sgx-lkl-gdb), by running the following:
-
-```bash
-./setup.sh
-```
-
-#### Run sample application:
+#### Run sample application
 
 When running SGX-LKL, sgx-lkl-gdb supports the loading of new symbols from dynamic libraries that have been brought in by the SGX-LKL dynamic loader.
 
