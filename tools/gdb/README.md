@@ -3,7 +3,7 @@ The SGX-LKL gdb version has a dependency on the OE SDK installation.
 
 #### Source the openenclaverc file (Required)
 
-Before using SGX-LKL gdb, if you haven't installed Open Enclave in its default location (/opt/openenclave), you need to source the `openenclaverc` file to setup environment variables. The `openenclaverc` file can be found in the `share/openenclave` subdirectory of the OE SDK installation destination. 
+Before using SGX-LKL gdb, if you have not installed Open Enclave in its default location (`/opt/openenclave`), you need to source the `openenclaverc` file to setup environment variables. The `openenclaverc` file can be found in the `share/openenclave` subdirectory of the OE SDK installation destination. 
 
 You can use `.` in Bash to `source`:
 
