@@ -29,50 +29,54 @@
 
 #define WANT_REAL_ARCH_SYSCALLS
 
+#include <assert.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <pthread.h>
+#include <stdarg.h>
+#include <stdatomic.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <limits.h>
-#include <assert.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <fcntl.h>
-#include <sys/time.h>
 #include <sys/mman.h>
-#include <stddef.h>
+#include <sys/time.h>
+#include <unistd.h>
 
-#include <lthread.h>
 #include "libc.h"
-#include "lthread_int.h"
 #include "pthread_impl.h"
-#include "sgxlkl_debug.h"
 #include "stdio_impl.h"
-#include "sgx_hostcall_interface.h"
-#include "ticketlock.h"
-#include "tree.h"
-#include "sgx_enclave_config.h"
+
+#include <enclave/enclave_oe.h>
+#include <enclave/lthread.h>
+#include "enclave/lthread_int.h"
+#include "enclave/sgxlkl_t.h"
+#include "enclave/ticketlock.h"
+#include "shared/tree.h"
 
 extern int errno;
 
-int __init_utp(void *, int);
-void *__copy_utls(struct lthread *, uint8_t *, size_t);
-static void _exec(void *lt);
-static inline void _lthread_madvise(struct lthread *lt);
-static void _lthread_init(struct lthread *lt);
-static void _lthread_resume_expired(struct timespec *ts);
-static void _lthread_lock(struct lthread *lt);
-static void lthread_rundestructors(struct lthread *lt);
+extern int vio_enclave_wakeup_event_channel(void);
 
-static void dummy_0(){}
+int __init_utp(void*, int);
+void* __copy_utls(struct lthread*, uint8_t*, size_t);
+static void _exec(void* lt);
+static void _lthread_init(struct lthread* lt);
+static void _lthread_resume_expired(struct timespec* ts);
+static void _lthread_lock(struct lthread* lt);
+static void lthread_rundestructors(struct lthread* lt);
+
+static void dummy_0()
+{
+}
 weak_alias(dummy_0, __do_orphaned_stdio_locks);
 
-static inline int _lthread_sleep_cmp(struct lthread *l1, struct lthread *l2);
+static inline int _lthread_sleep_cmp(struct lthread* l1, struct lthread* l2);
 
-static inline int
-_lthread_sleep_cmp(struct lthread *l1, struct lthread *l2) {
+static inline int _lthread_sleep_cmp(struct lthread* l1, struct lthread* l2)
+{
     if (l1->sleep_usecs < l2->sleep_usecs)
         return (-1);
     if (l1->sleep_usecs == l2->sleep_usecs)
@@ -83,6 +87,7 @@ _lthread_sleep_cmp(struct lthread *l1, struct lthread *l2) {
 RB_GENERATE(lthread_rb_sleep, lthread, sleep_node, _lthread_sleep_cmp);
 
 static int spawned_lthreads = 1;
+static _Atomic(bool) _lthread_should_stop = false;
 
 static struct ticketlock sleeplock;
 int _lthread_sleeprb_inited = 0;
@@ -97,74 +102,70 @@ static volatile int schedqueuelen = 0;
 
 #if DEBUG
 int thread_count = 1;
-struct lthread_queue *__active_lthreads = NULL;
-struct lthread_queue *__active_lthreads_tail = NULL;
+struct lthread_queue* __active_lthreads = NULL;
+struct lthread_queue* __active_lthreads_tail = NULL;
 #endif
 
-int _switch(struct cpu_ctx *new_ctx, struct cpu_ctx *cur_ctx);
+int _switch(struct cpu_ctx* new_ctx, struct cpu_ctx* cur_ctx);
 #ifdef __i386__
-__asm__ (
-"    .text                                  \n"
-"    .p2align 2,,3                          \n"
-".globl _switch                             \n"
-"_switch:                                   \n"
-"__switch:                                  \n"
-"movl 8(%esp), %edx      # fs->%edx         \n"
-"movl %esp, 0(%edx)      # save esp         \n"
-"movl %ebp, 4(%edx)      # save ebp         \n"
-"movl (%esp), %eax       # save eip         \n"
-"movl %eax, 8(%edx)                         \n"
-"movl %ebx, 12(%edx)     # save ebx,esi,edi \n"
-"movl %esi, 16(%edx)                        \n"
-"movl %edi, 20(%edx)                        \n"
-"movl 4(%esp), %edx      # ts->%edx         \n"
-"movl 20(%edx), %edi     # restore ebx,esi,edi      \n"
-"movl 16(%edx), %esi                                \n"
-"movl 12(%edx), %ebx                                \n"
-"movl 0(%edx), %esp      # restore esp              \n"
-"movl 4(%edx), %ebp      # restore ebp              \n"
-"movl 8(%edx), %eax      # restore eip              \n"
-"movl %eax, (%esp)                                  \n"
-"ret                                                \n"
-);
+__asm__("    .text                                  \n"
+        "    .p2align 2,,3                          \n"
+        ".globl _switch                             \n"
+        "_switch:                                   \n"
+        "__switch:                                  \n"
+        "movl 8(%esp), %edx      # fs->%edx         \n"
+        "movl %esp, 0(%edx)      # save esp         \n"
+        "movl %ebp, 4(%edx)      # save ebp         \n"
+        "movl (%esp), %eax       # save eip         \n"
+        "movl %eax, 8(%edx)                         \n"
+        "movl %ebx, 12(%edx)     # save ebx,esi,edi \n"
+        "movl %esi, 16(%edx)                        \n"
+        "movl %edi, 20(%edx)                        \n"
+        "movl 4(%esp), %edx      # ts->%edx         \n"
+        "movl 20(%edx), %edi     # restore ebx,esi,edi      \n"
+        "movl 16(%edx), %esi                                \n"
+        "movl 12(%edx), %ebx                                \n"
+        "movl 0(%edx), %esp      # restore esp              \n"
+        "movl 4(%edx), %ebp      # restore ebp              \n"
+        "movl 8(%edx), %eax      # restore eip              \n"
+        "movl %eax, (%esp)                                  \n"
+        "ret                                                \n");
 #elif defined(__x86_64__)
 
-__asm__ (
-"    .text                                  \n"
-"       .p2align 4,,15                                   \n"
-".globl _switch                                          \n"
-".globl __switch                                         \n"
-"_switch:                                                \n"
-"__switch:                                               \n"
-"       movq %rsp, 0(%rsi)      # save stack_pointer     \n"
-"       movq %rbp, 8(%rsi)      # save frame_pointer     \n"
-"       movq (%rsp), %rax       # save insn_pointer      \n"
-"       movq %rax, 16(%rsi)                              \n"
-"       movq %rbx, 24(%rsi)     # save rbx,r12-r15       \n"
-"       movq %r12, 32(%rsi)                              \n"
-"       movq %r13, 40(%rsi)                              \n"
-"       movq %r14, 48(%rsi)                              \n"
-"       movq %r15, 56(%rsi)                              \n"
-"       movq 56(%rdi), %r15                              \n"
-"       movq 48(%rdi), %r14                              \n"
-"       movq 40(%rdi), %r13     # restore rbx,r12-r15    \n"
-"       movq 32(%rdi), %r12                              \n"
-"       movq 24(%rdi), %rbx                              \n"
-"       movq 8(%rdi), %rbp      # restore frame_pointer  \n"
-"       movq 0(%rdi), %rsp      # restore stack_pointer  \n"
-"       movq 16(%rdi), %rax     # restore insn_pointer   \n"
-"       movq %rax, (%rsp)                                \n"
-"       ret                                              \n"
-);
+__asm__("    .text                                  \n"
+        "       .p2align 4,,15                                   \n"
+        ".globl _switch                                          \n"
+        ".globl __switch                                         \n"
+        "_switch:                                                \n"
+        "__switch:                                               \n"
+        "       movq %rsp, 0(%rsi)      # save stack_pointer     \n"
+        "       movq %rbp, 8(%rsi)      # save frame_pointer     \n"
+        "       movq (%rsp), %rax       # save insn_pointer      \n"
+        "       movq %rax, 16(%rsi)                              \n"
+        "       movq %rbx, 24(%rsi)     # save rbx,r12-r15       \n"
+        "       movq %r12, 32(%rsi)                              \n"
+        "       movq %r13, 40(%rsi)                              \n"
+        "       movq %r14, 48(%rsi)                              \n"
+        "       movq %r15, 56(%rsi)                              \n"
+        "       movq 56(%rdi), %r15                              \n"
+        "       movq 48(%rdi), %r14                              \n"
+        "       movq 40(%rdi), %r13     # restore rbx,r12-r15    \n"
+        "       movq 32(%rdi), %r12                              \n"
+        "       movq 24(%rdi), %rbx                              \n"
+        "       movq 8(%rdi), %rbp      # restore frame_pointer  \n"
+        "       movq 0(%rdi), %rsp      # restore stack_pointer  \n"
+        "       movq 16(%rdi), %rax     # restore insn_pointer   \n"
+        "       movq %rax, (%rsp)                                \n"
+        "       ret                                              \n");
 #endif
 
-static void _exec(void *lt_) {
-
+static void _exec(void* lt_)
+{
 #if defined(__llvm__) && defined(__x86_64__)
-    __asm__ ("movq 16(%%rbp), %[lt_]" : [lt_] "=r" (lt_));
+    __asm__("movq 16(%%rbp), %[lt_]" : [lt_] "=r"(lt_));
 #endif
-    void *ret;
-    struct lthread *lt = lt_;
+    void* ret;
+    struct lthread* lt = lt_;
     ret = lt->fun(lt->arg);
     _lthread_lock(lt);
     lt->yield_cbarg = ret;
@@ -172,75 +173,106 @@ static void _exec(void *lt_) {
     _lthread_yield(lt);
 }
 
-static long lthread_scall(long n, long a1, long a2, long a3) {
-    unsigned long ret;
-    register long r10 __asm__("r10") = a3;
-    register long r8 __asm__("r8") = 0;
-    register long r9 __asm__("r9") = 0;
-    __asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(a1), "S"(a2), "d"(0), "r"(r10), "r"(r8), "r"(r9)
-                          : "rcx", "r11", "memory");
-    return ret;
-}
-
-void __schedqueue_inc() {
+void __schedqueue_inc()
+{
     a_inc(&schedqueuelen);
 }
 
-void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_, size_t futex_wake_spins_) {
-        sleepspins = sleepspins_;
-        sleeptime_ns = sleeptime_ns_;
-        futex_wake_spins = futex_wake_spins_;
-        RB_INIT(&_lthread_sleeping);
+void lthread_sched_global_init(
+    size_t sleepspins_,
+    size_t sleeptime_ns_,
+    size_t futex_wake_spins_)
+{
+    sleepspins = sleepspins_;
+    sleeptime_ns = sleeptime_ns_;
+    futex_wake_spins = futex_wake_spins_;
+    RB_INIT(&_lthread_sleeping);
 }
 
-void lthread_run(void) {
-    const struct lthread_sched *const sched = lthread_get_sched();
-    struct lthread *lt = NULL;
+void lthread_notify_completion(void)
+{
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] lthread_notify_completion. \n", lthread_self()->tid);
+    _lthread_should_stop = true;
+}
+
+/*
+ * Returns whether thread should stop. This function is called by enclave task
+ * to check whether a shutdown has been triggered to do a graceful exit.
+ */
+bool lthread_should_stop(void)
+{
+    return _lthread_should_stop;
+}
+
+void lthread_run(void)
+{
+    const struct lthread_sched* const sched = lthread_get_sched();
+    struct lthread* lt = NULL;
     size_t s, pauses = sleepspins;
     struct timespec sleeptime = {0, sleeptime_ns};
     int spins = futex_wake_spins;
     int dequeued;
     size_t i;
-    struct mpmcq *retq = __return_queue;
+
     /* scheduler not initiliazed, and no lthreads where created */
-    if (sched == NULL) {
+    if (sched == NULL)
+    {
         return;
     }
-    for (;;) {
+
+    for (;;)
+    {
         /* start by checking if a sleeping thread needs to wakeup */
-        do {
+        do
+        {
             dequeued = 0;
-            if (mpmc_dequeue(retq, (void *)&s)) {
-                dequeued++;
-                lt = slottolthread(s);
-                pauses = sleepspins;
-                SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (wakeup sleeping thread) \n", lt->tid);
-                _lthread_resume(lt);
-            }
-            if (mpmc_dequeue(&__scheduler_queue, (void **)&lt)) {
+            if (mpmc_dequeue(&__scheduler_queue, (void**)&lt))
+            {
                 dequeued++;
                 pauses = sleepspins;
                 a_dec(&schedqueuelen);
-                SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() lthread_resume (dequeue sched queue) \n", lt->tid);
+                SGXLKL_TRACE_THREAD(
+                    "[tid=%-3d] lthread_run() lthread_resume (dequeue sched "
+                    "queue) \n",
+                    lt->tid);
                 _lthread_resume(lt);
             }
 
+            if (vio_enclave_wakeup_event_channel())
+            {
+                dequeued++;
+                pauses = sleepspins;
+            }
+
             spins--;
-            if (spins <= 0) {
+            if (spins <= 0)
+            {
+                /* Do not handle futexes when enclave is terminating */
+                if (_lthread_should_stop)
+                {
+                    break;
+                }
+
                 futex_tick();
                 spins = futex_wake_spins;
             }
         } while (dequeued);
 
         pauses--;
-        if (pauses == 0) {
+        if (pauses == 0)
+        {
             pauses = sleepspins;
             spins = 0;
-#ifndef SGXLKL_HW
-            lthread_scall(SYS_nanosleep, (long)&sleeptime, (long)NULL, 0L);
-#else
-            leave_enclave(SGXLKL_EXIT_SLEEP, sleeptime_ns);
-#endif
+            /* sleep outside the enclave */
+            sgxlkl_host_idle_ethread(sleeptime_ns);
+        }
+
+        /* Break out of scheduler loop when enclave is terminating */
+        if (_lthread_should_stop)
+        {
+            SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() quiting.\n", lt->tid);
+            break;
         }
     }
 }
@@ -250,10 +282,16 @@ void lthread_run(void) {
  * This can be called multiple times on the same lthread regardless if it was
  * sleeping or not.
  */
-void _lthread_desched_sleep(struct lthread *lt) {
+void _lthread_desched_sleep(struct lthread* lt)
+{
     ticket_lock(&sleeplock);
-    SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_desched_sleep() TICKET_LOCK lock=SLEEPLOCK tid=%d \n", (lthread_self() ? lthread_self()->tid : 0), lt->tid);
-    if (lt->attr.state & BIT(LT_ST_SLEEPING)) {
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] _lthread_desched_sleep() TICKET_LOCK lock=SLEEPLOCK tid=%d "
+        "\n",
+        (lthread_self() ? lthread_self()->tid : 0),
+        lt->tid);
+    if (lt->attr.state & BIT(LT_ST_SLEEPING))
+    {
         RB_REMOVE(lthread_rb_sleep, &_lthread_sleeping, lt);
         lt->attr.state &= CLEARBIT(LT_ST_SLEEPING);
         lt->attr.state |= BIT(LT_ST_READY);
@@ -261,9 +299,13 @@ void _lthread_desched_sleep(struct lthread *lt) {
         nsleepers--;
     }
 
-   ticket_unlock(&sleeplock);
+    ticket_unlock(&sleeplock);
 
-   SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_desched_sleep() TICKET_UNLOCK lock=SLEEPLOCK tid=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid);
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] _lthread_desched_sleep() TICKET_UNLOCK lock=SLEEPLOCK "
+        "tid=%d\n",
+        (lthread_self() ? lthread_self()->tid : 0),
+        lt->tid);
 }
 
 /*
@@ -271,22 +313,28 @@ void _lthread_desched_sleep(struct lthread *lt) {
  * on one or not, and deschedules it from sleeping rbtree in case it was
  * sleeping.
  */
-static void _lthread_resume_expired(struct timespec *now) {
-    struct lthread *lt = NULL;
+static void _lthread_resume_expired(struct timespec* now)
+{
+    struct lthread* lt = NULL;
     uint64_t curr_usec = 0;
 
-    if (nsleepers == 0) {
+    if (nsleepers == 0)
+    {
         return;
     }
 
     ticket_lock(&sleeplock);
 
-    SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_resume_expired() TICKET_LOCK lock=SLEEPLOCK tid=NULL\n", (lthread_self() ? lthread_self()->tid : 0));
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] _lthread_resume_expired() TICKET_LOCK lock=SLEEPLOCK "
+        "tid=NULL\n",
+        (lthread_self() ? lthread_self()->tid : 0));
 
     curr_usec = _lthread_timespec_to_usec(now);
-    while ((lt = RB_MIN(lthread_rb_sleep, &_lthread_sleeping)) != NULL) {
-
-        if (lt->sleep_usecs <= curr_usec) {
+    while ((lt = RB_MIN(lthread_rb_sleep, &_lthread_sleeping)) != NULL)
+    {
+        if (lt->sleep_usecs <= curr_usec)
+        {
             _lthread_desched_sleep(lt);
             lthread_set_expired(lt);
 
@@ -300,89 +348,111 @@ static void _lthread_resume_expired(struct timespec *now) {
     }
     ticket_unlock(&sleeplock);
 
-    SGXLKL_TRACE_THREAD("[tid=%-3d] _lthread_resume_expired() TICKET_UNLOCK lock=SLEEPLOCK tid=NULL\n", (lthread_self() ? lthread_self()->tid : 0));
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] _lthread_resume_expired() TICKET_UNLOCK lock=SLEEPLOCK "
+        "tid=NULL\n",
+        (lthread_self() ? lthread_self()->tid : 0));
 }
 
-static void _lthread_lock(struct lthread *lt) {
+static void _lthread_lock(struct lthread* lt)
+{
     int state, newstate;
-    for (;;) {
-        state = __atomic_load_n(&lt->attr.state, __ATOMIC_SEQ_CST);
-        if (state & BIT(LT_ST_BUSY)) continue;
-        newstate = state|BIT(LT_ST_BUSY);
-        if (a_cas(&lt->attr.state, state, newstate) != state) continue;
+    for (;;)
+    {
+        state = lt->attr.state;
+        if (state & BIT(LT_ST_BUSY))
+            continue;
+        newstate = state | BIT(LT_ST_BUSY);
+        if (!atomic_compare_exchange_strong(&lt->attr.state, &state, newstate))
+            continue;
         break;
     }
 }
 
-static void _lthread_unlock(struct lthread *lt) {
+static void _lthread_unlock(struct lthread* lt)
+{
     a_barrier();
     lt->attr.state &= CLEARBIT(LT_ST_BUSY);
 }
 
-void _lthread_yield_cb(struct lthread *lt, void (*f)(void*), void *arg) {
-    struct lthread_sched *sched = lthread_get_sched();
+void _lthread_yield_cb(struct lthread* lt, void (*f)(void*), void* arg)
+{
+    struct lthread_sched* sched = lthread_get_sched();
     lt->yield_cb = f;
     lt->yield_cbarg = arg;
     _switch(&sched->ctx, &lt->ctx);
 }
 
-void _lthread_yield(struct lthread *lt) {
-    struct lthread_sched *sched = lthread_get_sched();
+void _lthread_yield(struct lthread* lt)
+{
+    struct lthread_sched* sched = lthread_get_sched();
     _switch(&sched->ctx, &lt->ctx);
 }
 
-void _lthread_free(struct lthread *lt) {
-    volatile void *volatile *rp;
-    while (lt->cancelbuf) {
-        void (*f)(void *) = lt->cancelbuf->__f;
-        void *x = lt->cancelbuf->__x;
+void _lthread_free(struct lthread* lt)
+{
+    volatile void* volatile* rp;
+    while (lt->cancelbuf)
+    {
+        void (*f)(void*) = lt->cancelbuf->__f;
+        void* x = lt->cancelbuf->__x;
         lt->cancelbuf = lt->cancelbuf->__next;
         f(x);
     }
-    if(lthread_self() != NULL)
+    if (lthread_self() != NULL)
         lthread_rundestructors(lt);
-    if (lt->itls != 0) {
+    if (lt->itls != 0)
+    {
         munmap(lt->itls, lt->itlssz);
     }
-    while ((rp=lt->robust_list.head) && rp != &lt->robust_list.head) {
-        pthread_mutex_t *m = (void *)((char *)rp
-                       - offsetof(pthread_mutex_t, _m_next));
+    while ((rp = lt->robust_list.head) && rp != &lt->robust_list.head)
+    {
+        pthread_mutex_t* m =
+            (void*)((char*)rp - offsetof(pthread_mutex_t, _m_next));
         int waiters = m->_m_waiters;
         int priv = (m->_m_type & 128) ^ 128;
         lt->robust_list.pending = rp;
         lt->robust_list.head = *rp;
-        int cont = a_swap(&m->_m_lock, lt->tid|0x40000000);
+        int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
         if (cont < 0 || waiters)
             __wake(&m->_m_lock, 1, priv);
     }
     __do_orphaned_stdio_locks(lt);
-    if (lt->attr.stack) {
+    if (lt->attr.stack)
+    {
         munmap(lt->attr.stack, lt->attr.stack_size);
         lt->attr.stack = NULL;
     }
-    freeslot(lt->syscall);
     memset(lt, 0, sizeof(*lt));
-    if (a_fetch_add(&libc.threads_minus_1, -1) == 0) {
+    if (a_fetch_add(&libc.threads_minus_1, -1) == 0)
+    {
         libc.threads_minus_1 = 0;
     }
 
 #if DEBUG
-    if (__active_lthreads != NULL && __active_lthreads->lt == lt) {
-        if (__active_lthreads_tail == __active_lthreads) {
+    if (__active_lthreads != NULL && __active_lthreads->lt == lt)
+    {
+        if (__active_lthreads_tail == __active_lthreads)
+        {
             __active_lthreads_tail == NULL;
         }
-        struct lthread_queue *new_head = __active_lthreads->next;
-        free (__active_lthreads);
+        struct lthread_queue* new_head = __active_lthreads->next;
+        free(__active_lthreads);
         __active_lthreads = new_head;
-    } else {
-        struct lthread_queue *ltq = __active_lthreads;
-        while (ltq != NULL) {
-            if (ltq->next != NULL && ltq->next->lt == lt) {
-                if (ltq->next == __active_lthreads_tail) {
+    }
+    else
+    {
+        struct lthread_queue* ltq = __active_lthreads;
+        while (ltq != NULL)
+        {
+            if (ltq->next != NULL && ltq->next->lt == lt)
+            {
+                if (ltq->next == __active_lthreads_tail)
+                {
                     __active_lthreads_tail = ltq;
                 }
-                struct lthread_queue *next_ltq = ltq->next->next;
+                struct lthread_queue* next_ltq = ltq->next->next;
                 free(ltq->next);
                 ltq->next = next_ltq;
                 break;
@@ -396,51 +466,73 @@ void _lthread_free(struct lthread *lt) {
     lt = 0;
 }
 
-void set_tls_tp(struct lthread *lt) {
+void set_tls_tp(struct lthread* lt)
+{
     if (!libc.user_tls_enabled || !lt->itls)
         return;
 
-    uintptr_t tp_unaligned = (uintptr_t) (lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
-    struct lthread_tcb_base *tp = (struct lthread_tcb_base *) (tp_unaligned - (tp_unaligned & (libc.tls_align-1)));
+    uintptr_t tp_unaligned =
+        (uintptr_t)(lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
+    struct lthread_tcb_base* tp =
+        (struct
+         lthread_tcb_base*)(tp_unaligned - (tp_unaligned & (libc.tls_align - 1)));
 
     tp->schedctx = __scheduler_self();
-#ifdef SGXLKL_HW
-    __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );
-#else
-    int r = __set_thread_area(TP_ADJ(tp));
-    if(r < 0) {
-        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", tp, strerror(errno));
+
+    if (sgxlkl_enclave->mode != SW_DEBUG_MODE)
+    {
+        __asm__ volatile("wrfsbase %0" ::"r"(tp));
     }
-#endif
+    else
+    {
+        int r = __set_thread_area(TP_ADJ(tp));
+        if (r < 0)
+        {
+            sgxlkl_fail(
+                "Could not set thread area %p: %s\n", tp, strerror(errno));
+        }
+    }
 }
 
-void reset_tls_tp(struct lthread *lt) {
-    if (!libc.user_tls_enabled)
+void reset_tls_tp(struct lthread* lt)
+{
+    if (!libc.user_tls_enabled || !lt->itls)
         return;
 
-    struct schedctx *sp = __scheduler_self();
-#ifdef SGXLKL_HW
-    char *tp = (char *)sp - sizeof(enclave_parms_t) - sizeof(struct sched_tcb_base);
-    __asm__ volatile ( "wrfsbase %0" :: "r" (tp) );
-#else
-    char *tp = (char *)sp - sizeof(struct sched_tcb_base);
-    int r = __set_thread_area(TP_ADJ(tp));
-    if(r < 0) {
-        fprintf(stderr, "[SGX-LKL] Error: Could not set thread area %p: %s\n", tp, strerror(errno));
+    struct schedctx* sp = __scheduler_self();
+
+    // The scheduler context is at a fixed offset from its ethread's fsbase.
+    char* tp = (char*)sp - SCHEDCTX_OFFSET;
+
+    if (sgxlkl_enclave->mode != SW_DEBUG_MODE)
+    {
+        __asm__ volatile("wrfsbase %0" ::"r"(tp));
     }
-#endif
+    else
+    {
+        int r = __set_thread_area(TP_ADJ(tp));
+        if (r < 0)
+        {
+            sgxlkl_fail(
+                "Could not set thread area %p: %s\n", tp, strerror(errno));
+        }
+    }
 }
 
-int _lthread_resume(struct lthread *lt) {
-    struct lthread_sched *sched = lthread_get_sched();
-    if (lt->attr.state & BIT(LT_ST_CANCELLED)) {
+int _lthread_resume(struct lthread* lt)
+{
+    struct lthread_sched* sched = lthread_get_sched();
+    if (lt->attr.state & BIT(LT_ST_CANCELLED))
+    {
         /* if an lthread was joining on it, schedule it to run */
-        if (lt->lt_join) {
+        if (lt->lt_join)
+        {
             __scheduler_enqueue(lt->lt_join);
             lt->lt_join = NULL;
         }
         /* if lthread is detached, then we can free it up */
-        if (lt->attr.state & BIT(LT_ST_DETACH)) {
+        if (lt->attr.state & BIT(LT_ST_DETACH))
+        {
             _lthread_free(lt);
         }
         return (-1);
@@ -454,81 +546,74 @@ int _lthread_resume(struct lthread *lt) {
     lt->yield_cbarg = 0;
 
     sched->current_lthread = lt;
-    sched->current_syscallslot = lt->syscall;
-    sched->current_arena = &lt->syscallarena;
 
     set_tls_tp(lt);
     _switch(&lt->ctx, &sched->ctx);
-    sched->current_arena = &sched->arena;
-    sched->current_syscallslot = sched->syscall;
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
-    _lthread_madvise(lt);
-    if (lt->attr.state & BIT(LT_ST_EXITED)) {
+
+    if (lt->attr.state & BIT(LT_ST_EXITED))
+    {
         /* lt is always locked before LT_ST_EXITED is set */
-        arena_destroy(&lt->syscallarena);
-        if (lt->lt_join) {
+        if (lt->lt_join)
+        {
             __scheduler_enqueue(lt->lt_join);
             lt->lt_join = NULL;
         }
         _lthread_unlock(lt);
-        /* code below is only for detached threads, so it's safe to unlock here */
+        /* code below is only for detached threads, so it's safe to unlock here
+         */
         /* if lthread is detached, free it, otherwise lthread_join() will */
-        if (lt->attr.state & BIT(LT_ST_DETACH)) {
+        if (lt->attr.state & BIT(LT_ST_DETACH))
+        {
             _lthread_free(lt);
         }
         sched->current_lthread = NULL;
         return (-1);
     }
-    if (lt->yield_cb) {
+    if (lt->yield_cb)
+    {
         lt->yield_cb(lt->yield_cbarg);
     }
 
     return (0);
 }
 
-static inline void _lthread_madvise(struct lthread *lt) {
-    size_t current_stack = ((uintptr_t)lt->attr.stack + lt->attr.stack_size) - (uintptr_t)lt->ctx.esp;
-    /* make sure function did not overflow stack, we can't recover from that */
-    assert(current_stack <= lt->attr.stack_size);
-    lt->attr.last_stack_size = current_stack;
-}
-
-int lthread_init(size_t size) {
+int lthread_init(size_t size)
+{
     return (_lthread_sched_init(size));
 }
 
-static void _lthread_init(struct lthread *lt) {
-    void **stack = NULL;
+static void _lthread_init(struct lthread* lt)
+{
+    void** stack = NULL;
     _lthread_lock(lt);
-    stack = (void **)((uintptr_t)lt->attr.stack + (lt->attr.stack_size));
+    stack = (void**)((uintptr_t)lt->attr.stack + (lt->attr.stack_size));
 
     stack[-3] = NULL;
-    stack[-2] = (void *)lt;
-    lt->ctx.esp = (void *)((uintptr_t)stack - (4 * sizeof(void *)));
-    lt->ctx.ebp = (void *)((uintptr_t)stack - (3 * sizeof(void *)));
-    lt->ctx.eip = (void *)_exec;
+    stack[-2] = (void*)lt;
+    lt->ctx.esp = (void*)((uintptr_t)stack - (4 * sizeof(void*)));
+    lt->ctx.ebp = (void*)((uintptr_t)stack - (3 * sizeof(void*)));
+    lt->ctx.eip = (void*)_exec;
     /* this is equivalent to unlock */
     a_barrier();
-    if (lt->attr.state & BIT(LT_ST_DETACH)) {
-            lt->attr.state = BIT(LT_ST_READY)|BIT(LT_ST_DETACH);
-    } else {
-            lt->attr.state = BIT(LT_ST_READY);
+    if (lt->attr.state & BIT(LT_ST_DETACH))
+    {
+        lt->attr.state = BIT(LT_ST_READY) | BIT(LT_ST_DETACH);
+    }
+    else
+    {
+        lt->attr.state = BIT(LT_ST_READY);
     }
 }
 
-int _lthread_sched_init(size_t stack_size) {
+int _lthread_sched_init(size_t stack_size)
+{
     size_t sched_stack_size = 0;
 
     sched_stack_size = stack_size ? stack_size : MAX_STACK_SIZE;
 
-    struct schedctx *c = __scheduler_self();
-
-    c->sched.syscall = allocslot(NULL);
-    c->sched.current_syscallslot = c->sched.syscall;
-
-    arena_new(&c->sched.arena, 4096);
-    c->sched.current_arena = &c->sched.arena;
+    struct schedctx* c = __scheduler_self();
 
     c->sched.stack_size = sched_stack_size;
     c->sched.page_size = sysconf(_SC_PAGESIZE);
@@ -540,21 +625,31 @@ int _lthread_sched_init(size_t stack_size) {
     return (0);
 }
 
-static FILE *volatile dummy_file = 0;
+static FILE* volatile dummy_file = 0;
+
 weak_alias(dummy_file, __stdin_used);
 weak_alias(dummy_file, __stdout_used);
 weak_alias(dummy_file, __stderr_used);
-static void init_file_lock(FILE *f) {
-    if (f && f->lock<0) f->lock = 0;
+
+static void init_file_lock(FILE* f)
+{
+    if (f && f->lock < 0)
+        f->lock = 0;
 }
 
-int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fun, void *arg) {
-    struct lthread *lt = NULL;
+int lthread_create(
+    struct lthread** new_lt,
+    struct lthread_attr* attrp,
+    void* fun,
+    void* arg)
+{
+    struct lthread* lt = NULL;
     size_t stack_size;
-    struct lthread_sched *sched = lthread_get_sched();
+    struct lthread_sched* sched = lthread_get_sched();
 
-    if (!libc.threaded && libc.threads_minus_1 >= 0) {
-        for (FILE *f=*__ofl_lock(); f; f=f->next)
+    if (!libc.threaded && libc.threads_minus_1 >= 0)
+    {
+        for (FILE* f = *__ofl_lock(); f; f = f->next)
             init_file_lock(f);
         __ofl_unlock();
         init_file_lock(__stdin_used);
@@ -563,14 +658,21 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
         libc.threaded = 1;
     }
 
-    stack_size = attrp && attrp->stack_size ? attrp->stack_size : sched->stack_size;
-    if ((lt = calloc(1, sizeof(struct lthread))) == NULL) {
+    stack_size =
+        attrp && attrp->stack_size ? attrp->stack_size : sched->stack_size;
+    if ((lt = calloc(1, sizeof(struct lthread))) == NULL)
+    {
         return (errno);
     }
     lt->attr.stack = attrp ? attrp->stack : 0;
-    if ((!lt->attr.stack)&&((lt->attr.stack = mmap(0, stack_size, PROT_READ|PROT_WRITE,
-                                                  MAP_ANONYMOUS|MAP_PRIVATE,
-                                                   -1, 0)) == MAP_FAILED)) {
+    if ((!lt->attr.stack) && ((lt->attr.stack = mmap(
+                                   0,
+                                   stack_size,
+                                   PROT_READ | PROT_WRITE,
+                                   MAP_ANONYMOUS | MAP_PRIVATE,
+                                   -1,
+                                   0)) == MAP_FAILED))
+    {
         free(lt);
         return (errno);
     }
@@ -578,12 +680,21 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
 
     /* mmap tls image */
     lt->itlssz = libc.tls_size;
-    if (libc.tls_size) {
-        if ((lt->itls = (uint8_t *) mmap(0, lt->itlssz, PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0)) == MAP_FAILED) {
+    if (libc.tls_size)
+    {
+        if ((lt->itls = (uint8_t*)mmap(
+                 0,
+                 lt->itlssz,
+                 PROT_READ | PROT_WRITE,
+                 MAP_ANONYMOUS | MAP_PRIVATE,
+                 -1,
+                 0)) == MAP_FAILED)
+        {
             free(lt);
             return errno;
         }
-        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0)) {
+        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
+        {
             munmap(lt->attr.stack, stack_size);
             free(lt);
             return errno;
@@ -594,32 +705,37 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
     lt->fun = fun;
     lt->arg = arg;
-    arena_new(&lt->syscallarena, 4096);
     lt->locale = &libc.global_locale;
     LIST_INIT(&lt->tls);
-    lt->syscall = allocslot(lt);
     lt->robust_list.head = &lt->robust_list.head;
 
     // Inherit name from parent
-    if (lthread_self() && lthread_self()->funcname) {
+    if (lthread_self() && lthread_self()->funcname)
+    {
         lthread_set_funcname(lt, lthread_self()->funcname);
     }
 
-    if (new_lt) {
+    if (new_lt)
+    {
         *new_lt = lt;
     }
 
     a_inc(&libc.threads_minus_1);
 
-    SGXLKL_TRACE_THREAD("[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
 
 #if DEBUG
-    struct lthread_queue *new_ltq = (struct lthread_queue*) malloc(sizeof(struct lthread_queue));
+    struct lthread_queue* new_ltq =
+        (struct lthread_queue*)malloc(sizeof(struct lthread_queue));
     new_ltq->lt = lt;
     new_ltq->next = NULL;
-    if (__active_lthreads_tail) {
+    if (__active_lthreads_tail)
+    {
         __active_lthreads_tail->next = new_ltq;
-    } else {
+    }
+    else
+    {
         __active_lthreads = new_ltq;
     }
     __active_lthreads_tail = new_ltq;
@@ -629,15 +745,18 @@ int lthread_create(struct lthread **new_lt, struct lthread_attr *attrp, void *fu
     return 0;
 }
 
-struct lthread* lthread_current(void) {
+struct lthread* lthread_current(void)
+{
     return (lthread_get_sched()->current_lthread);
 }
 
-void lthread_cancel(struct lthread *lt) {
+void lthread_cancel(struct lthread* lt)
+{
     if (lt == NULL)
         return;
 
-    if (lt->attr.state & BIT(LT_ST_CANCELSTATE)) {
+    if (lt->attr.state & BIT(LT_ST_CANCELSTATE))
+    {
         return;
     }
     lt->attr.state |= BIT(LT_ST_CANCELLED);
@@ -645,20 +764,23 @@ void lthread_cancel(struct lthread *lt) {
     __scheduler_enqueue(lt);
 }
 
-void lthread_wakeup(struct lthread *lt) {
-    if (lt->attr.state & BIT(LT_ST_SLEEPING)) {
+void lthread_wakeup(struct lthread* lt)
+{
+    if (lt->attr.state & BIT(LT_ST_SLEEPING))
+    {
         _lthread_desched_sleep(lt);
         __scheduler_enqueue(lt);
     }
 }
 
-void lthread_exit(void *ptr) {
-
-    struct lthread *lt = lthread_get_sched()->current_lthread;
+void lthread_exit(void* ptr)
+{
+    struct lthread* lt = lthread_get_sched()->current_lthread;
     /* switch thread to exiting state */
     _lthread_lock(lt);
 
-    SGXLKL_TRACE_THREAD("[tid=%-3d] thread_exit: thread_count=%d\n", lt->tid, thread_count);
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] thread_exit: thread_count=%d\n", lt->tid, thread_count);
 
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
@@ -669,65 +791,102 @@ void lthread_exit(void *ptr) {
    1. the thread is still running and not exiting;
    2. the thread has exited and is no longer seen by scheduler.
    The period between 1. and 2. is protected by taking a lock. */
-int lthread_join(struct lthread *lt, void **ptr, uint64_t timeout) {
+int lthread_join(struct lthread* lt, void** ptr, uint64_t timeout)
+{
+    /* TODO: The code below does not support timeouts */
+    SGXLKL_ASSERT(timeout == -1);
 
     int ret = 0;
-    struct lthread *current = lthread_get_sched()->current_lthread;
-    if (lt->attr.state & BIT(LT_ST_DETACH)) {
+    struct lthread* current = lthread_get_sched()->current_lthread;
+    if (lt->attr.state & BIT(LT_ST_DETACH))
+    {
         return EINVAL;
     }
     _lthread_lock(lt);
-    if (lt->attr.state & BIT(LT_ST_EXITED)) {
-        SGXLKL_TRACE_THREAD("[tid=%-3d] join:  tid=%d count=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid, thread_count);
+    if (lt->attr.state & BIT(LT_ST_EXITED))
+    {
+        SGXLKL_TRACE_THREAD(
+            "[tid=%-3d] join:  tid=%d count=%d\n",
+            (lthread_self() ? lthread_self()->tid : 0),
+            lt->tid,
+            thread_count);
 
         /* we can test for exited flag only with lock acquired */
         _lthread_unlock(lt);
-    } else {
-
-        SGXLKL_TRACE_THREAD("[tid=%-3d] join:  tid=%d count=%d\n", (lthread_self() ? lthread_self()->tid : 0), lt->tid, thread_count);
+    }
+    else
+    {
+        SGXLKL_TRACE_THREAD(
+            "[tid=%-3d] join:  tid=%d count=%d\n",
+            (lthread_self() ? lthread_self()->tid : 0),
+            lt->tid,
+            thread_count);
 
         /* thread is still running, set current lthread as joiner */
-        if (a_cas_p(&lt->lt_join, 0, current) != 0) {
+        if (a_cas_p(&lt->lt_join, 0, current) != 0)
+        {
             /* there already is a joiner */
             _lthread_unlock(lt);
             return EINVAL;
         }
-        _lthread_yield_cb(current, (void *)_lthread_unlock, lt);
+        _lthread_yield_cb(current, (void*)_lthread_unlock, lt);
     }
-    if (ptr) {
+    if (ptr)
+    {
         *ptr = lt->yield_cbarg;
     }
     _lthread_free(lt);
     return ret;
 }
 
-void lthread_detach(void) {
-    struct lthread *current = lthread_get_sched()->current_lthread;
-    current->attr.state |= BIT(LT_ST_DETACH);
+void lthread_detach(void)
+{
+    struct lthread* current = lthread_get_sched()->current_lthread;
+    // current->attr.state |= BIT(LT_ST_DETACH);
+    lthread_detach2(current);
 }
 
-void lthread_detach2(struct lthread *lt) {
-    lt->attr.state |= BIT(LT_ST_DETACH);
+void lthread_detach2(struct lthread* lt)
+{
+    // lt->attr.state |= BIT(LT_ST_DETACH);
+    int state, newstate;
+    for (;;)
+    {
+        state = lt->attr.state;
+        if (state & BIT(LT_ST_BUSY))
+            continue;
+        newstate = state | BIT(LT_ST_DETACH);
+        if (!atomic_compare_exchange_strong(&lt->attr.state, &state, newstate))
+            continue;
+        break;
+    }
 }
 
-void lthread_set_funcname(struct lthread *lt, const char *f) {
+void lthread_set_funcname(struct lthread* lt, const char* f)
+{
     strncpy(lt->funcname, f, 64);
-    lt->funcname[64-1] = 0;
+    lt->funcname[64 - 1] = 0;
 }
 
-uint64_t lthread_id(void) {
-    struct lthread_sched *sched = lthread_get_sched();
-    if (sched->current_lthread) {
+uint64_t lthread_id(void)
+{
+    struct lthread_sched* sched = lthread_get_sched();
+    if (sched->current_lthread)
+    {
         return sched->current_lthread->tid;
     }
     return ~0UL;
 }
 
-struct lthread* lthread_self(void) {
-    struct lthread_sched *sched = lthread_get_sched();
-    if (sched) {
+struct lthread* lthread_self(void)
+{
+    struct lthread_sched* sched = lthread_get_sched();
+    if (sched)
+    {
         return sched->current_lthread;
-    } else {
+    }
+    else
+    {
         return NULL;
     }
 }
@@ -735,42 +894,58 @@ struct lthread* lthread_self(void) {
 /*
  * convenience function for performance measurement.
  */
-void lthread_print_timestamp(char *msg) {
+void lthread_print_timestamp(char* msg)
+{
     struct timeval t1 = {0, 0};
     gettimeofday(&t1, NULL);
-    printf("lt timestamp: sec: %ld usec: %ld (%s)\n", t1.tv_sec, (long) t1.tv_usec, msg);
+    sgxlkl_info(
+        "lt timestamp: sec: %ld usec: %ld (%s)\n",
+        t1.tv_sec,
+        (long)t1.tv_usec,
+        msg);
 }
 
-int lthread_setcancelstate(int new, int *old) {
-    if (new > 2U) return EINVAL;
-    struct lthread *curr = lthread_get_sched()->current_lthread;
-    if (old) {
+int lthread_setcancelstate(int new, int* old)
+{
+    if (new > 2U)
+        return EINVAL;
+    struct lthread* curr = lthread_get_sched()->current_lthread;
+    if (old)
+    {
         *old = (curr->attr.state & BIT(LT_ST_CANCELSTATE)) > 0;
     }
-    if (new) {
+    if (new)
+    {
         curr->attr.state |= BIT(LT_ST_CANCELSTATE);
-    } else {
+    }
+    else
+    {
         curr->attr.state &= ~BIT(LT_ST_CANCELSTATE);
     }
     return 0;
 }
 
-static struct lthread_tls *lthread_findtlsslot(pthread_key_t key) {
+static struct lthread_tls* lthread_findtlsslot(long key)
+{
     struct lthread_tls *d, *d_tmp;
-    struct lthread *lt = lthread_current();
-    LIST_FOREACH_SAFE (d, &lt->tls, tls_next, d_tmp) {
-        if (d->key == key) {
+    struct lthread* lt = lthread_current();
+    LIST_FOREACH_SAFE(d, &lt->tls, tls_next, d_tmp)
+    {
+        if (d->key == key)
+        {
             return d;
         }
     }
     return NULL;
 }
 
-static int lthread_addtlsslot(pthread_key_t key, void *data) {
-    struct lthread_tls *d;
-    struct lthread *lt = lthread_current();
+static int lthread_addtlsslot(long key, void* data)
+{
+    struct lthread_tls* d;
+    struct lthread* lt = lthread_current();
     d = calloc(1, sizeof(struct lthread_tls));
-    if (d == NULL) {
+    if (d == NULL)
+    {
         return ENOMEM;
     }
     d->key = key;
@@ -779,21 +954,27 @@ static int lthread_addtlsslot(pthread_key_t key, void *data) {
     return 0;
 }
 
-void *lthread_getspecific(pthread_key_t key) {
-    struct lthread_tls *d;
-    if ((d = lthread_findtlsslot(key)) == NULL) {
+void* lthread_getspecific(long key)
+{
+    struct lthread_tls* d;
+    if ((d = lthread_findtlsslot(key)) == NULL)
+    {
         return NULL;
     }
     return d->data;
 }
 
-int lthread_setspecific(pthread_key_t key, const void *value) {
-    struct lthread_tls *d;
-    if ((d = lthread_findtlsslot(key)) != NULL) {
-        d->data = (void *)value;
+int lthread_setspecific(long key, const void* value)
+{
+    struct lthread_tls* d;
+    if ((d = lthread_findtlsslot(key)) != NULL)
+    {
+        d->data = (void*)value;
         return 0;
-    } else {
-        return lthread_addtlsslot(key, (void *)value);
+    }
+    else
+    {
+        return lthread_addtlsslot(key, (void*)value);
     }
 }
 
@@ -802,23 +983,28 @@ typedef void (*lthread_destructor_func)(void*);
 
 static unsigned global_count = 0;
 
-int lthread_key_create(pthread_key_t *k, void (*destructor)(void*)) {
-    struct lthread_tls_destructors *d;
+int lthread_key_create(long* k, void (*destructor)(void*))
+{
+    struct lthread_tls_destructors* d;
     d = calloc(1, sizeof(struct lthread_tls_destructors));
-    if (d == NULL) {
+    if (d == NULL)
+    {
         return ENOMEM;
     }
-    d->key = a_fetch_add((void *)&global_count, 1);
+    d->key = a_fetch_add((void*)&global_count, 1);
     d->destructor = destructor;
     LIST_INSERT_HEAD(&lthread_destructors, d, tlsdestr_next);
     *k = d->key;
     return 0;
 }
 
-int lthread_key_delete(pthread_key_t key) {
+int lthread_key_delete(long key)
+{
     struct lthread_tls_destructors *d, *d_tmp;
-    LIST_FOREACH_SAFE (d, &lthread_destructors, tlsdestr_next, d_tmp) {
-        if (d->key == key) {
+    LIST_FOREACH_SAFE(d, &lthread_destructors, tlsdestr_next, d_tmp)
+    {
+        if (d->key == key)
+        {
             LIST_REMOVE(d, tlsdestr_next);
             free(d);
             return 0;
@@ -827,32 +1013,39 @@ int lthread_key_delete(pthread_key_t key) {
     return -1;
 }
 
-static lthread_destructor_func lthread_finddestr(pthread_key_t key) {
+static lthread_destructor_func lthread_finddestr(long key)
+{
     struct lthread_tls_destructors *d, *d_tmp;
-    LIST_FOREACH_SAFE (d, &lthread_destructors, tlsdestr_next, d_tmp) {
-        if (d->key == key) {
+    LIST_FOREACH_SAFE(d, &lthread_destructors, tlsdestr_next, d_tmp)
+    {
+        if (d->key == key)
+        {
             return d->destructor;
         }
     }
     return NULL;
 }
 
-static void lthread_rundestructors(struct lthread *lt) {
+static void lthread_rundestructors(struct lthread* lt)
+{
     struct lthread_tls *d, *d_tmp;
     lthread_destructor_func destr;
-    LIST_FOREACH_SAFE (d, &lt->tls, tls_next, d_tmp) {
-        if (d->data) {
-                destr = lthread_finddestr(d->key);
-                if (destr) {
-                    destr(d->data);
-                }
+    LIST_FOREACH_SAFE(d, &lt->tls, tls_next, d_tmp)
+    {
+        if (d->data)
+        {
+            destr = lthread_finddestr(d->key);
+            if (destr)
+            {
+                destr(d->data);
+            }
         }
         LIST_REMOVE(d, tls_next);
         free(d);
     }
 }
 
-void lthread_set_expired(struct lthread *lt) {
+void lthread_set_expired(struct lthread* lt)
+{
     lt->attr.state |= BIT(LT_ST_EXPIRED);
 }
-

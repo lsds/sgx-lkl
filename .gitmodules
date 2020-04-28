@@ -1,9 +1,11 @@
 [submodule "lkl"]
 	path = lkl
-	url = https://github.com/lkl/linux.git
+	url = ssh://git@github.com/lsds/lkl.git
+	branch = upstream-refactor
 [submodule "host-musl"]
 	path = host-musl
 	url = https://github.com/lsds/musl.git
 [submodule "sgx-lkl-musl"]
 	path = sgx-lkl-musl
-	url = https://github.com/lsds/sgx-lkl-musl.git
+	url = ssh://git@github.com/lsds/sgx-lkl-musl.git
+	branch = oe_port

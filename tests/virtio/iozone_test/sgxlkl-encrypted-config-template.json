@@ -1,0 +1,19 @@
+{
+    "run": "/usr/bin/iozone",
+    "args": [
+      "-a"
+    ],
+    "environment": {},
+    "disk_config": [
+      {
+        "disk": "/",
+        "readonly": false,
+        "key": ""
+      },
+      {
+        "disk": "/data",
+        "readonly": false,
+        "key": ""
+      }
+    ]
+}

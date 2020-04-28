@@ -1,0 +1,6 @@
+TEST_FAILED
+Segmentation fault
+Kernel panic
+TBROK
+TFAIL
+BROK

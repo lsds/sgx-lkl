@@ -1,0 +1,72 @@
+// SGX-LKL-OE enclave/host interface
+
+enclave {
+
+    include "shared/sgxlkl_config.h"
+
+    trusted {
+
+        // Enclave call for ethreads to enter enclave
+        public int sgxlkl_enclave_init(
+            [in] const sgxlkl_config_t* conf);
+
+        // Enclave call for initializing ethreads to enter enclave
+        public void sgxlkl_ethread_init(void);
+
+    };
+
+    untrusted {
+
+        // Host call for ethreads to sleep outside of the enclave
+        void sgxlkl_host_idle_ethread(
+            size_t sleeptime_ns);
+
+        // Host call to support mprotect executed outside of the enclave
+        int sgxlkl_host_syscall_mprotect(
+            [user_check] void *addr,
+            size_t len,
+            int prot);
+
+        // Host call to get clock resolution
+        int sgxlkl_host_syscall_clock_getres(
+            clockid_t clk_id,
+            [out] struct timespec *res);
+
+        // Host call to get clock gettime
+        int sgxlkl_host_syscall_clock_gettime(
+            clockid_t clk_id,
+            [out] struct timespec *tp);
+
+	    // Host call for signal handler registration to support signal handling in software mode
+	    void sgxlkl_host_sw_register_signal_handler(
+            [user_check] void *sgxlkl_enclave_sw_signal_handler);
+
+        // Host call for cpuid instruction invocation outside of the enclave in hardware mode
+        void sgxlkl_host_hw_cpuid(
+            uint32_t leaf,
+            uint32_t subleaf,
+            [out, count=1] uint32_t* eax,
+            [out, count=1] uint32_t* ebx,
+            [out, count=1] uint32_t* ecx,
+            [out, count=1] uint32_t* edx);
+
+        // Host call for rdtsc instruction invocation outside of the enclave in hardware mode
+        void sgxlkl_host_hw_rdtsc(
+            [out, count=1] uint32_t* eax,
+            [out, count=1] uint32_t* edx);
+
+        // Host call to notify the host device task for the virtio request from guest in LKL
+        // @in: dev_id is the device identifier for which the request is intended
+        void sgxlkl_host_device_request(
+            uint8_t dev_id );
+
+        // Host call to stop processing virtio network request from LKL
+        // @in: dev_id is the device identifier associated with network
+        void sgxlkl_host_netdev_remove(
+            uint8_t dev_id);
+
+        // Host call to broadcast the shutdown notification from guest
+        void sgxlkl_host_shutdown_notification(void);
+   };
+
+};

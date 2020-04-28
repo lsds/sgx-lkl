@@ -1,379 +1,257 @@
-[![Build Status](https://travis-ci.org/lsds/sgx-lkl.svg?branch=master)](https://travis-ci.org/lsds/sgx-lkl)
+SGX-LKL-OE (Open Enclave Edition)
+=================================
 
-SGX-LKL
-=======
+*WARNING:* This branch contains an experimental port of SGX-LKL to use Open Enclave as an enclave abstraction layer.
+This is an ongoing research project.
+Various features are under development and there are several known bugs.
 
-SGX-LKL is a library OS designed to run unmodified Linux binaries inside SGX
-enclaves. It uses the Linux Kernel Library (LKL) (https://github.com/lkl/linux)
-to provide mature system support for complex applications within the enclave. A
-modified version of musl (https://www.musl-libc.org) is used as C standard
-library implementation. SGX-LKL has support for in-enclave user-level
-threading, signal handling, and paging. System calls are handled within the
-enclave by LKL when possible, and asynchronous system call support is provided
-for the subset of system calls that require direct access to external resources
-and are therefore processed by the host OS. The goal of SGX-LKL is to provide
-system support for complex applications and managed runtimes such as the JVM
-with minimal or no modifications and minimal reliance on the host OS.
+The SGX-LKL project is designed to run existing unmodified Linux binaries inside of Intel SGX enclaves. The goal of the project is to provide the necessary system support for complex applications (e.g., TensorFlow, PyTorch, and OpenVINO) and programming language runtimes (e.g., Python, the DotNet CLR and the JVM). SGX-LKL can run these applications in SGX enclaves without modifications or reliance on the untrusted host OS.
 
+The SGX-LKL project includes several components:
 
-Prerequisites
----------------------------------
+ - A launcher and host interface modelled after a lightweight VM interface.
+   This is documented in [HostInterface.md](docs/HostInterface.md).
+ - A port of Linux to run in this environment, using the Linux Kernel Library (LKL) (https://github.com/lkl/linux).
+ - A port of the musl standard C library to run on top of this version of Linux.
 
-SGX-LKL has been tested on Ubuntu 16.04 and 18.04. To run SGX-LKL in SGX
-enclaves, the Intel SGX driver (available at
-https://github.com/01org/linux-sgx-driver and
-https://01.org/intel-software-guard-extensions/downloads) is required. We have
-tested SGX-LKL with driver versions 1.9 to 2.5. SGX-LKL also provides a
-simulation mode for which no SGX-enabled CPU is needed. Furthermore the
-following packages are required to build SGX-LKL:
-`make`, `gcc`, `g++`, `bc`, `python`, `xutils-dev` (for `makedepend`), `bison`,
-`flex`, `libgcrypt20-dev`, `libjson-c-dev`, `automake`, `autopoint`,
-`autoconf`, `pkgconf`, `libtool`, `libcurl4-openssl-dev`, `libprotobuf-dev`,
-`libprotobuf-c-dev`, `protobuf-compiler`, `protobuf-c-compiler`, `libssl-dev`.
+For frequently asked questions, please see the [FAQ](docs/FAQ.md).
 
-Install these with:
+SGX-LKL uses the Linux Kernel Library (LKL) (https://github.com/lkl/linux)
+to provide a mature POSIX implementation within an enclave. A modified version 
+of the musl standard C library (https://www.musl-libc.org) is available to 
+applications inside the enclave.
 
+SGX-LKL supports in-enclave user-level threading, signal handling, and file
+and network I/O. System calls are handled within the enclave by LKL, and the 
+host is used only for access to I/O resources.
+
+SGX-LKL can be run in hardware mode, when it requires an Intel SGX compatible
+CPU, and also in software simulation mode, when it runs on any Intel CPU
+without hardware security guarantees. 
+
+A. Installing SGX-LKL-OE
+------------------------
+
+SGX-LKL-OE and the FSGSBASE DKMS driver are distributed as Debian packages.
+These packages are alpha quality and not meant for production.
+
+The SGX-LKL-OE package contains the runtime, tools, and all its dependencies
+and can be run on any Linux distribution.
+
+The FSGSBASE DKMS driver enables the FSGSBASE bit in Intel CPUs and allows
+to use thread-local storage in SGX-LKL applications.
+On newer Linux kernels (to be released) installing this driver will not be
+necessary anymore.
+
+To use development releases (updated on every commit to `master`), run:
+```sh
+echo "deb [trusted=yes] https://clcpackages.blob.core.windows.net/apt-dev/1fa5fb889b8efa6ea07354c3b54903f7 ./" | sudo tee /etc/apt/sources.list.d/azure-clc.list
+```
+
+To use stable releases (manually published), run:
+```sh
+echo "deb [trusted=yes] https://clcpackages.blob.core.windows.net/apt/1fa5fb889b8efa6ea07354c3b54903f7 ./" | sudo tee /etc/apt/sources.list.d/azure-clc.list
+```
+
+Now, install with:
+```sh
+sudo apt update
+sudo apt install clc
+```
+
+The FSGSBASE DKMS driver can be installed with:
+```sh
+sudo apt install enable-fsgsbase-dkms
+echo "enable_fsgsbase" | sudo tee -a /etc/modules
+sudo modprobe enable_fsgsbase
+```
+
+B. Building SGX-LKL-OE from source
+----------------------------------
+
+SGX-LKL has been tested on Ubuntu Linux 18.04.
+
+### 1. Install the SGX-LKL branch of the Open Enclave SDK 
+
+To run SGX-LKL in SGX enclaves, it relies on an installation of the *Open Enclave 
+SDK* (https://openenclave.io/sdk/). The current version of SGX-LKL-OE requires a
+modified version of the Open Enclave SDK, which can be found here: 
+https://github.com/openenclave/openenclave (branch: feature/sgx-lkl-support).
+
+1. Clone the `feature.sgx-lkl` branch of the private fork of the Open Enclave SDK:
+```
+git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl.git
+cd openenclave-sgxlkl.git
+```
+
+2. Install the Open Enclave build requirements:
+```
+cd openenclave-sgxlkl.git
+sudo scripts/ansible/install-ansible.sh
+sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
+```
+
+3. Build the Open Enclave SDK:
+```
+mkdir build
+cd build
+cmake -G "Unix Makefiles" ..
+make
+sudo make install
+```
+
+4. Source the Open Enclave SDK configuration script:
+```
+source /opt/openenclave/share/openenclave/openenclaverc
+```
+
+### 2. Building SGX-LKL as part of the source tree
+
+1. Install the SGX-LKL build dependencies:
 ```
 sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev
 ```
 
-Compilation has been tested with versions 5.4 and 7.3 of gcc. Older versions
-might lead to compilation and/or linking errors.
+Compilation has been tested with versions 7.4 of gcc. Older compiler versions
+may lead to compilation and/or linking errors.
 
-### Networking support
-
-In order for SGX-LKL applications to send and receive packets via the network, a
-TAP interface is needed on the host. Create it as follows:
-
+2. Clone the SGX-LKL git repository:
 ```
-sudo ip tuntap add dev sgxlkl_tap0 mode tap user `whoami`
-sudo ip link set dev sgxlkl_tap0 up
-sudo ip addr add dev sgxlkl_tap0 10.0.1.254/24
+git clone git@github.com:lsds/sgx-lkl-oe.git sgx-lkl-oe.git
+cd sgx-lkl-oe.git
 ```
 
-SGX-LKL will use the IP address `10.0.1.1` by default. To change it, set the
-environment variable `SGXLKL_IP4`. The name of the TAP interface is set
-using the environment variable `SGXLKL_TAP`.
+3. Build SGX-LKL in the source tree:
 
-The interface can be removed again by running the following command:
+#### DEBUG build (with debug functionality, no compiler optimisations)
 
+To build SGX-LKL with debug symbols and without compiler optimisations, run the following 
+command in the SGX-LKL source tree
 ```
-sudo ip tuntap del dev sgxlkl_tap0 mode tap
+make DEBUG=true
 ```
+Note that, on the first invocation, this initialises all git submodules, 
+including a clone of the LKL library, which downloads several GBs of data.
 
-In order to communicate with an SGX-LKL enclave from a different host and/or
-allowing an application to reach other hosts, additional `iptable` rules to
-forward corresponding traffic might be needed.
+You will then find the build files under `build/`.
 
+#### NON-RELEASE build (no debug symbols, with compiler optimisations)
+
+To build SGX-LKL with compiler optimisations and without debug symbols, run:
 ```
-# Enable packet forwarding
-sudo sysctl -w net.ipv4.ip_forward=1
-# Forward traffic to enclave attestation endpoint
-sudo iptables -t nat -I PREROUTING -p tcp -i eth0 --dport 56000 -j DNAT --to-destination 10.0.1.1:56000
-# Forward traffic to enclave Wireguard endpoint
-sudo iptables -t nat -I PREROUTING -p udp -i eth0 --dport 56002 -j DNAT --to-destination 10.0.1.1:56002
-
-# Allow forwarding to/from TAP
-sudo iptables -I FORWARD -m state -d 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
-sudo iptables -I FORWARD -m state -s 10.0.1.0/24 --state NEW,RELATED,ESTABLISHED -j ACCEPT
-
-# If enclave needs establish new connections to external hosts, masquerade
-# outgoing traffic from enclave
-sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERADE
+make
 ```
 
-If you run an application that needs to be publicly accessible (i.e. not over
-Wireguard), additional rules to forward corresponding traffic might be needed.
-For example, for redis which listens on port 6379 by default:
+#### RELEASE build _(not yet supported by SGX-LKL-OE)_
 
-```
-# Forward traffic from host's public interface TCP port 60321 to SGX-LKL port 6379
-sudo iptables -t nat -I PREROUTING -p tcp -d `hostname -i` --dport 60321 -j DNAT --to-destination 10.0.1.1:6379
-```
+SGX-LKL has a RELEASE build, which make the resulting enclave library secure by
+removing any insecure debug funcationlity and enforcing security features such
+as attestestation. 
 
-DNS resolution is configured via `/etc/resolv.conf` as usual, so if this is
-required, ensure that a valid nameserver configuration is in place on the root
-disk image, e.g. by copying the host configuration (see
-`apps/miniroot/Makefile` for an example).
-
-### Network encryption
-
-SGX-LKL uses Wireguard for protecting network traffic between an SGX-LKL
-application and other trusted nodes. See [Network
-encryption](https://github.com/lsds/sgx-lkl/wiki/Network-encryption) for
-information how to set up and use network encryption for SGX-LKL.
-
-Building SGX-LKL manually
--------------------------
-
-### Hardware mode
-
-To build sgx-lkl in hardware mode run:
-
-```
-    make
-    make sgx-lkl-sign
-```
-
-### Release mode
-
-SGX-LKL has a "Release Mode" which enables/disables certain features for
-hardening. In particuar, it ensures that enclave secrets are provided to
-SGX-LKL over a secure channel and that an untrusted party is unable to control
-SGX-LKL remotely. In release mode, the application configuration must be
-provided remotely (`SGXLKL_REMOTE_CONFIG` is always set to `1`), remote control
-is only available over Wireguard (`SGXLKL_REMOTE_CMD_ETH0` is always set to
-`0`), and it requires that exactly one Wireguard peer is provided at startup.
-You can find more information in the
-[wiki](https://github.com/lsds/sgx-lkl/wiki/Remote-Attestation-and-Remote-Control#4-server-launch-enclave)
-on why this is necessary. To build SGX-LKL in release mode run:
-
+To build SGX-LKL in release mode, run:
 ```
     make RELEASE=true
-    make sgx-lkl-sign    # This signs the SGX-LKL enclave library as a debug enclave
 ```
 
-### Simulation mode
-
-To build sgx-lkl in simulation mode run:
-
-```
-    make sim
-```
-
-### Debug build
-
-To build sgx-lkl with debug symbols and without compiler optimizations run
-`make` with `DEBUG=true`:
-
-```
-# HW mode
-make DEBUG=true
-make sgx-lkl-sign
-# Sim mode
-make sim DEBUG=true
-```
-
-
-Building SGX-LKL using Docker
------------------------------
-
-Building SGX-LKL using Docker requires at least Docker version 17 to include
-multi-stage build support. There is a script `sgx-lkl-docker.sh` to build
-SGX-LKL inside a Docker container independently of the host environment:
-
-```
-./sgx-lkl-docker.sh -s build   # This builds SGX-LKL in simulation mode
-```
-
-After SGX-LKL has been built, it is possible to deploy the container with the
-Java HelloWorld example on the local (or a remote) machine:
-
-```
-./sgx-lkl-docker.sh -s deploy-app jvm-helloworld
-```
-
-(Deployment on a remote Docker machine requires `docker-machine` to be set up.)
-
-A list of options can be obtained with:
-
-```
-./sgx-lkl-docker.sh '-?'
-```
-
-Installing SGX-LKL
----------------------------------
-
-After building SGX-LKL, build artefacts will be stored in the `build`
-subdirectory. Run
-
+2. To install SGX-LKL on the host system, use the following command:
 ```
 sudo make install
 ```
 
-to make SGX-LKL accessible globally. SGX-LKL will be installed in `/usr/local`
-by default. To change this use `PREFIX`. For example, to install SGX-LKL in a
-subdirectory `install`, run
-
+SGX-LKL is installed under `/opt/sgx-lkl` by default. To change the install prefix, 
+use `PREFIX`, e.g.:
 ```
-sudo make install PREFIX="${PWD}/install"
+make install PREFIX="${PWD}/install"
 ```
-
-To make the SGX-LKL tools available from any directory, add a corresponding
-entry to the `PATH` environment variable:
-
-```
-PATH="$PATH:${OWD}/install/bin"
-```
-
-If SGX-LKL was installed in `/usr/local`, the correct directory is most likely
-part of `PATH` already.
 
 To uninstall SGX-LKL, run
-
 ```
 sudo make uninstall
 ```
 
-This will remove SGX-LKL specific artefacts from the installation directory as
-well as cached artefacts of `sgx-lkl-disk` (stored in ~/.cache/sgxlkl).
-Currently this assumes the installation directory to be `usr/local`. You can
-provide a `PREFIX` as with `make install`.
+This removes SGX-LKL specific artefacts from the installation directory as
+well as cached artefacts of `sgx-lkl-disk` (stored in `~/.cache/sgxlkl`).
 
-
-Running applications with SGX-LKL
----------------------------------
-
-### General
-
-To run applications with SGX-LKL, they need to be provided as part of a disk
-image. Since SGX-LKL is built on top of musl, applications are expected to be
-dynamically linked against musl. musl and glibc are not fully
-binary-compatible. Applications linked against glibc are therefore not
-guaranteed to work with SGX-LKL. The simplest way to run an application with
-SGX-LKL is to use prebuilt binaries for Alpine Linux which uses musl as its C
-standard library.
-
-### JVM
-
-A simple Java HelloWorld example application is available in
-`apps/jvm/helloworld-java`. Building the example requires `curl` and a Java 8
-compiler on the host system. On Ubuntu, you can install these by running
-
+3. To make the SGX-LKL commands available from any directory, add an entry to 
+the `PATH` environment variable:
 ```
-sudo apt-get install curl openjdk-8-jdk
+PATH="$PATH:/opt/sgx-lkl/bin"
 ```
 
-To build the disk image, run
-
+4. Finally, setup the host environment by running:
 ```
-cd apps/jvm/helloworld-java
-make
+sgx-lkl-setup
 ```
 
-This will compile the HelloWorld Java example, create a disk image with an
-Alpine mini root environment, add a JVM, and add the HelloWorld.class file.
+This has to be done after each reboot. It configures the host networking to 
+forward packets from SGX-LKL instances and also loads the FSGSBASE kernel 
+module for support of thread-local storage (TLS) in multi-threaded applications.
 
-To run the HelloWorld java program on top of SGX-LKL inside an enclave, run
+C. Running applications with SGX-LKL
+------------------------------------
 
+To run applications with SGX-LKL, they must be provided as part of a 
+Linux disk image. Since SGX-LKL is built using the musl libc library, 
+applications must have been dynamically linked against musl. Currently, 
+applications linked against glibc are not supported by SGX-LKL. The 
+simplest way to run applications with SGX-LKL is to use prebuilt binaries 
+for Alpine Linux, which uses musl libc as its default C standard library.
+
+### 1. Running existing sample applications
+
+The SGX-LKL source tree contains sample applications under 'samples/'. Most 
+sample applications can be run in hardware SGX mode by going to the 
+corresponding directory and execute the following command:
 ```
-sgx-lkl-java ./sgxlkl-java-fs.img HelloWorld
-```
-
-`sgx-lkl-java` is a simple wrapper around `sgx-lkl-run` which sets some common
-JVM arguments in order to reduce its memory footprint. It can be found in the
-`<sgx-lkl>/tools` directory. For more complex applications, SGX-LKL or JVM
-arguments might have to be adjusted, e.g. to increase the enclave size or the
-size of the JVM heap/metaspace/code cache, or to enable networking support
-by providing a TAP/TUN interface via `SGXLKL_TAP`.
-
-If the application runs successfully, you should see an output like this:
-
-```
-OpenJDK 64-Bit Server VM warning: Can't detect initial thread stack location - find_vma failed
-Hello world!
-```
-
-Note: The warning is caused by the fact that the JVM is trying to receive
-information about the process's virtual memory regions from `/proc/self/maps`.
-While SGX-LKL generally supports the `/proc` file system in-enclave,
-`/proc/self/maps` is currently not populated by SGX-LKL. This does not affect
-the functionality of the JVM.
-
-### Running applications from the Alpine Linux repository
-
-Alpine Linux uses musl as its standard C library. SGX-LKL can support a large
-number of unmodified binaries available through the Alpine Linux repository.
-For an example on how to create the corresponding disk image and how to run the
-application, the example in `apps/miniroot` can be used as a template. Running
-
-```
-make
+make run-hw
 ```
 
-will create an Alpine mini root disk image that can be passed to sgx-lkl-run.
-`buildenv.sh` can be modified to specify APKs that will be part of the disk
-image. After creating the disk image, applications can be run on top of SGX-LKL
-using `sgx-lkl-run`. Using redis as an example (the APK `redis` is listed in
-the example `buildenv.sh` file in `apps/miniroot`), redis-server can be
-launched as follows:
-
+To run an application in software mode without SGX support, execute:
 ```
-SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
+make run-sw
 ```
 
-The readme file in `apps/miniroot` contains more detailed information on how to
-build custom disk images manually.
+### 2. Creating SGX-LKL disk images with sgx-lkl-disk
 
-### Cross-compiling applications for SGX-LKL
+While it is possible to create disk images manually, SGX-LKL comes with 
+a helper tool `sgx-lkl-disk`. It can be used to create, check, mount, and 
+unmount SGX-LKL disk images.
 
-For applications with a complex build process and/or a larger set of
-dependencies it is easiest to use the unmodified binaries from the Alpine Linux
-repository as described in the previous section. However, it is also possible
-to cross-compile applications on non-musl based Linux distributions (e.g.
-Ubuntu) and create a minimal disk image that only contains the application and
-its dependencies. An example of how to cross-compile a C application and create
-the corresponding disk image can be found in `apps/helloworld`. To build the
-disk image and execute the application with SGX-LKL run
-
-```
-make sgxlkl-disk.img
-sgx-lkl-run sgxlkl-disk.img /app/helloworld
-```
-
-Run the following command in `apps/miniroot` to see a number of other
-applications you should be able to execute. Keep in mind that we currently have
-no support for forking, so multi-process applications will not work.
-
-```
-sgx-lkl-run ./sgxlkl-miniroot-fs.img /bin/ls /usr/bin
-```
-
-### Creating SGX-LKL disk images with sgx-lkl-disk
-
-While it is possible to create disk images manually or with self-written
-Makefiles as described above, SGX-LKL comes with the helper tool
-`sgx-lkl-disk`. It can be found in the `tools` directory but will also be
-installed alongside `sgx-lkl-run` on the system. It can be used to create,
-check, mount, and unmount SGX-LKL disk images. To see all options, run
-
+To see all options, run:
 ```
 sgx-lkl-disk --help
 ```
 
-The tool has been tested on Ubuntu 14.04, 16.04, and 18.04. `sgx-lkl-disk` will
-need superuser rights for some operations, e.g. temporarily mounting/unmounting
-disk images.
+The tool has been tested on Ubuntu 18.04. `sgx-lkl-disk` will need superuser 
+rights for some operations, e.g. temporarily mounting/unmounting disk images.
 
 #### Creating Alpine-based disk images
 
-To create a disk image, use the `create` action. In addition, `sgx-lkl-disk`
-expects the disk image size to be specified via `--size=<SIZE>` and the disk
-image file name. Lastly, you will need to specify the source of the image.
+To create a disk image, use the `create` action, which expects the disk image 
+size to be specified via `--size=<SIZE>` and the disk
+image file name. It also requies the the source of the image.
 
-In order to build an image with one or more applications available in the
-Alpine package repository, use the `--alpine=<pkgs>` flag. For example, to
-create an image with redis installed, run:
-
+To build an image with one or more applications available in the
+Alpine package repository, use the `--alpine=<pkgs>` flag. The following example
+creates an image with Redis installed:
 ```
 sgx-lkl-disk create --size=50M --alpine="redis" sgxlkl-disk.img
-# Run with
-SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/redis-server --bind 10.0.1.1
 ```
 
-Or to create a disk image with memcached, run
+Redis can then be run as follows:
+```
+SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run-oe --hw-debug ./sgxlkl-disk.img /usr/bin/redis-server --bind 10.0.1.1
+```
 
+To create and run a disk image with Memcached, execute:
 ```
 sgx-lkl-disk create --size=50M --alpine="memcached" sgxlkl-disk.img
-# Run with
-SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run ./sgxlkl-disk.img /usr/bin/memcached --listen=10.0.1.1 -u root --extended=no_drop_privileges -vv
+SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run-oe --hw-debug ./sgxlkl-disk.img /usr/bin/memcached --listen=10.0.1.1 -u root --extended=no_drop_privileges -vv
 ```
 
-If you need to add additional data to a disk image, `--copy=<path>` can be used
-to copy files from the host to the disk image. For example, to create a disk
-image with the Alpine Python package together with a custom Python application,
-run:
-
+If you need to add extra data to the disk image, the parameter `--copy=<path>` can 
+be used to copy files from the host to the disk image. The following example creates a disk 
+image with the Alpine Python package together with a custom Python application:
 ```
 # When --copy points to a directory, the contents of the directory are copied
 # to the root of the file system.
@@ -385,17 +263,17 @@ tree my-python-root
 
 sgx-lkl-disk create --size=100M --alpine="python" --copy=./my-python-root sgxlkl-disk.img
 # Run with
-sgx-lkl-run ./sgxlkl-disk.img /usr/bin/python /app/myapp.py
+sgx-lkl-run-oe --hw-debug ./sgxlkl-disk.img /usr/bin/python /app/myapp.py
 ```
 
 #### Creating Docker-based disk images
 
-`sgx-lkl-disk` can also build disk images from Dockerfiles with the `--docker`
-flag, e.g. when an application needs to be compiled manually. Note that SGX-LKL
-applications still need to be linked against musl libc, so a good starting
-point is an Alpine Docker base image. To build an SGX-LKL disk image from a
-Dockerfile, run:
+The `sgx-lkl-disk` tool can also build disk images from Dockerfiles with the `--docker`
+flag, e.g. when an application needs to be compiled manually. Note that SGX-LKL 
+applications still need to be linked against musl libc, so a good starting 
+point is an Alpine Docker base image.
 
+To build an SGX-LKL disk image from a Dockerfile, run:
 ```
 sgx-lkl-disk create --size=100M --docker=MyDockerfile sgxlkl-disk.img
 ```
@@ -403,8 +281,7 @@ sgx-lkl-disk create --size=100M --docker=MyDockerfile sgxlkl-disk.img
 #### Creating plain disk images
 
 If all that is needed is a plain disk image based on files existing on the
-host, the `--copy` flag can be used on its own as well:
-
+host, the `--copy` flag can be used on its own:
 ```
 sgx-lkl-disk create --size=50M --copy=./my-root sgxlkl-disk.img
 ```
@@ -413,149 +290,180 @@ sgx-lkl-disk create --size=50M --copy=./my-root sgxlkl-disk.img
 
 SGX-LKL supports disk encryption via the *dm-crypt* subsystem in the Linux
 kernel. Typically encryption for a disk can be setup via the `cryptsetup` tool.
-`sgx-lkl-disk` provides an `--encrypt` option to simplify this process. To
-create an encrypted disk image with default options run
-
+The `sgx-lkl-disk` tool provides an `--encrypt` option to simplify this 
+process. To create an encrypted disk image with default options run:
 ```
 sgx-lkl-disk create --size=50M --encrypt --key-file --alpine="" sgxlkl-disk.img.enc
 # Run with
-SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.key sgx-lkl-run ./sgxlkl-disk.img.enc /bin/echo "Hello World"
+SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.key sgx-lkl-run-oe --hw-debug ./sgxlkl-disk.img.enc /bin/echo "Hello World"
 ```
 
-In this example, `sgx-lkl-disk` automatically generates a 512 byte key file,
+In this example, `sgx-lkl-disk` automatically generates a 512-byte key file,
 uses "AES-XTS Plain 64" as a cipher/mode and "SHA256" for hashing. The cipher
 and hash algorithm is stored as metadata in a LUKS header on disk.
-`sgx-lkl-disk` provides a number of options to customize this. See
-`sgx-lkl-disk --help` for more information.
+The tool provides a number of options to customise this (see
+`sgx-lkl-disk --help` for more information).
 
 #### Disk integrity protection
 
-In order to provide disk/data integrity, SGX-LKL supports both *dm-verity*
-(read-only) and *dm-integrity* (read/write). These can be combined with disk
-encryption (*dm-integrity* can currently only be used together with --encrypt).
-For example, to create a read-only encrypted disk image with integrity
-protection via *dm-verity*, you can run
+To provide disk/data integrity, SGX-LKL supports both *dm-verity* (read-only) 
+and *dm-integrity* (read/write). These can be combined with disk
+encryption (*dm-integrity* can currently only be used together with `--encrypt`).
 
+To create a read-only encrypted disk image with integrity
+protection via *dm-verity*, run:
 ```
 sgx-lkl-disk create --size=50M --encrypt --key-file --verity --alpine="" sgxlkl-disk.img.enc.vrt
 # Run with
-SGXLKL_HD_VERITY=./sgxlkl-disk.img.enc.vrt.roothash SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.vrt.key sgx-lkl-run ./sgxlkl-disk.img.enc.vrt /bin/echo "Hello World"
+SGXLKL_HD_VERITY=./sgxlkl-disk.img.enc.vrt.roothash SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.vrt.key sgx-lkl-run-oe ./sgxlkl-disk.img.enc.vrt /bin/echo "Hello World"
 ```
 
 To create an encrypted and integrity-protected disk that uses HMAC-SHA256 for
-authenticated encryption and supports both reads and writes, you can run
-
+authenticated encryption and supports both reads and writes, run:
 ```
 # --integrity requires a host kernel version 4.12 or greater and cryptsetup version 2.0.0 or greater
 sgx-lkl-disk create --size=50M --encrypt --key-file --integrity --alpine="" sgxlkl-disk.img.enc.int
 # Run with
-SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.int.key sgx-lkl-run ./sgxlkl-disk.img.enc.int /bin/echo "Hello World"
+SGXLKL_HD_KEY=./sgxlkl-disk.img.enc.int.key sgx-lkl-run-oe ./sgxlkl-disk.img.enc.int /bin/echo "Hello World"
 ```
 
 `sgx-lkl-disk` relies on `cryptsetup` for setting up encryption and integrity
-protection. For more information on cryptsetup as well as
-dm-crypt/dm-verity/dm-integrity see
+protection. For more information on cryptsetup and 
+dm-crypt/dm-verity/dm-integrity, see
 https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt.
 
+### 3. Running applications from the Alpine Linux repository
 
-### Configuring SGX-LKL
+Alpine Linux uses musl as its standard C library. SGX-LKL supports a large
+number of unmodified binaries available through the Alpine Linux repository.
+For an example on how to create the corresponding disk image and how to run the
+application, `samples/miniroot` can be used as a template. 
 
-#### Enclave size
-
-With SGX, the enclave size is fixed at creation/initialization time. By
-default, SGX-LKL uses a heap size that will fit into the EPC (together with
-SGX-LKL itself). However, for many applications this might be insufficient. In
-order to increase the size of the heap, use the `SGXLKL_HEAP` parameter:
-
+Build the disk image by running: 
 ```
-SGXLKL_TAP=sgxlkl_tap0 SGXLKL_HEAP=200M SGXLKL_KEY=../../../build/config/enclave_debug.key sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
-
+make
 ```
 
-Whenever `SGXLKL_HEAP` is specified, it is also necessary to specify
-`SGXLKL_KEY` which will be discussed in the next section.
-
-Note that due to the limited Enclave Page Cache (EPC) size, performance might
-degrade for applications with a large memory footprint due to paging between
-the EPC and regular DRAM.
-
-#### Enclave signing
-
-Every enclave must be signed by its owner before it can be deployed. Without a
-signature, it is not possible to initialize and run an SGX enclave. As seen in
-the example above, a key can be specified via the `SGXLKL_KEY` parameter.
-During the build process of SGX-LKL, a default 3072-bit RSA development/debug
-key pair is generated. The corresponding key file is stored at
-`build/config/enclave_debug.key`. This key is also used to generate a default
-signature which is embedded into the SGX-LKL library and is used in case
-`SGXLKL_HEAP` is not set. Anytime `SGXLKL_HEAP` is set or a custom key should
-be used, `SGXLKL_KEY` must point to a valid key file. To generate a new key
-(file), the `tools/gen_enclave_key.sh` script can be used:
-
+This creates an Alpine mini root disk image that can be passed to `sgx-lkl-run-oe`.
+`buildenv.sh` can be modified to specify APKs that should be part of the disk
+image. After creating the disk image, applications can be run on top of SGX-LKL
+using `sgx-lkl-run-oe`. Using Redis as an example (the APK `redis` is listed in
+the example `buildenv.sh` file in `samples/miniroot`), `redis-server` can be
+launched as follows:
 ```
-tools/gen_enclave_key.sh <path-to-new-key-file>
+SGXLKL_TAP=sgxlkl_tap0 sgx-lkl-run-oe --hw-debug ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
 ```
 
-#### Other configuration options
+The readme file in `samples/miniroot` contains more detailed information on how to
+build custom disk images manually.
 
-SGX-LKL has a number of other configuration options for e.g. configuring the
+### 4. OpenJDK Java Virtual Machine (JVM)
+
+A simple Java HelloWorld example application is available in
+`samples/jvm/helloworld-java`. Building the example requires `curl` and a Java 8
+compiler on the host system. On Ubuntu, install these by running:
+```
+sudo apt-get install curl openjdk-8-jdk
+```
+
+To build the disk image, run:
+```
+cd samples/jvm/helloworld-java
+make
+```
+
+This compiles the HelloWorld Java example, create a disk image with an
+Alpine mini root environment, add a JVM, and add the `HelloWorld.class` file.
+
+To run the HelloWorld java program on top of SGX-LKL inside an enclave, run"
+```
+sgx-lkl-java ./sgxlkl-java-fs.img HelloWorld
+```
+
+The command `sgx-lkl-java` is a simple wrapper around `sgx-lkl-run-oe`, which 
+sets some common JVM arguments in order to reduce its memory footprint. It 
+can be found in the `tools/` directory. For more complex applications, SGX-LKL 
+or JVM arguments may have to be adjusted, e.g. to increase the size of the 
+JVM heap/metaspace/code cache, or to enable networking support by providing 
+a TAP/TUN interface via `SGXLKL_TAP`.
+
+If the application runs successfully, you should see an output like this:
+
+```
+OpenJDK 64-Bit Server VM warning: Can't detect initial thread stack location - find_vma failed
+Hello world!
+```
+
+The warning is caused by the fact that the JVM is trying to receive
+information about the process's virtual memory regions from `/proc/self/maps`.
+While SGX-LKL generally supports the `/proc` file system in-enclave,
+`/proc/self/maps` is currently not populated by SGX-LKL. This does not affect
+the functionality of the JVM.
+
+### 5. Cross-compiling applications for SGX-LKL
+
+For applications with a complex build process and/or a larger set of
+dependencies, it is easiest to use the unmodified binaries from the Alpine Linux
+repository as described in the previous section. However, it is also possible
+to cross-compile applications on non-musl based Linux distributions (e.g.
+Ubuntu) and create a minimal disk image that only contains the application and
+its dependencies. An example of how to cross-compile a C application and create
+the corresponding disk image can be found in `samples/helloworld`. To build the
+disk image and execute the application with SGX-LKL run:
+```
+make sgxlkl-disk.img
+sgx-lkl-run-oe --hw-debug sgxlkl-disk.img /app/helloworld
+```
+
+Run the following command in `samples/miniroot` to see a number of other
+applications you should be able to execute. Keep in mind that SGX-LKL currently 
+does not support the `fork()` system call, so multi-process applications will not work.
+
+```
+sgx-lkl-run-oe --hw-debug ./sgxlkl-miniroot-fs.img /bin/ls /usr/bin
+```
+
+E. Configuring SGX-LKL-OE parameters
+------------------------------------
+
+### 1. Enclave size
+
+_To be added_
+
+### 2. Enclave signing
+
+_To be added_
+
+### 3. Other configuration options
+
+SGX-LKL-OE has a number of other configuration options e.g. for configuring the
 in-enclave scheduling, network configuration, or debugging/tracing. To see all
-options, run
-
+options, run:
 ```
-sgx-lkl-run --help
+sgx-lkl-run-oe --help
 ```
 
 Note that for the debugging options to have an effect, SGX-LKL must be built
 with `DEBUG=true`.
 
+F. Remote attestation
+---------------------
 
-Remote attestation
----------------------------------
-SGX-LKL provides capabilities for remote attestation including support for
-Intel Attestation Service (IAS) verification. See [Remote Attestation and
-Remote
-Control](https://github.com/lsds/sgx-lkl/wiki/Remote-Attestation-and-Remote-Control)
-for information on how to remotely attest an SGX-LKL application and how to
-provide enclave secrets securely.
+_To be added_
 
+G. Debugging SGX-LKL-OE and applications
+-----------------------------------------
 
-Debugging SGX-LKL (applications)
----------------------------------
+SGX-LKL provides a wrapper around gdb.
 
-SGX-LKL provides a wrapper around gdb. To build it, run `setup.sh` in the `gdb`
-subdirectory. This will create the wrapper `sgx-lkl-gdb`. sgx-lkl-gdb
-automatically loads the SGX-LKL gdb plugin which ensures that debug symbols (if
-available) are loaded correctly. In addition, when running in HW mode,
-sgx-lkl-gdb uses the corresponding SGX debug instructions to read from and
-write to enclave memory. Example:
+1. To build it, run `setup.sh` in the `tools/gdb` subdirectory. This creates 
+the wrapper `sgx-lkl-gdb`. sgx-lkl-gdb automatically loads the SGX-LKL gdb 
+plugin which ensures that debug symbols (if available) are loaded correctly. 
 
+When running in HW mode, `sgx-lkl-gdb` uses the corresponding SGX debug 
+instructions to read from and write to enclave memory.
+
+2. To debug an application, invoke `sgx-lkl-gdb` as follows:
 ```
-SGXLKL_TAP=sgxlkl_tap0 ../../gdb/sgx-lkl-gdb --args sgx-lkl-run ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
+SGXLKL_TAP=sgxlkl_tap0 ../../gdb/sgx-lkl-gdb --args sgx-lkl-run-oe --hw-debug ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
 ```
-
-Note: SGX-LKL should be built in debug mode for full gdb support:
-
-```
-# HW debug mode
-make DEBUG=true
-make sgx-lkl-sign
-
-# Sim debug mode
-make sim DEBUG=true
-```
-
-Also note that SGX-LKL does support applications that use the `CPUID` and
-`RDTSC` instructions. However, since `CPUID` and `RDTSC` are not permitted
-within SGX enclaves, gdb will catch resulting SIGILL signals and pause
-execution by default. SGX-LKL handles these signals transparently. Continue
-with `c`/`continue` or instruct gdb not to stop for `SIGILL` signals (`handle
-SIGILL nostop`). Be careful though as this includes `SIGILL` signals caused by
-other illegal instructions. Similarly, for applications that define their own
-signal handler for `SIGSEGV` signals, gdb will pause execution. When
-continuing, SGX-LKL will pass on the signal to the in-enclave signal handler
-registered by the application.
-
-Take a look in the
-[wiki](https://github.com/lsds/sgx-lkl/wiki/Debugging-and-Profiling) for more
-information on debugging, tracing and profiling.

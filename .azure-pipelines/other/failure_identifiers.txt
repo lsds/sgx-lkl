@@ -1,0 +1,4 @@
+TEST_FAILED
+TEST FAILED
+Segmentation fault
+Kernel panic

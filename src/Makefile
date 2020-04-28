@@ -1,169 +1,126 @@
 include ../config.mak
 
-# TODO Don't set (default) arch in Makefile
-ARCH ?= x86_64
+LIB_SGXLKL_BUILD ?= $(BUILD_DIR)
 
-LIB_SGX_LKL_BUILD ?= $(BUILD_DIR)
-
-HW_MODE ?= yes
-
-sim: HW_MODE = no
-sim: all
-
-srcdir = ${ROOT_DIR}/src
-musl_srcdir = $(SGX_LKL_MUSL)/src
+srcdir = ${SGXLKL_ROOT}/src
+musl_srcdir = $(SGXLKL_LIBC_SRC_DIR)/src
 sgxlkl_toolsdir = ../tools
 
 CC = gcc
 CROSS_COMPILE =
 RANLIB  = $(CROSS_COMPILE)ranlib
 
-ifeq ($(HW_MODE),yes)
-  CFLAGS_SGX = -DSGXLKL_HW
-  CFLAGS_LIBSGX = -DSGXLKL_HW
-  CFLAGS_MAIN = -I$(LINUX_SGX)/common/inc/internal -I$(EPID_SDK) -I$(LINUX_SGX)/common/inc
-  LINK_MAIN = -lcurl -lssl -lprotobuf-c -lcrypto
-else
-  CFLAGS_SGX =
-  CFLAGS_LIBSGX =
-  CFLAGS_MAIN =
-  LINK_MAIN =
-endif
+CFLAGS_MAIN = -I$(OE_SDK_INCLUDES)
+CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty
+LINK_MAIN =
 
-ifeq ($(RELEASE),true)
-  CFLAGS_MAIN += -DSGXLKL_RELEASE
-  CFLAGS_SGX += -DSGXLKL_RELEASE
-endif
+GIT_VERSION = "$(shell git describe --dirty --always --tags)"
+LKL_VERSION = "$(shell make --quiet -C ${SGXLKL_ROOT}/lkl kernelversion)"
 
-
-ifeq ($(DEBUG),true)
-  CFLAGS_LIBSGX += -DDEBUG -O1 -g3 -ggdb3
-  CFLAGS_SGX += -DDEBUG -O0 -g3 -ggdb3
-else ifeq ($(DEBUG),opt)
-  CFLAGS_LIBSGX += -O3 -g3 -ggdb3
-  CFLAGS_SGX += -O3 -g3 -ggdb3
-else
-  CFLAGS_SGX += -O3
-  CFLAGS_LIBSGX = -O3
-endif
-
-CFLAGS_MAIN += $(CFLAGS_SGX)
-
-CFLAGS_CTL =  -Ictl -Iinclude -I$(LINUX_SGX)/common/inc/internal -I$(EPID_SDK) -I$(LINUX_SGX)/common/inc -I${PROTOBUFC_RPC}/.. $(CFLAGS_SGX) --std=gnu11
-LINK_CTL = -lcurl -lssl -lprotobuf-c -lcrypto
+CFLAGS_MAIN += $(SGXLKL_CFLAGS_EXTRA) -DGIT_VERSION=\"$(GIT_VERSION)\" -DLKL_VERSION=\"$(LKL_VERSION)\"
 
 # Copied from sgx-lkl-musl/config.mak after ./configure
 # TODO: Do not hardcode cflags here
-CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -fPIC
-CFLAGS_C99FSE = -std=c99 -nostdinc -ffreestanding -fexcess-precision=standard -frounding-math -Wa,--noexecstack
+CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections \
+-Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -fPIC
+CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-math -Wa,--noexecstack
 
-CFLAGS_MUSL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_SGX) $(MUSL_CFLAGS)
-CFLAGS_MUSL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_MUSL_ALL += -I$(SGX_LKL_MUSL)/src/internal -I$(SGX_LKL_MUSL)/src/include -I$(SGX_LKL_MUSL_BUILD)/include -I$(SGX_LKL_MUSL)/arch/$(ARCH) -I$(CRYPTSETUP_BUILD)/include -I${PROTOBUFC_BUILD}/include -I${PROTOBUFC_RPC}/..
+CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
+CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -I$(CRYPTSETUP_BUILD)/include -I$(E2FSPROGS_BUILD)/include
 
-ifeq ($(HW_MODE),yes)
-  CFLAGS_MUSL_ALL += -I$(LINUX_SGX)/common/inc -I$(LINUX_SGX)/common/inc/internal
-endif
+# -----------------------------------------------------------------------------------------
 
-#all: $(LIB_SGX_LKL_BUILD)/sgx-lkl-deploy
-all: builddirs $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a $(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign $(LIB_SGX_LKL_BUILD)/sgx-lkl-run $(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl
+all: builddirs $(SGXLKL_RUN_TARGET) $(SGXLKL_STATIC_LIB)
+
+$(SGXLKL_RUN_TARGET): builddirs $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET)
+
+$(SGXLKL_STATIC_LIB): builddirs $(LIB_SGXLKL_BUILD)/sgxlkl/$(SGXLKL_STATIC_LIB)
 
 builddirs:
-	mkdir -p $(LIB_SGX_LKL_BUILD)/sgx
-	mkdir -p $(LIB_SGX_LKL_BUILD)/main
-	mkdir -p $(LIB_SGX_LKL_BUILD)/sgxlkl
-	mkdir -p $(LIB_SGX_LKL_BUILD)/deploy
-	mkdir -p $(LIB_SGX_LKL_BUILD)/ctl
+	@mkdir -p $(LIB_SGXLKL_BUILD)/enclave
+	@mkdir -p $(LIB_SGXLKL_BUILD)/main-oe
+	@mkdir -p $(LIB_SGXLKL_BUILD)/sgxlkl
+	@mkdir -p $(LIB_SGXLKL_BUILD)/deploy
 
-# libsgx ----
-LIBSGX_SRCS = sgx/sgx.c sgx/gdb_hook.c sgx/sgx_sign.c
-LIBSGX_OBJS = $(addprefix $(LIB_SGX_LKL_BUILD)/,$(LIBSGX_SRCS:.c=.o))
+# Build enclave static library: libsgxlkl.a
 
-$(LIB_SGX_LKL_BUILD)/sgx/libsgx.a: $(LIBSGX_OBJS)
-	$(AR) rc $@ $^ sgx/libs/lible.o
-	$(RANLIB) $@
+SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
+              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c)
 
-# libsgx needs can't be built with -O0, force -O1
-$(LIBSGX_OBJS): ${LIB_SGX_LKL_BUILD}/sgx/%.o: sgx/%.c
-	$(CC) -c --std=gnu11 -Isgx/include  -I$(MBEDTLS)/include $(CFLAGS_LIBSGX) $< -o $@
-
-# sgx-lkl-sign ----
-SIGN_SRCS = sgxlkl_sign.c sgxlkl_sign_cmdline.c
-SIGN_OBJS = $(addprefix $(LIB_SGX_LKL_BUILD)/sgx/,$(SIGN_SRCS:.c=.o))
-
-$(LIB_SGX_LKL_BUILD)/sgx-lkl-sign: $(SIGN_OBJS) $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a
-	$(CC) $(CFLAGS_SGX) --std=gnu11 -fno-pie -no-pie -Isgx/include $^ -o $@
-
-${SIGN_OBJS}: $(LIB_SGX_LKL_BUILD)/sgx/%.o: sgx/%.c
-	$(CC) $(CFLAGS_SGX) -c --std=gnu11 -Isgx/include $< -o $@
-
-# sgx-lkl-ctl ----
-CTL_SRCS = $(wildcard attestation/*.c) $(wildcard ctl/*.c) wireguard/wireguard.c shared/sgxlkl_util.c  main/messages.pb-c.c sgx/sgxlkl_ctl.pb-c.c
-CTL_OBJS = $(addprefix $(LIB_SGX_LKL_BUILD)/ctl/,$(CTL_SRCS:.c=.o))
-
-${CTL_OBJS}: $(LIB_SGX_LKL_BUILD)/ctl/%.o: %.c | $(PROTOBUFC_RPC)/protobuf-c-rpc-client.a include/sgxlkl_ctl.pb-c.h include/messages.pb-c.h
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS_CTL) -c $< -o $@
-
-$(LIB_SGX_LKL_BUILD)/sgx-lkl-ctl: builddirs $(CTL_OBJS) include/messages.pb-c.h
-	$(CC) $(CFLAGS_CTL) $(CTL_OBJS) $(PROTOBUFC_RPC)/protobuf-c-rpc-client.a $(LINK_CTL) -o $@
-
-# sgx-lkl-run ----
-ifeq ($(HW_MODE),yes)
-  ATTEST_DEPS = include/messages.pb-c.h
-  MAIN_SRCS = $(wildcard attestation/*.c) main/messages.pb-c.c
-else
-  ATTEST_DEPS =
+OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
+ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
+  SGXLKL_SRCS += ${OE_ENCLAVE_CALLS}
 endif
 
-$(LIB_SGX_LKL_BUILD)/sgx-lkl-run: $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a $(ATTEST_DEPS) builddirs
-	$(CC) $(CFLAGS_MAIN) -o $@ $(LIB_SGX_LKL_BUILD)/main/main.a $(LIB_SGX_LKL_BUILD)/sgx/libsgx.a ${MBEDTLS}/mbedtls.a -ljson-c $(LINK_MAIN) -pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld
+SGXLKL_OBJS=$(addprefix $(LIB_SGXLKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
-MAIN_SRCS+=$(wildcard main/*.c) $(wildcard shared/*.c)
-MAIN_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/main/,$(MAIN_SRCS:.c=.o))
+${OE_ENCLAVE_CALLS}: sgxlkl.edl
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --trusted $< --trusted-dir enclave/
+	mv enclave/sgxlkl_t.h include/enclave/; mv enclave/sgxlkl_args.h include/shared/
+	sed -i '/#include "sgxlkl_t.h"/c\#include "enclave/sgxlkl_t.h"' enclave/sgxlkl_t.c
+	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' enclave/sgxlkl_t.c
+	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' include/enclave/sgxlkl_t.h
 
-$(MAIN_OBJS): $(LIB_SGX_LKL_BUILD)/main/%.o: %.c | $(ATTEST_DEPS)
-	mkdir -p $(dir $@)
-	$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main/ $(CFLAGS_MAIN) -c -o $@ $<
+$(SGXLKL_OBJS): $(LIB_SGXLKL_BUILD)/sgxlkl/%.o: %.c | $(SGXLKL_LIBC_BLD_DIR)/include ${OE_ENCLAVE_CALLS}
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	@$(CC) -I$(srcdir)/include $(CFLAGS_SGXLKL_ALL) $(CFLAGS_ENCLAVE) -c -o $@ $<
 
-$(LIB_SGX_LKL_BUILD)/main/main.a: $(MAIN_OBJS) builddirs
-	$(AR) rc $@ $(MAIN_OBJS)
-	$(RANLIB) $@
+$(LIB_SGXLKL_BUILD)/sgxlkl/$(SGXLKL_STATIC_LIB): $(SGXLKL_OBJS) builddirs
+	@echo "AR rc $@"
+	@$(AR) rc $@ $(SGXLKL_OBJS)
+	@echo "RANLIB $@"
+	@$(RANLIB) $@
 
-$(LINUX_SGX) $(EPID_SDK) $(PROTOBUFC_BUILD)/include $(PROTOBUFC_RPC)/protobuf-c-rpc-client.a:
-	${MAKE} -C ${ROOT_DIR}/third_party $@
+# Build run tool: sgx-lkl-run-oe
 
-main/messages.pb-c.c include/messages.pb-c.h: ${LINUX_SGX}
-	(cd ${LINUX_SGX}/psw/ae/common/proto/; protoc-c messages.proto --c_out=.)
-	cp ${LINUX_SGX}/psw/ae/common/proto/messages.pb-c.c main
-	cp ${LINUX_SGX}/psw/ae/common/proto/messages.pb-c.h include
+MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c)
 
-sgx/sgxlkl_ctl.pb-c.c include/sgxlkl_ctl.pb-c.h:
-	(cd sgx/proto && protoc-c sgxlkl_ctl.proto --c_out=${srcdir}/sgx)
-	mv sgx/sgxlkl_ctl.pb-c.h include
+OE_HOST_CALLS = main-oe/sgxlkl_u.c
+ifeq (,$(findstring ${OE_HOST_CALLS},$(MAIN_OE_SRCS)))
+  MAIN_OE_SRCS += ${OE_HOST_CALLS}
+endif
 
-# libsgxlkl.a ----
-SGXLKL_SRCS=sgx/sgx_enclave_config.c sgx/enclave_mem.c sgx/enclave_signal.c sgx/sgxlkl_debug.c sgx/sgx_enclave_report.c sgx/enclave_cmd.c sgx/sgxlkl_app_config.c sgx/sgxlkl_ctl.pb-c.c $(wildcard shared/*.c) $(wildcard sched/*.c) $(wildcard host/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c)
-SGXLKL_OBJS=$(addprefix $(LIB_SGX_LKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
+MAIN_OE_OBJS =$(addprefix $(LIB_SGXLKL_BUILD)/main-oe/,$(MAIN_OE_SRCS:.c=.o))
 
-$(SGXLKL_OBJS): $(LIB_SGX_LKL_BUILD)/sgxlkl/%.o: %.c | $(SGX_LKL_MUSL_BUILD)/include ${LINUX_SGX} $(PROTOBUFC_BUILD)/include include/sgxlkl_ctl.pb-c.h
-	mkdir -p $(dir $@)
-	$(CC) -I$(srcdir)/include $(CFLAGS_MUSL_ALL) -c -o $@ $<
+OESGX_OUTPUT := $(shell echo `exec $(OE_OESIGN_TOOL_PATH)/oesgx`)
+ifeq ($(findstring SGX_FLC,$(OESGX_OUTPUT)),SGX_FLC)
+	DCAP_LIB=-lsgx_dcap_ql
+endif
 
-$(LIB_SGX_LKL_BUILD)/sgxlkl/libsgxlkl.a: $(SGXLKL_OBJS) builddirs
-	$(AR) rc $@ $(SGXLKL_OBJS)
-	$(RANLIB) $@
+${OE_HOST_CALLS}: sgxlkl.edl
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --untrusted $< --untrusted-dir main-oe/
+	mv main-oe/sgxlkl_u.h include/host/; mv main-oe/sgxlkl_args.h include/shared/
+	sed -i '/#include "sgxlkl_u.h"/c\#include "host/sgxlkl_u.h"' main-oe/sgxlkl_u.c
+	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' main-oe/sgxlkl_u.c
+	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' include/host/sgxlkl_u.h
 
-$(SGX_LKL_MUSL_BUILD)/include:
-	$(MAKE)  -C $(SGX_LKL_MUSL) install-headers
+$(MAIN_OE_OBJS): $(LIB_SGXLKL_BUILD)/main-oe/%.o: %.c | ${OE_HOST_CALLS}
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	@$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main-oe/ $(CFLAGS_MAIN) -c -o $@ $<
+
+$(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET): $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a $(OE_SDK_LIBS)/openenclave/host/liboehost.a builddirs
+	@echo "CC $<"
+	@$(CC) $(CFLAGS_MAIN) -o $@ $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a -ljson-c -lcrypto $(LINK_MAIN) \
+	-pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld -L$(OE_SDK_LIBS)/openenclave/host -rdynamic \
+	-Wl,-z,noexecstack -loehost -ldl -lsgx_enclave_common -lsgx_urts -lssl -lcrypto $(DCAP_LIB)
+
+$(LIB_SGXLKL_BUILD)/main-oe/main-oe.a: $(MAIN_OE_OBJS) builddirs
+	@echo "AR rc $@"
+	@$(AR) rc $@ $(MAIN_OE_OBJS)
+	@echo "RANLIB $@"
+	@$(RANLIB) $@
+
+$(SGXLKL_LIBC_BLD_DIR)/include:
+	[ "$(GLIBC_BUILD)" = "true" ] || $(MAKE) -C $(SGXLKL_LIBC_SRC_DIR) install-headers
 
 clean:
-	rm -rf $(LIB_SGX_LKL_BUILD)/sgx
-	rm -rf $(LIB_SGX_LKL_BUILD)/main
-	rm -rf $(LIB_SGX_LKL_BUILD)/sgxlkl
-	rm -rf $(LIB_SGX_LKL_BUILD)/sgx-lkl-sign
-	rm -rf $(LIB_SGX_LKL_BUILD)/sgx-lkl-run
-	rm -rf $(LIB_SGX_LKL_BUILD)/libsgx.so
-	rm -rf $(srcdir)/sgx/sgxlkl_ctl.pb-c.c $(srcdir)/include/sgxlkl_ctl.pb-c.h
+	rm -rf $(LIB_SGXLKL_BUILD)/enclave
+	rm -rf $(LIB_SGXLKL_BUILD)/main-oe
+	rm -rf $(LIB_SGXLKL_BUILD)/sgxlkl
+	rm -rf $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET)
+	rm -rf $(srcdir)/main-oe/sgxlkl_u.c $(srcdir)/include/host/sgxlkl_u.h $(srcdir)/enclave/sgxlkl_t.c $(srcdir)/include/enclave/sgxlkl_t.h
 
 .PHONY: clean builddirs

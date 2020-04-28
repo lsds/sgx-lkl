@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ring_buff.h"
+#include "shared/ring_buff.h"
 
 #if 0
 #define RING_BUFF_DBG_MSG
@@ -41,21 +41,23 @@
 
 #define GET_RING_BUFF_OBJ(handle) ((ring_buff_obj_t*)handle)
 
-typedef struct ring_buff_obj {
+typedef struct ring_buff_obj
+{
     /** Buffer */
-    uint8_t *write_buff;
-    uint8_t *read_buff;
+    uint8_t* write_buff;
+    uint8_t* read_buff;
     /** Buffer size */
     uint32_t size;
     /** Read pointer (available data start) */
     unsigned int read;
     /** Write pointer (free memory start) */
     unsigned int write;
-    /** Accumulation window pointer (it does not have info about the wrapped data) */
+    /** Accumulation window pointer (it does not have info about the wrapped
+     * data) */
     unsigned int acc;
     /**
-     * End of Data pointer. Used in reading mode. It marks last byte available for
-     * reading before write pointer wrapped to the buffer start.
+     * End of Data pointer. Used in reading mode. It marks last byte available
+     * for reading before write pointer wrapped to the buffer start.
      */
     int eod;
     /** Continuous data available */
@@ -64,39 +66,49 @@ typedef struct ring_buff_obj {
     int isEmpty;
 } ring_buff_obj_t;
 
-int ring_buff_struct_size()  {
+int ring_buff_struct_size()
+{
     return sizeof(ring_buff_obj_t);
 }
 
-void ring_buff_set_read_buff(ring_buff_handle_t handle, uint8_t* read_buff) {
+void ring_buff_set_read_buff(ring_buff_handle_t handle, uint8_t* read_buff)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
     obj->read_buff = read_buff;
 }
 
-void ring_buff_set_write_buff(ring_buff_handle_t handle, uint8_t* write_buff) {
+void ring_buff_set_write_buff(ring_buff_handle_t handle, uint8_t* write_buff)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
     obj->write_buff = write_buff;
 }
 
-ring_buff_err_t ring_buff_create(ring_buff_attr_t* attr, ring_buff_handle_t* handle) {
+ring_buff_err_t ring_buff_create(
+    ring_buff_attr_t* attr,
+    ring_buff_handle_t* handle)
+{
     ring_buff_obj_t* obj = NULL;
     ring_buff_err_t err_code = RING_BUFF_ERR_BAD_ARG;
 
-    if(attr == NULL || handle == NULL)
+    if (attr == NULL || handle == NULL)
     {
         goto done;
     }
-    if(attr->size == 0 || attr->buff == NULL)
+    if (attr->size == 0 || attr->buff == NULL)
     {
         goto done;
     }
-    // MN: If given handle does not point to NULL, use it instead of allocating memory
-    if(*(handle) != NULL) {
-        obj = (ring_buff_obj_t*) *handle;
-    } else {
+    // MN: If given handle does not point to NULL, use it instead of allocating
+    // memory
+    if (*(handle) != NULL)
+    {
+        obj = (ring_buff_obj_t*)*handle;
+    }
+    else
+    {
         obj = malloc(sizeof(ring_buff_obj_t));
     }
-    if(obj == NULL)
+    if (obj == NULL)
     {
         err_code = RING_BUFF_ERR_NO_MEM;
         goto done;
@@ -115,17 +127,18 @@ ring_buff_err_t ring_buff_create(ring_buff_attr_t* attr, ring_buff_handle_t* han
     err_code = RING_BUFF_ERR_OK;
 
 done:
-    if(handle != NULL)
+    if (handle != NULL)
     {
         *handle = obj;
     }
     return err_code;
 }
 
-ring_buff_err_t ring_buff_destroy(ring_buff_handle_t handle) {
+ring_buff_err_t ring_buff_destroy(ring_buff_handle_t handle)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
 
-    if(obj == NULL)
+    if (obj == NULL)
     {
         return RING_BUFF_ERR_GENERAL;
     }
@@ -134,24 +147,30 @@ ring_buff_err_t ring_buff_destroy(ring_buff_handle_t handle) {
     return RING_BUFF_ERR_OK;
 }
 
-ring_buff_err_t ring_buff_reserve(ring_buff_handle_t handle, void** buff, uint32_t size) {
+ring_buff_err_t ring_buff_reserve(
+    ring_buff_handle_t handle,
+    void** buff,
+    uint32_t size)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
 
-    if(handle == NULL || buff == NULL)
+    if (handle == NULL || buff == NULL)
     {
         return RING_BUFF_ERR_BAD_ARG;
     }
-    if(size > obj->size)
+    if (size > obj->size)
     {
         return RING_BUFF_ERR_SIZE;
     }
     /* simple situation, there is enough space left till the end of buffer */
     int read = __atomic_load_n(&(obj->read), __ATOMIC_RELAXED);
-    if(size <= obj->size - obj->write)
+    if (size <= obj->size - obj->write)
     {
-        //MN: bugfix in condition
-        /* don't want to overwrite read buffer partition, wait for free chunk if read is too close up-front */
-        if((obj->write < read && obj->write + size > read) || (obj->write == read && obj->isEmpty > 0))
+        // MN: bugfix in condition
+        /* don't want to overwrite read buffer partition, wait for free chunk if
+         * read is too close up-front */
+        if ((obj->write < read && obj->write + size > read) ||
+            (obj->write == read && obj->isEmpty > 0))
             return RING_BUFF_ERR_NO_MEM;
 
         *buff = obj->write_buff + obj->write;
@@ -161,10 +180,18 @@ ring_buff_err_t ring_buff_reserve(ring_buff_handle_t handle, void** buff, uint32
     else
     {
 #ifdef RING_BUFF_DBG_MSG
-        printf("RESERVE: Wrap around %d (%p) RD %p ACC %p WR %p\n", size, obj->buff, obj->read, obj->acc, obj->write);
+        printf(
+            "RESERVE: Wrap around %d (%p) RD %p ACC %p WR %p\n",
+            size,
+            obj->buff,
+            obj->read,
+            obj->acc,
+            obj->write);
 #endif
-        /* try to get buffer from the beginning, and be sure that read is not overwritten */
-        if(read < size || read > obj->write || (obj->write == read && obj->isEmpty > 0))
+        /* try to get buffer from the beginning, and be sure that read is not
+         * overwritten */
+        if (read < size || read > obj->write ||
+            (obj->write == read && obj->isEmpty > 0))
             return RING_BUFF_ERR_NO_MEM;
 
         /* reader must not exceed data available (current write) */
@@ -178,28 +205,38 @@ ring_buff_err_t ring_buff_reserve(ring_buff_handle_t handle, void** buff, uint32
     return RING_BUFF_ERR_OK;
 }
 
-ring_buff_err_t ring_buff_commit(ring_buff_handle_t handle, void* buff, uint32_t size) {
+ring_buff_err_t ring_buff_commit(
+    ring_buff_handle_t handle,
+    void* buff,
+    uint32_t size)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
 
-    if(handle == NULL || buff == NULL)
+    if (handle == NULL || buff == NULL)
     {
         return RING_BUFF_ERR_BAD_ARG;
     }
 
-    // For commit just modifiy acc_size to signal that data is available to be read.
+    // For commit just modifiy acc_size to signal that data is available to be
+    // read.
     __atomic_fetch_add(&(obj->acc_size), size, __ATOMIC_RELAXED);
 
     return RING_BUFF_ERR_OK;
 }
 
-ring_buff_err_t ring_buff_free(ring_buff_handle_t handle, void* buff, uint32_t size) {
+ring_buff_err_t ring_buff_free(
+    ring_buff_handle_t handle,
+    void* buff,
+    uint32_t size)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
 
-    if(obj == NULL)
+    if (obj == NULL)
     {
         return RING_BUFF_ERR_BAD_ARG;
     }
-    /* Free will just update read pointer. It is up to the user to call it in proper order. */
+    /* Free will just update read pointer. It is up to the user to call it in
+     * proper order. */
     obj->read = ((uint64_t)buff - (uint64_t)obj->read_buff) + size;
 
     __atomic_fetch_sub(&(obj->isEmpty), size, __ATOMIC_RELAXED);
@@ -207,32 +244,39 @@ ring_buff_err_t ring_buff_free(ring_buff_handle_t handle, void* buff, uint32_t s
     return RING_BUFF_ERR_OK;
 }
 
-ring_buff_err_t ring_buff_read(ring_buff_handle_t handle, void** buff, uint32_t size, uint32_t *read) {
+ring_buff_err_t ring_buff_read(
+    ring_buff_handle_t handle,
+    void** buff,
+    uint32_t size,
+    uint32_t* read)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
     ring_buff_err_t err = RING_BUFF_ERR_OK;
 
-    if(handle == NULL || buff == NULL || size > obj->size || read == NULL)
+    if (handle == NULL || buff == NULL || size > obj->size || read == NULL)
     {
         return RING_BUFF_ERR_BAD_ARG;
     }
     int acc_size = __atomic_load_n(&(obj->acc_size), __ATOMIC_RELAXED);
     /* make sure that we have enough data available */
-    if(size > acc_size)
-        return RING_BUFF_ERR_NO_MEM;	
+    if (size > acc_size)
+        return RING_BUFF_ERR_NO_MEM;
 
-    if(obj->acc + size > obj->size) {
+    if (obj->acc + size > obj->size)
+    {
         obj->acc = 0;
     }
 
-
     *buff = obj->read_buff + obj->acc;
-    /* If writer wrapped, and we don't have enough data at the end, give as much as we can */
-    if(obj->eod != -1 && (obj->acc + size > obj->eod))
+    /* If writer wrapped, and we don't have enough data at the end, give as much
+     * as we can */
+    if (obj->eod != -1 && (obj->acc + size > obj->eod))
     {
         *read = obj->eod - obj->acc;
 
-        /* just a wrap (no data) available -> wrap right away and give requested size */
-        if(*read == 0)
+        /* just a wrap (no data) available -> wrap right away and give requested
+         * size */
+        if (*read == 0)
         {
             *read = size;
             *buff = obj->read_buff;
@@ -246,7 +290,12 @@ ring_buff_err_t ring_buff_read(ring_buff_handle_t handle, void** buff, uint32_t 
         /* reset EOD */
         obj->eod = -1;
 #ifdef RING_BUFF_DBG_MSG
-        printf("READ: Wrap around %u (%u) %p %p\n", *read, obj->acc_size, obj->read, obj->acc);
+        printf(
+            "READ: Wrap around %u (%u) %p %p\n",
+            *read,
+            obj->acc_size,
+            obj->read,
+            obj->acc);
 #endif
     }
     else
@@ -257,96 +306,120 @@ ring_buff_err_t ring_buff_read(ring_buff_handle_t handle, void** buff, uint32_t 
         *read = size;
     }
 #ifdef RING_BUFF_DBG_MSG
-    if(*buff + size > obj->buff + obj->size) {
-        printf("ACC: %p\nSize: %d\nRead: %d\nEOD: %p\n", obj->acc, size, *read, obj->eod);
+    if (*buff + size > obj->buff + obj->size)
+    {
+        printf(
+            "ACC: %p\nSize: %d\nRead: %d\nEOD: %p\n",
+            obj->acc,
+            size,
+            *read,
+            obj->eod);
     }
 #endif
     return err;
 }
 
-ring_buff_err_t ring_buff_write_msg(ring_buff_handle_t handle, void* data, uint32_t size) {
+ring_buff_err_t ring_buff_write_msg(
+    ring_buff_handle_t handle,
+    void* data,
+    uint32_t size)
+{
     ring_buff_obj_t* obj = GET_RING_BUFF_OBJ(handle);
 
-    if(handle == NULL || data == NULL || size == 0 || size + sizeof(uint32_t) > obj->size) {
+    if (handle == NULL || data == NULL || size == 0 ||
+        size + sizeof(uint32_t) > obj->size)
+    {
         return RING_BUFF_ERR_BAD_ARG;
     }
 
     // Allocate buffer space for message + message-length
     uint32_t* sizePointer;
-    ring_buff_err_t err = ring_buff_reserve(handle, (void**) &sizePointer, size + sizeof(uint32_t));
-    if(err != RING_BUFF_ERR_OK)
+    ring_buff_err_t err = ring_buff_reserve(
+        handle, (void**)&sizePointer, size + sizeof(uint32_t));
+    if (err != RING_BUFF_ERR_OK)
         return err;
 
     // Write size of message and then its contents
     *sizePointer = size;
 
-    void* dataPointer = (void*) (sizePointer + 1);
+    void* dataPointer = (void*)(sizePointer + 1);
     memcpy(dataPointer, data, size);
 
     err = ring_buff_commit(handle, sizePointer, size + sizeof(uint32_t));
     return err;
 }
 
-ring_buff_err_t ring_buff_read_msg(ring_buff_handle_t handle, void** data, uint32_t* messageSize) {
-    if(handle == NULL || data == NULL) {
+ring_buff_err_t ring_buff_read_msg(
+    ring_buff_handle_t handle,
+    void** data,
+    uint32_t* messageSize)
+{
+    if (handle == NULL || data == NULL)
+    {
         return RING_BUFF_ERR_BAD_ARG;
     }
 
     // First read message size written before payload
     void* dataPointer;
     uint32_t read = 0;
-    ring_buff_err_t err = ring_buff_read(handle, &dataPointer, sizeof(uint32_t), &read);
+    ring_buff_err_t err =
+        ring_buff_read(handle, &dataPointer, sizeof(uint32_t), &read);
 
-    if(err != RING_BUFF_ERR_OK) {
+    if (err != RING_BUFF_ERR_OK)
+    {
         return err;
     }
 
     // Sucessful read but too few bytes?
-    if(read != sizeof(uint32_t))
+    if (read != sizeof(uint32_t))
         return RING_BUFF_ERR_INTERNAL;
 
-    *(messageSize) = *((uint32_t*) dataPointer);
+    *(messageSize) = *((uint32_t*)dataPointer);
 
     // Free bytes for message size. Payload has to be freed manually later.
     err = ring_buff_free(handle, dataPointer, read);
-    if(err != RING_BUFF_ERR_OK) {
+    if (err != RING_BUFF_ERR_OK)
+    {
         return err;
     }
 
     // Now read as many bytes as described in message length.
     err = ring_buff_read(handle, data, *messageSize, &read);
-    if(err != RING_BUFF_ERR_OK) {
+    if (err != RING_BUFF_ERR_OK)
+    {
         return err;
     }
 
-    if(read != *messageSize)
-        return RING_BUFF_ERR_INTERNAL;	
+    if (read != *messageSize)
+        return RING_BUFF_ERR_INTERNAL;
 
     return err;
 }
 
-void ring_buff_print_err(ring_buff_err_t err) {
-    switch(err) {
-    case RING_BUFF_ERR_GENERAL:
-        fprintf(stderr, "General error happened.\n");
-        break;
-    case RING_BUFF_ERR_NO_MEM:
-        fprintf(stderr, "Out of memory error.\n");
-        break;
-    case RING_BUFF_ERR_OVERRUN:
-        fprintf(stderr, "Internal error - buffer overrun.\n");
-        break;
-    case RING_BUFF_ERR_SIZE:
-        fprintf(stderr, "Data size requested wrong.\n");
-        break;
-    case RING_BUFF_ERR_INTERNAL:
-        fprintf(stderr, "Internal general error.\n");
-        break;
-    case RING_BUFF_ERR_PERM:
-        fprintf(stderr, "Operation not permited.\n");
-        break;
-    default:
-        fprintf(stderr, "Unknown error code: %d.\n", err);
-        break;
+void ring_buff_print_err(ring_buff_err_t err)
+{
+    switch (err)
+    {
+        case RING_BUFF_ERR_GENERAL:
+            fprintf(stderr, "General error happened.\n");
+            break;
+        case RING_BUFF_ERR_NO_MEM:
+            fprintf(stderr, "Out of memory error.\n");
+            break;
+        case RING_BUFF_ERR_OVERRUN:
+            fprintf(stderr, "Internal error - buffer overrun.\n");
+            break;
+        case RING_BUFF_ERR_SIZE:
+            fprintf(stderr, "Data size requested wrong.\n");
+            break;
+        case RING_BUFF_ERR_INTERNAL:
+            fprintf(stderr, "Internal general error.\n");
+            break;
+        case RING_BUFF_ERR_PERM:
+            fprintf(stderr, "Operation not permited.\n");
+            break;
+        default:
+            fprintf(stderr, "Unknown error code: %d.\n", err);
+            break;
     }
 }

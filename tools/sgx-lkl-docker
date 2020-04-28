@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Set the SGXLKL_ROOT path
+cmd_root="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+sgxlkl_root="${cmd_root}/.."
+
+sub_cmd=
+no_debug=
+build_from=source
+oe_prefix=/opt/openenclave
+cc_name=
+cc_app_cfg=
+cc_host_cfg=
+
+# Support windows msys environments
+if  [ "${OSTYPE}" == "msys" ]; then
+    # See https://github.com/git-for-windows/msys2-runtime/pull/11 for context
+    export msys_no_pathconv=1
+    echo "Detected msys: Disabled msys mangling."
+fi
+
+function usage() {
+    echo "Usage:"
+    echo "`basename $0` <command>"
+    echo
+    echo "where <command> is one of the following:"
+    echo "  build-sgxlkl                                       Build SGX-LKL-OE using Docker"
+    echo "    --no-debug                                       Build SGX-LKL without debug features"
+    echo "    --oe-prefix=<path>                               Build with Open Enclave installation in specified folder"
+    echo "                                                     (default: /opt/openenclave)"
+    echo
+    echo "  build-cc                                           Build confidential container" 
+    echo "    --name=<name>                                    Name of Docker image to be created."
+    echo "    --host-cfg=<path>                                Path to host configuration file."
+    echo "    --app-cfg=<path>                                 Path to app configuration file."
+    echo
+    echo " [-?]                                                Display this help message."
+    exit 1
+}
+
+function build-sgxlkl() {
+
+    echo -n Building SGX-LKL-OE using Docker
+    [[ $no_debug == 1 ]] && echo -n " without " || echo -n " with "
+    echo debug features ...
+
+    docker build --target builder \
+        -t lsds/sgx-lkl:build \
+        -f ${sgxlkl_root}/tools/docker/Dockerfile-sgxlkl-build \
+        ${sgxlkl_root}/tools/docker
+    
+    if [[ $no_debug == 1 ]]; then
+        debug=false
+    else
+        debug=true
+    fi
+
+    docker_cmd="cd $sgxlkl_root && source $oe_prefix/share/openenclave/openenclaverc && make DEBUG=${debug}"
+    volume_mounts="-v $sgxlkl_root:$sgxlkl_root -v $oe_prefix:$oe_prefix:ro"
+
+    docker run --rm --privileged=true -u $(id -u $USER) $volume_mounts \
+        lsds/sgx-lkl:build /bin/bash -c "${docker_cmd}"
+}
+
+function build-cc() {
+    echo "SGX-LKL root: $sgxlkl_root"
+
+    echo "Creating confidential container '${cc_name}'"
+
+    context_dir=$(mktemp -d sgxlkl_docker_context_XXXX)
+    echo "Using temporary directory ${context_dir}"
+
+    cat >>${context_dir}/Dockerfile << EOF
+FROM scratch
+COPY . /
+ENTRYPOINT ["/opt/sgx-lkl/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
+CMD ["--hw-release"]
+EOF
+
+    cp ${cc_app_cfg} ${context_dir}/app-cfg.json
+
+    disk_paths=$(${cmd_root}/sgx-lkl-cfg dockerize \
+        --host-cfg=${cc_host_cfg} \
+        --host-cfg-docker=${context_dir}/host-cfg.json \
+        --print-disk-paths)
+    
+    while IFS= read -r line; do
+        IFS=':' read -ra entry <<< "$line"
+        img_path=${entry[0]}
+        img_docker_path=${entry[1]}
+        cp $img_path $context_dir$img_docker_path
+    done <<< "${disk_paths}"
+    
+    docker build -t $cc_name $context_dir
+
+    echo "Done. Tagged '$cc_name'."
+
+    rm -rf $context_dir
+}
+
+function main() {
+
+    [ $# -eq 0 ] && usage
+
+    while :; do
+        case $1 in
+            -h|-\?|--help)
+                usage && exit
+                ;;
+            build-sgxlkl)
+                sub_cmd=$1
+                ;;
+            --no-debug)
+                if [ $sub_cmd != "build-sgxlkl" ]; then
+                    usage && exit 1
+                fi
+                no_debug=1
+                echo "no_debug currently unsupported" && exit
+                ;;
+            --oe-prefix=?*)
+                if [ $sub_cmd != "build-sgxlkl" ]; then
+                    usage && exit 1
+                fi
+                oe_prefix=${1#*=}
+                ;;
+            build-cc)
+                sub_cmd=$1
+                ;;
+            --name=?*)
+                cc_name=${1#*=}
+                ;;
+            --app-cfg=?*)
+                cc_app_cfg=${1#*=}
+                ;; 
+            --host-cfg=?*)
+                cc_host_cfg=${1#*=}
+                ;;
+            --) # End of options
+                shift
+                break
+                ;;
+            -?*)
+                echo "Unknown option: $1" && usage && exit 1
+                ;;
+            *) # Default: no more options, break
+                break
+        esac
+        shift
+    done
+
+    case "$sub_cmd" in
+        build-sgxlkl)
+            build-sgxlkl "$@"
+            ;;
+        build-cc)
+            build-cc "$@"
+            ;;
+        *)
+            echo "Missing/unknown command" && usage && exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,20 @@
+{
+    "run": "/usr/bin/python3",
+    "args": [
+      "-c",
+      "print(\"SGX Encrypted Confidential Container app-config TEST PASSED !\")"
+    ],
+    "environment": {},
+    "disk_config": [
+      {
+        "disk": "/",
+        "readonly": false,
+        "key": ""
+      },
+      {
+        "disk": "/data",
+        "readonly": false,
+        "key": ""
+      }
+    ]
+}

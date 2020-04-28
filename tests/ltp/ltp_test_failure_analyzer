@@ -1,0 +1,66 @@
+#!/bin/bash
+
+CSV_TEST_REPORT="sgxlkl_oe_ltp_failure.csv"
+REPORT_DIR=report
+[ x"$1" != "x" ] && REPORT_DIR="$1"
+[ ! -d $REPORT_DIR ] && exit 1
+
+files=$(find $REPORT_DIR -name "*.txt")
+
+counter=0
+specific_failure_identifiers=("Out of memory" "fork() failed" "system call is not implemented" \
+                              "no xattr support" "ENOSYS" "execve_child" "failed: ENODEV" \
+                              "mmap() failed to get bad address" "tst_checkpoint_wait" \
+                              "fork failed" "LTP_IPC_PATH is not defined" "execlp" "Failed to open FILE" \
+                              "unexpected signal SIGSEGV" "No child process" "Function not implemented" \
+                              "Kernel panic! Run with SGXLKL_KERNEL_VERBOSE=1" )
+check_specific_failures()
+{
+    str=""
+    error_desc=""
+    filename=$1
+    err_category="$2"
+    for ((j = 0; j < ${#specific_failure_identifiers[@]}; j++));do
+        grep -qw "${specific_failure_identifiers[$j]}" $filename
+        ret=$?
+        if [ $ret -eq 0 ];then
+            str="$str ${specific_failure_identifiers[$j]} /"
+            error_desc=$(grep -w "${specific_failure_identifiers[$j]}" $filename | head -1)
+        else
+            if [ x"$error_desc" == x ];then
+                error_desc=$(grep -w "$err_category" $filename | head -1)
+            fi
+        fi
+    done
+    str=${str%/*}
+    test_case=$(echo ${filename%.*.*} | sed 's/-/\//g; s/_/\//g')
+    test_logname=$filename
+    counter=$(($counter + 1))
+    [ x"$str" != x ] && printf '\t %-80s %-30s\n' "$filename" "[$str]" || printf '\t %-70s\n' "$filename"
+    echo "$counter, $test_case, $test_logname, $err_category, [ $str ], \"$error_desc\"" >> $CSV_TEST_REPORT
+}
+
+
+search_failure()
+{
+    err_type="$1"
+    for file in $files;do
+        grep -qw "$err_type" $file
+        ret=$?
+        if [ $ret -eq 0 ];then
+            check_specific_failures $file "$err_type"
+        fi
+    done
+}
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+echo "SI. No, Test Case , Log FileName, LTP Failure Category, Failure Reason, Error Description" > $CSV_TEST_REPORT
+failure_identifiers=()
+while IFS= read -r line; do failure_identifiers+=("$line"); done < $DIR/failure_identifiers.txt
+
+for ((i = 0; i < ${#failure_identifiers[@]}; i++));do
+    failure="${failure_identifiers[$i]}"
+    # This is causing false negative in master test_runner.sh for LTP. Commenting out
+    # echo "______ Scanning $failure ______"
+    search_failure "$failure"
+done

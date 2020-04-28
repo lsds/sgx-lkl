@@ -1,0 +1,20 @@
+{
+    "run": "/usr/bin/python3",
+    "args": [
+      "-c",
+      "print(\"Hello SGX World from an encrypted Confidential Container with application config!\")"
+    ],
+    "environment": {},
+    "disk_config": [
+      {
+        "disk": "/",
+        "readonly": false,
+        "key": ""
+      },
+      {
+        "disk": "/data",
+        "readonly": true,
+        "key": ""
+      }
+    ]
+}

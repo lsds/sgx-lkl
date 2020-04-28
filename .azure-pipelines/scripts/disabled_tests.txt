@@ -1,0 +1,5 @@
+tests/containers/encrypted/app-config/Makefile
+tests/containers/encrypted/create-disk/Makefile
+tests/containers/encrypted/verify-integrity/Makefile
+tests/containers/encrypted/verify-verity/Makefile
+tests/basic/network/Makefile
