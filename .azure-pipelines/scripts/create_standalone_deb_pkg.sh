@@ -19,8 +19,8 @@ set -e
 #     external/
 #       ld-linux-x86-64.so.2
 #       libdcap_quoteprov.so
-#       libcurl-f3c19fde.so.4.5.0
-#       libgcc_s-e78f03a3.so.1
+#       libcurl.so.4
+#       libgcc_s.so.1
 #       ...
 #   tools/
 #
@@ -75,6 +75,7 @@ auditwheel_version=3.1.0
 patchelf_version=0.10
 
 deb_pkg_name=clc
+deb_pkg_license=/usr/share/common-licenses/GPL-2
 install_prefix=/opt/sgx-lkl
 exe_name=sgx-lkl-run-oe
 
@@ -242,6 +243,31 @@ Architecture: amd64
 Maintainer: Microsoft <help@microsoft.com>
 Description: Confidential Linux Containers standalone distribution for Linux
 EOF
+
+# Assemble license files of all bundled libraries.
+pkgs=()
+for lib_path in $deb_install_prefix/lib/external/*; do
+    lib_name=${lib_path##*/}
+    pkg=$(dpkg -S \*/$lib_name | grep -v -e clc -e i386 | head -1 | cut -f1 -d":")
+    if [[ -z $pkg ]]; then
+        echo "No package found that contains $lib_name! Exiting..."
+        exit 1
+    fi
+    pkgs+=( $pkg )
+done
+uniq_pkgs=($(printf "%s\n" "${pkgs[@]}" | sort -u | tr '\n' ' '))
+NL=$'\n'
+copyright="$(cat $deb_pkg_license)"
+copyright="$copyright$NL$NL==================${NL}THIRD-PARTY NOTICES"
+for pkg in "${uniq_pkgs[@]}"; do
+    copyright_path=/usr/share/doc/$pkg/copyright
+    if [ ! -f $copyright_path ]; then
+        echo "No copyright file found for $pkg! Exiting..."
+        exit 1
+    fi
+    copyright="$copyright$NL$NL##################$NL$(cat $copyright_path)"
+done
+echo "$copyright" > $deb_root_dir/DEBIAN/copyright
 
 cd $tmp_dir
 dpkg-deb --build $deb_pkg_full_name
