@@ -2,7 +2,7 @@
 #define SGXLKL_CONFIG_H
 
 #include <elf.h>
-
+#include "host/timer_dev.h"
 #include "mpmc_queue.h"
 #include "shared/vio_event_channel.h"
 #include "time.h"
@@ -81,6 +81,9 @@ typedef struct sgxlkl_shared_memory
     void* virtio_swiotlb;             /* memory for setting up bounce buffer */
     size_t virtio_swiotlb_size;       /* bounce buffer size */
     int enable_swiotlb;               /* Option to toggle swiotlb in SW mode */
+
+    /* shared memory for getting time from the host  */
+    struct timer_dev* timer_dev_mem;
 } sgxlkl_shared_memory_t;
 
 /* Configuration for SGX-LKL enclave from host */

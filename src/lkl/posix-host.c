@@ -19,9 +19,12 @@
 #include "lkl/setup.h"
 
 #include "enclave/sgxlkl_config.h"
+#include "enclave/enclave_timer.h"
 #include "enclave/sgxlkl_t.h"
-
+#include "lkl/iomem.h"
+#include "lkl/jmp_buf.h"
 #include "openenclave/internal/print.h"
+#include "syscall.h"
 
 #define NSEC_PER_SEC 1000000000L
 
@@ -387,19 +390,6 @@ static void* tls_get(struct lkl_tls_key* key)
     return lthread_getspecific(key->key);
 }
 
-static unsigned long long time_ns(void)
-{
-    struct timespec ts = {0};
-    int ret = 0;
-    /* Use the time ocall here */
-    if (sgxlkl_host_syscall_clock_gettime(&ret, CLOCK_REALTIME, &ts) != OE_OK ||
-        ret != 0)
-    {
-        panic();
-    }
-    return 1e9 * ts.tv_sec + ts.tv_nsec;
-}
-
 typedef struct sgxlkl_timer
 {
     void (*callback_fn)(void*);
@@ -612,7 +602,7 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .tls_free = tls_free,
     .tls_set = tls_set,
     .tls_get = tls_get,
-    .time = time_ns,
+    .time = enclave_nanos,
     .timer_alloc = timer_alloc,
     .timer_set_oneshot = timer_set_oneshot,
     .timer_free = timer_free,

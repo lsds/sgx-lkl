@@ -9,6 +9,7 @@
 #include <enclave/ticketlock.h>
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
+#include "enclave/enclave_timer.h"
 
 /* stores all the futex_q's */
 SLIST_HEAD(__futex_q_head, futex_q)
@@ -47,7 +48,7 @@ static uint32_t to_futex_key(int* uaddr)
 void futex_tick()
 {
     struct futex_q *fq, *tmp;
-    uint64_t curr_usec_real, curr_usec_mntc;
+    uint64_t usecs;
     struct timespec ts;
     int local_futex_sleepers;
 
@@ -56,11 +57,7 @@ void futex_tick()
     if (!local_futex_sleepers)
         return;
 
-    int ret = 0;
-    sgxlkl_host_syscall_clock_gettime(&ret, CLOCK_REALTIME, &ts);
-    curr_usec_real = _lthread_timespec_to_usec(&ts);
-    sgxlkl_host_syscall_clock_gettime(&ret, CLOCK_MONOTONIC, &ts);
-    curr_usec_mntc = _lthread_timespec_to_usec(&ts);
+    usecs = enclave_nanos() / 1000;
 
     a_barrier();
 
@@ -70,10 +67,10 @@ void futex_tick()
     SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp)
     {
         if (fq->futex_deadline &&
-            ((fq->clock =
-                  CLOCK_REALTIME && fq->futex_deadline <= curr_usec_real) ||
-             (fq->clock =
-                  CLOCK_MONOTONIC && fq->futex_deadline <= curr_usec_mntc)))
+            ((fq->clock ==
+                  CLOCK_REALTIME && fq->futex_deadline <= usecs ||
+             (fq->clock ==
+                  CLOCK_MONOTONIC && fq->futex_deadline <= usecs))))
         {
             struct lthread* lt = fq->futex_lt;
             fq->futex_lt = NULL;
@@ -134,8 +131,7 @@ static void __do_futex_unlock(void* lock)
 static int __do_futex_sleep(
     struct futex_q* fq,
     const struct timespec* ts,
-    const clock_t clock,
-    const struct timespec* now)
+    const clock_t clock)
 {
     FUTEX_SGXLKL_VERBOSE(
         "about to sleep in tid %d on key 0x%x\n",
@@ -151,7 +147,7 @@ static int __do_futex_sleep(
     {
         fq->clock = clock;
         fq->futex_deadline =
-            _lthread_timespec_to_usec(now) + _lthread_timespec_to_usec(ts);
+            (enclave_nanos() / 1000) + _lthread_timespec_to_usec(ts);
     }
 
     /* give up the CPU, unlocking the lock in one atomic step */
@@ -167,8 +163,7 @@ static int futex_wait(
     int val,
     uint32_t bitset,
     const struct timespec* ts,
-    const clock_t clock,
-    const struct timespec* now)
+    const clock_t clock)
 {
     /* XXX (lkurusa): this should be an atomic read */
     int r, rc;
@@ -196,7 +191,7 @@ static int futex_wait(
             return -1;
 
         /* sleep on the FQ */
-        rc = __do_futex_sleep(fq, ts, clock, now);
+        rc = __do_futex_sleep(fq, ts, clock);
 
         FUTEX_SGXLKL_VERBOSE(
             "FUTEX_WAITING woke up, this is tid %d\n", lthread_self()->tid);
@@ -309,22 +304,11 @@ int syscall_SYS_futex(
         return -ENOSYS;
     }
 
-    /* Get current time before acquiring the lock since clock_gettime performs
-     * a host system call which will make the lthread yield and potentially
-     * cause a deadlock. */
+    // SEAN_TODO: still using clock, but not getting time yet.
     clock_t clock =
         op & FUTEX_CLOCK_REALTIME ? CLOCK_REALTIME : CLOCK_MONOTONIC;
     op &= ~(FUTEX_CLOCK_REALTIME);
-    /* The deadline is computed as now + timeout. For absolute values, set now
-     * to 0. */
-    struct timespec now = {0};
-    /* With FUTEX_WAKE, timeout is interpreted as relative, with others as
-     * absolute */
-    if (op == FUTEX_WAIT)
-    {
-        int ret = 0;
-        sgxlkl_host_syscall_clock_gettime(&ret, clock, &now);
-    }
+
 
     ticket_lock(&futex_q_lock);
     switch (op)
@@ -340,7 +324,7 @@ int syscall_SYS_futex(
         case FUTEX_WAIT:
             assert(lthread_self());
 
-            rc = futex_wait(uaddr, val, bitset, timeout, clock, &now);
+            rc = futex_wait(uaddr, val, bitset, timeout, clock);
             if (rc == 0 || rc == -ETIMEDOUT)
                 goto ret_nounlock;
             break;

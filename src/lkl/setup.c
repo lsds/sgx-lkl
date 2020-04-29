@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #define _GNU_SOURCE // Needed for strchrnul
+#include <lkl.h>
+#include <lkl_host.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -16,6 +18,14 @@
 
 #include <lkl.h>
 #include <lkl_host.h>
+#include <unistd.h>
+
+#include "enclave/enclave_util.h"
+#include "enclave/sgxlkl_t.h"
+#include "enclave/wireguard.h"
+#include "enclave/wireguard_util.h"
+#include "libcryptsetup.h"
+#include "libdevmapper.h"
 #include "lkl/disk.h"
 #include "lkl/ext4_create.h"
 #include "lkl/posix-host.h"
@@ -31,6 +41,7 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
+#include "pthread.h"
 #include "shared/env.h"
 
 #define BIT(x) (1ULL << x)
@@ -1261,6 +1272,33 @@ void lkl_terminate(int exit_status)
     }
 }
 
+static void init_enclave_clock()
+{
+    struct timespec ts;
+
+    SGXLKL_VERBOSE("Setting enclave realtime clock\n");
+
+    if (oe_is_within_enclave(
+            sgxlkl_enclave->shared_memory.timer_dev_mem, sizeof(struct timer_dev)))
+    {
+        sgxlkl_fail(
+            "timer_dev memory isn't outside of the enclave. Aborting.\n");
+    }
+
+    struct timer_dev* t = sgxlkl_enclave->shared_memory.timer_dev_mem;
+    struct lkl_timespec start_time;
+    start_time.tv_sec = t->init_walltime_sec;
+    start_time.tv_nsec = t->init_walltime_nsec;
+    int ret = lkl_sys_clock_settime(LKL_CLOCK_REALTIME, (void*)&start_time);
+    if (ret != 0)
+    {
+        sgxlkl_fail(
+            "lkl_sys_clock_settime(\"/\") failed: ret=%i error=\"%s\"\n",
+            ret,
+            lkl_strerror(ret));
+    }
+}
+
 void lkl_start_init()
 {
     size_t i;
@@ -1406,6 +1444,8 @@ void lkl_start_init()
 
     SGXLKL_VERBOSE("calling init_random()\n");
     init_random();
+
+    init_enclave_clock();
 
     // Set environment variable to export SHMEM address to the application.
     // Note: Due to how putenv() works, we need to allocate the environment

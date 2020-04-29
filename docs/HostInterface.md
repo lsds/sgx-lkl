@@ -28,7 +28,8 @@ The target environments differ from most VM interfaces in several respects:
 Additionally, there are some limitations that are specific to SGX (some specific to SGX1):
 
  * The guest cannot change page protections.
- * There is no time source in the guest.
+ * There is no trusted time source in the guest.
+   Time is provided from the host via a mechanism detailed below in the Time section.
 
 The design is intended to both support SGX efficiently and to be adaptable to future TEE technologies.
 
@@ -154,7 +155,35 @@ Note that the guest cannot guarantee anything about the amount of time that this
 Time
 ----
 
-**TODO** Document the time protocol once we have one.  Currently, we have an ocall for the host's `clock_gettime`, which is slow.
+The passage of time is provided to the enclave via shared data structure that is set up by the host on startup.
+The shared data structure, `timer_dev`,
+
+```c
+struct timer_dev
+{
+    uint64_t version;
+    _Atomic(uint64_t) nanos;
+    uint64_t init_walltime_sec;
+    uint64_t init_walltime_nsec;
+};
+```
+
+`timer_dev` has a field `nanos` that indicates the number of monotonic nanoseconds that have passed since startup.
+An instance of `timer_dev` is initialized on startup and updated periodically from outside the enclave to reflect the passage of time.
+`nanos` can be accessed from within the enclave to create a monotonic source of time.
+
+Inside the enclave, an internal "source of truth" for monotonic passage of time is also kept.
+When an enclave caller needs access to the latest monotonic time, the following general logic occurs:
+
+- If monotonic time outside the enclave is greater than monotonic time inside the enclave, then internal time is set to external time.
+
+Wallclock time within the enclave is provided by setting the wallclock on enclave startup to a time approximately the same as the host.
+Wallclock time inside the enclave can then move based on the corresponding movement of the monotonic nanoseconds as described earlier in this section.
+`init_walltime_sec` and `init_walltime_nsec` are used to convey **on startup** the hosts perceived wallclock time.
+Note, with the current version of this interface, it should be assumed that `init_walltime_*` fields are set only once.
+Software running inside the enclave can use standard system calls such as `clock_settime` to change the wallclock time.
+So for example, NTP would be able to function within the enclave.
+However, the `init_walltime_*` fields are not updated by changes to wallclock time within the enclave.
 
 Future plans
 ------------
