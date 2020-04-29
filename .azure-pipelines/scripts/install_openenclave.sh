@@ -28,7 +28,7 @@ if [ -f "$openenclave_status_file_path" ]; then
 fi
 
 sudo bash scripts/ansible/install-ansible.sh
-sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
+sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 
 mkdir -p build
 cd build

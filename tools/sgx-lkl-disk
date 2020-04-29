@@ -371,7 +371,8 @@ function create_from_alpine() {
 
     echo "Creating base image from Alpine with packages ${alpine_pkgs}..."
 
-    [[ -z $HOME ]] && alpine_tar_dir="." || alpine_tar_dir="$HOME/.cache/sgxlkl"
+    home=$(echo ~)
+    [[ -z $home ]] && alpine_tar_dir="." || alpine_tar_dir="$home/.cache/sgxlkl"
     mkdir -p ${alpine_tar_dir}
     alpine_tar="${alpine_tar_dir}/alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz"
     alpine_url="https://nl.alpinelinux.org/alpine/v${ALPINE_MAJOR}/releases/${ALPINE_ARCH}/alpine-minirootfs-${ALPINE_VERSION}-${ALPINE_ARCH}.tar.gz"
