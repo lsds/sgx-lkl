@@ -172,11 +172,16 @@ set(GENERATED_EDGE_FILES
 	)
 
 
-add_custom_target(build-interface-definitions
+add_custom_command(OUTPUT ".oeedger8r-run"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	COMMAND openenclave::oeedger8r "--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave" "--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
+	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/.oeedger8r-run"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-	BYPRODUCTS ${GENERATED_EDGE_FILES}
+	BYPRODUCTS ${GENERATED_EDGE_FILES} 
+	)
+
+add_custom_target(build-interface-definitions
+	DEPENDS ".oeedger8r-run"
 	)
 
 set(HOST_LIBS_BUILD_DIRECTORY "${CMAKE_BINARY_DIR}/host-libs-build")
