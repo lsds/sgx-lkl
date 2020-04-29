@@ -1,19 +1,20 @@
 trigger:
-  - 'master'
+  - 'oe_port'
 
 pr:
   branches:
     include:
     - '*'  # must quote since "*" is a YAML reserved character; we want a string
 
-# A variable group must be defined in Library section with name "SGX-Vars"
 variables:
-  - group: SGX-Vars
   - name: SGXLKL_ROOT
     value: $(Build.SourcesDirectory)
+  # For some reason $USER is undefined in the scale set agents (Ubuntu stock image)
+  - name: USER
+    value: root
 
 pool:
-  name: "sgx-vms-2"
+  name: "scaleset-sgx"
 
 jobs:  
 - job: Build
@@ -51,37 +52,23 @@ jobs:
       submodules: false
       clean: true
 
-    - task: InstallSSHKey@0
-      displayName: "Install an SSH key"
-      inputs:
-        knownHostsEntry: "*"
-        # Public key of 'github_ssh_private_key' (mentioned below) must be declared as variable name in 'SGX-Vars' variable group.
-        # Variable Name - GitHubPublicKey
-        # Variable Value - <your public key data in string format>
-        sshPublicKey: "$(GitHubPublicKey)"
-        # A github private key must be uploaded to "Secure files" Section in Azure Pipelines.
-        # This key must have read access to private repositories.
-        # Once uploaded to secure files, you can rename it to below name.
-        sshKeySecureFile: "github_ssh_private_key"
-
     - task: Bash@3
       displayName: "Checkout Submodules"
       inputs:
         targetType: "FilePath"
         filePath: ".azure-pipelines/scripts/checkout_submodules.sh"
-
+  
+    - task: Bash@3
+      displayName: "Install pre-requisites"
+      inputs:
+        targetType: "FilePath"
+        filePath: ".azure-pipelines/scripts/install_prerequisites.sh"
+    
     - task: Bash@3
       displayName: "Install Openenclave"
       inputs:
         targetType: "FilePath"
         filePath: ".azure-pipelines/scripts/install_openenclave.sh"
-
-    - task: Bash@3
-      displayName: Cleanup untagged Docker images
-      condition: and(succeeded(), eq(variables['use_docker'], 'true'))
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/cleanup_docker_images.sh"
 
     - task: Bash@3
       displayName: Compile and Build

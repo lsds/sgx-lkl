@@ -6,47 +6,35 @@ pr:
     include:
     - '*'  # must quote since "*" is a YAML reserved character; we want a string
 
-# A variable group must be defined in Library section with name "SGX-Vars"
 variables:
-  - group: SGX-Vars
   - name: SGXLKL_ROOT
     value: $(Build.SourcesDirectory)
   - name: SGXLKL_PREFIX
     value: $(Build.SourcesDirectory)/build/install
+  # For some reason $USER is undefined in the scale set agents (Ubuntu stock image)
+  - name: USER
+    value: root
 
 jobs:  
 - job: Build
   displayName: Build
 
   pool:
-    name: "sgx-vms-2"
+    name: "scaleset-sgx"
 
   steps:
     - checkout: self
       submodules: false
       clean: true
 
-    - task: InstallSSHKey@0
-      displayName: "Install an SSH key"
-      inputs:
-        knownHostsEntry: "*"
-        # Public key of 'github_ssh_private_key' (mentioned below) must be declared as variable name in 'SGX-Vars' variable group.
-        # Variable Name - GitHubPublicKey
-        # Variable Value - <your public key data in string format>
-        sshPublicKey: "$(GitHubPublicKey)"
-        # A github private key must be uploaded to "Secure files" Section in Azure Pipelines.
-        # This key must have read access to private repositories.
-        # Once uploaded to secure files, you can rename it to below name.
-        sshKeySecureFile: "github_ssh_private_key"
-
     - bash: .azure-pipelines/scripts/checkout_submodules.sh
       displayName: Checkout Submodules
 
+    - bash: .azure-pipelines/scripts/install_prerequisites.sh
+      displayName: Install pre-requisites
+
     - bash: .azure-pipelines/scripts/install_openenclave.sh
       displayName: Install Open Enclave
-
-    - bash: .azure-pipelines/scripts/cleanup_docker_images.sh
-      displayName: Cleanup untagged Docker images
 
     - bash: .azure-pipelines/scripts/build_docker.sh
       displayName: Compile and Build via Docker (debug)
@@ -91,7 +79,6 @@ jobs:
 
     - task: PublishBuildArtifacts@1
       displayName: Publish APT repository as build artifact
-      condition: always()
       inputs:
         pathtoPublish: build/deb-apt-repo
         artifactName: deb
@@ -103,7 +90,7 @@ jobs:
         pathtoPublish: report
         artifactName: logs
 
-# If you want to publish the .deb packages to the release package feed and APT repository,
+# If you want to publish the .deb packages to the release APT repository,
 # then start the build with variable:
 # Name = PUBLISH_RELEASE
 # Value = 1
@@ -115,8 +102,8 @@ jobs:
   # Don't publish for PR builds.
   condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
 
-  # Note: We use a hosted agent for the publish job mostly because it has
-  # the Azure CLI package installed (see below).
+  # A free hosted agent is good enough for the publish job.
+  # It also has the Azure CLI installed already.
   pool:
     vmImage: ubuntu-latest
 
@@ -145,16 +132,6 @@ jobs:
       inputs:
         artifactName: deb
 
-    - task: UniversalPackages@0
-      displayName: Publish APT repository to package feed
-      inputs:
-        command: publish
-        publishDirectory: $(System.ArtifactsDirectory)/deb
-        vstsFeedPublish: ConfidentialLinuxContainers/$(PKG_FEED)
-        vstsFeedPackagePublish: clc
-        versionOption: custom
-        versionPublish: $(SGXLKL_VERSION)
-      
     - task: AzureCLI@2
       displayName: Publish APT repository to Blob container
       inputs:
@@ -163,9 +140,6 @@ jobs:
         azureSubscription: pkg-storage
         scriptType: bash
         scriptLocation: inlineScript
-        # APT does not support repository URLs with query parameters.
-        # Because of that we cannot use SAS URLs and have to "protect" the repository
-        # by using a known random prefix.
         inlineScript: |
           az storage blob upload-batch \
             --account-name clcpackages -d $(BLOB_CONTAINER) \
