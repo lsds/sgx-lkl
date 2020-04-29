@@ -78,7 +78,7 @@ SDK* (https://openenclave.io/sdk/). The current version of SGX-LKL-OE requires a
 modified version of the Open Enclave SDK, which can be found here: 
 https://github.com/openenclave/openenclave (branch: feature/sgx-lkl-support).
 
-1. Clone the `feature.sgx-lkl` branch of the private fork of the Open Enclave SDK:
+1. Clone the `feature.sgx-lkl` branch of the Open Enclave SDK:
 ```
 git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl.git
 cd openenclave-sgxlkl.git
