@@ -17,6 +17,7 @@
 #include "enclave/sgxlkl_config.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
+#include "enclave/gencreds.h"
 #include "shared/env.h"
 
 _Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
@@ -169,6 +170,13 @@ static int startmain(void* args)
 
     // Mount disks
     lkl_mount_disks(app_config.disks, app_config.num_disks, app_config.cwd);
+
+    /* Generate the attested credential files under the /run directory */
+    if (sgxlkl_generate_attested_credentials() != 0)
+    {
+        sgxlkl_fail("Failed to generate attested credential files: %s: %s\n",
+            SGXLKL_ATTESTED_CERT_PATH, SGXLKL_ATTESTED_PRIVATE_KEY_PATH);
+    }
 
     // Add Wireguard peers
     if (wg_dev)
