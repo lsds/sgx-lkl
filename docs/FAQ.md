@@ -69,7 +69,7 @@ Can I use a Confidential Linux Container on a normal Linux system?
 
 A Confidential Linux Container simply contains one or more regular Linux filesystem images, which rely on Linux DeviceMapper functionality for encryption and integrity protection. 
 You can mount the disk images via the loopback device on any Linux system, as long as you have access to the encryption keys. 
-In cloud deployments, the keys for encrypting the filesystem are expected to be stored in a secure key store (e.g. Azure Key Vault), protected by a key-release policy dependent on the attestation and so can be released only in accordance with the policy set by the user.
+In cloud deployments, the keys for encrypting the filesystem are expected to be stored in a secure key store, protected by a key-release policy dependent on the attestation and so can be released only in accordance with the policy set by the user.
 If you have created an image and have the decryption key, you can mount it anywhere. 
 If the root filesystem uses only `dm-verity` to provide integrity but no confidentiality guarantees, you can mount it anywhere but you may not be able to access other encrypted read/write filesystems with confidential data.
 
