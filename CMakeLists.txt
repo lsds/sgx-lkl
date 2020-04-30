@@ -159,6 +159,11 @@ set(HOST_TOOL_NAME "sgx-lkl-run")
 file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
 file(GLOB HOSTINTERFACE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/host_interface/*.c")
 file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
+file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
+file(GLOB KERNEL_C_SRCS CONFIGURE_DEPENDS
+	"${CMAKE_SOURCE_DIR}/src/lkl/*.c"
+	"${CMAKE_SOURCE_DIR}/src/sched/*.c"
+	"${CMAKE_SOURCE_DIR}/src/wireguard/*.c")
 
 set(GENERATED_EDGE_FILES 
 	"geninclude/enclave/sgxlkl_args.h"
@@ -214,14 +219,17 @@ set(JSON_C_INSTALL_FILES
 
 list(TRANSFORM JSON_C_INSTALL_FILES PREPEND "${HOST_LIBS_INSTALL_DIRECTORY}/" OUTPUT_VARIABLE HOST_JSON_C_INSTALL_FILES)
 
-add_custom_command(OUTPUT "${HOST_LIBS_BUILD_DIRECTORY}/Makefile"
+set(HOST_JSON_C_BUILD_DIRECTORY "${HOST_LIBS_BUILD_DIRECTORY}/json-c")
+mkdir("${HOST_JSON_C_BUILD_DIRECTORY}")
+add_custom_command(OUTPUT "${HOST_JSON_C_BUILD_DIRECTORY}/Makefile"
 	DEPENDS fetch-and-extract-json-c
-	COMMAND "json-c/configure" "--enable-static" "--prefix=${HOST_LIBS_INSTALL_DIRECTORY}"
-	WORKING_DIRECTORY "${HOST_LIBS_BUILD_DIRECTORY}"
+	COMMAND "${THIRD_PARTY_DOWNLOADS_DIRECTORY}/json-c/configure" "--enable-static" "--prefix=${HOST_LIBS_INSTALL_DIRECTORY}"
+	WORKING_DIRECTORY "${HOST_JSON_C_BUILD_DIRECTORY}"
 	)
 add_custom_target(build-host-json-c
-	DEPENDS "${HOST_LIBS_BUILD_DIRECTORY}/Makefile" fetch-and-extract-json-c
+	DEPENDS "${HOST_JSON_C_BUILD_DIRECTORY}/Makefile" fetch-and-extract-json-c
 	COMMAND "make" "-j${NUMBER_OF_CORES}" install
+	WORKING_DIRECTORY "${HOST_JSON_C_BUILD_DIRECTORY}"
 	BYPRODUCTS ${JSON_C_INSTALL_FILES}
 	)
 
