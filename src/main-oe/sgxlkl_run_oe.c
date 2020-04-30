@@ -379,6 +379,10 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_TRACE_THREAD",
         "Trace in-enclave user level thread scheduling.\n");
+    printf(
+        "%-35s %s",
+        "  SGXLKL_TRACE_DISK",
+        "Trace in-enclave disk setup.\n");
     printf("%-35s %s", "  SGXLKL_TRACE_SYSCALL", "Trace all system calls.\n");
     printf(
         "%-35s %s",

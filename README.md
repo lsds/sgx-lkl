@@ -456,9 +456,8 @@ G. Debugging SGX-LKL-OE and applications
 
 SGX-LKL provides a wrapper around gdb.
 
-1. To build it, run `setup.sh` in the `tools/gdb` subdirectory. This creates 
-the wrapper `sgx-lkl-gdb`. sgx-lkl-gdb automatically loads the SGX-LKL gdb 
-plugin which ensures that debug symbols (if available) are loaded correctly. 
+1. Before running it, first run `. <OE_PREFIX>/share/openenclave/openenclaverc`.
+sgx-lkl-gdb automatically loads the SGX-LKL gdb plugin which ensures that debug symbols (if available) are loaded correctly. 
 
 When running in HW mode, `sgx-lkl-gdb` uses the corresponding SGX debug 
 instructions to read from and write to enclave memory.
