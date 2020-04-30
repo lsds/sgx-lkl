@@ -278,7 +278,7 @@ static int futex_requeue(
     return w;
 }
 
-int syscall_SYS_futex(
+int syscall_SYS_enclave_futex(
     int* uaddr,
     int op,
     int val,

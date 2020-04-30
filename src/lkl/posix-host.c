@@ -29,7 +29,15 @@
 #define NSEC_PER_SEC 1000000000L
 
 // The function used to implement the futex system call on top of lthreads
-int syscall_SYS_futex(
+/*int syscall_SYS_futex(
+    int* uaddr,
+    int op,
+    int val,
+    const struct timespec* timeout,
+    int* uaddr2,
+    int val3);*/
+
+ int syscall_SYS_enclave_futex(
     int* uaddr,
     int op,
     int val,
@@ -172,17 +180,17 @@ static int futex_timed_wait(
     int val,
     const struct timespec* timeout)
 {
-    return syscall_SYS_futex((int*)ftx, FUTEX_WAIT, val, timeout, 0, 0);
+    return syscall_SYS_enclave_futex((int*)ftx, FUTEX_WAIT, val, timeout, 0, 0);
 }
 
 static void futex_wait(_Atomic(int) * ftx, int val)
 {
-    syscall_SYS_futex((int*)ftx, FUTEX_WAIT, val, NULL, 0, 0);
+    syscall_SYS_enclave_futex((int*)ftx, FUTEX_WAIT, val, NULL, 0, 0);
 }
 
 static void futex_wake(_Atomic(int) * ftx, int val)
 {
-    syscall_SYS_futex((int*)ftx, FUTEX_WAKE, val, NULL, 0, 0);
+    syscall_SYS_enclave_futex((int*)ftx, FUTEX_WAKE, val, NULL, 0, 0);
 }
 
 static struct lkl_sem* sem_alloc(int count)
