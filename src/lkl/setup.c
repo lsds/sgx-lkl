@@ -65,6 +65,7 @@ int sgxlkl_trace_redirect_syscall = 0;
 int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_signal = 0;
 int sgxlkl_trace_thread = 0;
+int sgxlkl_trace_disk = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_mtu = 0;
 
@@ -662,6 +663,7 @@ static void lkl_mount_disk(
 
     if (disk->roothash != NULL)
     {
+        SGXLKL_VERBOSE("Activating verity disk\n");
         dev_str_verity[sizeof dev_str_verity - 2] = device;
         lkl_cd.crypt_name = dev_str_verity + offset_dev_str_crypt_name;
         lkl_run_in_kernel_stack(
@@ -820,6 +822,11 @@ void lkl_mount_disks(
     size_t _num_disks,
     const char* cwd)
 {
+#ifdef DEBUG
+    if (sgxlkl_trace_disk)
+        crypt_set_debug_level(CRYPT_LOG_DEBUG);
+#endif
+
     num_disks = _num_disks;
     if (num_disks <= 0)
         sgxlkl_fail("No root disk provided. Aborting...\n");
@@ -1296,6 +1303,9 @@ void lkl_start_init()
 
     if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
         sgxlkl_trace_thread = 1;
+
+    if (getenv_bool("SGXLKL_TRACE_DISK", 0))
+        sgxlkl_trace_disk = 1;
 
     if (sgxlkl_enclave->hostnet)
         sgxlkl_use_host_network = 1;
