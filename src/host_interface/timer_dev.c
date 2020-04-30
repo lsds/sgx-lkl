@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <host/sgxlkl_util.h>
 #include <shared/sgxlkl_config.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
 
