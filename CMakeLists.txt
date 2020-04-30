@@ -159,8 +159,6 @@ set(HOST_TOOL_NAME "sgx-lkl-run")
 file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
 file(GLOB HOSTINTERFACE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/host_interface/*.c")
 file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
-# FIXME: Not required when this file is moved to the correct location
-list(REMOVE_ITEM SHARED_C_SRCS "${CMAKE_SOURCE_DIR}/src/shared/sgxlkl_config.c")
 
 set(GENERATED_EDGE_FILES 
 	"geninclude/enclave/sgxlkl_args.h"
