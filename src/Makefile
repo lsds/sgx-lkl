@@ -14,7 +14,7 @@ CFLAGS_MAIN = -I$(OE_SDK_INCLUDES)
 CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty
 LINK_MAIN =
 
-GIT_VERSION = "$(shell git describe --dirty --always --tags)"
+GIT_VERSION = "$(shell git describe --dirty --always --tags || echo unknown)"
 LKL_VERSION = "$(shell make --quiet -C ${SGXLKL_ROOT}/lkl kernelversion)"
 
 CFLAGS_MAIN += $(SGXLKL_CFLAGS_EXTRA) -DGIT_VERSION=\"$(GIT_VERSION)\" -DLKL_VERSION=\"$(LKL_VERSION)\"
