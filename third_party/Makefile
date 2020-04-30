@@ -62,16 +62,16 @@ ${CURL}:
 ${THIRD_PARTY_LIB_DEVICE_MAPPER}: ${DEVICEMAPPER} ${CRYPTSETUP_BUILD}
 	cd ${DEVICEMAPPER}; [ -f Makefile ] || CC=${HOST_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -Dptrdiff_t=intptr_t" ./configure \
 		--prefix=${CRYPTSETUP_BUILD}/ --enable-static_link
-	+CC=${HOST_CC} ${MAKE} -C ${DEVICEMAPPER} -j`tools/ncore.sh` device-mapper
-	+CC=${HOST_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm -j`tools/ncore.sh` install
+	+CC=${HOST_CC} ${MAKE} -C ${DEVICEMAPPER} -j`${TOOLS}/ncore.sh` device-mapper
+	+CC=${HOST_CC} ${MAKE} -C ${DEVICEMAPPER}/libdm -j`${TOOLS}/ncore.sh` install
 
 ${THIRD_PARTY_LIB_EXT2FS}: ${E2FSPROGS}
 	# util/ contains build-time tools that must not be built against musl
 	cd ${E2FSPROGS}; ./configure; ${MAKE} -C ${E2FSPROGS}/util
 	cd ${E2FSPROGS}; CC=${HOST_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -DOMIT_COM_ERR" ./configure \
 		--prefix=${E2FSPROGS_BUILD}/
-	+CC=${HOST_CC} ${MAKE} -C ${E2FSPROGS} -j`tools/ncore.sh` libs
-	+CC=${HOST_CC} ${MAKE} -C ${E2FSPROGS}/lib/ext2fs -j`tools/ncore.sh` install
+	+CC=${HOST_CC} ${MAKE} -C ${E2FSPROGS} -j`${TOOLS}/ncore.sh` libs
+	+CC=${HOST_CC} ${MAKE} -C ${E2FSPROGS}/lib/ext2fs -j`${TOOLS}/ncore.sh` install
 	# ext2fs.h lacks OMIT_COM_ERR include guard.
 	mkdir ${E2FSPROGS_BUILD}/include/et
 	touch ${E2FSPROGS_BUILD}/include/et/com_err.h
@@ -100,8 +100,8 @@ ${THIRD_PARTY_LIB_JSON}: ${JSONC} ${CRYPTSETUP_BUILD}
 ${THIRD_PARTY_LIB_CRYPTSETUP}: ${CRYPTSETUP} ${THIRD_PARTY_LIB_POPT} ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_UUID} ${THIRD_PARTY_LIB_JSON} ${CRYPTSETUP_BUILD}
 	cd ${CRYPTSETUP}; [ -f Makefile ] || CC=${HOST_CC} CFLAGS="${THIRD_PARTY_CFLAGS} -I${CRYPTSETUP_BUILD}/include -I${LKL_BUILD}/include" LDFLAGS="-L${CRYPTSETUP_BUILD}/lib" ./autogen.sh
 	cd ${CRYPTSETUP}; CC=${HOST_CC} CFLAGS="--static -I${CRYPTSETUP_BUILD}/include -I${LKL_BUILD}/include ${THIRD_PARTY_CFLAGS}" LDFLAGS="${LDFLAGS} -L${CRYPTSETUP_BUILD}/lib" ./configure --prefix=${CRYPTSETUP_BUILD}/ --enable-static --with-crypto-backend=kernel
-	+CC=${HOST_CC} ${MAKE} -C ${CRYPTSETUP} -j`tools/ncore.sh` install-libLTLIBRARIES
-	+CC=${HOST_CC} ${MAKE} -C ${CRYPTSETUP} -j`tools/ncore.sh` install-includeHEADERS
+	+CC=${HOST_CC} ${MAKE} -C ${CRYPTSETUP} -j`${TOOLS}/ncore.sh` install-libLTLIBRARIES
+	+CC=${HOST_CC} ${MAKE} -C ${CRYPTSETUP} -j`${TOOLS}/ncore.sh` install-includeHEADERS
 
 ${OE_STUBS}: ${LIB_CURL_BUILD} oe_stubs/oe_stubs.c ${OPENENCLAVE}
 	${HOST_CC} ${THIRD_PARTY_CFLAGS} -I${OE_SDK_INCLUDES}/openenclave/3rdparty/ -c oe_stubs/oe_stubs.c -o ${LIB_CURL_BUILD}/oe_stubs.o
@@ -117,7 +117,7 @@ ${THIRD_PARTY_LIB_CURL}: ${LIB_CURL_BUILD} ${CURL} ${OE_STUBS} ${OPENENCLAVE}
 		--disable-unix-sockets --disable-threaded-resolver --disable-cookies --disable-rtsp --disable-dict --disable-file --disable-rt \
 		--disable-ftp --disable-gopher --disable-imap --disable-pop3 --disable-smtp --disable-telnet --disable-tftp \
 		--disable-smb --disable-smbs --disable-netrc
-	${MAKE} -C ${CURL}/lib -j`tools/ncore.sh` libcurl.la
+	${MAKE} -C ${CURL}/lib -j`${TOOLS}/ncore.sh` libcurl.la
 	cp ${CURL}/lib/.libs/libcurl.a ${LIB_CURL_BUILD}
 
 clean:
