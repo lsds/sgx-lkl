@@ -84,8 +84,8 @@ endif
 
 MAIN_OE_OBJS =$(addprefix $(LIB_SGXLKL_BUILD)/main-oe/,$(MAIN_OE_SRCS:.c=.o))
 
-OESGX_OUTPUT := $(shell echo `exec $(OE_OESIGN_TOOL_PATH)/oesgx`)
-ifeq ($(findstring SGX_FLC,$(OESGX_OUTPUT)),SGX_FLC)
+OE_PKGCONFIG_OUTPUT := $(shell pkg-config oehost-gcc --libs)
+ifeq ($(findstring sgx_dcap_ql,$(OE_PKGCONFIG_OUTPUT)),sgx_dcap_ql)
 	DCAP_LIB=-lsgx_dcap_ql
 endif
 
