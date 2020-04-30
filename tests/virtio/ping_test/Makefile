@@ -1,5 +1,7 @@
 # Makefile for test application
 
+SHELL := /bin/bash
+
 SGXLKL_ROOT=../../..
 
 APP_DIRECTORY=app
@@ -36,11 +38,21 @@ $(DISK_IMAGE): $(APP)
 
 all: $(DISK_IMAGE)
 
+.ONESHELL:
+
 run-hw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_CMD} --hw-debug $(DISK_IMAGE) ${APP_DIRECTORY}/${APP}
+	${SGXLKL_ENV} expect -c "
+		spawn ${SGXLKL_CMD} --hw-debug $(DISK_IMAGE) ${APP_DIRECTORY}/${APP}
+		expect \"Press 'Q' to quit\"
+		send \"Q\r\"
+		expect eof"
 
 run-sw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_CMD} --sw-debug $(DISK_IMAGE) ${APP_DIRECTORY}/${APP}
+	${SGXLKL_ENV} expect -c "
+		spawn ${SGXLKL_CMD} --sw-debug $(DISK_IMAGE) ${APP_DIRECTORY}/${APP}
+		expect \"Press 'Q' to quit\"
+		send \"Q\r\"
+		expect eof"
 
 clean:
 	@rm -f $(DISK_IMAGE)

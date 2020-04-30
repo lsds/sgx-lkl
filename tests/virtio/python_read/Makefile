@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 
 APP_ROOT=app
 PROG=${APP_ROOT}/keyboard_read.py
@@ -31,12 +32,22 @@ clean:
 	rm -f $(DISK_IMAGE)
 
 $(DISK_IMAGE): $(PROG)
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="build-base gfortran python-dev" --copy=./${APP_ROOT}/ ${DISK_IMAGE}
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="python" --copy=./${APP_ROOT}/ ${DISK_IMAGE}
 
 run: run-hw
 
+.ONESHELL:
+
 run-hw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(ENCLAVE_CMD)
+	${SGXLKL_ENV} expect -c "
+		spawn ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(ENCLAVE_CMD)
+		expect \"Prompt\"
+		send \"stop\r\"
+		expect eof"
 
 run-sw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(ENCLAVE_CMD)
+	${SGXLKL_ENV} expect -c "
+		spawn ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(ENCLAVE_CMD)
+		expect \"Prompt\"
+		send \"stop\r\"
+		expect eof"
