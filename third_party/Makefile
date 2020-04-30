@@ -16,7 +16,7 @@ ${CRYPTSETUP_BUILD} ${LIB_CURL_BUILD}:
 	@mkdir -p $@
 
 ${CRYPTSETUP}:
-	wget -O "${MAKE_ROOT}/cryptsetup.tar.gz" 'https://gitlab.com/cryptsetup/cryptsetup/repository/archive.tar.gz?ref=v2.0.2'
+	wget --retry-connrefused -O "${MAKE_ROOT}/cryptsetup.tar.gz" 'https://gitlab.com/cryptsetup/cryptsetup/repository/archive.tar.gz?ref=v2.0.2'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/cryptsetup.tar.gz
 	# The following patch changes the memory allocations in cryptsetup from
 	# regular malloc() to lkl_sys_mmap(). This ensures that the allocated
@@ -25,37 +25,37 @@ ${CRYPTSETUP}:
 	rm ${MAKE_ROOT}/cryptsetup.tar.gz
 
 ${DEVICEMAPPER}:
-	wget -O "${MAKE_ROOT}/devicemapper.tar.gz" 'https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz'
+	wget --retry-connrefused -O "${MAKE_ROOT}/devicemapper.tar.gz" 'https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/devicemapper.tar.gz
 	rm ${MAKE_ROOT}/devicemapper.tar.gz
 
 ${E2FSPROGS}:
-	wget -O "${MAKE_ROOT}/e2fsprogs.tar.gz" 'https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz'
+	wget --retry-connrefused -O "${MAKE_ROOT}/e2fsprogs.tar.gz" 'https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/e2fsprogs.tar.gz
 	rm ${MAKE_ROOT}/e2fsprogs.tar.gz
 
 ${UTILLINUX}:
-	wget -O "${MAKE_ROOT}/util-linux.tar.gz" 'https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git/snapshot/util-linux-2.29.2.tar.gz'
+	wget --retry-connrefused -O "${MAKE_ROOT}/util-linux.tar.gz" 'https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git/snapshot/util-linux-2.29.2.tar.gz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/util-linux.tar.gz
 	rm ${MAKE_ROOT}/util-linux.tar.gz
 
 ${POPT}:
-	wget -O "${MAKE_ROOT}/popt.tar.gz" 'https://deb.debian.org/debian/pool/main/p/popt/popt_1.16.orig.tar.gz'
+	wget --retry-connrefused -O "${MAKE_ROOT}/popt.tar.gz" 'https://deb.debian.org/debian/pool/main/p/popt/popt_1.16.orig.tar.gz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/popt.tar.gz
 	rm ${MAKE_ROOT}/popt.tar.gz
 
 ${JSONC}:
-	wget -O "${MAKE_ROOT}/json-c.tar.gz" 'https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz'
+	wget --retry-connrefused -O "${MAKE_ROOT}/json-c.tar.gz" 'https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/json-c.tar.gz
 	rm ${MAKE_ROOT}/json-c.tar.gz
 
 ${WIREGUARD}:
-	wget -O "${MAKE_ROOT}/wireguard.tar.gz" 'https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz'
+	wget --retry-connrefused -O "${MAKE_ROOT}/wireguard.tar.gz" 'https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/wireguard.tar.gz
 	rm ${MAKE_ROOT}/wireguard.tar.gz
 
 ${CURL}:
-	wget -O "${MAKE_ROOT}/curl.tar.bz2" 'https://curl.haxx.se/download/curl-7.66.0.tar.bz2'
+	wget --retry-connrefused -O "${MAKE_ROOT}/curl.tar.bz2" 'https://curl.haxx.se/download/curl-7.66.0.tar.bz2'
 	mkdir -p $@ && tar -C $@ --strip 1  -xf "${MAKE_ROOT}/curl.tar.bz2"
 	rm "${MAKE_ROOT}/curl.tar.bz2"
 
