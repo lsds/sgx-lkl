@@ -41,24 +41,41 @@ static void __sgxlkl_enclave_copy_app_config(
     sgxlkl_app_config_t* app_config,
     const sgxlkl_config_t* sgxlkl_config)
 {
-    int i = 0, j = 0;
+    int i = 0, envc = 0;
     char** envp = NULL;
+    size_t total_size = 0;
 
     app_config->argc = sgxlkl_config->argc;
-    app_config->argv = oe_malloc((app_config->argc + 1) * sizeof(char*));
 
     for (i = 0; i < app_config->argc; i++)
-        app_config->argv[i] = oe_strdup(sgxlkl_config->argv[i]);
-    app_config->argv[i] = NULL;
+        total_size += strlen(sgxlkl_config->argv[i]) + 1;
 
     envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
-    for (; envp[j++] != NULL;)
-        ;
+    while (envp[envc] != NULL)
+    {
+        total_size += strlen(envp[envc]) + 1;
+        envc++;
+    }
 
-    app_config->envp = oe_malloc((j + 1) * sizeof(char*));
-    for (j = 0; envp[j] != NULL; j++)
-        app_config->envp[j] = oe_strdup(envp[j]);
-    app_config->envp[j] = NULL;
+    char* buf = oe_malloc((total_size + 1) * sizeof(char*));
+    app_config->argv =
+        oe_malloc((sgxlkl_config->argc + envc + 2) * sizeof(char*));
+
+    char* p = buf;
+    for (i = 0; i < app_config->argc; i++)
+    {
+        app_config->argv[i] = p;
+        p += sprintf(p, "%s", sgxlkl_config->argv[i]) + 1;
+    }
+    app_config->argv[i] = NULL;
+
+    app_config->envp = &app_config->argv[i + 1];
+    for (i = 0; i < envc; i++)
+    {
+        app_config->envp[i] = p;
+        p += sprintf(p, "%s", envp[i]) + 1;
+    }
+    app_config->envp[i] = NULL;
 
     app_config->cwd = oe_strdup(sgxlkl_config->cwd);
 
