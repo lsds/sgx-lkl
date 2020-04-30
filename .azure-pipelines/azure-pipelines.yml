@@ -1,10 +1,20 @@
 trigger:
-  - 'oe_port'
+  branches:
+    include:
+    - 'oe_port'
+  paths:
+    exclude:
+    - 'README.md'
+    - 'docs/'
 
 pr:
   branches:
     include:
     - '*'  # must quote since "*" is a YAML reserved character; we want a string
+  paths:
+    exclude:
+    - 'README.md'
+    - 'docs/'
 
 variables:
   - name: SGXLKL_ROOT
