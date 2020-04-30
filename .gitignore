@@ -1,8 +1,6 @@
 build
 build_musl
 
-tools/gdb/sgx-lkl-gdb
-
 third_party/curl/
 third_party/cryptsetup/
 third_party/devicemapper/
