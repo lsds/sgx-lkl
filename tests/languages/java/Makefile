@@ -28,12 +28,28 @@ $(DISK_IMAGE): $(PROG)
 run: run-hw run-sw
 
 run-hw: $(DISK_IMAGE)
-	@echo "sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
-	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=1 sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=1 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=2 sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=2 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=3 sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=3 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=4 sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=4 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=8 sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=8 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
 
 run-sw: $(DISK_IMAGE)
-	@echo "sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
-	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=1 sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=1 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=2 sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=2 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=3 sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=3 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=4 sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=4 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
+       @echo "SGXLKL_ETHREAD=8 sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
+       @SGXLKL_ETHREAD=8 ${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
 
 clean:
 	rm -f $(DISK_IMAGE) app/${PROG}
