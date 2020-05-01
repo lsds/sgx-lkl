@@ -2,7 +2,7 @@ FROM alpine:3.6 AS builder
 
 RUN apk add --no-cache gcc musl-dev
 
-ADD helloworld.c .
+ADD *.c /
 RUN gcc -g -o helloworld helloworld.c
 
 FROM alpine:3.6
