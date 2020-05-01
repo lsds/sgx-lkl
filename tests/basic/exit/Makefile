@@ -1,17 +1,15 @@
 # Makefile for test application
 
-BUILDDIR=apps
-
-TEST1=$(BUILDDIR)/exit-test
-TEST2=$(BUILDDIR)/segfault-test
-TEST3=$(BUILDDIR)/raise-test
+TEST1=exit-test
+TEST2=segfault-test
+TEST3=raise-test
 
 SRCS=$(wildcard *.c)
+
 DISK_IMAGE=sgxlkl-exit-test.img
-IMAGE_SIZE=16M
+IMAGE_SIZE=5M
 
 SGXLKL_ROOT=../../..
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
 SGXLKL_CMD=${SGXLKL_ROOT}/build/sgx-lkl-run-oe
 SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 
@@ -22,15 +20,10 @@ SHELL := /bin/bash
 .DELETE_ON_ERROR:
 .PHONY: clean
 
-$(BUILDDIR)/%: %.c
-	@mkdir -p $(BUILDDIR)
-	${MUSL_CC} -fPIE -pie -o $@ $<
-
 run: run-hw run-sw
 
-$(DISK_IMAGE): $(TEST1) $(TEST2) $(TEST3)
-	rm -f ${DISK_IMAGE}
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="busybox" --copy=$(BUILDDIR) ${DISK_IMAGE}
+$(DISK_IMAGE): $(SRCS)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${DISK_IMAGE}
 
 run-hw: $(DISK_IMAGE)
 	@${SGXLKL_ENV} ${SGXLKL_CMD} --hw-debug ${DISK_IMAGE} $(TEST1); \
@@ -78,4 +71,3 @@ run-sw: $(DISK_IMAGE)
 
 clean:
 	rm -f $(DISK_IMAGE)
-	rm -rf $(BUILDDIR)
