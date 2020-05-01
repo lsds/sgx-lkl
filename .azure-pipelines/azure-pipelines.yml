@@ -27,103 +27,44 @@ pool:
   name: "scaleset-sgx"
 
 jobs:  
-- job: Build
-  displayName: Build
+- job: Build_and_Test
+  displayName: Build and Test
   strategy:
     matrix:
       debug:
         is_debug: 'true'
-        use_docker: 'false'
-        run_ltp1: 'false'
-        run_ltp2: 'false'
+        test_suite: 'non-ltp'
       nondebug:
         is_debug: 'false'
-        use_docker: 'false'
-        run_ltp1: 'false'
-        run_ltp2: 'false'
-      debug_docker:
-        is_debug: 'true'
-        use_docker: 'true'
-        run_ltp1: 'false'
-        run_ltp2: 'false'
+        test_suite: 'non-ltp'
       debug_ltp1:
         is_debug: 'true'
-        use_docker: 'false'
-        run_ltp1: 'true'
-        run_ltp2: 'false'
+        test_suite: 'ltp1'
       debug_ltp2:
         is_debug: 'true'
-        use_docker: 'false'
-        run_ltp1: 'false'
-        run_ltp2: 'true'
+        test_suite: 'ltp2'
 
   steps:
     - checkout: self
       submodules: false
       clean: true
 
-    - task: Bash@3
-      displayName: "Checkout Submodules"
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/checkout_submodules.sh"
+    - bash: .azure-pipelines/scripts/checkout_submodules.sh
+      displayName: Checkout Submodules
   
-    - task: Bash@3
-      displayName: "Install pre-requisites"
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/install_prerequisites.sh"
+    - bash: .azure-pipelines/scripts/install_prerequisites.sh
+      displayName: Install pre-requisites
     
-    - task: Bash@3
-      displayName: "Install Openenclave"
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/install_openenclave.sh"
+    - bash: .azure-pipelines/scripts/install_openenclave.sh
+      displayName: Install Open Enclave
 
-    - task: Bash@3
+    - bash: .azure-pipelines/scripts/build.sh
       displayName: Compile and Build
-      condition: and(succeeded(), eq(variables['use_docker'], 'false'))
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/build.sh"
       env:
         is_debug: "$(is_debug)"
 
-    - task: Bash@3
-      displayName: Compile and Build via Docker
-      condition: and(succeeded(), eq(variables['use_docker'], 'true'))
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/build_docker.sh"
-      env:
-        is_debug: "$(is_debug)"
-
-    - task: Bash@3
-      displayName: "Execute non-LTP Tests"
-      condition: and(succeeded(), eq(variables['use_docker'], 'false'), eq(variables['run_ltp1'], 'false'), eq(variables['run_ltp2'], 'false'))
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/test_runner.sh"
-      env:
-        is_debug: "$(is_debug)"
-
-    - task: Bash@3
-      displayName: "Execute LTP tests - batch 1"
-      condition: and(succeeded(), eq(variables['run_ltp1'], 'true'))
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/test_runner.sh"
-        arguments: "ltp1"
-      env:
-        is_debug: "$(is_debug)"
-
-    - task: Bash@3
-      displayName: "Execute LTP tests - batch 2"
-      condition: and(succeeded(), eq(variables['run_ltp2'], 'true'))
-      inputs:
-        targetType: "FilePath"
-        filePath: ".azure-pipelines/scripts/test_runner.sh"
-        arguments: "ltp2"
+    - bash: .azure-pipelines/scripts/test_runner.sh $(test_suite)
+      displayName: Run Tests
       env:
         is_debug: "$(is_debug)"
 

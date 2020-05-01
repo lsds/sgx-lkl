@@ -164,9 +164,12 @@ if [[ $1 == "ltp1" ]]; then
 elif [[ $1 == "ltp2" ]]; then
     file_list=("tests/ltp/ltp-batch2/Makefile")
     test_group_name="ltp-batch2"
-else
+elif [[ $1 == "non-ltp" ]]; then
     file_list=( $(find $test_folder_name -name $test_folder_identifier | grep -v "$test_exception_list") )
     test_group_name="non-ltp"
+else
+    echo "Unknown test suite: $1"
+    exit 1
 fi
 
 total_tests=${#file_list[@]}
