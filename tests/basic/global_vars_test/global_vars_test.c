@@ -90,7 +90,7 @@ void perform_errno_test(void)
         prog_exec_status |= (1 << en_test_errno_fail_index);
 
     // reset the errno to verify the valid scenario
-    _do_file_ops("/app/helloworld.txt");
+    _do_file_ops("/helloworld.txt");
     l_err_no = errno;
     if (l_err_no != 0)
         prog_exec_status |= (1 << en_test_errno_pass_index);
