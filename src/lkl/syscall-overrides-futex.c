@@ -3,6 +3,16 @@
 #include <time.h>
 #include "sched/futex.h"
 #include "lkl/posix-host.h"
+#include <errno.h>
+
+static long syscall_ret(int r)
+{
+	if (r > -4096UL) {
+		errno = -r;
+		return -1;
+	}
+	return r;
+}
 
 /*
  * Get the difference between starttime and endtime.
@@ -44,6 +54,8 @@ int syscall_SYS_futex_override(
     int* uaddr2,
     int val3)
 {
+    int rc = 0;
+
     if ((op & FUTEX_WAIT_BITSET) && timeout != NULL)
     {
         // adjust absolute timeout to a relative one
@@ -59,8 +71,12 @@ int syscall_SYS_futex_override(
         struct timespec diff;
         timespec_diff(&now, timeout, &diff);
 
-        return syscall_SYS_enclave_futex(uaddr, op, val, &diff, uaddr2, val3);
+        rc = syscall_SYS_enclave_futex(uaddr, op, val, &diff, uaddr2, val3);
+    }
+    else
+    {
+        rc = syscall_SYS_enclave_futex(uaddr, op, val, timeout, uaddr2, val3);
     }
 
-    return syscall_SYS_enclave_futex(uaddr, op, val, timeout, uaddr2, val3);
+    return syscall_ret(rc);
 }
