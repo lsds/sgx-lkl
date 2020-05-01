@@ -42,7 +42,6 @@ static int do_read(struct lkl_disk disk, struct lkl_blk_req* req)
     struct enclave_disk_config* disk_config = get_disk_config(disk.fd);
     if (!disk_config)
     {
-        errno = EINVAL;
         return -1;
     }
     for (int i = 0; i < req->count; i++)
@@ -60,7 +59,6 @@ static int do_write(struct lkl_disk disk, struct lkl_blk_req* req)
     struct enclave_disk_config* disk_config = get_disk_config(disk.fd);
     if (!disk_config)
     {
-        errno = EINVAL;
         return -1;
     }
     for (int i = 0; i < req->count; i++)
