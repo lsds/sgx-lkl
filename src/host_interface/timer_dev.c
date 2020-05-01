@@ -57,6 +57,8 @@ void* timerdev_task(struct timer_dev* timer_dev_mem)
 {
     struct timespec ts;
     ts.tv_sec = 0;
+
+    // SEAN-TODO: make configurable
     ts.tv_nsec = 500000;
 
     for (;;)
