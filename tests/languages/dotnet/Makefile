@@ -1,4 +1,4 @@
-include ../../../common.mk
+include ../../common.mk
 
 PROG=/app/HelloWorld.dll
 

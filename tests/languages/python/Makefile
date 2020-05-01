@@ -1,4 +1,4 @@
-include ../../../common.mk
+include ../../common.mk
 
 APP_ROOT=app
 PROG=${APP_ROOT}/python-helloworld.py

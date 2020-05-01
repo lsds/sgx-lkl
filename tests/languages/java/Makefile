@@ -1,4 +1,4 @@
-include ../../../common.mk
+include ../../common.mk
 
 APP_ROOT=app
 PROG_SRC=${APP_ROOT}/HelloWorld.java
