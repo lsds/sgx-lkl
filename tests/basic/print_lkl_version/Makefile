@@ -6,7 +6,6 @@ DISK_IMAGE=sgxlkl-${TEST}.img
 IMAGE_SIZE=16M
 
 SGXLKL_ROOT=../../..
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
 SGXLKL_CMD=${SGXLKL_ROOT}/build/sgx-lkl-run-oe
 SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 
