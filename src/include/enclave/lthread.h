@@ -181,7 +181,6 @@ struct lthread_sched
     void* stack;
     size_t stack_size;
     uint64_t default_timeout;
-    int page_size;
     /* convenience data maintained by lthread_resume */
     struct lthread* current_lthread;
 };
