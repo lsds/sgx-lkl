@@ -1,59 +1,45 @@
-# Makefile for test application
-
 SHELL := /bin/bash
 
+PROG=dummy_server
+PROG_SRC=$(PROG).c
+IMAGE_SIZE=5M
+
+EXECUTION_TIMEOUT=60
 SGXLKL_ROOT=../../..
-
-APP_DIRECTORY=app
-APP=dummy_server
-SRC=dummy_server.c
-
-DISK_IMAGE=sgxlkl-ping.img
-IMAGE_SIZE=128M
-
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
-SGXLKL_CMD=${SGXLKL_ROOT}/build/sgx-lkl-run-oe
+SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
 SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
+SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
 
-SGXLKL_ENV_OPTS=SGXLKL_GETTIME_VDSO=0
-SGXLKL_NETWORK_SETTING=SGXLKL_TAP=sgxlkl_tap0 SGXLKL_IP4=10.0.1.2
-VERBOSE_OPTS=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1
+SGXLKL_ENV=SGXLKL_ETHREADS=8 SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+SGXLKL_HW_PARAMS=--hw-debug
+SGXLKL_SW_PARAMS=--sw-debug
 
-ifeq ($(SGXLKL_VERBOSE),)
-	SGXLKL_ENV+=${VERBOSE_OPTS}
-endif
-SGXLKL_ENV+=${SGXLKL_ENV_OPTS} ${SGXLKL_NETWORK_SETTING}
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 
 .DELETE_ON_ERROR:
-.PHONY: clean
+.PHONY: all clean
 
-$(APP): $(SRC)
-	${MUSL_CC} -fPIE -pie -o $@ $(SRC)
-	@mkdir -p ${APP_DIRECTORY}
-	@mv -f $@ ${APP_DIRECTORY}
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
 
-$(DISK_IMAGE): $(APP)
-	@rm -f ${DISK_IMAGE}
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="bash shadow sudo" --copy=./${APP_DIRECTORY}/ ${DISK_IMAGE}
-
-all: $(DISK_IMAGE)
+gettimeout:
+	@echo ${EXECUTION_TIMEOUT}
 
 .ONESHELL:
 
-run-hw: $(DISK_IMAGE)
+run-hw: $(SGXLKL_ROOTFS)
 	${SGXLKL_ENV} expect -c "
-		spawn ${SGXLKL_CMD} --hw-debug $(DISK_IMAGE) ${APP_DIRECTORY}/${APP}
+		spawn $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 		expect \"Press 'Q' to quit\"
 		send \"Q\r\"
 		expect eof"
 
-run-sw: $(DISK_IMAGE)
+run-sw: $(SGXLKL_ROOTFS)
 	${SGXLKL_ENV} expect -c "
-		spawn ${SGXLKL_CMD} --sw-debug $(DISK_IMAGE) ${APP_DIRECTORY}/${APP}
+		spawn $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 		expect \"Press 'Q' to quit\"
 		send \"Q\r\"
 		expect eof"
 
 clean:
-	@rm -f $(DISK_IMAGE)
-	@rm -f $(APP_DIRECTORY)/${APP}
+	@rm -f $(SGXLKL_ROOTFS)
