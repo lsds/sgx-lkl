@@ -57,7 +57,7 @@ void* timerdev_task(struct timer_dev* timer_dev_mem)
 {
     struct timespec ts;
     ts.tv_sec = 0;
-    ts.tv_nsec = 5000000;
+    ts.tv_nsec = 500000;
 
     for (;;)
     {

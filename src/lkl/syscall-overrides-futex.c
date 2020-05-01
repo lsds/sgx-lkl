@@ -1,7 +1,6 @@
 #include <futex.h>
 #include <sys/time.h>
 #include <time.h>
-//#include "enclave/enclave_util.h"
 #include "sched/futex.h"
 #include "lkl/posix-host.h"
 

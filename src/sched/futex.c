@@ -66,11 +66,7 @@ void futex_tick()
 
     SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp)
     {
-        if (fq->futex_deadline &&
-            ((fq->clock ==
-                  CLOCK_REALTIME && fq->futex_deadline <= usecs ||
-             (fq->clock ==
-                  CLOCK_MONOTONIC && fq->futex_deadline <= usecs))))
+        if (fq->futex_deadline && fq->futex_deadline < usecs)
         {
             struct lthread* lt = fq->futex_lt;
             fq->futex_lt = NULL;
