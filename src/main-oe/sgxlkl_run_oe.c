@@ -333,11 +333,6 @@ static void help_config()
         "  SGXLKL_HD_KEY",
         "Encryption key as passphrase or file path to a key file for the root "
         "file system image (Debug only).\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HD_MMAP",
-        "Set to 1 to use file-backed mmap to read from and write to disks "
-        "instead of using host read/write calls.\n");
     printf("## Memory ##\n");
     printf(
         "%-35s %s%ld\n",
