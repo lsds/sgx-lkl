@@ -1071,7 +1071,7 @@ out:
         free(pool_info);
 }
 
-/* Requires starttime to be higher or equal to endtime */
+/* Requires endtime to be higher or equal to startime */
 static int timespec_diff(
     struct timespec* starttime,
     struct timespec* endtime,
