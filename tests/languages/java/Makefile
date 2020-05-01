@@ -1,3 +1,4 @@
+include ../../../common.mk
 
 APP_ROOT=app
 PROG_SRC=${APP_ROOT}/HelloWorld.java
@@ -5,9 +6,6 @@ PROG=${APP_ROOT}/HelloWorld.class
 
 DISK_IMAGE=sgxlkl-java-fs.img
 IMAGE_SIZE=400M
-
-SGXLKL_JAVA_RUN=../../../tools/sgx-lkl-java
-SGXLKL_DISK_TOOL=../../../tools/sgx-lkl-disk
 
 ifeq ($(SGXLKL_VERBOSE),)
 SGXLKL_ENV=\

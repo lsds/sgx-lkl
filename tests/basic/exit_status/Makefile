@@ -1,5 +1,4 @@
-
-SGXLKL_ROOT=../../..
+include ../../common.mk
 
 CC_APP_CONFIG_FULL=sgxlkl-exit_status_full-appconfig.json
 CC_APP_CONFIG_BINARY=sgxlkl-exit_status_binary-appconfig.json
@@ -13,9 +12,6 @@ VERBOSE_OPTS=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
 ifeq ($(SGXLKL_VERBOSE),)
 	SGXLKL_ENV+=${VERBOSE_OPTS}
 endif
-
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 
 .DELETE_ON_ERROR:
 .PHONY: all clean run-hw run-sw

@@ -1,3 +1,5 @@
+include ../../common.mk
+
 ALPINE_MAJOR=3.8
 ALPINE_VERSION=3.8.0
 ALPINE_ARCH=x86_64
@@ -10,7 +12,6 @@ IMAGE_SIZE_MB=500
 ESCALATE_CMD=sudo
 
 SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1
-SGXLKL_CMD=../../../build/sgx-lkl-run-oe
 
 .DELETE_ON_ERROR:
 .PHONY: all clean
@@ -34,11 +35,11 @@ run: run-hw run-sw
 
 run-hw: $(ROOT_FS)
 	@echo "\n_____Running in --hw-debug mode_________\n"
-	${SGXLKL_ENV} ${SGXLKL_CMD} --hw-debug ${ROOT_FS} bin/cat /etc/os-release
+	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug ${ROOT_FS} bin/cat /etc/os-release
 
 run-sw: $(ROOT_FS)
 	@echo "\n_____Running in --sw-debug mode_________\n"
-	${SGXLKL_ENV} ${SGXLKL_CMD} --sw-debug ${ROOT_FS} bin/cat /etc/os-release
+	${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug ${ROOT_FS} bin/cat /etc/os-release
 
 clean:
 	test -f $(ROOT_FS) && rm $(ROOT_FS) || true

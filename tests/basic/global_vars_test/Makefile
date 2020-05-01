@@ -1,13 +1,11 @@
+include ../../common.mk
+
 PROG=global_vars_test
 PROG_SRC=$(PROG).c
 PROG_ARGS=-a -b -c hello
 IMAGE_SIZE=5M
 
 EXECUTION_TIMEOUT=60
-SGXLKL_ROOT=../../..
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
-SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
 
 SGXLKL_ENV=SGXLKL_ETHREADS=8 SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
 SGXLKL_HW_PARAMS=--hw-debug

@@ -7,9 +7,11 @@ fi
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 . $SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh
 
+SGXLKL_STARTER=${SGXLKL_STARTER:-$SGXLKL_ROOT/build/sgx-lkl-run-oe}
+
 test_exec_mode="$1"
 [ -z $test_exec_mode ] && test_exec_mode="--hw-debug"
-SGX_LKL_RUN_CMD="$SGXLKL_ROOT/build/sgx-lkl-run-oe $test_exec_mode sgxlkl-miniroot-fs.img"
+SGX_LKL_RUN_CMD="$SGXLKL_STARTER $test_exec_mode sgxlkl-miniroot-fs.img"
 
 csv_filename="sgxlkl_oe_ltp_test_result_$(date +%d%m%y_%H%M%S).csv"
 echo "SI No, Test Name, Stdout logfile name, Stderr logfile name, Execution Status" > $csv_filename
@@ -55,8 +57,8 @@ for file in ${ltp_tests[@]}; do
     # Start the test timer.
     JunitTestStarted "$test_name"
 
-    echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2> \"$stderr_file\""
-    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2> "$stderr_file"
+    echo "SGXLKL_STARTERLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2> \"$stderr_file\""
+    SGXLKL_STARTERLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2> "$stderr_file"
     total_failures=0
     total_pass=0
     for ((i = 0; i < ${#current_failure_identifiers[@]}; i++))
