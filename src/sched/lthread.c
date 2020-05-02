@@ -29,34 +29,25 @@
 
 #define WANT_REAL_ARCH_SYSCALLS
 
-#include <assert.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
-#include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/time.h>
-#include <unistd.h>
 
-#include "libc.h"
 #include "pthread_impl.h"
 #include "stdio_impl.h"
 
+#include <enclave/enclave_mem.h>
 #include <enclave/enclave_oe.h>
 #include <enclave/lthread.h>
 #include "enclave/lthread_int.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "shared/tree.h"
-
-extern int errno;
+#include "openenclave/corelibc/oemalloc.h"
 
 extern int vio_enclave_wakeup_event_channel(void);
 
@@ -403,7 +394,7 @@ void _lthread_free(struct lthread* lt)
         lthread_rundestructors(lt);
     if (lt->itls != 0)
     {
-        munmap(lt->itls, lt->itlssz);
+        enclave_munmap(lt->itls, lt->itlssz);
     }
     while ((rp = lt->robust_list.head) && rp != &lt->robust_list.head)
     {
@@ -415,13 +406,15 @@ void _lthread_free(struct lthread* lt)
         lt->robust_list.head = *rp;
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
-        if (cont < 0 || waiters)
-            __wake(&m->_m_lock, 1, priv);
+        if (cont < 0 || waiters) {
+            int private_flag = priv ? FUTEX_PRIVATE : 0;
+            syscall_SYS_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
+        }
     }
     __do_orphaned_stdio_locks(lt);
     if (lt->attr.stack)
     {
-        munmap(lt->attr.stack, lt->attr.stack_size);
+        enclave_munmap(lt->attr.stack, lt->attr.stack_size);
         lt->attr.stack = NULL;
     }
     memset(lt, 0, sizeof(*lt));
@@ -438,7 +431,7 @@ void _lthread_free(struct lthread* lt)
             __active_lthreads_tail == NULL;
         }
         struct lthread_queue* new_head = __active_lthreads->next;
-        free(__active_lthreads);
+        oe_free(__active_lthreads);
         __active_lthreads = new_head;
     }
     else
@@ -453,7 +446,7 @@ void _lthread_free(struct lthread* lt)
                     __active_lthreads_tail = ltq;
                 }
                 struct lthread_queue* next_ltq = ltq->next->next;
-                free(ltq->next);
+                oe_free(ltq->next);
                 ltq->next = next_ltq;
                 break;
             }
@@ -462,7 +455,7 @@ void _lthread_free(struct lthread* lt)
     }
 #endif /* DEBUG */
 
-    free(lt);
+    oe_free(lt);
     lt = 0;
 }
 
@@ -488,8 +481,7 @@ void set_tls_tp(struct lthread* lt)
         int r = __set_thread_area(TP_ADJ(tp));
         if (r < 0)
         {
-            sgxlkl_fail(
-                "Could not set thread area %p: %s\n", tp, strerror(errno));
+            sgxlkl_fail( "Could not set thread area %p\n", tp);
         }
     }
 }
@@ -513,8 +505,7 @@ void reset_tls_tp(struct lthread* lt)
         int r = __set_thread_area(TP_ADJ(tp));
         if (r < 0)
         {
-            sgxlkl_fail(
-                "Could not set thread area %p: %s\n", tp, strerror(errno));
+            sgxlkl_fail( "Could not set thread area %p: %s\n", tp);
         }
     }
 }
@@ -616,7 +607,6 @@ int _lthread_sched_init(size_t stack_size)
     struct schedctx* c = __scheduler_self();
 
     c->sched.stack_size = sched_stack_size;
-    c->sched.page_size = sysconf(_SC_PAGESIZE);
 
     c->sched.default_timeout = 3000000u;
 
@@ -660,21 +650,20 @@ int lthread_create(
 
     stack_size =
         attrp && attrp->stack_size ? attrp->stack_size : sched->stack_size;
-    if ((lt = calloc(1, sizeof(struct lthread))) == NULL)
+    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
     {
-        return (errno);
+        return -1;
     }
     lt->attr.stack = attrp ? attrp->stack : 0;
-    if ((!lt->attr.stack) && ((lt->attr.stack = mmap(
+    if ((!lt->attr.stack) && ((lt->attr.stack = enclave_mmap(
                                    0,
                                    stack_size,
+                                   0, /* map_fixed */
                                    PROT_READ | PROT_WRITE,
-                                   MAP_ANONYMOUS | MAP_PRIVATE,
-                                   -1,
-                                   0)) == MAP_FAILED))
+                                   1 /* zero_pages */)) == MAP_FAILED))
     {
-        free(lt);
-        return (errno);
+        oe_free(lt);
+        return -1;
     }
     lt->attr.stack_size = stack_size;
 
@@ -682,22 +671,21 @@ int lthread_create(
     lt->itlssz = libc.tls_size;
     if (libc.tls_size)
     {
-        if ((lt->itls = (uint8_t*)mmap(
+        if ((lt->itls = (uint8_t*)enclave_mmap(
                  0,
                  lt->itlssz,
+                 0, /* map_fixed */
                  PROT_READ | PROT_WRITE,
-                 MAP_ANONYMOUS | MAP_PRIVATE,
-                 -1,
-                 0)) == MAP_FAILED)
+                 1 /* zero_pages */)) == MAP_FAILED)
         {
-            free(lt);
-            return errno;
+            oe_free(lt);
+            return -1;
         }
         if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
         {
-            munmap(lt->attr.stack, stack_size);
-            free(lt);
-            return errno;
+            enclave_munmap(lt->attr.stack, stack_size);
+            oe_free(lt);
+            return -1;
         }
     }
 
@@ -727,7 +715,7 @@ int lthread_create(
 
 #if DEBUG
     struct lthread_queue* new_ltq =
-        (struct lthread_queue*)malloc(sizeof(struct lthread_queue));
+        (struct lthread_queue*)oe_malloc(sizeof(struct lthread_queue));
     new_ltq->lt = lt;
     new_ltq->next = NULL;
     if (__active_lthreads_tail)
@@ -891,20 +879,6 @@ struct lthread* lthread_self(void)
     }
 }
 
-/*
- * convenience function for performance measurement.
- */
-void lthread_print_timestamp(char* msg)
-{
-    struct timeval t1 = {0, 0};
-    gettimeofday(&t1, NULL);
-    sgxlkl_info(
-        "lt timestamp: sec: %ld usec: %ld (%s)\n",
-        t1.tv_sec,
-        (long)t1.tv_usec,
-        msg);
-}
-
 int lthread_setcancelstate(int new, int* old)
 {
     if (new > 2U)
@@ -943,7 +917,7 @@ static int lthread_addtlsslot(long key, void* data)
 {
     struct lthread_tls* d;
     struct lthread* lt = lthread_current();
-    d = calloc(1, sizeof(struct lthread_tls));
+    d = oe_calloc(1, sizeof(struct lthread_tls));
     if (d == NULL)
     {
         return ENOMEM;
@@ -986,7 +960,7 @@ static unsigned global_count = 0;
 int lthread_key_create(long* k, void (*destructor)(void*))
 {
     struct lthread_tls_destructors* d;
-    d = calloc(1, sizeof(struct lthread_tls_destructors));
+    d = oe_calloc(1, sizeof(struct lthread_tls_destructors));
     if (d == NULL)
     {
         return ENOMEM;
@@ -1006,7 +980,7 @@ int lthread_key_delete(long key)
         if (d->key == key)
         {
             LIST_REMOVE(d, tlsdestr_next);
-            free(d);
+            oe_free(d);
             return 0;
         }
     }
@@ -1041,7 +1015,7 @@ static void lthread_rundestructors(struct lthread* lt)
             }
         }
         LIST_REMOVE(d, tls_next);
-        free(d);
+        oe_free(d);
     }
 }
 

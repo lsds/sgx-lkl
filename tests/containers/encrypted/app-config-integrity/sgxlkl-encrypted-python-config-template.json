@@ -2,7 +2,7 @@
     "run": "/usr/bin/python3",
     "args": [
       "-c",
-      "print(\"SGX Encrypted Confidential Container app-config TEST PASSED !\")"
+      "print(\"SGX Encrypted Confidential Container app-config-integrity TEST PASSED !\")"
     ],
     "environment": {},
     "disk_config": [
