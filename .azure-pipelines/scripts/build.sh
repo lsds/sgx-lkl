@@ -9,12 +9,15 @@ fi
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 
 # Initialize the variables.
-if [[ "$is_debug" == "true" ]];then
-    debug_mode="debug"
+if [[ "$build_mode" == "debug" ]]; then
+    make_args="DEBUG=true"
+elif [[ "$build_mode" == "nondebug" ]]; then
+    make_args="DEBUG=false"
 else
-    debug_mode="nondebug"
+    echo "unknown build_mode: $build_mode"
+    exit 1
 fi
-test_name="Compile and build ($debug_mode)"
+test_name="Compile and build ($build_mode)"
 test_class="BVT"
 test_suite="sgx-lkl-oe"
 error_message_file_path="report/$test_name.error"
@@ -26,7 +29,7 @@ JunitTestStarted "$test_name"
 # Ensure we have a pristine environment
 git submodule foreach --recursive git clean -xdf
 make clean
-make DEBUG=$is_debug
+make $make_args
 make_exit=$?
 
 # Set up host networking and FSGSBASE userspace support

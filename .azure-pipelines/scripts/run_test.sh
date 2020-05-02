@@ -10,12 +10,6 @@ fi
 . $SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh
 
 # Initialize the variables and test case [mandatory].
-if [[ "$is_debug" == "true" ]];then
-    debug_mode="debug"
-else
-    debug_mode="nondebug"
-fi
-
 test_mode=$1
 run_mode=$2
 [[ -z $test_mode ]] && test_mode="run"
@@ -27,7 +21,7 @@ if [[ "$test_mode" == "clean" ]]; then
     exit $?
 fi
 
-test_name="$(basename $(pwd))-($debug_mode)"
+test_name="$(basename $(pwd))-($build_mode)"
 [[ "$run_mode" == "run-hw" || "$run_mode" == "run-sw" ]] && test_name+="-($run_mode)"
 test_class=$(basename $(dirname $(pwd)))
 test_suite="sgx-lkl-oe"
