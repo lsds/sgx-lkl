@@ -32,16 +32,16 @@ jobs:
   strategy:
     matrix:
       debug:
-        is_debug: 'true'
+        build_mode: 'debug'
         test_suite: 'non-ltp'
       nondebug:
-        is_debug: 'false'
+        build_mode: 'nondebug'
         test_suite: 'non-ltp'
       debug_ltp1:
-        is_debug: 'true'
+        build_mode: 'debug'
         test_suite: 'ltp1'
       debug_ltp2:
-        is_debug: 'true'
+        build_mode: 'debug'
         test_suite: 'ltp2'
 
   steps:
@@ -61,12 +61,12 @@ jobs:
     - bash: .azure-pipelines/scripts/build.sh
       displayName: Compile and Build
       env:
-        is_debug: "$(is_debug)"
+        build_mode: "$(build_mode)"
 
     - bash: .azure-pipelines/scripts/test_runner.sh $(test_suite)
       displayName: Run Tests
       env:
-        is_debug: "$(is_debug)"
+        build_mode: "$(build_mode)"
 
     - task: PublishTestResults@2
       displayName: "Publish Test Results *.xml"
@@ -74,6 +74,7 @@ jobs:
       inputs:
         testResultsFormat: "JUnit"
         testResultsFiles: "report/*-junit.xml"
+        testRunTitle: "$(test_suite) ($(build_mode))"
         mergeTestResults: true
         failTaskOnFailedTests: true
 

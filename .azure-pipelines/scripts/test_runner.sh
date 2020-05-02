@@ -33,13 +33,13 @@ function RunOneTest()
     ChangeDirectory $test_directory
     . $test_runner_script init "$run_mode"
     echo "Test '$test_name' status - Running ($run_mode) ..."
-    output_file="report/$test_name.stdout.txt"
+    stdout_file="report/$test_name.stdout.txt"
     stderr_file="report/$test_name.stderr.txt"
     # Start the test timer. This only creates $test_name-StartTime file with time stamp in it
     JunitTestStarted "$test_name"
 
-    # Start the test. Redirect stdout to output_file and error logs to stderr_file
-    bash $test_runner_script $run_mode >"$output_file" 2>"$stderr_file"
+    # Start the test. Redirect stdout to stdout_file and error logs to stderr_file
+    bash $test_runner_script $run_mode >"$stdout_file" 2>"$stderr_file"
     test_exit_code=$?
 }
 
@@ -48,16 +48,16 @@ function ProcessOneTestResult()
     failures_in_output=0
     total_failures=0
 
-    # Failure Analysis by searching  output_file and stderr_file for some failure implying labels/identifiers
+    # Failure Analysis by searching  stdout_file and stderr_file for some failure implying labels/identifiers
     current_test_failures=""
     for ((i = 0; i < ${#failure_identifiers[@]}; i++))
     do
         failure="${failure_identifiers[$i]}"
-        echo "Checking for '$failure' in '$output_file' ..."
-        current_output_failures=$(cat "$output_file" "$stderr_file" | grep "$failure" | grep -v "echo" | wc -l)
+        echo "Checking for '$failure' in '$stdout_file' ..."
+        current_output_failures=$(cat "$stdout_file" "$stderr_file" | grep "$failure" | grep -v "echo" | wc -l)
         total_failures=$(($total_failures + $current_output_failures))
         if [[ $current_output_failures > 0 ]]; then
-            failure_string_in_output="Failure : '$failure' observed in '$output_file' or '$stderr_file'"
+            failure_string_in_output="Failure : '$failure' observed in '$stdout_file' or '$stderr_file'"
             echo $failure_string_in_output
             current_test_failures+="$failure_string_in_output\n"
             failures_in_output=$(($failures_in_output + $current_output_failures))
@@ -71,7 +71,7 @@ function ProcessOneTestResult()
         # echo "Note: Azure DevOps supports only 4K characters in stack trace
         echo "Note: Printing last 50 lines." >> "$stack_trace_file_path"
         echo "----------output-start-------------" >> "$stack_trace_file_path"
-        cat "$output_file" | tail -50 >> "$stack_trace_file_path"
+        cat "$stdout_file" | tail -50 >> "$stack_trace_file_path"
         echo "----------output-end-------------" >> "$stack_trace_file_path"
     fi
 
@@ -89,7 +89,7 @@ function ProcessOneTestResult()
     fi
 
     echo "-----------stdout-start-------------"
-    cat "$output_file"
+    cat "$stdout_file"
     echo "-----------stdout-end-------------"
     echo " "
     echo "-----------stderr-start-------------"
