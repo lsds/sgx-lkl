@@ -1,3 +1,4 @@
+include ../../common.mk
 
 PROG=abort
 PROG_C=abort.c
@@ -6,11 +7,6 @@ DISK_IMAGE=sgxlkl-abort.img
 IMAGE_SIZE=5M
 
 EXECUTION_TIMEOUT=60
-
-SGXLKL_ROOT=../../..
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
-SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
 
 ifeq ($(SGXLKL_VERBOSE),)
 SGXLKL_ENV=\

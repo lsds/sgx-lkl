@@ -1,3 +1,4 @@
+include ../../common.mk
 
 APP_ROOT=app
 PROG=/home/user/dldt/bin/intel64/Debug/hello_nv12_input_classification
@@ -5,13 +6,9 @@ PROG=/home/user/dldt/bin/intel64/Debug/hello_nv12_input_classification
 DISK_IMAGE=sgxlkl-openvino.img
 IMAGE_SIZE=4096M
 
-SGXLKL_ROOT=../../..
-
 EXECUTION_TIMEOUT=3600
 
 ENCLAVE_CMD=${PROG} /app/public_models/squeezenet1.1.xml /app/public_models/car.yuv 640x480 CPU
-
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
 
 ifeq ($(SGXLKL_VERBOSE),)
 SGXLKL_ENV=\
@@ -20,9 +17,6 @@ SGXLKL_ENV=\
 else
 SGXLKL_ENV=
 endif
-
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
-SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
 
 .DELETE_ON_ERROR:
 .PHONY: all clean

@@ -1,5 +1,4 @@
-
-SGXLKL_ROOT=../../../..
+include ../../../common.mk
 
 CC_APP=/usr/bin/python3
 CC_APP_CONFIG=app-config.json
@@ -15,9 +14,6 @@ CC_IMAGE=rootfs.img
 ifeq ($(SGXLKL_VERBOSE),)
 	SGXLKL_ENV_APP_CONFIG+=${VERBOSE_OPTS}
 endif
-
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 
 .DELETE_ON_ERROR:
 .PHONY: clean run-hw run-sw
