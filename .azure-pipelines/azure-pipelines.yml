@@ -55,6 +55,9 @@ jobs:
     - bash: .azure-pipelines/scripts/install_prerequisites.sh
       displayName: Install pre-requisites
     
+    - bash: .azure-pipelines/scripts/dump_system_info.sh
+      displayName: Dump system info
+
     - bash: .azure-pipelines/scripts/install_openenclave.sh
       displayName: Install Open Enclave
 
