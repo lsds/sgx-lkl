@@ -15,7 +15,7 @@ echo "Distribution:"
 lsb_release -ds
 echo
 echo "SGX kernel module:"
-modinfo intel_sgx
+modinfo intel_sgx || echo "none"
 echo
 echo "Running SGX-LKL instances:"
 ps -aux | grep sgx-lkl-run-oe | grep -v grep || echo "none"
