@@ -300,11 +300,9 @@ int enclave_futex(
         return -ENOSYS;
     }
 
-    // SEAN_TODO: still using clock, but not getting time yet.
     clock_t clock =
         op & FUTEX_CLOCK_REALTIME ? CLOCK_REALTIME : CLOCK_MONOTONIC;
     op &= ~(FUTEX_CLOCK_REALTIME);
-
 
     ticket_lock(&futex_q_lock);
     switch (op)
