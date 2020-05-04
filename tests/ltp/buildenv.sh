@@ -5,6 +5,7 @@ test_directory=$2
 
 LTP_GIT_TAG="20190930"
 FORK_DISABLE_PATCH="/ltp_fork_disable.patch"
+FIX_SETREUID_PATCH="/fix_setreuid_setreuid07.patch"
 
 if [ -z $test_directory ]; then
     echo "Please provide ltp tests directory. Example: ltp.sh 'testcases/kernel/syscalls'"
@@ -43,6 +44,11 @@ if [[ "$mode" == "build" ]]; then
     if [ -f $FORK_DISABLE_PATCH ];then
         echo applying patch "$FORK_DISABLE_PATCH"
         git apply $FORK_DISABLE_PATCH
+    fi
+
+    if [ -f $FIX_SETREUID_PATCH ];then
+        echo applying patch "$FIX_SETREUID_PATCH"
+        git apply $FIX_SETREUID_PATCH
     fi
 
     echo "Running make clean..."
