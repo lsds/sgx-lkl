@@ -1,9 +1,9 @@
 #include <futex.h>
 #include <sys/time.h>
 #include <time.h>
-#include "sched/futex.h"
+#include "enclave/enclave_util.h"
 #include "lkl/posix-host.h"
-#include <errno.h>
+#include "sched/futex.h"
 
 /*
  * Get the difference between starttime and endtime.
@@ -35,8 +35,8 @@ static void timespec_diff(
 }
 
 /*
-* SEAN-TODO: document what is happening here
-*/
+ * SEAN-TODO: document what is happening here
+ */
 long syscall_SYS_futex_override(
     int* uaddr,
     int op,
@@ -56,14 +56,17 @@ long syscall_SYS_futex_override(
         struct lkl_timespec now;
         if (lkl_sys_clock_gettime(clock, &now) != 0)
         {
-            // SEAN-TODO: fail here
+            sgxlkl_fail("lkl_sys_clock_gettime failed; something is very "
+                        "wrong. exiting.");
         }
 
         struct timespec diff;
         timespec_diff(&now, timeout, &diff);
 
-        return (long)syscall_SYS_enclave_futex(uaddr, op, val, &diff, uaddr2, val3);
+        return (long)syscall_SYS_enclave_futex(
+            uaddr, op, val, &diff, uaddr2, val3);
     }
 
-    return (long)syscall_SYS_enclave_futex(uaddr, op, val, timeout, uaddr2, val3);
+    return (long)syscall_SYS_enclave_futex(
+        uaddr, op, val, timeout, uaddr2, val3);
 }
