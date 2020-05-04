@@ -173,9 +173,7 @@ An instance of `timer_dev` is initialized on startup and updated periodically fr
 `nanos` can be accessed from within the enclave to create a monotonic source of time.
 
 Inside the enclave, an internal "source of truth" for monotonic passage of time is also kept.
-When an enclave caller needs access to the latest monotonic time, the following general logic occurs:
-
-- If monotonic time outside the enclave is greater than monotonic time inside the enclave, then internal time is set to external time.
+When an enclave caller needs access to the latest monotonic time, the following general logic occurs if monotonic time outside the enclave is greater than monotonic time inside the enclave, then internal time is set to external time, otherwise, internal time is increased and returned.
 
 Wallclock time within the enclave is provided by setting the wallclock on enclave startup to a time approximately the same as the host.
 Wallclock time inside the enclave can then move based on the corresponding movement of the monotonic nanoseconds as described earlier in this section.
