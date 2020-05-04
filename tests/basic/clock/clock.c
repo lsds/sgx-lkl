@@ -6,6 +6,30 @@
 
 #define TEST_VARIANCE 2
 
+void system_clock_set_test()
+{
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != 0)
+    {
+        printf("FAILED: gettimeofday call failed. errno: %d\n", errno);
+        exit(1);
+    }
+
+
+    if (tv.tv_sec < 1562030000)
+    {
+        // if gettimeofday comes back with less than July 2, 2019 then it
+        // probably wasn't initialized on enclave startup. That would be
+        // "easy" to do by accidentally removing the function that does
+        // the initialization. This test is mostly a "ooops" check
+        // The time that comes back if "ooops" happened should probably be
+        // around the UNIX epoch.
+
+        printf("FAILED: system clock seems to have not been initialized. gettimeofday returned %d seconds\n", tv.tv_sec);
+        exit(1);
+    }
+}
+
 void clock_settime_to(time_t clock_seconds)
 {
     struct timespec ts;
@@ -82,6 +106,9 @@ int main(int argc, char **argv)
     time_t time_two = 615340800;
     time_t time_three = 1000166400;
     time_t time_four = 962496000;
+
+    printf("Verifying system clock was set on enclave startup\n");
+    system_clock_set_test();
 
     printf("Running clock_settime tests\n");
     clock_settime_test(time_one);
