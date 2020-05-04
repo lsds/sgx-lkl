@@ -27,14 +27,18 @@ if [ -f "$openenclave_status_file_path" ]; then
     fi
 fi
 
+# Don't build tests.
+# TODO replace with build option https://github.com/openenclave/openenclave/issues/2894
+sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
+
 sudo bash scripts/ansible/install-ansible.sh
 sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 
 mkdir -p build
 cd build
-cmake -G "Unix Makefiles" ..
-sudo make
-sudo make install
+cmake -G "Ninja" ..
+sudo ninja
+sudo ninja install
 if [[ "$?" == "0" ]]; then
     git log --pretty=%H | head -1 > $openenclave_status_file_path
 fi

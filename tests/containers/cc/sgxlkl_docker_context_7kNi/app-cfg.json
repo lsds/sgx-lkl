@@ -1,0 +1,13 @@
+{
+    "run": "/usr/bin/python3",
+    "args": [
+      "/app/python-helloworld.py"
+    ],
+    "environment": {},
+    "disk_config": [
+      {
+        "disk": "/",
+        "readonly": false
+      }
+    ]
+}
