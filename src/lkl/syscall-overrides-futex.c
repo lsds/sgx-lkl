@@ -35,7 +35,10 @@ static void timespec_diff(
 }
 
 /*
- * SEAN-TODO: document what is happening here
+ * system call override for SYS_futex
+ *
+ * enclave_futex only handles relative, monotonic time. We used the override
+ * to handle FUTEX_WAIT_BITSET allowing for a absolute time.
  */
 long syscall_SYS_futex_override(
     int* uaddr,
@@ -63,10 +66,8 @@ long syscall_SYS_futex_override(
         struct timespec diff;
         timespec_diff(&now, timeout, &diff);
 
-        return (long)enclave_futex(
-            uaddr, op, val, &diff, uaddr2, val3);
+        return (long)enclave_futex(uaddr, op, val, &diff, uaddr2, val3);
     }
 
-    return (long)enclave_futex(
-        uaddr, op, val, timeout, uaddr2, val3);
+    return (long)enclave_futex(uaddr, op, val, timeout, uaddr2, val3);
 }
