@@ -5,6 +5,7 @@ test_directory=$2
 
 LTP_GIT_TAG="20190930"
 FORK_DISABLE_PATCH="/ltp_fork_disable.patch"
+UMOUNT_PATCH="/umount.patch"
 
 if [ -z $test_directory ]; then
     echo "Please provide ltp tests directory. Example: ltp.sh 'testcases/kernel/syscalls'"
@@ -45,6 +46,10 @@ if [[ "$mode" == "build" ]]; then
         git apply $FORK_DISABLE_PATCH
     fi
 
+    if [ -f $UMOUNT_PATCH ];then
+        echo applying patch "$UMOUNT_PATCH"
+        git apply $UMOUNT_PATCH
+    fi
     echo "Running make clean..."
     make autotools
     ./configure
