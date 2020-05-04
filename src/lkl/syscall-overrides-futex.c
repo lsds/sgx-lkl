@@ -5,15 +5,6 @@
 #include "lkl/posix-host.h"
 #include <errno.h>
 
-static long syscall_ret(int r)
-{
-	if (r > -4096UL) {
-		errno = -r;
-		return -1;
-	}
-	return r;
-}
-
 /*
  * Get the difference between starttime and endtime.
  * If endtime < starttime, difference will be considered to be "0".
@@ -46,7 +37,7 @@ static void timespec_diff(
 /*
 * SEAN-TODO: document what is happening here
 */
-int syscall_SYS_futex_override(
+long syscall_SYS_futex_override(
     int* uaddr,
     int op,
     int val,
@@ -71,12 +62,8 @@ int syscall_SYS_futex_override(
         struct timespec diff;
         timespec_diff(&now, timeout, &diff);
 
-        rc = syscall_SYS_enclave_futex(uaddr, op, val, &diff, uaddr2, val3);
-    }
-    else
-    {
-        rc = syscall_SYS_enclave_futex(uaddr, op, val, timeout, uaddr2, val3);
+        return (long)syscall_SYS_enclave_futex(uaddr, op, val, &diff, uaddr2, val3);
     }
 
-    return syscall_ret(rc);
+    return (long)syscall_SYS_enclave_futex(uaddr, op, val, timeout, uaddr2, val3);
 }

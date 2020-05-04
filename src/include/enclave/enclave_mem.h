@@ -50,7 +50,7 @@ int syscall_SYS_enclave_futex(
     int* uaddr2,
     int val3);
 
-int syscall_SYS_futex_override(
+long syscall_SYS_futex_override(
     int* uaddr,
     int op,
     int val,

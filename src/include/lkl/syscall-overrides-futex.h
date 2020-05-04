@@ -3,7 +3,7 @@
 
 #include <time.h>
 
-int syscall_SYS_futex_override(
+long syscall_SYS_futex_override(
     int* uaddr,
     int op,
     int val,
