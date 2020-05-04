@@ -89,7 +89,7 @@ LKL                                 ?= $(SGXLKL_ROOT)/lkl
 LKL_BUILD                           ?= ${BUILD_DIR}/lkl
 LIBLKL                              ?= ${LKL_BUILD}/lib/liblkl.a
 LKL_HEADERS                         ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/syscalls.h
-LKL_CFLAGS_EXTRA                    ?=
+LKL_CFLAGS_EXTRA                    ?= -fPIE
 
 ifeq ($(RELEASE),true)
     SGXLKL_CFLAGS           += -DSGXLKL_RELEASE
