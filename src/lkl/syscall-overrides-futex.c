@@ -63,10 +63,10 @@ long syscall_SYS_futex_override(
         struct timespec diff;
         timespec_diff(&now, timeout, &diff);
 
-        return (long)syscall_SYS_enclave_futex(
+        return (long)enclave_futex(
             uaddr, op, val, &diff, uaddr2, val3);
     }
 
-    return (long)syscall_SYS_enclave_futex(
+    return (long)enclave_futex(
         uaddr, op, val, timeout, uaddr2, val3);
 }

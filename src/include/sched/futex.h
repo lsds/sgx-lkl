@@ -3,7 +3,7 @@
 
 #include <time.h>
 
-int syscall_SYS_enclave_futex(
+int enclave_futex(
     int* uaddr,
     int op,
     int val,
