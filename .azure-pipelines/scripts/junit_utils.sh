@@ -33,7 +33,7 @@ function CreateSuiteTestRunDurationJunit()
 
     echo "<testsuites>" > "$junit_file_path"
     echo "  <testsuite name=\"$test_suite\" duration=\"$duration\">" >> "$junit_file_path"
-    echo "    <testcase name=\"test-suite-test-run-overall-result-${test_group_name}\" classname=\"Default\" time=\"$duration\">" >> "$junit_file_path"
+    echo "    <testcase name=\"test-suite-test-run-overall-result-${test_group_name}\" classname=\"Summary\" time=\"$duration\">" >> "$junit_file_path"
     echo "    </testcase>" >> "$junit_file_path"
     echo "  </testsuite>" >> "$junit_file_path"
     echo '</testsuites>' >> "$junit_file_path"

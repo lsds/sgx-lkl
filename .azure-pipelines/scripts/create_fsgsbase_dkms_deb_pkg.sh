@@ -23,11 +23,10 @@ module_name=enable_fsgsbase
 deb_pkg_name=enable-fsgsbase-dkms
 module_version=${module_version:-1.0.0}
 
-tmp_dir=$SGXLKL_ROOT/build/deb-fsgsbase
+tmp_dir=$SGXLKL_ROOT/build/deb-fsgsbase-tmp
 src_base_dir=$tmp_dir/src
 src_dir=$src_base_dir/$module_name-$module_version
 build_dir=$tmp_dir/build
-pkg_dir=$tmp_dir/pkg
 
 rm -rf $tmp_dir
 mkdir -p $src_dir $build_dir $pkg_dir
@@ -60,6 +59,6 @@ dkms mkdeb $dkms_args -m $module_name -v $module_version --source-only
 set +x
 
 deb_filename=${deb_pkg_name}_${module_version}_amd64.deb
-cp $build_dir/$module_name/$module_version/deb/$deb_filename $pkg_dir
+cp $build_dir/$module_name/$module_version/deb/$deb_filename $SGXLKL_DEB_DIR
 
-echo "Done! Install with: sudo apt install $pkg_dir/$deb_filename"
+echo "Done! Install with: sudo apt install $SGXLKL_DEB_DIR/$deb_filename"

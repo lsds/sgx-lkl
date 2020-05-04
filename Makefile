@@ -141,6 +141,7 @@ install:
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-disk $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-setup $(PREFIX)/bin
+	cp $(TOOLS)/sgx-lkl-cfg $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-docker $(PREFIX)/bin
 	cp $(TOOLS)/gdb/sgx-lkl-gdb $(PREFIX)/bin
 	cp $(TOOLS)/gdb/gdbcommands.py $(PREFIX)/lib/gdb
@@ -154,6 +155,7 @@ uninstall:
 	rm -f $(PREFIX)/bin/sgx-lkl-java
 	rm -f $(PREFIX)/bin/sgx-lkl-disk
 	rm -f $(PREFIX)/bin/sgx-lkl-setup
+	rm -f $(PREFIX)/bin/sgx-lkl-cfg
 	rm -f $(PREFIX)/bin/sgx-lkl-docker
 	rm -f $(PREFIX)/bin/sgx-lkl-gdb
 	rm -rf $(PREFIX)/lib/gdb
