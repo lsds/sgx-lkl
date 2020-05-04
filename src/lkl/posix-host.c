@@ -18,8 +18,8 @@
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 
-#include "enclave/sgxlkl_config.h"
 #include "enclave/enclave_timer.h"
+#include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
@@ -29,15 +29,7 @@
 #define NSEC_PER_SEC 1000000000L
 
 // The function used to implement the futex system call on top of lthreads
-/*int syscall_SYS_futex(
-    int* uaddr,
-    int op,
-    int val,
-    const struct timespec* timeout,
-    int* uaddr2,
-    int val3);*/
-
- int enclave_futex(
+int enclave_futex(
     int* uaddr,
     int op,
     int val,
