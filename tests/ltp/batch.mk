@@ -1,3 +1,5 @@
+include ../../common.mk
+
 ALPINE_MAJOR=3.8
 ALPINE_VERSION=3.8.0
 ALPINE_ARCH=x86_64
