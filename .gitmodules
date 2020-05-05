@@ -7,5 +7,5 @@
 	url = https://github.com/lsds/musl.git
 [submodule "sgx-lkl-musl"]
 	path = sgx-lkl-musl
-	url = https://github.com/seantallen/sgx-lkl-musl.git
-	branch = in-enclave-time-source
+	url = https://github.com/lsds/sgx-lkl-musl.git
+	branch = oe_port
