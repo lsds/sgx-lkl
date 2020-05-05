@@ -10,7 +10,12 @@ IMAGE_SIZE=100M
 CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
-SGXLKL_ENV=-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1
+# This test verifies in-enclave networking.
+# TODO verify host-side networking for DCAP Client
+CC_DOCKER_ARGS=\
+	--rm --privileged --network=host \
+	-v $(SGXLKL_PREFIX):$(SGXLKL_PREFIX) \
+	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0
 
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
@@ -35,19 +40,11 @@ run-sw:
 	@echo SGXLKL_PREFIX missing, skipping test
 else
 run-hw: $(CC_stamp)
-	docker run --rm --privileged \
-		${SGXLKL_ENV} \
-		-v $(SGXLKL_PREFIX):$(SGXLKL_PREFIX) \
-		$(CC) \
-		--hw-debug
+	docker run $(CC_DOCKER_ARGS) $(CC) --hw-debug
 
 run-sw: $(CC_stamp)
 	# TODO -t as work-around for https://github.com/lsds/sgx-lkl/issues/158
-	docker run --rm --privileged -t \
-		${SGXLKL_ENV} \
-		-v $(SGXLKL_PREFIX):$(SGXLKL_PREFIX) \
-		$(CC) \
-		--sw-debug
+	docker run -t $(CC_DOCKER_ARGS) $(CC) --sw-debug
 endif
 
 clean:
