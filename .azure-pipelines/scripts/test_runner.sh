@@ -24,9 +24,8 @@ function CleanTest()
 
 function RunOneTest()
 {
-    # For non-ltp test can be run-hw or run-sw
-    # For ltp test we always pass "run" which will run run-hw and run-sw but run-sw is disabled for LTP tests
-    # We don't need to create separate test results for LTP, but will create separate test results for non-LTP
+    CheckNotRunning
+
     run_mode=$1
 
     echo "[Test #$counter/$total_tests] Found $file in directory $test_directory"
@@ -39,7 +38,7 @@ function RunOneTest()
     JunitTestStarted "$test_name"
 
     # Start the test. Redirect stdout to stdout_file and error logs to stderr_file
-    bash $test_runner_script $run_mode >"$stdout_file" 2>"$stderr_file"
+    bash $test_runner_script run $run_mode >"$stdout_file" 2>"$stderr_file"
     test_exit_code=$?
 }
 
@@ -130,20 +129,12 @@ function SkipTestIfDisabled()
     # if this test is disabled set counters and skip to next test
     if [[ $is_test_disabled -ge 1 ]]; then
         echo "Test $file is disabled. Skipping test..."
-	echo "To enable the test remove $file from $disabled_tests_file"
+        echo "To enable the test remove $file from $disabled_tests_file"
 
-	if [[ "$test_group_name" == "non-ltp" ]]; then
-	    disabled_test_count=2 # run-hw and run-sw
-        else
-            # LTP tests ltp-batch1 or ltp-batch2
-            # Technically you can disable but this means no test will run
-            disabled_test_count=1
-	fi
-
-        total_disabled=$(($total_disabled + $disabled_test_count))
-	counter=$(($counter + $disabled_test_count))
+        total_disabled=$(($total_disabled + 1))
+        counter=$(($counter + 1))
         total_remaining=$(($total_tests - $counter))
-	skip_test=true
+        skip_test=true
     fi
 }
 
@@ -164,18 +155,15 @@ if [[ $1 == "ltp1" ]]; then
 elif [[ $1 == "ltp2" ]]; then
     file_list=("tests/ltp/ltp-batch2/Makefile")
     test_group_name="ltp-batch2"
-elif [[ $1 == "non-ltp" ]]; then
+elif [[ $1 == "core" ]]; then
     file_list=( $(find $test_folder_name -name $test_folder_identifier | grep -v "$test_exception_list") )
-    test_group_name="non-ltp"
+    test_group_name="core"
 else
     echo "Unknown test suite: $1"
     exit 1
 fi
 
 total_tests=${#file_list[@]}
-# LTP tests run only with run-hw. For LTP case count will be 1
-# Non-LTP tests will run with run-hw and run-sw. We will create separate test cases for hw and sw; count will be double
-[[ "$test_group_name" == "non-ltp" ]] && total_tests=$((total_tests * 2))
 
 total_passed=0
 total_failed=0
@@ -195,24 +183,9 @@ do
         continue
     fi
 
-    if [[ "$test_group_name" == "non-ltp" ]]; then
-        # Run non-ltp test with run-hw
-        GetReadyToRunNextTest
-        RunOneTest "run-hw"
-        ProcessOneTestResult
-
-        # Run non-ltp test with run-sw
-        GetReadyToRunNextTest
-        RunOneTest "run-sw"
-        ProcessOneTestResult
-    else 
-        # Run ltp tests (ltp-batch1 or ltp-batch2)
-        # We call with "run" which calls run-hw and run-sw
-        # but run-sw is disabled for LTP tests.
-        GetReadyToRunNextTest
-        RunOneTest "run"
-        ProcessOneTestResult
-    fi
+    GetReadyToRunNextTest
+    RunOneTest $run_mode
+    ProcessOneTestResult
 
     # run "make clean" for current test folder
     CleanTest
@@ -226,7 +199,7 @@ echo "total    = $total_tests"
 echo "=================================================="
 
 # Using suite test start time, create test duration junit xml which will be used for test duration in pipeline
-[[ "$test_group_name" == "non-ltp" ]] && CreateSuiteTestRunDurationJunit $suite_test_start_time "$test_suite" "${test_group_name}-${debug_mode}"
+[[ "$test_group_name" == "core" ]] && CreateSuiteTestRunDurationJunit $suite_test_start_time "$test_suite" "${test_group_name}-${build_mode}-${run_mode}"
 
 # Subtract disabled tests before comparing toltal_passed
 # Disabled tests not considered failure

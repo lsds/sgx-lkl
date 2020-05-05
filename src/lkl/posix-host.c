@@ -18,15 +18,18 @@
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 
+#include "enclave/enclave_timer.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
-
+#include "lkl/iomem.h"
+#include "lkl/jmp_buf.h"
 #include "openenclave/internal/print.h"
+#include "syscall.h"
 
 #define NSEC_PER_SEC 1000000000L
 
 // The function used to implement the futex system call on top of lthreads
-int syscall_SYS_futex(
+int enclave_futex(
     int* uaddr,
     int op,
     int val,
@@ -169,17 +172,17 @@ static int futex_timed_wait(
     int val,
     const struct timespec* timeout)
 {
-    return syscall_SYS_futex((int*)ftx, FUTEX_WAIT, val, timeout, 0, 0);
+    return enclave_futex((int*)ftx, FUTEX_WAIT, val, timeout, 0, 0);
 }
 
 static void futex_wait(_Atomic(int) * ftx, int val)
 {
-    syscall_SYS_futex((int*)ftx, FUTEX_WAIT, val, NULL, 0, 0);
+    enclave_futex((int*)ftx, FUTEX_WAIT, val, NULL, 0, 0);
 }
 
 static void futex_wake(_Atomic(int) * ftx, int val)
 {
-    syscall_SYS_futex((int*)ftx, FUTEX_WAKE, val, NULL, 0, 0);
+    enclave_futex((int*)ftx, FUTEX_WAKE, val, NULL, 0, 0);
 }
 
 static struct lkl_sem* sem_alloc(int count)
@@ -385,19 +388,6 @@ static int tls_set(struct lkl_tls_key* key, void* data)
 static void* tls_get(struct lkl_tls_key* key)
 {
     return lthread_getspecific(key->key);
-}
-
-static unsigned long long time_ns(void)
-{
-    struct timespec ts = {0};
-    int ret = 0;
-    /* Use the time ocall here */
-    if (sgxlkl_host_syscall_clock_gettime(&ret, CLOCK_REALTIME, &ts) != OE_OK ||
-        ret != 0)
-    {
-        panic();
-    }
-    return 1e9 * ts.tv_sec + ts.tv_nsec;
 }
 
 typedef struct sgxlkl_timer
@@ -612,7 +602,7 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .tls_free = tls_free,
     .tls_set = tls_set,
     .tls_get = tls_get,
-    .time = time_ns,
+    .time = enclave_nanos,
     .timer_alloc = timer_alloc,
     .timer_set_oneshot = timer_set_oneshot,
     .timer_free = timer_free,

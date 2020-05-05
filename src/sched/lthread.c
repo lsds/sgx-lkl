@@ -408,7 +408,7 @@ void _lthread_free(struct lthread* lt)
         lt->robust_list.pending = 0;
         if (cont < 0 || waiters) {
             int private_flag = priv ? FUTEX_PRIVATE : 0;
-            syscall_SYS_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
+            enclave_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
         }
     }
     __do_orphaned_stdio_locks(lt);

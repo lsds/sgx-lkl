@@ -52,13 +52,13 @@ run-sw: $(DISK_IMAGE)
             fi
     # Next we need to filter out the string "Segementation fault", 
     # otherwise the CI pipelines flags the test as failed.
-	@set -o pipefail; ${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug ${DISK_IMAGE} $(TEST2) | grep -v -x "Segmentation fault"; \
+	@set -o pipefail; ${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug ${DISK_IMAGE} $(TEST2) | grep -v -x "Segmentation fault"; \
 			if [ $$? -eq 139 ]; then \
                 echo "TEST PASSED: segv (SW mode)"; \
             else \
                 echo "TEST FAILED: segv (SW mode)"; \
             fi
-	@${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug ${DISK_IMAGE} $(TEST3); \
+	@${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug ${DISK_IMAGE} $(TEST3); \
 			if [ $$? -eq 143 ]; then \
                 echo "TEST PASSED: raise (SW mode)"; \
              else \

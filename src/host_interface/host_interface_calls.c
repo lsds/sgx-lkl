@@ -143,19 +143,3 @@ void sgxlkl_host_shutdown_notification(void)
     /* Notify host device for the shutdown evt */
     vio_host_notify_guest_shutdown_evt();
 }
-
-/*
- * Function to get clock resolution
- */
-int sgxlkl_host_syscall_clock_getres(clockid_t clk_id, struct timespec* res)
-{
-    return clock_getres(clk_id, res);
-}
-
-/*
- * Function to get the time from host
- */
-int sgxlkl_host_syscall_clock_gettime(clockid_t clk_id, struct timespec* tp)
-{
-    return clock_gettime(clk_id, tp);
-}

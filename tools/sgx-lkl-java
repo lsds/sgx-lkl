@@ -1,10 +1,14 @@
 #!/bin/bash
 
-BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 EXECUTION_MODE=$1
 
-SGX_LKL_RUN_EXEC=${BASE_DIR}/build/sgx-lkl-run-oe
+if [ -f ${THIS_DIR}/../build/sgx-lkl-run-oe ]; then
+    SGX_LKL_RUN_EXEC=${THIS_DIR}/../build/sgx-lkl-run-oe
+else
+    SGX_LKL_RUN_EXEC=$THIS_DIR/sgx-lkl-run-oe
+fi
 SGX_LKL_OPTIONS="\
   SGXLKL_MMAP_FILES=${SGXLKL_MMAP_FILES:-Shared}"
 

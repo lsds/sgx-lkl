@@ -22,3 +22,12 @@ function ChangeDirectory()
     echo "Changing directory to $test_directory"
     cd "$test_directory"
 }
+
+function CheckNotRunning()
+{
+    if pgrep -x sgx-lkl-run-oe >/dev/null; then
+        echo "SGX-LKL still running:"
+        ps -aux | grep sgx-lkl-run-oe
+        exit 1
+    fi
+}

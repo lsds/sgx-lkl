@@ -11,6 +11,7 @@ no_debug=
 build_from=source
 oe_prefix=/opt/openenclave
 cc_name=
+cc_mode=debug
 cc_app_cfg=
 cc_host_cfg=
 
@@ -35,6 +36,7 @@ function usage() {
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
     echo "    --app-cfg=<path>                                 Path to app configuration file."
+    echo "    --mode=<debug|nondebug>                          Select the deployment mode of SGX-LKL (default: debug)"
     echo
     echo " [-?]                                                Display this help message."
     exit 1
@@ -67,16 +69,33 @@ function build-sgxlkl() {
 function build-cc() {
     echo "SGX-LKL root: $sgxlkl_root"
 
-    echo "Creating confidential container '${cc_name}'"
+    echo "Creating confidential container '${cc_name}' for $cc_mode mode"
 
     context_dir=$(mktemp -d sgxlkl_docker_context_XXXX)
     echo "Using temporary directory ${context_dir}"
 
+    if [[ $cc_mode == release ]]; then
+        suffix=
+        mode_arg="--hw-release"
+    else
+        suffix="-$cc_mode"
+        mode_arg="--hw-debug"
+    fi
+    install_prefix="/opt/sgx-lkl$suffix"
+
     cat >>${context_dir}/Dockerfile << EOF
 FROM scratch
 COPY . /
-ENTRYPOINT ["/opt/sgx-lkl/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
-CMD ["--hw-release"]
+
+# Note: WORKDIR also creates the directory.
+WORKDIR /tmp
+ENV TMPDIR=/tmp
+
+# See https://github.com/microsoft/Azure-DCAP-Client.
+ENV AZDCAP_CACHE=${TMPDIR}
+
+ENTRYPOINT ["${install_prefix}/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
+CMD ["${mode_arg}"]
 EOF
 
     cp ${cc_app_cfg} ${context_dir}/app-cfg.json
@@ -127,6 +146,9 @@ function main() {
                 ;;
             build-cc)
                 sub_cmd=$1
+                ;;
+            --mode=?*)
+                cc_mode=${1#*=}
                 ;;
             --name=?*)
                 cc_name=${1#*=}

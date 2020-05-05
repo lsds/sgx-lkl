@@ -42,7 +42,7 @@ void* syscall_SYS_mremap(
 
 int syscall_SYS_msync(void* addr, size_t length, int flags);
 
-int syscall_SYS_futex(
+int enclave_futex(
     int* uaddr,
     int op,
     int val,
