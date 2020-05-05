@@ -234,7 +234,7 @@
 /ltp/testcases/kernel/syscalls/flistxattr/flistxattr03
 #/ltp/testcases/kernel/syscalls/flock/flock01
 #/ltp/testcases/kernel/syscalls/flock/flock02
-/ltp/testcases/kernel/syscalls/flock/flock03
+#/ltp/testcases/kernel/syscalls/flock/flock03
 #/ltp/testcases/kernel/syscalls/flock/flock04
 #/ltp/testcases/kernel/syscalls/flock/flock06
 /ltp/testcases/kernel/syscalls/fork/fork01
