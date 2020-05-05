@@ -1,0 +1,409 @@
+diff --git a/testcases/kernel/syscalls/mount/mount01.c b/testcases/kernel/syscalls/mount/mount01.c
+index 1d902ba89..86ffd95c4 100644
+--- a/testcases/kernel/syscalls/mount/mount01.c
++++ b/testcases/kernel/syscalls/mount/mount01.c
+@@ -36,8 +36,13 @@ int TST_TOTAL = 1;
+ #define DIR_MODE (S_IRWXU | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
+ #define MNTPOINT "mntpoint"
+ 
+-static const char *device;
+-static const char *fs_type;
++/*
++	patch to use root file system as sgx has 32 MB limit in using in 
++	memory fileysystem causing OOM panic
++ */
++
++static const char *device = "/dev/vda";
++static const char *fs_type = "ext4";
+ 
+ int main(int ac, char **av)
+ {
+@@ -54,13 +59,13 @@ int main(int ac, char **av)
+ 		TEST(mount(device, MNTPOINT, fs_type, 0, NULL));
+ 
+ 		if (TEST_RETURN != 0) {
+-			tst_resm(TFAIL | TTERRNO, "mount(2) failed");
++			tst_resm(TFAIL | TTERRNO, "mount(2) TEST_FAILED");
+ 		} else {
+-			tst_resm(TPASS, "mount(2) passed ");
++			tst_resm(TPASS, "mount(2) PASSED ");
+ 			TEST(tst_umount(MNTPOINT));
+ 			if (TEST_RETURN != 0) {
+ 				tst_brkm(TBROK | TTERRNO, cleanup,
+-					 "umount(2) failed");
++					 "umount(2) TEST_FAILED");
+ 			}
+ 		}
+ 	}
+@@ -77,13 +82,13 @@ static void setup(void)
+ 
+ 	tst_tmpdir();
+ 
+-	fs_type = tst_dev_fs_type();
++/*	fs_type = tst_dev_fs_type();
+ 	device = tst_acquire_device(cleanup);
+-
++*/
+ 	if (!device)
+-		tst_brkm(TCONF, cleanup, "Failed to obtain block device");
++		tst_brkm(TCONF, cleanup, "TEST_FAILED to obtain block device");
+ 
+-	tst_mkfs(cleanup, device, fs_type, NULL, NULL);
++//	tst_mkfs(cleanup, device, fs_type, NULL, NULL);
+ 
+ 	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
+ 
+@@ -92,8 +97,8 @@ static void setup(void)
+ 
+ static void cleanup(void)
+ {
+-	if (device)
++/*	if (device)
+ 		tst_release_device(device);
+-
++*/
+ 	tst_rmdir();
+ }
+diff --git a/testcases/kernel/syscalls/mount/mount02.c b/testcases/kernel/syscalls/mount/mount02.c
+index 392b4fd3a..ea1c96513 100644
+--- a/testcases/kernel/syscalls/mount/mount02.c
++++ b/testcases/kernel/syscalls/mount/mount02.c
+@@ -56,12 +56,18 @@ char *TCID = "mount02";
+ 
+ static char path[PATH_MAX + 2];
+ static const char *long_path = path;
+-static const char *fs_type;
++static const char *fs_type = "ext4";
+ static const char *wrong_fs_type = "error";
+ static const char *mntpoint = "mntpoint";
+-static const char *device;
++
++/*
++	patch to use root file system as sgx has 32 MB limit in using in
++	memory fileysystem causing OOM panic
++*/
++
++static const char *device = "/dev/vda";
+ static const char *null = NULL;
+-static const char *fault = (void*)-1;
++//static const char *fault = (void*)-1;
+ static const char *nonexistent = "nonexistent";
+ static const char *char_dev = "char_device";
+ static const char *file = "filename";
+@@ -89,8 +95,8 @@ static struct test_case {
+ 	{&null, &mntpoint, &fs_type, 0, EINVAL, NULL, NULL},
+ 	{&device, &mntpoint, &null, 0, EINVAL, NULL, NULL},
+ 	{&device, &mntpoint, &fs_type, MS_REMOUNT, EINVAL, NULL, NULL},
+-	{&fault, &mntpoint, &fs_type, 0, EFAULT, NULL, NULL},
+-	{&device, &mntpoint, &fault, 0, EFAULT, NULL, NULL},
++/*	{&fault, &mntpoint, &fs_type, 0, EFAULT, NULL, NULL},
++	{&device, &mntpoint, &fault, 0, EFAULT, NULL, NULL}, */
+ 	{&device, &long_path, &fs_type, 0, ENAMETOOLONG, NULL, NULL},
+ 	{&device, &nonexistent, &fs_type, 0, ENOENT, NULL, NULL},
+ 	{&device, &file, &fs_type, 0, ENOTDIR, NULL, NULL},
+@@ -106,19 +112,19 @@ static void verify_mount(struct test_case *tc)
+ 	TEST(mount(*tc->device, *tc->mntpoint, *tc->fs_type, tc->flag, NULL));
+ 
+ 	if (TEST_RETURN != -1) {
+-		tst_resm(TFAIL, "mount() succeded unexpectedly (ret=%li)",
++		tst_resm(TFAIL, "mount() succeded unexpectedly (ret=%li) TEST_FAILED",
+ 		         TEST_RETURN);
+ 		goto cleanup;
+ 	}
+ 
+ 	if (TEST_ERRNO != tc->exp_errno) {
+ 		tst_resm(TFAIL | TTERRNO,
+-		         "mount() was expected to fail with %s(%i)",
++		         "mount() was expected to fail with %s(%i) TEST_FAILED",
+ 		         tst_strerrno(tc->exp_errno), tc->exp_errno);
+ 		goto cleanup;
+ 	}
+ 
+-	tst_resm(TPASS | TTERRNO, "mount() failed expectedly");
++	tst_resm(TPASS | TTERRNO, "mount() failed expectedly.PASSED");
+ 
+ cleanup:
+ 	if (tc->cleanup)
+@@ -147,7 +153,7 @@ int main(int ac, char **av)
+ static void do_mount(void)
+ {
+ 	if (mount(device, mntpoint, fs_type, 0, NULL))
+-		tst_brkm(TBROK | TERRNO, cleanup, "Failed to mount(mntpoint)");
++		tst_brkm(TBROK | TERRNO, cleanup, "Failed to mount(mntpoint) TEST_FAILED");
+ }
+ 
+ static void mount_open(void)
+@@ -166,7 +172,7 @@ static void close_umount(void)
+ static void do_umount(void)
+ {
+ 	if (tst_umount(mntpoint))
+-		tst_brkm(TBROK | TERRNO, cleanup, "Failed to umount(mntpoint)");
++		tst_brkm(TBROK | TERRNO, cleanup, "Failed to umount(mntpoint) TEST_FAILED");
+ }
+ 
+ static void setup(void)
+@@ -181,14 +187,14 @@ static void setup(void)
+ 
+ 	SAFE_TOUCH(cleanup, file, FILE_MODE, NULL);
+ 
+-	fs_type = tst_dev_fs_type();
+-	device = tst_acquire_device(cleanup);
++/*	fs_type = tst_dev_fs_type();
++	device = tst_acquire_device(cleanup); 
+ 
+ 	if (!device)
+ 		tst_brkm(TCONF, cleanup, "Failed to obtain block device");
+ 
+ 	tst_mkfs(cleanup, device, fs_type, NULL, NULL);
+-
++*/
+ 	SAFE_MKDIR(cleanup, mntpoint, DIR_MODE);
+ 
+ 	memset(path, 'a', PATH_MAX + 1);
+@@ -196,7 +202,7 @@ static void setup(void)
+ 	dev = makedev(1, 3);
+ 	if (mknod(char_dev, S_IFCHR | FILE_MODE, dev)) {
+ 		tst_brkm(TBROK | TERRNO, cleanup,
+-			 "failed to mknod(char_dev, S_IFCHR | FILE_MODE, %lu)",
++			 "failed to mknod(char_dev, S_IFCHR | FILE_MODE, %lu) TEST_FAILED",
+ 			 dev);
+ 	}
+ 
+@@ -205,8 +211,9 @@ static void setup(void)
+ 
+ static void cleanup(void)
+ {
+-	if (device)
++/*	if (device)
+ 		tst_release_device(device);
++*/
+ 
+ 	tst_rmdir();
+ }
+diff --git a/testcases/kernel/syscalls/mount/mount04.c b/testcases/kernel/syscalls/mount/mount04.c
+index 5969fbacb..897bd35c7 100644
+--- a/testcases/kernel/syscalls/mount/mount04.c
++++ b/testcases/kernel/syscalls/mount/mount04.c
+@@ -35,8 +35,14 @@ char *TCID = "mount04";
+ #define DIR_MODE	S_IRWXU | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP
+ 
+ static char *mntpoint = "mntpoint";
+-static const char *fs_type;
+-static const char *device;
++
++/*
++	patch to use root file system as sgx has 32 MB limit in using in
++	memory fileysystem causing OOM panic
++*/
++
++static const char *fs_type = "ext4";
++static const char *device = "/dev/vda";
+ 
+ int TST_TOTAL = 1;
+ 
+@@ -47,21 +53,21 @@ static void verify_mount(void)
+ 
+ 	if (TEST_RETURN == -1) {
+ 		if (TEST_ERRNO == EPERM)
+-			tst_resm(TPASS | TTERRNO, "mount() failed expectedly");
++			tst_resm(TPASS | TTERRNO, "mount() failed expectedly.PASSED");
+ 		else
+ 			tst_resm(TFAIL | TTERRNO,
+-			         "mount() was expected to fail with EPERM");
++			         "mount() was expected to fail with EPERM.TEST_FAILED");
+ 		return;
+ 	}
+ 
+ 	if (TEST_RETURN == 0) {
+-		tst_resm(TFAIL, "mount() succeeded unexpectedly");
++		tst_resm(TFAIL, "mount() succeeded unexpectedly.TEST_FAILED");
+ 		if (tst_umount(mntpoint))
+-			tst_brkm(TBROK, cleanup, "umount() failed");
++			tst_brkm(TBROK, cleanup, "umount() failed.TEST_FAILED");
+ 		return;
+ 	}
+ 
+-	tst_resm(TFAIL | TTERRNO, "mount() returned %li", TEST_RETURN);
++	tst_resm(TFAIL | TTERRNO, "mount() returned %li.TEST_FAILED", TEST_RETURN);
+ }
+ 
+ int main(int ac, char **av)
+@@ -92,14 +98,14 @@ static void setup(void)
+ 
+ 	tst_tmpdir();
+ 
+-	fs_type = tst_dev_fs_type();
++/*	fs_type = tst_dev_fs_type();
+ 	device = tst_acquire_device(cleanup);
+ 
+ 	if (!device)
+ 		tst_brkm(TCONF, cleanup, "Failed to obtain block device");
+ 
+ 	tst_mkfs(cleanup, device, fs_type, NULL, NULL);
+-
++*/
+ 	ltpuser = SAFE_GETPWNAM(cleanup, nobody_uid);
+ 	SAFE_SETEUID(cleanup, ltpuser->pw_uid);
+ 	SAFE_MKDIR(cleanup, mntpoint, DIR_MODE);
+@@ -111,9 +117,9 @@ static void cleanup(void)
+ {
+ 	if (seteuid(0))
+ 		tst_resm(TWARN | TERRNO, "seteuid(0) failed");
+-
++/*
+ 	if (device)
+ 		tst_release_device(device);
+-
++*/
+ 	tst_rmdir();
+ }
+diff --git a/testcases/kernel/syscalls/mount/mount05.c b/testcases/kernel/syscalls/mount/mount05.c
+index ca26f9738..2fdbb5856 100644
+--- a/testcases/kernel/syscalls/mount/mount05.c
++++ b/testcases/kernel/syscalls/mount/mount05.c
+@@ -43,8 +43,14 @@ int TST_TOTAL = 1;
+ #define DIR_MODE	(S_IRWXU | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
+ 
+ static int dflag;
+-static char *fstype = "ext2";
+-static char *device;
++
++/*
++	patch to use root file system as sgx has 32 MB limit in using in
++	memory fileysystem causing OOM panic
++*/
++
++static char *fstype = "ext4";
++static char *device = "/dev/vda";
+ static const char file_src[] = "mnt_src/tstfile";
+ static const char file_des[] = "mnt_des/tstfile";
+ static const char mntpoint_src[] = "mnt_src";
+@@ -71,20 +77,20 @@ int main(int argc, char *argv[])
+ 		TEST(mount(mntpoint_src, mntpoint_des, fstype, MS_BIND, NULL));
+ 
+ 		if (TEST_RETURN != 0) {
+-			tst_resm(TFAIL | TTERRNO, "mount(2) failed");
++			tst_resm(TFAIL | TTERRNO, "mount(2) failed.TEST_FAILED");
+ 		} else {
+ 
+ 			if (open(file_des, O_CREAT | O_EXCL, S_IRWXU) == -1 &&
+ 			    errno == EEXIST)
+-				tst_resm(TPASS, "bind mount is ok");
++				tst_resm(TPASS, "bind mount is ok.PASSED");
+ 			else
+-				tst_resm(TFAIL, "file %s is not available",
++				tst_resm(TFAIL, "file %s is not available.TEST_FAILED",
+ 					 file_des);
+ 
+ 			TEST(tst_umount(mntpoint_des));
+ 			if (TEST_RETURN != 0)
+ 				tst_brkm(TBROK | TTERRNO, cleanup,
+-					 "umount(2) failed");
++					 "umount(2) failed.TEST_FAILED");
+ 		}
+ 	}
+ 
+@@ -104,7 +110,7 @@ void setup(void)
+ 	SAFE_MKDIR(cleanup, mntpoint_des, DIR_MODE);
+ 
+ 	if (dflag) {
+-		tst_mkfs(NULL, device, fstype, NULL, NULL);
++//		tst_mkfs(NULL, device, fstype, NULL, NULL);
+ 
+ 		SAFE_MOUNT(cleanup, device, mntpoint_src, fstype, 0, NULL);
+ 	}
+@@ -118,7 +124,7 @@ void cleanup(void)
+ {
+ 	if (dflag)
+ 		if (tst_umount(mntpoint_src) != 0)
+-			tst_brkm(TBROK | TTERRNO, NULL, "umount(2) failed");
++			tst_brkm(TBROK | TTERRNO, NULL, "umount(2) failed.TEST_FAILED");
+ 
+ 	tst_rmdir();
+ }
+diff --git a/testcases/kernel/syscalls/mount/mount06.c b/testcases/kernel/syscalls/mount/mount06.c
+index 857f5f905..bbc573b86 100644
+--- a/testcases/kernel/syscalls/mount/mount06.c
++++ b/testcases/kernel/syscalls/mount/mount06.c
+@@ -50,8 +50,13 @@ static void cleanup(void);
+ char *TCID = "mount06";
+ int TST_TOTAL = 1;
+ 
+-static const char *fs_type;
+-static const char *device;
++/*
++	patch to use root file system as sgx has 32 MB limit in using in
++	memory fileysystem causing OOM panic
++*/
++
++static const char *fs_type = "ext4";
++static const char *device = "/dev/vda";
+ static char path_name[PATH_MAX];
+ static char mntpoint_src[PATH_MAX];
+ static char mntpoint_des[PATH_MAX];
+@@ -74,18 +79,18 @@ int main(int argc, char *argv[])
+ 		TEST(mount(mntpoint_src, mntpoint_des, fs_type, MS_MOVE, NULL));
+ 
+ 		if (TEST_RETURN != 0) {
+-			tst_resm(TFAIL | TTERRNO, "mount(2) failed");
++			tst_resm(TFAIL | TTERRNO, "mount(2) failed.TEST_FAILED");
+ 		} else {
+ 
+ 			if (!ismount(mntpoint_src) && ismount(mntpoint_des))
+-				tst_resm(TPASS, "move mount is ok");
++				tst_resm(TPASS, "move mount is ok.PASSED");
+ 			else
+-				tst_resm(TFAIL, "move mount does not work");
++				tst_resm(TFAIL, "move mount does not work.TEST_FAILED");
+ 
+ 			TEST(tst_umount(mntpoint_des));
+ 			if (TEST_RETURN != 0)
+ 				tst_brkm(TBROK | TTERRNO, cleanup,
+-					 "umount(2) failed");
++					 "umount(2) failed.TEST_FAILED");
+ 		}
+ 	}
+ 
+@@ -101,7 +106,7 @@ int ismount(char *mntpoint)
+ 
+ 	file = fopen("/proc/mounts", "r");
+ 	if (file == NULL)
+-		tst_brkm(TFAIL | TERRNO, NULL, "Open /proc/mounts failed");
++		tst_brkm(TFAIL | TERRNO, NULL, "Open /proc/mounts failed.TEST_FAILED");
+ 
+ 	while (fgets(line, LINELENGTH, file) != NULL) {
+ 		if (strstr(line, mntpoint) != NULL) {
+@@ -121,16 +126,16 @@ static void setup(void)
+ 
+ 	tst_tmpdir();
+ 
+-	fs_type = tst_dev_fs_type();
++/*	fs_type = tst_dev_fs_type();
+ 	device = tst_acquire_device(cleanup);
+ 
+ 	if (!device)
+ 		tst_brkm(TCONF, cleanup, "Failed to obtain block device");
+ 
+ 	tst_mkfs(cleanup, device, fs_type, NULL, NULL);
+-
++*/
+ 	if (getcwd(path_name, sizeof(path_name)) == NULL)
+-		tst_brkm(TBROK, cleanup, "getcwd failed");
++		tst_brkm(TBROK, cleanup, "getcwd failed.TEST_FAILED");
+ 
+ 	/*
+ 	 * Turn current dir into a private mount point being a parent
+@@ -154,10 +159,10 @@ static void setup(void)
+ static void cleanup(void)
+ {
+ 	if (mount_flag && tst_umount(path_name) != 0)
+-		tst_resm(TWARN | TERRNO, "umount(2) %s failed", path_name);
+-
++		tst_resm(TWARN | TERRNO, "umount(2) %s failed.TEST_FAILED", path_name);
++/*
+ 	if (device)
+ 		tst_release_device(device);
+-
++*/
+ 	tst_rmdir();
+ }

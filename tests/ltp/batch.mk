@@ -30,6 +30,7 @@ $(ROOT_FS): $(ALPINE_TAR) ../buildenv.sh
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash
 	$(ESCALATE_CMD) cp ../ltp_fork_disable.patch $(MOUNTPOINT)/
+	$(ESCALATE_CMD) cp ../patches/mount.patch $(MOUNTPOINT)/
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /bin/bash /usr/sbin/buildenv.sh 'build' '/ltp/testcases/kernel/syscalls'
 	$(ESCALATE_CMD) cp $(MOUNTPOINT)/ltp/.c_binaries_list .
 	$(ESCALATE_CMD) umount $(MOUNTPOINT)
