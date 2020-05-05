@@ -42,7 +42,6 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "pthread.h"
 #include "shared/env.h"
 
 #define BIT(x) (1ULL << x)
