@@ -31,8 +31,9 @@ $(ROOT_FS): $(ALPINE_TAR) buildenv.sh
 	$(ESCALATE_CMD) install buildenv.sh $(MOUNTPOINT)/usr/sbin
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash
-	$(ESCALATE_CMD) cp ltp_fork_disable.patch $(MOUNTPOINT)/
-	$(ESCALATE_CMD) cp patches/umount02.patch $(MOUNTPOINT)/
+
+	$(ESCALATE_CMD) cp -r  patches/ $(MOUNTPOINT)/
+
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /bin/bash /usr/sbin/buildenv.sh 'build' '/ltp/testcases/kernel/syscalls'
 	$(ESCALATE_CMD) cp $(MOUNTPOINT)/ltp/.c_binaries_list .
 	$(ESCALATE_CMD) umount $(MOUNTPOINT)
@@ -44,11 +45,10 @@ gettimeout:
 run: run-hw run-sw
 
 run-hw: $(ROOT_FS)
-	@${LTP_TEST_SCRIPT} --hw-debug
+	@${LTP_TEST_SCRIPT} run-hw
 
 run-sw: $(ROOT_FS)
-	@echo "LTP test for --sw-debug is disabled due to overhead in time"
-	#@${LTP_TEST_SCRIPT} --sw-debug
+	@${LTP_TEST_SCRIPT} run-sw
 
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true

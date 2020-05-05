@@ -69,14 +69,25 @@ if [ -z $SGXLKL_PREFIX ]; then
     exit 1
 fi
 
+if [ -z $SGXLKL_BUILD_MODE ]; then
+    echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<debug|nondebug>"
+    exit 1
+fi
+
 . $SGXLKL_ROOT/.azure-pipelines/scripts/set_version.sh
 
 auditwheel_version=3.1.0
 patchelf_version=0.10
 
-deb_pkg_name=clc
+if [[ $SGXLKL_BUILD_MODE == release ]]; then
+    suffix=
+else
+    suffix="-$SGXLKL_BUILD_MODE"
+fi
+
+deb_pkg_name=clc$suffix
 deb_pkg_license=/usr/share/common-licenses/GPL-2
-install_prefix=/opt/sgx-lkl
+install_prefix=/opt/sgx-lkl$suffix
 exe_name=sgx-lkl-run-oe
 
 # Special treatment, not dynamically linked.

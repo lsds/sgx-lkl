@@ -9,9 +9,24 @@ fi
 
 SGXLKL_STARTER=${SGXLKL_STARTER:-$SGXLKL_ROOT/build/sgx-lkl-run-oe}
 
-test_exec_mode="$1"
-[ -z $test_exec_mode ] && test_exec_mode="--hw-debug"
-SGX_LKL_RUN_CMD="$SGXLKL_STARTER $test_exec_mode sgxlkl-miniroot-fs.img"
+test_mode="$1"
+case "$test_mode" in
+    "run-hw")
+	   echo "Will run tests for run-hw"
+       run_flag="--hw-debug"
+	   ;;
+    "run-sw")
+	   echo "Will run tests for run-sw"
+       run_flag="--sw-debug"
+	   ;;
+    *)
+	   echo "Invalid test_mode parameter: $test_mode. Valid options: run-hw/run-sw"
+           exit 1;
+	   ;;
+esac
+test_class="ltp"
+
+SGX_LKL_RUN_CMD="$SGXLKL_STARTER $run_flag sgxlkl-miniroot-fs.img"
 
 csv_filename="sgxlkl_oe_ltp_test_result_$(date +%d%m%y_%H%M%S).csv"
 echo "SI No, Test Name, Stdout logfile name, Stderr logfile name, Execution Status" > $csv_filename
@@ -50,6 +65,7 @@ for file in ${ltp_tests[@]}; do
     # Initialize the variables.
     test_name=${final_test_name#"-ltp-testcases-"}
     ltp_testcase_name=$(echo ${test_name%.*.*} | sed 's/-/\//g; s/_/\//g')
+    test_name="${test_name}-($build_mode)-($test_mode)"
     error_message_file_path="$report_dir/$test_name.error"
     stack_trace_file_path="$report_dir/$test_name.stack"
     stdout_file="$report_dir/$test_name.stdout.txt"

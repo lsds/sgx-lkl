@@ -1618,6 +1618,7 @@ int main(int argc, char* argv[], char* envp[])
     pthread_t* host_vdisk_task;
     pthread_t* host_netdev_task;
     pthread_t* host_console_task;
+    pthread_t* host_timerdev_task;
     int* ethreads_cores;
     size_t ethreads_cores_len;
     int encl_mmap_flags;
@@ -1876,6 +1877,10 @@ int main(int argc, char* argv[], char* envp[])
         sgxlkl_host_fail("Failed to allocate netdev_task mem : %d\n", errno);
     }
 
+    host_timerdev_task = calloc(1, sizeof(*host_timerdev_task));
+    if (host_timerdev_task == 0)
+        sgxlkl_host_fail("Failed to allocate timerdev_task mem : %d\n", errno);
+
     /* Enclave creation */
     sgxlkl_host_verbose("oe_create_enclave... ");
     result = oe_create_sgxlkl_enclave(
@@ -1952,6 +1957,16 @@ int main(int argc, char* argv[], char* envp[])
     /* Create host console device task */
     pthread_create(host_console_task, NULL, console_task, NULL);
     pthread_setname_np(*host_console_task, "HOST_CONSOLE_DEVICE");
+
+    int ret = timerdev_init(&encl);
+    if (ret < 0)
+        sgxlkl_host_fail("Timer device initialization failed\n");
+    else
+    {
+        pthread_create(
+            host_timerdev_task, NULL, timerdev_task, encl.shared_memory.timer_dev_mem);
+        pthread_setname_np(*host_timerdev_task, "HOST_TIMER_DEVICE");
+    }
 
 #ifdef DEBUG
     /* Need base address for GDB to work */

@@ -27,16 +27,6 @@ enclave {
             size_t len,
             int prot);
 
-        // Host call to get clock resolution
-        int sgxlkl_host_syscall_clock_getres(
-            clockid_t clk_id,
-            [out] struct timespec *res);
-
-        // Host call to get clock gettime
-        int sgxlkl_host_syscall_clock_gettime(
-            clockid_t clk_id,
-            [out] struct timespec *tp);
-
 	    // Host call for signal handler registration to support signal handling in software mode
 	    void sgxlkl_host_sw_register_signal_handler(
             [user_check] void *sgxlkl_enclave_sw_signal_handler);

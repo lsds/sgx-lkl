@@ -55,7 +55,7 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
     sgxlkl_config_t* cfg = *to;
 
     // Catch modifications to sgxlkl_config_t early.
-    SGXLKL_ASSERT(sizeof(sgxlkl_config_t) == 464);
+    _Static_assert(sizeof(sgxlkl_config_t) == 472, "sgxlkl_config_t size has changed");
 
     cfg->max_user_threads = from->max_user_threads;
     cfg->stacksize = from->stacksize;
