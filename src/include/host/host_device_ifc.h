@@ -46,4 +46,16 @@ int virtio_console_init(sgxlkl_config_t* cfg, host_dev_config_t* host_cfg);
  */
 void* console_task(void* arg);
 
+/* Timer device interface */
+
+/* Function to initialize the timer device configuration and set up shared
+ * memory used to communicate changes in time
+ */
+int timerdev_init(sgxlkl_config_t* config);
+
+/* Timer device backend task that gets host monotonic time and updates a shared
+ * counter
+ */
+void* timerdev_task(void* arg);
+
 #endif // HOST_DEVICE_IFC_H
