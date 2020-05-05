@@ -995,7 +995,7 @@
 #/ltp/testcases/kernel/syscalls/ulimit/ulimit01
 #/ltp/testcases/kernel/syscalls/umask/umask01
 /ltp/testcases/kernel/syscalls/umount/umount01
-/ltp/testcases/kernel/syscalls/umount/umount02
+#/ltp/testcases/kernel/syscalls/umount/umount02
 /ltp/testcases/kernel/syscalls/umount/umount03
 /ltp/testcases/kernel/syscalls/umount2/umount2_01
 /ltp/testcases/kernel/syscalls/umount2/umount2_02

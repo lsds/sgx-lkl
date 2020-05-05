@@ -5,6 +5,7 @@ test_directory=$2
 
 LTP_GIT_TAG="20190930"
 
+
 if [ -z $test_directory ]; then
     echo "Please provide ltp tests directory. Example: ltp.sh 'testcases/kernel/syscalls'"
     exit 1
@@ -43,6 +44,7 @@ if [[ "$mode" == "build" ]]; then
     echo "Apply the sgxlkl specific patches..." 
     git apply --verbose  --ignore-whitespace ../patches/*.patch
 
+    
     echo "Running make clean..."
     make autotools
     ./configure
