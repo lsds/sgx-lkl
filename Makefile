@@ -135,7 +135,7 @@ fsgsbase-kernel-module:
 	make -C ${TOOLS}/kmod-set-fsgsbase
 
 install:
-	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase ${PREFIX}/tools/docker
+	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
 	cp $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) $(PREFIX)/lib
 	cp $(BUILD_DIR)/$(SGXLKL_RUN_TARGET) $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
@@ -159,7 +159,7 @@ uninstall:
 	rm -f $(PREFIX)/bin/sgx-lkl-docker
 	rm -f $(PREFIX)/bin/sgx-lkl-gdb
 	rm -rf $(PREFIX)/lib/gdb
-	rm -rf $(PREFIX)/tools/docker $(PREFIX)/tools/kmod-set-fsgsbase
+	rm -rf $(PREFIX)/tools/kmod-set-fsgsbase
 	rmdir $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/tools
 	rmdir $(PREFIX)
 
