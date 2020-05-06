@@ -7,9 +7,6 @@ cmd_root="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 sgxlkl_root="${cmd_root}/.."
 
 sub_cmd=
-no_debug=
-build_from=source
-oe_prefix=/opt/openenclave
 cc_name=
 cc_mode=debug
 cc_app_cfg=
@@ -27,11 +24,6 @@ function usage() {
     echo "`basename $0` <command>"
     echo
     echo "where <command> is one of the following:"
-    echo "  build-sgxlkl                                       Build SGX-LKL-OE using Docker"
-    echo "    --no-debug                                       Build SGX-LKL without debug features"
-    echo "    --oe-prefix=<path>                               Build with Open Enclave installation in specified folder"
-    echo "                                                     (default: /opt/openenclave)"
-    echo
     echo "  build-cc                                           Build confidential container" 
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
@@ -40,30 +32,6 @@ function usage() {
     echo
     echo " [-?]                                                Display this help message."
     exit 1
-}
-
-function build-sgxlkl() {
-
-    echo -n Building SGX-LKL-OE using Docker
-    [[ $no_debug == 1 ]] && echo -n " without " || echo -n " with "
-    echo debug features ...
-
-    docker build --target builder \
-        -t lsds/sgx-lkl:build \
-        -f ${sgxlkl_root}/tools/docker/Dockerfile-sgxlkl-build \
-        ${sgxlkl_root}/tools/docker
-    
-    if [[ $no_debug == 1 ]]; then
-        debug=false
-    else
-        debug=true
-    fi
-
-    docker_cmd="cd $sgxlkl_root && source $oe_prefix/share/openenclave/openenclaverc && make DEBUG=${debug}"
-    volume_mounts="-v $sgxlkl_root:$sgxlkl_root -v $oe_prefix:$oe_prefix:ro"
-
-    docker run --rm --privileged=true -u $(id -u $USER) $volume_mounts \
-        lsds/sgx-lkl:build /bin/bash -c "${docker_cmd}"
 }
 
 function build-cc() {
@@ -128,22 +96,6 @@ function main() {
             -h|-\?|--help)
                 usage && exit
                 ;;
-            build-sgxlkl)
-                sub_cmd=$1
-                ;;
-            --no-debug)
-                if [ $sub_cmd != "build-sgxlkl" ]; then
-                    usage && exit 1
-                fi
-                no_debug=1
-                echo "no_debug currently unsupported" && exit
-                ;;
-            --oe-prefix=?*)
-                if [ $sub_cmd != "build-sgxlkl" ]; then
-                    usage && exit 1
-                fi
-                oe_prefix=${1#*=}
-                ;;
             build-cc)
                 sub_cmd=$1
                 ;;
@@ -173,9 +125,6 @@ function main() {
     done
 
     case "$sub_cmd" in
-        build-sgxlkl)
-            build-sgxlkl "$@"
-            ;;
         build-cc)
             build-cc "$@"
             ;;
