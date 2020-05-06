@@ -82,23 +82,23 @@ for file in ${ltp_tests[@]}; do
         failure="${current_failure_identifiers[$i]}"
         failure_count=$(cat "$stdout_file" | grep "$failure" | wc -l)
         total_failures=$(($total_failures + $failure_count))
-        if [[ $failure_count > 0 ]]; then
+        if [[ $failure_count -gt 0 ]]; then
             echo "Failure : '$failure' observed in '$stdout_file'"
         fi
 
         if [ ! -z $stderr_file ]; then
             failure_count=$(cat "$stderr_file" | grep "$failure" | wc -l)
             total_failures=$(($total_failures + $failure_count))
-            if [[ $failure_count > 0 ]]; then
+            if [[ $failure_count -gt 0 ]]; then
                 echo "Failure : '$failure' observed in '$stderr_file'"
             fi                
         fi
     done
-    pass_count=$(cat "$stdout_file" "$stderr_file" | grep PASS | wc -l)i
-    if [[ $total_failures == 0 && $pass_count ==  0 ]]; then
+    pass_count=$(cat "$stdout_file" "$stderr_file" | grep PASS | wc -l)
+    if [[ $total_failures -eq 0 && $pass_count -eq  0 ]]; then
         echo "None of FAILURE IDENTIFIERS matched. Logs doesn't have PASS either. Assuming test FAILED. This can be false negative. Investigate. You can output  PASS to console in the test"
     fi
-    if [[ $total_failures == 0 && $pass_count > 0 ]]; then
+    if [[ $total_failures -eq 0 && $pass_count -gt 0 ]]; then
         total_passed=$(($total_passed + 1))
         echo "'$test_name' passed. Failure Count = $total_failures, Pass Count = $pass_count"
         echo "'$test_name' passed. Failure Count = $total_failures, Pass Count = $pass_count" > "$error_message_file_path"
@@ -129,5 +129,5 @@ echo "Total failed  : $total_failed"
 echo "-------------------------------"
 echo "Total         : $total_tests"
 echo "-------------------------------"
-[[ $total_passed == $total_tests && $total_failed == 0 && $total_tests > 0 ]] && exit 0
+[[ $total_passed -eq $total_tests && $total_failed -eq 0 && $total_tests -gt 0 ]] && exit 0
 exit 1
