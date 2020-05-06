@@ -1,0 +1,63 @@
+diff --git a/testcases/kernel/syscalls/umount/umount03.c b/testcases/kernel/syscalls/umount/umount03.c
+index 28309a305..a13f0d988 100644
+--- a/testcases/kernel/syscalls/umount/umount03.c
++++ b/testcases/kernel/syscalls/umount/umount03.c
+@@ -6,7 +6,9 @@
+  * Verify that umount(2) returns -1 and sets errno to  EPERM if the user
+  * is not the super-user.
+  */
+-
++/* Patch to use root file system in lkl as default LKL memory is set to 
++ * 32M
++ */
+ #include <errno.h>
+ #include <pwd.h>
+ #include <sys/mount.h>
+@@ -23,24 +25,26 @@ static void verify_umount(void)
+ 	TEST(umount(MNTPOINT));
+ 
+ 	if (TST_RET != -1) {
+-		tst_res(TFAIL, "umount() succeeds unexpectedly");
++		tst_res(TFAIL, "umount() succeeds unexpectedly. TEST_FAILED");
+ 		return;
+ 	}
+ 
+ 	if (TST_ERR != EPERM) {
+-		tst_res(TFAIL | TTERRNO, "umount() should fail with EPERM");
++		tst_res(TFAIL | TTERRNO, "umount() should fail with EPERM. TEST_FAILED");
+ 		return;
+ 	}
+ 
+-	tst_res(TPASS | TTERRNO, "umount() fails as expected");
++	tst_res(TPASS | TTERRNO, "umount() fails as expected. PASSED");
+ }
+ 
+ static void setup(void)
+ {
+ 	struct passwd *pw;
+-
++	
++	rmdir(MNTPOINT);
+ 	SAFE_MKDIR(MNTPOINT, 0775);
+-	SAFE_MOUNT(tst_device->dev, MNTPOINT, tst_device->fs_type, 0, NULL);
++
++	SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, NULL);
+ 	mount_flag = 1;
+ 
+ 	pw = SAFE_GETPWNAM("nobody");
+@@ -54,12 +58,13 @@ static void cleanup(void)
+ 
+ 	if (mount_flag)
+ 		tst_umount(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
+ }
+ 
+ static struct tst_test test = {
+ 	.needs_root = 1,
+-	.needs_tmpdir = 1,
+-	.format_device = 1,
++	.needs_tmpdir = 0,
++	.format_device = 0,
+ 	.setup = setup,
+ 	.cleanup = cleanup,
+ 	.test_all = verify_umount,

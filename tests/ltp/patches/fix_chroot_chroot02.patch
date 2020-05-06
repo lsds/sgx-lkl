@@ -1,0 +1,35 @@
+commit 9dacbeffecd080404ddcc71e33dd4698c5656818
+Author: shaik shavali <shaik.shavali1@wipro.com>
+Date:   Tue May 5 12:03:37 2020 +0000
+
+    LTP: Fix chroot02 test case issue
+    
+    Removed exit code from child and wait code from parent.
+    FORK_OR_VFORK return always 0 in sgxlkl environment.
+
+diff --git a/testcases/kernel/syscalls/chroot/chroot02.c b/testcases/kernel/syscalls/chroot/chroot02.c
+index e483ca4b5..e30fcc421 100644
+--- a/testcases/kernel/syscalls/chroot/chroot02.c
++++ b/testcases/kernel/syscalls/chroot/chroot02.c
+@@ -94,17 +94,13 @@ int main(int ac, char **av)
+ 				}
+ 			}
+ 
+-			exit(retval);
+ 		}
+ 
+-		/* parent */
+-		wait(&status);
+-		/* make sure the child returned a good exit status */
+-		if (WIFSIGNALED(status) ||
+-		    (WIFEXITED(status) && WEXITSTATUS(status) != 0))
+-			tst_resm(TFAIL, "chroot functionality incorrect");
++		/* make sure the chroot is sucessfull */
++		if (retval)
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: chroot() functionality incorrect");
+ 		else
+-			tst_resm(TPASS, "chroot functionality correct");
++			tst_resm(TPASS, "PASSED: chroot() functionality correct");
+ 	}
+ 
+ 	cleanup();

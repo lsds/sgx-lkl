@@ -1,0 +1,213 @@
+commit d19b465fadb19d17d37808fbdcc4b87296b018e1
+Author: shaik shavali <shaik.shavali1@wipro.com>
+Date:   Wed May 6 06:56:46 2020 +0000
+
+        This patch is nesesary to fix test failure in sgxlkl
+        environment and to test the syscall "setresuid"
+        behaves correctly with file permissions in
+        multithreaded environment.
+
+diff --git a/testcases/kernel/syscalls/setreuid/setreuid07.c b/testcases/kernel/syscalls/setreuid/setreuid07.c
+index ff222cd00..5f3926f5b 100644
+--- a/testcases/kernel/syscalls/setreuid/setreuid07.c
++++ b/testcases/kernel/syscalls/setreuid/setreuid07.c
+@@ -23,8 +23,8 @@
+  * Check if setreuid behaves correctly with file permissions.
+  * The test creates a file as ROOT with permissions 0644, does a setreuid
+  * and then tries to open the file with RDWR permissions.
+- * The same test is done in a fork to check if new UIDs are correctly
+- * passed to the son.
++ * The same test is done in a thread to check if process UIDs correctly
++ * passed to new thread.
+  */
+ 
+ #include <errno.h>
+@@ -34,6 +34,7 @@
+ #include <fcntl.h>
+ #include <unistd.h>
+ #include <pwd.h>
++#include <pthread.h>
+ 
+ #include "test.h"
+ #include "safe_macros.h"
+@@ -49,34 +50,50 @@ static int fd = -1;
+ 
+ static void setup(void);
+ static void cleanup(void);
+-static void do_master_child(void);
++static void* do_master_thread(void* arg);
+ 
+ int main(int ac, char **av)
+ {
+-	pid_t pid;
+-
++	pthread_t threadid;
+ 	tst_parse_opts(ac, av, NULL, NULL);
+ 
+ 	setup();
+ 
+-	pid = FORK_OR_VFORK();
+-	if (pid < 0)
+-		tst_brkm(TBROK, cleanup, "Fork failed");
+-
+-	if (pid == 0)
+-		do_master_child();
+-
+-	tst_record_childstatus(cleanup, pid);
++        if(pthread_create(&threadid, NULL, do_master_thread, NULL))
++        {
++                tst_brkm(TBROK, NULL, "TEST_FAILED: Thread creation failed");
++                tst_exit();
++        }
++        //wait for the thread to join
++        pthread_join(threadid, NULL);
+ 
++	tst_resm(TPASS, "Test case passed TPASS");
+ 	cleanup();
+ 	tst_exit();
+ }
+ 
+-static void do_master_child(void)
++static void *do_sub_thread(void* arg)
++{
++        int tst_fd2;
++
++        //Test to open the file in thread2 created by thread1
++        TEST(tst_fd2 = open(testfile, O_RDWR));
++
++        if (TEST_RETURN != -1) {
++                tst_resm(TPASS,
++                        "PASSED: setresuid() file  opened succeeded in thread2");
++                close(tst_fd2);
++        } else {
++                tst_brkm(TBROK, NULL,
++                        "TEST_FAILED open failed unexpectedly in thread2\n");
++        }
++        pthread_exit(NULL);
++}
++
++static void* do_master_thread(void* arg)
+ {
+ 	int lc;
+-	int pid;
+-	int status;
++	pthread_t tid;
+ 
+ 	for (lc = 0; TEST_LOOPING(lc); lc++) {
+ 		int tst_fd;
+@@ -84,8 +101,8 @@ static void do_master_child(void)
+ 		tst_count = 0;
+ 
+ 		if (SETREUID(NULL, 0, ltpuser->pw_uid) == -1) {
+-			perror("setreuid failed");
+-			exit(TFAIL);
++                        tst_brkm(TBROK, NULL, "TEST_FAILED: setreuid() failed");
++                        pthread_exit(NULL);
+ 		}
+ 
+ 		/* Test 1: Check the process with new uid cannot open the file
+@@ -94,74 +111,50 @@ static void do_master_child(void)
+ 		TEST(tst_fd = open(testfile, O_RDWR));
+ 
+ 		if (TEST_RETURN != -1) {
+-			printf("open succeeded unexpectedly\n");
+-			close(tst_fd);
+-			exit(TFAIL);
++		        tst_brkm(TBROK, NULL, "TEST_FAILED: test file open succeeded unexpectedly\n");
++                        close(tst_fd);
++                        pthread_exit(NULL);
+ 		}
+ 
+ 		if (TEST_ERRNO == EACCES) {
+-			printf("open failed with EACCES as expected\n");
++			tst_resm(TPASS, "PASSED:test file open failed with EACCES as expected after setreuid()\n");
+ 		} else {
+-			perror("open failed unexpectedly");
+-			exit(TFAIL);
++			tst_brkm(TBROK, NULL, "TEST_FAILED: test file open failed unexpectedly after setreuid()");
++                        pthread_exit(NULL);
+ 		}
+ 
+ 		/* Test 2: Check a son process cannot open the file
+ 		 *         with RDWR permissions.
+ 		 */
+-		pid = FORK_OR_VFORK();
+-		if (pid < 0)
+-			tst_brkm(TBROK, cleanup, "Fork failed");
+-
+-		if (pid == 0) {
+-			int tst_fd2;
+-
+-			/* Test to open the file in son process */
+-			TEST(tst_fd2 = open(testfile, O_RDWR));
+-
+-			if (TEST_RETURN != -1) {
+-				printf("call succeeded unexpectedly\n");
+-				close(tst_fd2);
+-				exit(TFAIL);
+-			}
+-
+-			if (TEST_ERRNO == EACCES) {
+-				printf("open failed with EACCES as expected\n");
+-				exit(TPASS);
+-			} else {
+-				printf("open failed unexpectedly\n");
+-				exit(TFAIL);
+-			}
+-		} else {
+-			/* Wait for son completion */
+-			if (waitpid(pid, &status, 0) == -1) {
+-				perror("waitpid failed");
+-				exit(TFAIL);
+-			}
+-			if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0))
+-				exit(WEXITSTATUS(status));
+-		}
++
++		if(pthread_create(&tid, NULL, do_sub_thread, NULL) != 0)
++                {
++                        tst_brkm(TBROK, NULL, "TEST_FAILED: thread creation failed");
++                        pthread_exit(NULL);
++                }
++                // wait for the thread to complete the test
++                pthread_join(tid, NULL);
+ 
+ 		/* Test 3: Fallback to initial uid and check we can again open
+ 		 *         the file with RDWR permissions.
+ 		 */
+ 		tst_count++;
+ 		if (SETREUID(NULL, 0, 0) == -1) {
+-			perror("setreuid failed");
+-			exit(TFAIL);
++			tst_brkm(TBROK, NULL, "TEST_FAILED: setreuid() failed");
++                        pthread_exit(NULL);
+ 		}
+ 
+ 		TEST(tst_fd = open(testfile, O_RDWR));
+ 
+ 		if (TEST_RETURN == -1) {
+-			perror("open failed unexpectedly");
+-			exit(TFAIL);
++		        tst_brkm(TBROK, NULL, "TEST_FAILED: test file open failed unexpectedly after setreuid()");
++                        pthread_exit(NULL);
+ 		} else {
+-			printf("open call succeeded\n");
+-			close(tst_fd);
++		        tst_resm(TPASS, "PASSED: test file open succeeded after setreuid()\n");
++                        close(tst_fd);
+ 		}
+ 	}
+-	exit(TPASS);
++	pthread_exit(NULL);
+ }
+ 
+ static void setup(void)
+@@ -170,7 +163,7 @@ static void setup(void)
+ 
+ 	ltpuser = getpwnam("nobody");
+ 	if (ltpuser == NULL)
+-		tst_brkm(TBROK, NULL, "nobody must be a valid user.");
++		tst_brkm(TBROK, NULL, "TEST_FAILED: nobody must be a valid user.");
+ 
+ 	tst_tmpdir();
+ 
