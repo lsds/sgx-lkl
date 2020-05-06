@@ -45,7 +45,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown01
 #/ltp/testcases/kernel/syscalls/chown/chown02
 #/ltp/testcases/kernel/syscalls/chown/chown03
-/ltp/testcases/kernel/syscalls/chown/chown04
+#/ltp/testcases/kernel/syscalls/chown/chown04
 #/ltp/testcases/kernel/syscalls/chown/chown05
 /ltp/testcases/kernel/syscalls/chroot/chroot01
 /ltp/testcases/kernel/syscalls/chroot/chroot02
