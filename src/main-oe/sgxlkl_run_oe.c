@@ -247,12 +247,6 @@ static void help_config()
     printf("## Scheduling ##\n");
     printf("%-35s %s", "  SGXLKL_ETHREADS", "Number of enclave threads.\n");
     printf(
-        "%-35s %s (default: %d)\n",
-        "  SGXLKL_GETTIME_VDSO",
-        "Set to 1 to use the host kernel vdso mechanism to handle "
-        "clock_gettime calls.",
-        DEFAULT_SGXLKL_GETTIME_VDSO);
-    printf(
         "%-35s %s",
         "  SGXLKL_ESLEEP",
         "Sleep timeout in the scheduler (in ns).\n");
@@ -743,18 +737,6 @@ static void* find_vvar_base(void)
 
     fclose(maps);
     return found ? vvar_base : NULL;
-}
-
-void set_vdso(sgxlkl_config_t* conf)
-{
-    conf->shared_memory.vvar = 0;
-    if (!sgxlkl_config_bool(SGXLKL_GETTIME_VDSO))
-        return;
-
-    // Try to locate vvar pages
-    if (!(conf->shared_memory.vvar = find_vvar_base()))
-        sgxlkl_host_warn(
-            "Could not locate vvar region. vDSO support not available.\n");
 }
 
 static void* register_shm(char* path, size_t len)
@@ -1808,15 +1790,13 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     sgxlkl_host_verbose(
-        "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\" GETTIME_VDSO=%i\n",
+        "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\"\n",
         nproc,
         num_ethreads,
-        encl.kernel_cmd,
-        sgxlkl_config_bool(SGXLKL_GETTIME_VDSO));
+        encl.kernel_cmd);
 
     set_sysconf_params(&encl, num_ethreads);
     set_clock_res(&encl);
-    set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
     set_wg(&encl);

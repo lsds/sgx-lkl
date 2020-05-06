@@ -86,11 +86,7 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
 
     {}, /* 8 */
 
-    {"SGXLKL_GETTIME_VDSO",
-     "gettime_vdso",
-     TYPE_BOOL,
-     {.def_bool = DEFAULT_SGXLKL_GETTIME_VDSO},
-     0}, /* 9 */
+    {}, /* 9 */
 
     {"SGXLKL_GW4",
      "gw4",
