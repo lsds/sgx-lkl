@@ -33,9 +33,9 @@ void sgxlkl_host_warn(char* msg, ...)
 void sgxlkl_host_info(char* msg, ...)
 {
     va_list(args);
-    fprintf(stderr, "[   SGX-LKL  ] ");
+    fprintf(stdout, "[   SGX-LKL  ] ");
     va_start(args, msg);
-    vfprintf(stderr, msg, args);
+    vfprintf(stdout, msg, args);
 }
 
 void sgxlkl_host_verbose(char* msg, ...)
@@ -43,9 +43,9 @@ void sgxlkl_host_verbose(char* msg, ...)
     if (sgxlkl_config_bool(SGXLKL_VERBOSE))
     {
         va_list(args);
-        fprintf(stderr, "[   SGX-LKL  ] ");
+        fprintf(stdout, "[   SGX-LKL  ] ");
         va_start(args, msg);
-        vfprintf(stderr, msg, args);
+        vfprintf(stdout, msg, args);
     }
 }
 
@@ -55,6 +55,6 @@ void sgxlkl_host_verbose_raw(char* msg, ...)
     {
         va_list(args);
         va_start(args, msg);
-        vfprintf(stderr, msg, args);
+        vfprintf(stdout, msg, args);
     }
 }
