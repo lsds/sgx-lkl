@@ -75,6 +75,14 @@ for file in ${ltp_tests[@]}; do
 
     echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2> \"$stderr_file\""
     SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2> "$stderr_file"
+    exit_code=$?
+    if [[ $exit_code -eq  124 ]]; then
+        echo "$SGX_LKL_RUN_CMD $file : TIMED OUT after $timeout secs"
+        echo "$SGX_LKL_RUN_CMD $file : TIMED OUT after $timeout secs. TEST_FAILED" >> "$stderr_file"
+    else
+        echo "$SGX_LKL_RUN_CMD $file: RETURNED EXIT CODE: $exit_code"
+    fi
+
     total_failures=0
     total_pass=0
     for ((i = 0; i < ${#current_failure_identifiers[@]}; i++))
@@ -116,6 +124,7 @@ for file in ${ltp_tests[@]}; do
         else
             echo "Stack trace not available for $test_name." > "$stack_trace_file_path"
         fi
+
         JunitTestFinished "$test_name" "failed" "$test_class" "$test_suite"
     fi
     echo "-------------------------------------------------------------------"
