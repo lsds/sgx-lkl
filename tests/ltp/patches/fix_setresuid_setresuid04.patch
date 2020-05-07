@@ -1,14 +1,10 @@
-commit 610698772ff5d79b7592aea1b8f78757a11a68f0
-Author: shaik shavali <shaik.shavali1@wipro.com>
-Date:   Wed May 6 04:24:46 2020 +0000
-
-    This patch is nesesary to fix test failure in sgxlkl
+    This patch is necessary to fix test failure in sgxlkl
     environment and to test the syscall "setresuid"
     behaves correctly with file permissions in
-    multithreaded environment.
+    Multi-threaded environment.
 
 diff --git a/testcases/kernel/syscalls/setresuid/setresuid04.c b/testcases/kernel/syscalls/setresuid/setresuid04.c
-index e197476ff..fceafa441 100644
+index e197476ff..9fae937d7 100644
 --- a/testcases/kernel/syscalls/setresuid/setresuid04.c
 +++ b/testcases/kernel/syscalls/setresuid/setresuid04.c
 @@ -25,8 +25,8 @@
@@ -30,7 +26,7 @@ index e197476ff..fceafa441 100644
  
  TCID_DEFINE(setresuid04);
  int TST_TOTAL = 1;
-@@ -65,46 +66,68 @@ int fd = -1;
+@@ -65,46 +66,66 @@ int fd = -1;
  
  void setup(void);
  void cleanup(void);
@@ -55,8 +51,7 @@ index e197476ff..fceafa441 100644
 +	//create a new thread to perform the test
 +	if(pthread_create(&threadid, NULL, do_master_thread, NULL))
 +	{
-+		tst_brkm(TBROK, NULL, "TEST_FAILED: Thread creation failed");
-+		tst_exit();
++		tst_brkm(TBROK, cleanup, "TEST_FAILED: Thread creation failed");
 +	}
  
 -	tst_record_childstatus(cleanup, pid);
@@ -80,7 +75,7 @@ index e197476ff..fceafa441 100644
 +			"PASSED: setresuid() file  opened succeeded in thread2");
 +		close(tst_fd2);
 +	} else {
-+		tst_brkm(TBROK, NULL,
++		tst_brkm(TBROK, cleanup,
 +			"TEST_FAILED open failed unexpectedly in thread2\n");
 +	}
 +	pthread_exit(NULL);
@@ -110,20 +105,18 @@ index e197476ff..fceafa441 100644
  		if (SETRESUID(NULL, 0, ltpuser->pw_uid, 0) == -1) {
 -			perror("setresuid failed");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, NULL, "TEST_FAILED: setresuid() failed");
-+			pthread_exit(NULL);
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: setresuid() failed");
  		}
  
  		/* Test 1: Check the process with new uid cannot open the file
-@@ -113,78 +136,49 @@ void do_master_child(void)
+@@ -113,78 +134,44 @@ void do_master_child(void)
  		TEST(tst_fd = open(testfile, O_RDWR));
  
  		if (TEST_RETURN != -1) {
 -			printf("open succeeded unexpectedly\n");
-+			tst_brkm(TBROK, NULL, "TEST_FAILED: test file open succeeded unexpectedly\n");
  			close(tst_fd);
 -			exit(TFAIL);
-+			pthread_exit(NULL);
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open succeeded unexpectedly\n");
  		}
  
  		if (TEST_ERRNO == EACCES) {
@@ -132,8 +125,7 @@ index e197476ff..fceafa441 100644
  		} else {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, NULL, "TEST_FAILED: test file open failed unexpectedly after  setresuid()");
-+			pthread_exit(NULL);
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open failed unexpectedly after  setresuid()");
  		}
  
 -		/* Test 2: Check a son process cannot open the file
@@ -177,8 +169,7 @@ index e197476ff..fceafa441 100644
 -				exit(WEXITSTATUS(status));
 +		if(pthread_create(&tid, NULL, do_sub_thread, NULL) != 0)
 +		{
-+			tst_brkm(TBROK, NULL, "TEST_FAILED: thread creation failed");
-+			pthread_exit(NULL);
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: thread creation failed");
  		}
 +		// wait for the thread to complete the test
 +		pthread_join(tid, NULL);
@@ -190,8 +181,7 @@ index e197476ff..fceafa441 100644
  		if (SETRESUID(NULL, 0, 0, 0) == -1) {
 -			perror("setresuid failed");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, NULL, "TEST_FAILED: setresuid() failed");
-+			pthread_exit(NULL);
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: setresuid() failed");
  		}
  
  		TEST(tst_fd = open(testfile, O_RDWR));
@@ -199,8 +189,7 @@ index e197476ff..fceafa441 100644
  		if (TEST_RETURN == -1) {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, NULL, "TEST_FAILED: test file open failed unexpectedly after setresuid()");
-+			pthread_exit(NULL);
++			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open failed unexpectedly after setresuid()");
  		} else {
 -			printf("open call succeeded\n");
 +			tst_resm(TPASS, "PASSED: test file open succeeded after setresuid()\n");
