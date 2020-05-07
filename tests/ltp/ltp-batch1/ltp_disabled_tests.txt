@@ -1015,7 +1015,7 @@
 /ltp/testcases/kernel/syscalls/ustat/ustat02
 #/ltp/testcases/kernel/syscalls/utime/utime01
 /ltp/testcases/kernel/syscalls/utime/utime02
-#/ltp/testcases/kernel/syscalls/utime/utime03
+/ltp/testcases/kernel/syscalls/utime/utime03
 #/ltp/testcases/kernel/syscalls/utime/utime04
 /ltp/testcases/kernel/syscalls/utime/utime05
 /ltp/testcases/kernel/syscalls/utime/utime06
