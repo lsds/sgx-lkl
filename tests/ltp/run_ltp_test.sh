@@ -78,7 +78,7 @@ for file in ${ltp_tests[@]}; do
     exit_code=$?
     if [[ $exit_code -eq  124 ]]; then
         echo "$SGX_LKL_RUN_CMD $file : TIMED OUT after $timeout secs"
-        echo "$SGX_LKL_RUN_CMD $file : TIMED OUT after $timeout secs. TEST_FAILED" >> "$stderr_file"
+        echo "TIMED OUT after $timeout secs. TEST_FAILED" >> "$stderr_file"
     else
         echo "$SGX_LKL_RUN_CMD $file: RETURNED EXIT CODE: $exit_code"
     fi
