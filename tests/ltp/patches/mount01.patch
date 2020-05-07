@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/mount/mount01.c b/testcases/kernel/syscalls/mount/mount01.c
-index 1d902ba89..15ec9452c 100644
+index 1d902ba89..f0c9f67a5 100644
 --- a/testcases/kernel/syscalls/mount/mount01.c
 +++ b/testcases/kernel/syscalls/mount/mount01.c
 @@ -19,7 +19,10 @@
@@ -25,23 +25,6 @@ index 1d902ba89..15ec9452c 100644
  
  int main(int ac, char **av)
  {
-@@ -54,13 +57,13 @@ int main(int ac, char **av)
- 		TEST(mount(device, MNTPOINT, fs_type, 0, NULL));
- 
- 		if (TEST_RETURN != 0) {
--			tst_resm(TFAIL | TTERRNO, "mount(2) failed");
-+			tst_resm(TFAIL | TTERRNO, "mount(2) TEST_FAILED");
- 		} else {
--			tst_resm(TPASS, "mount(2) passed ");
-+			tst_resm(TPASS, "mount(2) PASSED ");
- 			TEST(tst_umount(MNTPOINT));
- 			if (TEST_RETURN != 0) {
- 				tst_brkm(TBROK | TTERRNO, cleanup,
--					 "umount(2) failed");
-+					 "umount(2) TEST_FAILED");
- 			}
- 		}
- 	}
 @@ -77,14 +80,14 @@ static void setup(void)
  
  	tst_tmpdir();

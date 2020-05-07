@@ -4,7 +4,7 @@
     Multi-threaded environment.
 
 diff --git a/testcases/kernel/syscalls/setreuid/setreuid07.c b/testcases/kernel/syscalls/setreuid/setreuid07.c
-index ff222cd00..4e3d32017 100644
+index ff222cd00..57495d464 100644
 --- a/testcases/kernel/syscalls/setreuid/setreuid07.c
 +++ b/testcases/kernel/syscalls/setreuid/setreuid07.c
 @@ -23,8 +23,8 @@
@@ -52,12 +52,12 @@ index ff222cd00..4e3d32017 100644
 -	tst_record_childstatus(cleanup, pid);
 +        if(pthread_create(&threadid, NULL, do_master_thread, NULL))
 +        {
-+                tst_brkm(TBROK, cleanup, "TEST_FAILED: Thread creation failed");
++                tst_brkm(TBROK, cleanup, "Thread creation failed");
 +        }
 +        //wait for the thread to join
 +        pthread_join(threadid, NULL);
  
-+	tst_resm(TPASS, "Test case passed TPASS");
++	tst_resm(TPASS, "Test case passed");
  	cleanup();
  	tst_exit();
  }
@@ -72,11 +72,11 @@ index ff222cd00..4e3d32017 100644
 +
 +        if (TEST_RETURN != -1) {
 +                tst_resm(TPASS,
-+                        "PASSED: setresuid() file  opened succeeded in thread2");
++                        "open call succeeded as expected in thread2");
 +                close(tst_fd2);
 +        } else {
 +                tst_brkm(TBROK, cleanup,
-+                        "TEST_FAILED open failed unexpectedly in thread2\n");
++                        "open failed unexpectedly in thread2");
 +        }
 +        pthread_exit(NULL);
 +}
@@ -96,7 +96,7 @@ index ff222cd00..4e3d32017 100644
  		if (SETREUID(NULL, 0, ltpuser->pw_uid) == -1) {
 -			perror("setreuid failed");
 -			exit(TFAIL);
-+                        tst_brkm(TBROK, cleanup, "TEST_FAILED: setreuid() failed");
++                        tst_brkm(TBROK, cleanup, "setreuid failed");
  		}
  
  		/* Test 1: Check the process with new uid cannot open the file
@@ -108,16 +108,16 @@ index ff222cd00..4e3d32017 100644
 -			close(tst_fd);
 -			exit(TFAIL);
 +                        close(tst_fd);
-+		        tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open succeeded unexpectedly\n");
++		        tst_brkm(TBROK, cleanup, "open succeeded unexpectedly");
  		}
  
  		if (TEST_ERRNO == EACCES) {
 -			printf("open failed with EACCES as expected\n");
-+			tst_resm(TPASS, "PASSED:test file open failed with EACCES as expected after setreuid()\n");
++			tst_resm(TPASS, "open failed with EACCES as expected");
  		} else {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open failed unexpectedly after setreuid()");
++			tst_brkm(TBROK, cleanup, "open failed unexpectedly");
  		}
  
  		/* Test 2: Check a son process cannot open the file
@@ -158,7 +158,7 @@ index ff222cd00..4e3d32017 100644
 +
 +		if(pthread_create(&tid, NULL, do_sub_thread, NULL) != 0)
 +                {
-+                        tst_brkm(TBROK, cleanup, "TEST_FAILED: thread creation failed");
++                        tst_brkm(TBROK, cleanup, "Thread creation failed");
 +                }
 +                // wait for the thread to complete the test
 +                pthread_join(tid, NULL);
@@ -170,7 +170,7 @@ index ff222cd00..4e3d32017 100644
  		if (SETREUID(NULL, 0, 0) == -1) {
 -			perror("setreuid failed");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: setreuid() failed");
++			tst_brkm(TBROK, cleanup, "setreuid failed");
  		}
  
  		TEST(tst_fd = open(testfile, O_RDWR));
@@ -178,11 +178,11 @@ index ff222cd00..4e3d32017 100644
  		if (TEST_RETURN == -1) {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+		        tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open failed unexpectedly after setreuid()");
++		        tst_brkm(TBROK, cleanup, "open failed unexpectedly");
  		} else {
 -			printf("open call succeeded\n");
 -			close(tst_fd);
-+		        tst_resm(TPASS, "PASSED: test file open succeeded after setreuid()\n");
++		        tst_resm(TPASS, "open call succeeded");
 +                        close(tst_fd);
  		}
  	}
@@ -191,12 +191,3 @@ index ff222cd00..4e3d32017 100644
  }
  
  static void setup(void)
-@@ -170,7 +156,7 @@ static void setup(void)
- 
- 	ltpuser = getpwnam("nobody");
- 	if (ltpuser == NULL)
--		tst_brkm(TBROK, NULL, "nobody must be a valid user.");
-+		tst_brkm(TBROK, NULL, "TEST_FAILED: nobody must be a valid user.");
- 
- 	tst_tmpdir();
- 

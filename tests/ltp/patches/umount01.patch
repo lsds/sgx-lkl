@@ -1,8 +1,8 @@
 diff --git a/testcases/kernel/syscalls/umount/umount01.c b/testcases/kernel/syscalls/umount/umount01.c
-index fb5384434..d04b419b7 100644
+index fb5384434..23beaeb19 100644
 --- a/testcases/kernel/syscalls/umount/umount01.c
 +++ b/testcases/kernel/syscalls/umount/umount01.c
-@@ -6,43 +6,51 @@
+@@ -6,23 +6,19 @@
   * Phase I test for the umount(2) system call.
   * It is intended to provide a limited exposure of the system call.
   */
@@ -30,25 +30,11 @@ index fb5384434..d04b419b7 100644
  	TEST(umount(MNTPOINT));
  
  	if (TST_RET != 0 && TST_ERR == EBUSY) {
--		tst_res(TINFO, "umount() Failed with EBUSY "
-+		tst_res(TINFO, "umount() TEST_FAILED with EBUSY "
- 			"possibly some daemon (gvfsd-trash) "
- 			"is probing newly mounted dirs");
- 	}
- 
- 	if (TST_RET != 0) {
--		tst_res(TFAIL | TTERRNO, "umount() Failed");
-+		tst_res(TFAIL | TTERRNO, "umount() TEST_FAILED");
- 		return;
- 	}
- 
--	tst_res(TPASS, "umount() Passed");
-+	tst_res(TPASS, "umount() PASSED ");
- 	mount_flag = 0;
- }
+@@ -42,19 +38,33 @@ static void verify_umount(void)
  
  static void setup(void)
  {
++	rmdir(MNTPOINT);
  	SAFE_MKDIR(MNTPOINT, 0775);
 +
 +	const char* src  = "/dev/vda";
@@ -59,13 +45,17 @@ index fb5384434..d04b419b7 100644
 +
 +	if (result != 0) {
 +		TST_RET = result;
-+		tst_res(TFAIL, "umount()- setup TEST_FAILED");
++		tst_res(TFAIL, "umount()- setup Failed");
 +		return;
 +	}
  }
  
  static void cleanup(void)
-@@ -53,8 +61,8 @@ static void cleanup(void)
+ {
+ 	if (mount_flag)
+ 		tst_umount(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
+ }
  
  static struct tst_test test = {
  	.needs_root = 1,

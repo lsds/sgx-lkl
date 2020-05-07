@@ -2,10 +2,10 @@
     FORK_OR_VFORK return always 0 in sgxlkl environment.
 
 diff --git a/testcases/kernel/syscalls/chroot/chroot02.c b/testcases/kernel/syscalls/chroot/chroot02.c
-index e483ca4b5..086ddf2c1 100644
+index e483ca4b5..881ee4580 100644
 --- a/testcases/kernel/syscalls/chroot/chroot02.c
 +++ b/testcases/kernel/syscalls/chroot/chroot02.c
-@@ -94,17 +94,13 @@ int main(int ac, char **av)
+@@ -94,14 +94,10 @@ int main(int ac, char **av)
  				}
  			}
  
@@ -17,13 +17,8 @@ index e483ca4b5..086ddf2c1 100644
 -		/* make sure the child returned a good exit status */
 -		if (WIFSIGNALED(status) ||
 -		    (WIFEXITED(status) && WEXITSTATUS(status) != 0))
--			tst_resm(TFAIL, "chroot functionality incorrect");
 +		/* make sure the chroot is sucessfull */
 +		if (retval)
-+			tst_resm(TFAIL, "TEST_FAILED: chroot() functionality incorrect");
+ 			tst_resm(TFAIL, "chroot functionality incorrect");
  		else
--			tst_resm(TPASS, "chroot functionality correct");
-+			tst_resm(TPASS, "PASSED: chroot() functionality correct");
- 	}
- 
- 	cleanup();
+ 			tst_resm(TPASS, "chroot functionality correct");

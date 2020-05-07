@@ -4,7 +4,7 @@
     Multi-threaded environment.
 
 diff --git a/testcases/kernel/syscalls/setresuid/setresuid04.c b/testcases/kernel/syscalls/setresuid/setresuid04.c
-index e197476ff..9fae937d7 100644
+index e197476ff..78af5adca 100644
 --- a/testcases/kernel/syscalls/setresuid/setresuid04.c
 +++ b/testcases/kernel/syscalls/setresuid/setresuid04.c
 @@ -25,8 +25,8 @@
@@ -51,7 +51,7 @@ index e197476ff..9fae937d7 100644
 +	//create a new thread to perform the test
 +	if(pthread_create(&threadid, NULL, do_master_thread, NULL))
 +	{
-+		tst_brkm(TBROK, cleanup, "TEST_FAILED: Thread creation failed");
++		tst_brkm(TBROK, cleanup, "Thread creation failed");
 +	}
  
 -	tst_record_childstatus(cleanup, pid);
@@ -72,11 +72,11 @@ index e197476ff..9fae937d7 100644
 +
 +	if (TEST_RETURN != -1) {
 +		tst_resm(TPASS,
-+			"PASSED: setresuid() file  opened succeeded in thread2");
++			"open call succeeded as expected in thread2");
 +		close(tst_fd2);
 +	} else {
 +		tst_brkm(TBROK, cleanup,
-+			"TEST_FAILED open failed unexpectedly in thread2\n");
++			"open failed unexpectedly in thread2\n");
 +	}
 +	pthread_exit(NULL);
 +}
@@ -105,7 +105,7 @@ index e197476ff..9fae937d7 100644
  		if (SETRESUID(NULL, 0, ltpuser->pw_uid, 0) == -1) {
 -			perror("setresuid failed");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: setresuid() failed");
++			tst_brkm(TBROK, cleanup, "setresuid failed");
  		}
  
  		/* Test 1: Check the process with new uid cannot open the file
@@ -116,16 +116,16 @@ index e197476ff..9fae937d7 100644
 -			printf("open succeeded unexpectedly\n");
  			close(tst_fd);
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open succeeded unexpectedly\n");
++			tst_brkm(TBROK, cleanup, "open succeeded unexpectedly\n");
  		}
  
  		if (TEST_ERRNO == EACCES) {
 -			printf("open failed with EACCES as expected\n");
-+			tst_resm(TPASS, "PASSED:test file open failed with EACCES as expected after setresuid()\n");
++			tst_resm(TPASS, "open failed with EACCES as expected\n");
  		} else {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open failed unexpectedly after  setresuid()");
++			tst_brkm(TBROK, cleanup, "open failed unexpectedly");
  		}
  
 -		/* Test 2: Check a son process cannot open the file
@@ -169,7 +169,7 @@ index e197476ff..9fae937d7 100644
 -				exit(WEXITSTATUS(status));
 +		if(pthread_create(&tid, NULL, do_sub_thread, NULL) != 0)
 +		{
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: thread creation failed");
++			tst_brkm(TBROK, cleanup, "thread creation failed");
  		}
 +		// wait for the thread to complete the test
 +		pthread_join(tid, NULL);
@@ -181,7 +181,7 @@ index e197476ff..9fae937d7 100644
  		if (SETRESUID(NULL, 0, 0, 0) == -1) {
 -			perror("setresuid failed");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: setresuid() failed");
++			tst_brkm(TBROK, cleanup, "setresuid failed");
  		}
  
  		TEST(tst_fd = open(testfile, O_RDWR));
@@ -189,10 +189,10 @@ index e197476ff..9fae937d7 100644
  		if (TEST_RETURN == -1) {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+			tst_brkm(TBROK, cleanup, "TEST_FAILED: test file open failed unexpectedly after setresuid()");
++			tst_brkm(TBROK, cleanup, "open failed unexpectedly");
  		} else {
 -			printf("open call succeeded\n");
-+			tst_resm(TPASS, "PASSED: test file open succeeded after setresuid()\n");
++			tst_resm(TPASS, "open call succeeded\n");
  			close(tst_fd);
  		}
  	}
