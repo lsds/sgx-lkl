@@ -1,0 +1,19 @@
+Test analysis script checks for pass messages
+in test logs(outerr, stdout), if no pass message
+is found test is marked as failed. Hence, adding
+pass message at the end of all tests.
+
+diff --git a/testcases/kernel/syscalls/fcntl/fcntl01.c b/testcases/kernel/syscalls/fcntl/fcntl01.c
+index 8d20be25e..52884fbd3 100644
+--- a/testcases/kernel/syscalls/fcntl/fcntl01.c
++++ b/testcases/kernel/syscalls/fcntl/fcntl01.c
+@@ -163,6 +163,9 @@ int main(int ac, char **av)
+ 					 "unlinking %s failed", fname);
+ 		}
+ 	}
++
++	tst_resm(TPASS, "fcntl functionality is correct");
++
+ 	cleanup();
+ 	tst_exit();
+ }
