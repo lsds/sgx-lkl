@@ -26,16 +26,16 @@ index 8585d6207..75621d652 100644
                 close(TEST_RETURN);
 -               printf("open succeeded unexpectedly\n");
 -               exit(TFAIL);
-+               tst_resm(TFAIL, "open succeeded unexpectedly TEST_FAILED\n");
++               tst_resm(TFAIL, "open succeeded unexpectedly\n");
         }
 
         if (TEST_ERRNO == EACCES) {
 -               printf("open failed with EACCESS as expected\n");
-+               tst_resm(TPASS, "open failed with EACCESS as expected PASSED\n");
++               tst_resm(TPASS, "open failed with EACCESS as expected\n");
         } else {
 -               printf("open returned unexpected errno - %d\n", TEST_ERRNO);
 -               exit(TFAIL);
-+               tst_resm(TFAIL, "open returned unexpected errno - %d TEST_FAILED\n", TEST_ERRNO);
++               tst_resm(TFAIL, "open returned unexpected errno - %d\n", TEST_ERRNO);
         }
 
         /* Test 2: Check a son process cannot open the file
@@ -45,15 +45,15 @@ index 8585d6207..75621d652 100644
                         close(TEST_RETURN);
 -                       printf("open succeeded unexpectedly\n");
 -                       exit(TFAIL);
-+                       tst_resm(TFAIL, "open succeeded unexpectedly TEST_FAILED\n");
++                       tst_resm(TFAIL, "open succeeded unexpectedly\n");
                 }
 
                 if (TEST_ERRNO == EACCES) {
 -                       printf("open failed with EACCESS as expected\n");
-+                       tst_resm(TPASS, "open failed with EACCESS as expected PASSED\n");
++                       tst_resm(TPASS, "open failed with EACCESS as expected\n");
                 } else {
 -                       printf("open returned unexpected errno - %d\n",
-+                       tst_resm(TFAIL, "open returned unexpected errno - %d TEST_FAILED\n",
++                       tst_resm(TFAIL, "open returned unexpected errno - %d\n",
                                TEST_ERRNO);
 -                       exit(TFAIL);
                 }
@@ -64,7 +64,7 @@ index 8585d6207..75621d652 100644
                 exit(TFAIL);
         } else {
 -               printf("open call succeeded\n");
-+               tst_resm(TPASS, "open call succeeded PASSED\n");
++               tst_resm(TPASS, "open call succeeded\n");
                 close(TEST_RETURN);
         }
 -       exit(TPASS);
