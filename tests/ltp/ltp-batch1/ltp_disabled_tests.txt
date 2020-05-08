@@ -198,7 +198,7 @@
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl09
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl10
 /ltp/testcases/kernel/syscalls/fcntl/fcntl11
-/ltp/testcases/kernel/syscalls/fcntl/fcntl12
+#/ltp/testcases/kernel/syscalls/fcntl/fcntl12
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl13
 /ltp/testcases/kernel/syscalls/fcntl/fcntl14
 /ltp/testcases/kernel/syscalls/fcntl/fcntl15

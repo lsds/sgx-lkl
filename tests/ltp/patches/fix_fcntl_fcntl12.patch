@@ -1,0 +1,27 @@
+    Removed exit code from child and wait code from parent.
+    FORK_OR_VFORK return always 0 in sgxlkl environment.
+
+diff --git a/testcases/kernel/syscalls/fcntl/fcntl12.c b/testcases/kernel/syscalls/fcntl/fcntl12.c
+index ae382ddf5..423126800 100644
+--- a/testcases/kernel/syscalls/fcntl/fcntl12.c
++++ b/testcases/kernel/syscalls/fcntl/fcntl12.c
+@@ -85,16 +85,14 @@ int main(int ac, char **av)
+ 
+ 			if (fcntl(1, F_DUPFD, 1) != -1) {
+ 				tst_resm(TFAIL, "fcntl failed to FAIL");
+-				exit(1);
++				fail = 1;
+ 			} else if (errno != EMFILE) {
+ 				tst_resm(TFAIL, "Expected EMFILE got %d",
+ 					 errno);
+-				exit(1);
++				fail = 1;
+ 			}
+-			exit(0);
+ 		}
+-		waitpid(pid, &status, 0);
+-		if (WEXITSTATUS(status) == 0)
++		if (fail == 0)
+ 			tst_resm(TPASS, "block 1 PASSED");
+ 		else
+ 			tst_resm(TFAIL, "block 1 FAILED");
