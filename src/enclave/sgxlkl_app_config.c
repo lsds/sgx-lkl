@@ -9,6 +9,9 @@
 #include "shared/env.h"
 #include "shared/json_util.h"
 
+#include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
+
 static const char* STRING_KEYS[] = {"run",
                                     "cwd",
                                     "disk",
@@ -139,7 +142,7 @@ static int parse_enclave_disk_config_entry(
     }
     else if (!strcmp("roothash", key))
     {
-        disk->roothash = strdup(json_object_get_string(value));
+        disk->roothash = oe_strdup(json_object_get_string(value));
     }
     else if (!strcmp("roothash_offset", key))
     {
@@ -175,7 +178,7 @@ static int parse_disks(
 
     int num_disks = json_object_array_length(disks_val);
     enclave_disk_config_t* disks =
-        malloc(sizeof(enclave_disk_config_t) * num_disks);
+        oe_malloc(sizeof(enclave_disk_config_t) * num_disks);
     memset(disks, 0, sizeof(enclave_disk_config_t) * num_disks);
 
     int i, j, ret;
@@ -188,11 +191,11 @@ static int parse_disks(
             for (j = 0; j <= i; j++)
             {
                 if (disks[j].key)
-                    free(disks[j].key);
+                    oe_free(disks[j].key);
                 if (disks[j].roothash)
-                    free(disks[j].roothash);
+                    oe_free(disks[j].roothash);
             }
-            free(disks);
+            oe_free(disks);
             return ret;
         }
     }
@@ -216,15 +219,15 @@ static int parse_enclave_wg_peer_config_entry(
 
     if (!strcmp("key", key))
     {
-        peer->key = strdup(json_object_get_string(value));
+        peer->key = oe_strdup(json_object_get_string(value));
     }
     else if (!strcmp("allowedips", key))
     {
-        peer->allowed_ips = strdup(json_object_get_string(value));
+        peer->allowed_ips = oe_strdup(json_object_get_string(value));
     }
     else if (!strcmp("endpoint", key))
     {
-        peer->endpoint = strdup(json_object_get_string(value));
+        peer->endpoint = oe_strdup(json_object_get_string(value));
     }
     else
     {
@@ -256,7 +259,7 @@ static int parse_network(
 
         int num_peers = json_object_array_length(value);
         enclave_wg_peer_config_t* peers =
-            malloc(sizeof(enclave_wg_peer_config_t) * num_peers);
+            oe_malloc(sizeof(enclave_wg_peer_config_t) * num_peers);
         memset(peers, 0, sizeof(enclave_wg_peer_config_t) * num_peers);
 
         int i, j, ret;
@@ -270,13 +273,13 @@ static int parse_network(
                 for (j = 0; j <= i; j++)
                 {
                     if (peers[j].key)
-                        free(peers[j].key);
+                        oe_free(peers[j].key);
                     if (peers[j].allowed_ips)
-                        free(peers[j].allowed_ips);
+                        oe_free(peers[j].allowed_ips);
                     if (peers[j].endpoint)
-                        free(peers[j].endpoint);
+                        oe_free(peers[j].endpoint);
                 }
-                free(peers);
+                oe_free(peers);
                 return ret;
             }
         }
