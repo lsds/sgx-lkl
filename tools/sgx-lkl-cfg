@@ -64,6 +64,7 @@ def create(args):
         img_folder = img_path.parent
         img_filename = img_path.name
         docker_meta_path = img_folder / (img_filename + '.docker')
+        docker_entrypoint_path = img_folder / (img_filename + '.docker_entrypoint')
         img_roothash_path = img_folder / (img_filename + '.roothash')
         img_roothash_offset_path = img_folder / (img_filename + '.hashoffset')
         
@@ -93,6 +94,11 @@ def create(args):
         if i == 0 and docker_meta_path.exists():
             with open(docker_meta_path) as f:
                 docker_meta = json.load(f)
+            if docker_entrypoint_path.exists():
+                with open(docker_entrypoint_path) as f:
+                    docker_entrypoint_abs = f.read().strip()
+            else:
+                docker_entrypoint_abs = None
             docker_cfg = docker_meta[0]['Config']
             docker_entrypoint = docker_cfg['Entrypoint'] or [] # type: List[str]
             docker_cmd = docker_cfg['Cmd'] or [] # type: List[str]
@@ -103,6 +109,9 @@ def create(args):
                 app_cfg['run'] = docker_entrypoint.pop(0)
             elif docker_cmd:
                 app_cfg['run'] = docker_cmd.pop(0)
+
+            if docker_entrypoint_abs:
+                app_cfg['run'] = docker_entrypoint_abs
 
             app_cfg['args'] = docker_entrypoint + docker_cmd
 
@@ -129,6 +138,7 @@ def create(args):
     if app_cfg['run'] in ['/bin/sh', '/bin/bash']:
         print(f'  Note: {app_cfg["run"]} was detected as Docker image entrypoint.')
         print( '        This entrypoint is the default of many Docker images.')
+        print( '        It is also implicitly used in the \'shell\' form of CMD or ENTRYPOINT.')
         print( '        Please modify "run" in the app configuration if needed.')
     print('- Change any additional fields if needed (see documentation).')
 
