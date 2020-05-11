@@ -70,7 +70,7 @@ extern char __sgxlklrun_text_segment_start;
 /* Function to initialize the host interface */
 extern void sgxlkl_host_interface_initialization(void);
 
-typedef void (*sgxlkl_sw_signal_handler)(oe_exception_record_t*);
+typedef uint64_t (*sgxlkl_sw_signal_handler)(oe_exception_record_t*);
 static sgxlkl_sw_signal_handler _sgxlkl_sw_signal_handler;
 
 // Keep track of enclave disk image files so we can flush changes on exit.

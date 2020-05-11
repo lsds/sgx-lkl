@@ -40,9 +40,6 @@ static struct oe_hw_exception_map exception_map[] = {
     {OE_EXCEPTION_SIMD_FLOAT_POINT, X86_TRAP_XF, SIGFPE, true},
 };
 
-extern void (*oe_continue_execution_hook)(
-    oe_exception_record_t* exception_record);
-
 static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context);
 
 static int get_trap_details(
@@ -108,16 +105,7 @@ static void deserialize_ucontext(
     octx->rip = uctx->uc_mcontext.rip;
 }
 
-/* OE support two pass signal handler. First pass signal handler does not allows
- * ocall. SGXLKL need to execute ocalls in context of signal handler. Hence
- * actual signal handler is executed in second pass */
-static uint64_t sgxlkl_enclave_empty_signal_handler(
-    oe_exception_record_t* exception_record)
-{
-    return OE_EXCEPTION_CONTINUE_EXECUTION;
-}
-
-static void sgxlkl_enclave_signal_handler(
+static uint64_t sgxlkl_enclave_signal_handler(
     oe_exception_record_t* exception_record)
 {
     int ret = -1;
@@ -135,7 +123,10 @@ static void sgxlkl_enclave_signal_handler(
 
     /* Emulate illegal instructions in SGX hardware mode */
     if (exception_record->code == OE_EXCEPTION_ILLEGAL_INSTRUCTION)
-        return _sgxlkl_illegal_instr_hook(opcode, exception_record->context);
+    {
+        _sgxlkl_illegal_instr_hook(opcode, exception_record->context);
+        return OE_EXCEPTION_CONTINUE_EXECUTION;
+    }
 
     memset(&trap_info, 0, sizeof(trap_info));
     ret = get_trap_details(exception_record->code, &trap_info);
@@ -159,6 +150,8 @@ static void sgxlkl_enclave_signal_handler(
             "supported\n",
             exception_record->code);
     }
+
+    return OE_EXCEPTION_CONTINUE_EXECUTION;
 }
 
 static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context)
@@ -216,9 +209,8 @@ void _register_enclave_signal_handlers(int mode)
     else
     {
         result = oe_add_vectored_exception_handler(
-            true, sgxlkl_enclave_empty_signal_handler);
+            true, sgxlkl_enclave_signal_handler);
         if (result != OE_OK)
             sgxlkl_fail("OE exception handler registration failed.\n");
-        oe_continue_execution_hook = sgxlkl_enclave_signal_handler;
     }
 }
