@@ -12,6 +12,8 @@
 #include "enclave/ticketlock.h"
 #include "enclave/vio_enclave_event_channel.h"
 
+#include "openenclave/corelibc/oemalloc.h"
+
 static struct ticketlock** evt_chn_lock;
 
 /* Tasks monitoring event channels */
@@ -88,7 +90,7 @@ static void vio_enclave_process_host_event(uint8_t* param)
     uint8_t dev_id = *param;
 
     /* release memory after extracting dev_id */
-    free(param);
+    oe_free(param);
 
     enc_evt_channel_t* evt_channel = _enc_dev_config[dev_id].enc_evt_chn;
     evt_t* evt_processed = &_enc_dev_config[dev_id].evt_processed;
@@ -146,7 +148,7 @@ void initialize_enclave_event_channel(
         evt_channel_num, sizeof(struct ticketlock*));
 
     vio_tasks =
-        (struct lthread**)calloc(evt_channel_num, sizeof(struct lthread*));
+        (struct lthread**)oe_calloc(evt_channel_num, sizeof(struct lthread*));
 
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
@@ -155,14 +157,14 @@ void initialize_enclave_event_channel(
             (struct ticketlock*)calloc(1, sizeof(struct ticketlock));
         memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
 
-        dev_id = (uint8_t*)calloc(1, sizeof(uint8_t));
+        dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));
         *dev_id = enc_dev_config[i].dev_id;
 
         struct lthread* lt = NULL;
         if (lthread_create(
                 &lt, NULL, vio_enclave_process_host_event, (void*)dev_id) != 0)
         {
-            free(vio_tasks);
+            oe_free(vio_tasks);
             sgxlkl_fail("Failed to create lthread for event channel\n");
         }
         vio_tasks[i] = lt;

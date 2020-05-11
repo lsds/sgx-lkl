@@ -2,11 +2,7 @@
 
 #include <enclave/enclave_util.h>
 #include <shared/sgxlkl_config.h>
-
-// We can't use normal malloc at this point in time,
-// so we use the OE-internal malloc here.
-extern void* oe_malloc(size_t size);
-extern void oe_free(void*);
+#include "openenclave/corelibc/oemalloc.h"
 
 // Duplicate a string
 static int strdupz(char** to, const char* from)
@@ -55,7 +51,8 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
     sgxlkl_config_t* cfg = *to;
 
     // Catch modifications to sgxlkl_config_t early.
-    _Static_assert(sizeof(sgxlkl_config_t) == 472, "sgxlkl_config_t size has changed");
+    _Static_assert(
+        sizeof(sgxlkl_config_t) == 472, "sgxlkl_config_t size has changed");
 
     cfg->max_user_threads = from->max_user_threads;
     cfg->stacksize = from->stacksize;
