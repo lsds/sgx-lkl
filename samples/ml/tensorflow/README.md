@@ -28,7 +28,7 @@ B. Building and running TensorFlow
 
 ```
 cd samples/ml/tensorflow
-docker build -t alpine-tensorflow .
+docker build -t alpine-tensorflow -f Dockerfile-TF1.15 .
 make
 make run
 ```
