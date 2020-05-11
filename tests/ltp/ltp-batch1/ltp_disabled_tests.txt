@@ -187,7 +187,7 @@
 #/ltp/testcases/kernel/syscalls/fchown/fchown05
 #/ltp/testcases/kernel/syscalls/fchownat/fchownat01
 #/ltp/testcases/kernel/syscalls/fchownat/fchownat02
-/ltp/testcases/kernel/syscalls/fcntl/fcntl01
+#/ltp/testcases/kernel/syscalls/fcntl/fcntl01
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl02
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl03
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl04
@@ -198,7 +198,7 @@
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl09
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl10
 /ltp/testcases/kernel/syscalls/fcntl/fcntl11
-/ltp/testcases/kernel/syscalls/fcntl/fcntl12
+#/ltp/testcases/kernel/syscalls/fcntl/fcntl12
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl13
 /ltp/testcases/kernel/syscalls/fcntl/fcntl14
 /ltp/testcases/kernel/syscalls/fcntl/fcntl15
