@@ -130,7 +130,7 @@ FROM alpine:3.10
 
 # 'requests' is needed by /tf-models.
 RUN apk add --no-cache \
-    python3 py3-pip py3-numpy py3-requests \
+    git python3 py3-pip py3-numpy py3-requests \
     protobuf
 
 RUN apk add --no-cache --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ --allow-untrusted \
@@ -149,8 +149,8 @@ RUN pip3 install --no-cache-dir --no-index --find-links=/tmp/wheelhouse \
 RUN rm -rf /tmp/*
 
 # Clone Tensorflow models and benchmarks repositories
-RUN git clone https://github.com/tensorflow/models.git /tf-models
-RUN git clone https://github.com/tensorflow/benchmarks.git -b cnn_tf_v1.15_compatible /tf-benchmarks
+RUN git clone --depth 1 https://github.com/tensorflow/models.git /tf-models
+RUN git clone --depth 1 https://github.com/tensorflow/benchmarks.git -b cnn_tf_v1.15_compatible /tf-benchmarks
 
 ADD app app
 
