@@ -9,6 +9,8 @@
 #include "shared/env.h"
 #include "shared/json_util.h"
 
+#include "openenclave/corelibc/oeoe_malloc.h"
+
 static const char* STRING_KEYS[] = {"run",
                                     "cwd",
                                     "disk",
@@ -55,7 +57,7 @@ static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
         return 1;
 
     config->argc = json_object_array_length(args_val) + 1; // Reserve argv[0]
-    config->argv = malloc(
+    config->argv = oe_malloc(
         sizeof(char*) *
         (config->argc +
          1)); // Allocate space for argv[] + NULL element at argv[argc]
@@ -79,7 +81,7 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
         return 1;
 
     int env_len = json_object_object_length(env_val);
-    config->envp = malloc(sizeof(char*) * (env_len + 1));
+    config->envp = oe_malloc(sizeof(char*) * (env_len + 1));
     config->envp[env_len] = NULL;
 
     struct json_object_iterator it;
@@ -93,7 +95,7 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
         const char* str_val = json_object_get_string(val);
         size_t kv_len =
             strlen(key) + strlen(str_val) + 2 /* for '=' and '\0' */;
-        char* env_kv = malloc(kv_len);
+        char* env_kv = oe_malloc(kv_len);
         if (!env_kv)
             sgxlkl_fail(
                 "Failed to allocate memory for environment key value pair.\n");
@@ -175,7 +177,7 @@ static int parse_disks(
 
     int num_disks = json_object_array_length(disks_val);
     enclave_disk_config_t* disks =
-        malloc(sizeof(enclave_disk_config_t) * num_disks);
+        oe_malloc(sizeof(enclave_disk_config_t) * num_disks);
     memset(disks, 0, sizeof(enclave_disk_config_t) * num_disks);
 
     int i, j, ret;
@@ -188,11 +190,11 @@ static int parse_disks(
             for (j = 0; j <= i; j++)
             {
                 if (disks[j].key)
-                    free(disks[j].key);
+                    oe_free(disks[j].key);
                 if (disks[j].roothash)
-                    free(disks[j].roothash);
+                    oe_free(disks[j].roothash);
             }
-            free(disks);
+            oe_free(disks);
             return ret;
         }
     }
@@ -256,7 +258,7 @@ static int parse_network(
 
         int num_peers = json_object_array_length(value);
         enclave_wg_peer_config_t* peers =
-            malloc(sizeof(enclave_wg_peer_config_t) * num_peers);
+            oe_malloc(sizeof(enclave_wg_peer_config_t) * num_peers);
         memset(peers, 0, sizeof(enclave_wg_peer_config_t) * num_peers);
 
         int i, j, ret;
@@ -270,13 +272,13 @@ static int parse_network(
                 for (j = 0; j <= i; j++)
                 {
                     if (peers[j].key)
-                        free(peers[j].key);
+                        oe_free(peers[j].key);
                     if (peers[j].allowed_ips)
-                        free(peers[j].allowed_ips);
+                        oe_free(peers[j].allowed_ips);
                     if (peers[j].endpoint)
-                        free(peers[j].endpoint);
+                        oe_free(peers[j].endpoint);
                 }
-                free(peers);
+                oe_free(peers);
                 return ret;
             }
         }
@@ -398,7 +400,7 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     if (!config->argv)
     {
-        if (!(config->argv = malloc(sizeof(config->argv) * 2)))
+        if (!(config->argv = oe_malloc(sizeof(config->argv) * 2)))
             sgxlkl_fail(
                 "Failed to allocate memory for app config argv: %s\n",
                 strerror(errno));
@@ -408,7 +410,7 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     if (!config->envp)
     {
-        if (!(config->envp = malloc(sizeof(config->envp))))
+        if (!(config->envp = oe_malloc(sizeof(config->envp))))
             sgxlkl_fail(
                 "Failed to allocate memory for app config envp: %s\n",
                 strerror(errno));
