@@ -455,6 +455,23 @@ function create_from_docker() {
 
     docker export ${docker_container_id} | sudo tar -C ${tmp_mnt_point} -xf - 
 
+    # `docker image inspect` includes the entrypoint which may be relative.
+    # Resolve it to an absolute path while we have access to the unencrypted filesystem.
+    path_env=$(docker inspect --format='{{range $i, $env := .Config.Env}}{{println $env}}{{end}}' ${docker_image} | grep PATH= || true)
+    path_env=${path_env/PATH=/}
+    wd=$(docker inspect --format='{{.Config.WorkingDir}}' ${docker_image} || true)
+    entrypoint=$(docker inspect --format='{{index .Config.Entrypoint 0}}' ${docker_image} 2>/dev/null || true)
+    cmd=$(docker inspect --format='{{index .Config.Cmd 0}}' ${docker_image} 2>/dev/null || true)
+    entrypoint=${entrypoint:-$cmd}
+    rm -f ${disk_image}.docker_entrypoint
+    if [[ "$path_env" != "" && "$entrypoint" != "" && "$entrypoint" != /* ]]; then
+        path_env_mnt=${tmp_mnt_point}${path_env//:/:${tmp_mnt_point}}
+        entrypoint_abs=$(cd ${tmp_mnt_point}$wd && PATH=${path_env_mnt} /usr/bin/which ${entrypoint} | xargs realpath -s --relative-to=${tmp_mnt_point} || true)
+        if [[ "$entrypoint_abs" != "" ]]; then
+            echo "/$entrypoint_abs" > ${disk_image}.docker_entrypoint
+        fi
+    fi
+
     echo "${IMG_BUILDENV_RESOLV}" | sudo tee -a ${tmp_mnt_point}/etc/resolv.conf > /dev/null
     if [[ ! -z "${copy_src}" ]]; then sudo cp -r ${copy_src} ${tmp_mnt_point}; fi
     for sysdir in "${SYSDIRS[@]}"; do
