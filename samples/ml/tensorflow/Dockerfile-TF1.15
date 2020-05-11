@@ -1,4 +1,4 @@
-FROM alpine:3.10
+FROM alpine:3.10 AS builder
 
 # Based on https://github.com/better/alpine-tensorflow/blob/master/Dockerfile
 #
@@ -53,8 +53,10 @@ RUN apk add --no-cache --virtual=.build-deps \
         libarchive \
         curl
 
+# Note: Cython is pinned as newer versions cannot compile h5py.
 RUN cd /tmp \
-    && pip3 install -v --no-cache-dir wheel keras requests \
+    && pip3 install Cython~=0.29 \
+    && pip3 install wheel keras requests \
     && $(cd /usr/bin && ln -s python3 python)
 
 ENV JAVA_HOME /usr/lib/jvm/default-jvm
@@ -89,7 +91,7 @@ RUN cd /tmp/tensorflow-${TENSORFLOW_VERSION} \
     && sed -i -e '/\"HAVE_EXECINFO_H\": 1,/d' third_party/llvm/llvm.bzl \
     && sed -i -e '/\"HAVE_BACKTRACE\": 1,/d' third_party/llvm/llvm.bzl \
     && touch /usr/include/sys/sysctl.h \
-    &&  CC_OPT_FLAGS="-march=native" \
+    &&  CC_OPT_FLAGS="-mavx -mavx2 -mfma -mfpmath=both -msse4.2" \
         TF_NEED_JEMALLOC=1 \
         TF_NEED_GCP=0 \
         TF_NEED_HDFS=0 \
@@ -99,13 +101,11 @@ RUN cd /tmp/tensorflow-${TENSORFLOW_VERSION} \
         TF_NEED_VERBS=0 \
         TF_NEED_OPENCL=0 \
         TF_NEED_CUDA=0 \
-        TF_NEED_MPI=0
+        TF_NEED_MPI=0 \
+        bash configure
 
 RUN cd /tmp/tensorflow-${TENSORFLOW_VERSION} \
-    && bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-mfma --copt=-mfpmath=both --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package
-
-# For a build with AVX/SSE
-#    && bazel build -c opt --copt=-mavx --copt=-mavx2 --copt=-mfma --copt=-mfpmath=both --copt=-msse4.2 //tensorflow/tools/pip_package:build_pip_package
+    && bazel build -c opt --config opt --host_copt=-w --copt=-w //tensorflow/tools/pip_package:build_pip_package
 
 # Replace with    && bazel build --cxxopt=-g --copt=-g -c dbg --strip=never //tensorflow/tools/pip_package:build_pip_package
 # to build with debug symbols.
@@ -115,28 +115,42 @@ RUN cd /tmp/tensorflow-${TENSORFLOW_VERSION} \
 RUN cd /tmp/tensorflow-${TENSORFLOW_VERSION} \
     && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
 
+# Create wheelhouse containing tensorflow and other libraries with their dependencies.
+# gast is pinned due to https://github.com/tensorflow/autograph/issues/1.
+RUN pip3 wheel --wheel-dir /tmp/wheelhouse \
+    /tmp/tensorflow_pkg/tensorflow-${TENSORFLOW_VERSION}-cp37-cp37m-linux_x86_64.whl \
+    gast==0.2.2
+
 RUN cp /tmp/tensorflow_pkg/tensorflow-${TENSORFLOW_VERSION}-cp37-cp37m-linux_x86_64.whl /root
 
-# Make sure it's built properly
-RUN pip3 install -v --no-cache-dir /root/tensorflow-${TENSORFLOW_VERSION}-cp37-cp37m-linux_x86_64.whl \
+##############
+# Main stage #
+##############
+FROM alpine:3.10
+
+# 'requests' is needed by /tf-models.
+RUN apk add --no-cache \
+    python3 py3-pip py3-numpy py3-requests \
+    protobuf
+
+RUN apk add --no-cache --update-cache --repository http://dl-3.alpinelinux.org/alpine/edge/testing/ --allow-untrusted \
+    hdf5
+
+COPY --from=builder /tmp/wheelhouse /tmp/wheelhouse
+
+RUN pip3 install --no-cache-dir --no-index --find-links=/tmp/wheelhouse \
+    tensorflow \
     && python3 -c 'import tensorflow'
 
 # Comment out 
 #    && python3 -c 'import tensorflow'
 # when building for a different platform/machine with instruction set extensions like AVX/SSE that are not supported on the build machine.
 
+RUN rm -rf /tmp/*
+
 # Clone Tensorflow models and benchmarks repositories
 RUN git clone https://github.com/tensorflow/models.git /tf-models
 RUN git clone https://github.com/tensorflow/benchmarks.git -b cnn_tf_v1.15_compatible /tf-benchmarks
-
-RUN apk del \
-    .build-deps
-
-# Comment out if source files should remain on disk image (e.g. for SGXLKL_DEBUGMOUNT usage).
-RUN rm -rf \
-     /tmp/* \
-     /root/.[acpw]* \
-     /bazel*
 
 ADD app app
 
