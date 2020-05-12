@@ -324,6 +324,70 @@ static lkl_thread_t thread_create(void (*fn)(void*), void* arg)
     return (lkl_thread_t)thread;
 }
 
+/**
+ * Create an lthread to back a Linux task, created with a clone-family call
+ * into the kernel.
+ */
+static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl_tls_key* task_key, void* task_value)
+{
+    struct lthread* thread;
+    // Create the thread.  The lthread layer will set up the threading data
+    // structures and prepare the lthread to run with the specified instruction
+    // and stack addresses.
+    int ret = lthread_create_primitive(&thread, pc, sp, tls);
+    if (ret)
+    {
+        sgxlkl_fail("lthread_create failed\n");
+    }
+    // Store the host task pointer.  LKL normally sets this lazily the first
+    // time that a thread calls into the LKL.  Threads created via this
+    // mechanism begin life in the kernel and so need to be associated with the
+    // kernel task that created them.
+    lthread_setspecific_remote(thread, task_key->key, task_value);
+    // Mark the thread as runnable.  This must be done *after* the
+    // `lthread_setspecific_remote` call, to ensure that the thread does not
+    // run while we are modifying its TLS.
+    __scheduler_enqueue(thread);
+    return (lkl_thread_t)thread;
+}
+
+static void host_thread_exit(void)
+{
+    LKL_TRACE("enter");
+    lthread_exit(0);
+}
+
+/**
+ * Destroy the lthread backing a host task created with a clone-family call.
+ * This is called after an `exit` system call.  The system call does not return
+ * and the lthread backing the LKL thread that issued the task will not be
+ * invoked again.
+ */
+static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
+{
+    // Somewhat arbitrary size of the stack for teardown.  This must be big
+    // enough that `host_thread_exit` can run and call any remaining TLS
+    // destructors.  This can be removed once there is a clean mechanism for
+    // destroying a not-running lthread without scheduling it.
+    static const size_t teardown_stack_size = 8192;
+    struct lthread *thr = (struct lthread*)tid;
+    // The thread is currently blocking on the LKL scheduler semaphore, remove
+    // it from the sleeping list.
+    _lthread_desched_sleep(thr);
+    // Delete its task reference in TLS.  Without this, the thread's destructor
+    // will call back into LKL and deadlock.
+    lthread_setspecific_remote(thr, task_key->key, NULL);
+    // Give the thread a stack to use during lthread teardown.
+    thr->attr.stack_size = teardown_stack_size;
+    thr->attr.stack = enclave_mmap(0, teardown_stack_size, 0, PROT_READ | PROT_WRITE, 1);
+    // Set up the state so that this will call into the host_thread_exit function and 
+    thr->ctx.eip = host_thread_exit;
+    thr->ctx.esp = thr->attr.stack + teardown_stack_size;
+    // Schedule the thread again.  It will exit when it is next scheduled.
+    __scheduler_enqueue(thr);
+}
+
+
 static void thread_detach(void)
 {
     LKL_TRACE("enter\n");
@@ -585,6 +649,8 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .panic = panic,
     .terminate = terminate,
     .thread_create = thread_create,
+    .thread_create_host = thread_create_host,
+    .thread_destroy_host = thread_destroy_host,
     .thread_detach = thread_detach,
     .thread_exit = thread_exit,
     .thread_join = thread_join,
