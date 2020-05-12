@@ -60,12 +60,14 @@ static void __sgxlkl_enclave_copy_app_config(
     char* buf = oe_malloc((total_size + 1) * sizeof(char*));
     app_config->argv =
         oe_malloc((sgxlkl_config->argc + envc + 2) * sizeof(char*));
+    size_t remaining = total_size + 1;
 
     char* p = buf;
     for (i = 0; i < app_config->argc; i++)
     {
         app_config->argv[i] = p;
-        p += sprintf(p, "%s", sgxlkl_config->argv[i]) + 1;
+        p += snprintf(p, remaining, "%s", sgxlkl_config->argv[i]) + 1;
+        remaining -= p - app_config->argv[i];
     }
     app_config->argv[i] = NULL;
 
@@ -73,7 +75,8 @@ static void __sgxlkl_enclave_copy_app_config(
     for (i = 0; i < envc; i++)
     {
         app_config->envp[i] = p;
-        p += sprintf(p, "%s", envp[i]) + 1;
+        p += snprintf(p, remaining, "%s", envp[i]) + 1;
+        remaining -= p - app_config->envp[i];
     }
     app_config->envp[i] = NULL;
 
