@@ -80,13 +80,13 @@ static void __sgxlkl_enclave_copy_app_config(
 
 static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
 {
-    sgxlkl_info("SEAN =====> 1\n";);
+    sgxlkl_info("SEAN =====> 1\n");
 
 
     /* Get the application configuration & HDD param from remote server */
     if (sgxlkl_enclave->mode == HW_RELEASE_MODE)
     {
-            sgxlkl_info("SEAN =====> 2\n";);
+            sgxlkl_info("SEAN =====> 2\n");
 
         sgxlkl_fail("Remote configuration not supported.\n");
     }
@@ -96,7 +96,7 @@ static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
 
         if (sgxlkl_enclave->app_config_str)
         {
-                sgxlkl_info("SEAN =====> 4\n";);
+                sgxlkl_info("SEAN =====> 4\n");
 
             char* err_desc;
             int ret = parse_sgxlkl_app_config_from_str(
@@ -113,7 +113,7 @@ static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
         }
         else
         {
-                sgxlkl_info("SEAN =====> 5\n";);
+                sgxlkl_info("SEAN =====> 5\n");
 
             __sgxlkl_enclave_copy_app_config(app_config, sgxlkl_enclave);
         }
