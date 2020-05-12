@@ -221,8 +221,11 @@ int __libc_init_enclave(int argc, char** argv)
         sgxlkl_enclave->mmap_files);
 
     libc.vvar_base = sgxlkl_enclave->shared_memory.vvar;
-    libc.user_tls_enabled =
-        sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
+    libc.user_tls_enabled = sgxlkl_enclave->fsgsbase;
+    //libc.user_tls_enabled =
+    //    sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
+    libc.user_tls_enabled = sgxlkl_enclave->fsgsbase;
+
 
     init_sysconf(
         sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);
