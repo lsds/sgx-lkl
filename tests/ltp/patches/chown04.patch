@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/chown/chown04.c b/testcases/kernel/syscalls/chown/chown04.c
-index 1f3ed412b..95fee2087 100644
+index 1f3ed412b..d509ee92b 100644
 --- a/testcases/kernel/syscalls/chown/chown04.c
 +++ b/testcases/kernel/syscalls/chown/chown04.c
 @@ -37,7 +37,8 @@
@@ -46,53 +46,52 @@ index 1f3ed412b..95fee2087 100644
 
         tst_require_root();
         tst_sig(FORK, DEF_HANDLER, cleanup);
-@@ -144,24 +145,24 @@ static void setup(void)
+@@ -144,23 +145,12 @@ static void setup(void)
 
         tst_tmpdir();
 
 -       fs_type = tst_dev_fs_type();
 -       device = tst_acquire_device(cleanup);
-+       //fs_type = tst_dev_fs_type;
-+       //device = tst_acquire_device(cleanup);
-        if (!device)
-                tst_brkm(TCONF, cleanup, "Failed to obtain block device");
-
+-       if (!device)
+-               tst_brkm(TCONF, cleanup, "Failed to obtain block device");
+-
 -       tst_mkfs(cleanup, device, fs_type, NULL, NULL);
-+       //tst_mkfs(cleanup, device, fs_type, NULL, NULL);
-
+-
         TEST_PAUSE;
 
         memset(long_path, 'a', PATH_MAX - 1);
 
 -       bad_addr = mmap(0, 1, PROT_NONE,
-+/*     bad_addr = mmap(0, 1, PROT_NONE,
-                        MAP_PRIVATE_EXCEPT_UCLINUX | MAP_ANONYMOUS, 0, 0);
-        if (bad_addr == MAP_FAILED)
-                tst_brkm(TBROK | TERRNO, cleanup, "mmap failed");
-
-        tc[2].pathname = bad_addr;
+-                       MAP_PRIVATE_EXCEPT_UCLINUX | MAP_ANONYMOUS, 0, 0);
+-       if (bad_addr == MAP_FAILED)
+-               tst_brkm(TBROK | TERRNO, cleanup, "mmap failed");
 -
-+Commented because mmap not supported and lkl_access_ok is failing Github issue 169: */
+-       tc[2].pathname = bad_addr;
++       /*bad_addr = 0;
++       tc[2].pathname = bad_addr; Commented because mmap not supported and lkl_access_ok is failing Github issue 169*/
+
         SAFE_SYMLINK(cleanup, "test_eloop1", "test_eloop2");
         SAFE_SYMLINK(cleanup, "test_eloop2", "test_eloop1");
-
-@@ -172,7 +173,7 @@ static void setup(void)
+@@ -170,9 +160,10 @@ static void setup(void)
+        SAFE_TOUCH(cleanup, TEST_FILE1, 0666, NULL);
+        SAFE_MKDIR(cleanup, DIR_TEMP, S_IRWXU);
         SAFE_TOUCH(cleanup, TEST_FILE2, 0666, NULL);
-
+-
++
++       rmdir("mntpoint");
         SAFE_MKDIR(cleanup, "mntpoint", DIR_MODE);
 -       SAFE_MOUNT(cleanup, device, "mntpoint", fs_type, MS_RDONLY, NULL);
 +       SAFE_MOUNT(cleanup, device, "mntpoint", fs_type, 0, NULL); // Will be reverted once github issue 189 is fixed
         mount_flag = 1;
 
         SAFE_SETEUID(cleanup, ltpuser->pw_uid);
-@@ -188,8 +189,8 @@ void cleanup(void)
+@@ -188,8 +179,5 @@ void cleanup(void)
                          "umount device:%s failed", device);
         }
 
 -       if (device)
 -               tst_release_device(device);
-+       /*if (device)
-+               tst_release_device(device);*/
-
+-
         tst_rmdir();
  }
+
