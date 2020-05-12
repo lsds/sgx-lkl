@@ -92,7 +92,7 @@ static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
     }
     else
     {
-            sgxlkl_info("SEAN =====> 3\n";);
+            sgxlkl_info("SEAN =====> 3\n");
 
         if (sgxlkl_enclave->app_config_str)
         {
