@@ -1,7 +1,8 @@
+import java.io.*;
+
 public class MainApp
 {
-	public static void main(String[] args)
-	{
+	public static void main(String[] args) throws IOException {
 		System.out.println("Hello SGX world from MainApp Java!");
 		FileReadSample frs = new FileReadSample();
 		System.out.println("Trying to read file /app/input.txt");
@@ -10,10 +11,12 @@ public class MainApp
 		System.out.println("Content of the file:");
 		System.out.println(data);
 		
-		if (data.compareTo("This is the content of file\n") == 0) {
+		if (data.compareTo("This is the first line of the file\nThis is the second line of the file\n") == 0) {
 		    System.out.println("TEST_PASSED");
+		    System.exit(0);
 		} else {
 		    System.out.println("TEST_FAILED");
+		    System.exit(1);
 		}
 	}
 }
