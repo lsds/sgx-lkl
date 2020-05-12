@@ -63,11 +63,9 @@ static void __sgxlkl_enclave_copy_app_config(
     sgxlkl_info("SEAN A ==============> 3\n");
 
     envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
-    for (j = 0; envp[j] != NULL; j++) {
-        app_config->envp[j] = oe_strdup(envp[j]);
-        if (app_config->envp[j] == NULL)
-            sgxlkl_fail("Unable to allocate memory for appconfig\n");
-    }
+    for (; envp[j++] != NULL;)
+      ;
+
 
     sgxlkl_info("SEAN A ==============> 4\n");
 
