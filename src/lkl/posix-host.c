@@ -324,6 +324,19 @@ static lkl_thread_t thread_create(void (*fn)(void*), void* arg)
     return (lkl_thread_t)thread;
 }
 
+static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl_tls_key* task_key, void* task_value)
+{
+    struct lthread* thread;
+    int ret = lthread_create_primitive(&thread, pc, sp, tls);
+    if (ret)
+    {
+        sgxlkl_fail("lthread_create failed\n");
+    }
+    lthread_setspecific_remote(thread, task_key->key, task_value);
+    __scheduler_enqueue(thread);
+    return (lkl_thread_t)thread;
+}
+
 static void thread_detach(void)
 {
     LKL_TRACE("enter\n");
@@ -585,6 +598,7 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .panic = panic,
     .terminate = terminate,
     .thread_create = thread_create,
+    .thread_create_host = thread_create_host,
     .thread_detach = thread_detach,
     .thread_exit = thread_exit,
     .thread_join = thread_join,

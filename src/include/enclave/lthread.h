@@ -196,6 +196,12 @@ extern "C"
         size_t sleeptime_ns,
         size_t futex_wake_spins);
 
+    int lthread_create_primitive(
+        struct lthread** new_lt,
+        void* pc,
+        void* sp,
+        void* tls);
+
     int lthread_create(
         struct lthread** new_lt,
         struct lthread_attr* attrp,
@@ -238,9 +244,19 @@ extern "C"
 
     int lthread_key_delete(long key);
 
-    void* lthread_getspecific(long key);
+    void* lthread_getspecific_remote(struct lthread* lt, long key);
     
-    int lthread_setspecific(long key, const void* value);
+    int lthread_setspecific_remote(struct lthread* lt, long key, const void* value);
+
+    static void* lthread_getspecific(long key)
+    {
+        return lthread_getspecific_remote(lthread_current(), key);
+    }
+
+    static int lthread_setspecific(long key, const void* value)
+    {
+        return lthread_setspecific_remote(lthread_current(), key, value);
+    }
 
     static inline void __scheduler_enqueue(struct lthread* lt)
     {

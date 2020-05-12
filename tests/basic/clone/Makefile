@@ -1,0 +1,41 @@
+include ../../common.mk
+
+PROG=clone
+PROG_SRC=$(PROG).c $(PROG).s
+IMAGE_SIZE=5M
+
+EXECUTION_TIMEOUT=60
+
+SGXLKL_ENV=SGXLKL_ETHREADS=8 SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+SGXLKL_HW_PARAMS=--hw-debug
+SGXLKL_SW_PARAMS=--sw-debug
+
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
+
+.DELETE_ON_ERROR:
+.PHONY: all clean
+
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
+
+gettimeout:
+	@echo ${EXECUTION_TIMEOUT}
+
+run: run-hw run-sw
+
+run-gdb: run-hw-gdb
+
+run-hw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-sw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-hw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-sw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+clean:
+	rm -f $(SGXLKL_ROOTFS) $(PROG)
