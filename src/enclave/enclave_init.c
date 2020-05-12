@@ -236,6 +236,8 @@ static int startmain(void* args)
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
     __dls3(&app_config, __builtin_frame_address(0));
+
+    sgxlkl_info("SEAN B ================> 5\n");
 }
 
 int __libc_init_enclave(int argc, char** argv)
@@ -288,7 +290,11 @@ int __libc_init_enclave(int argc, char** argv)
         sgxlkl_fail("Failed to create lthread for startmain()\n");
     }
 
+    sgxlkl_info("SEAN D ====================> 9\n");
+
     lthread_run();
+
+    sgxlkl_info("SEAN D ====================> 10\n");
 
     return sgxlkl_exit_status;
 }
