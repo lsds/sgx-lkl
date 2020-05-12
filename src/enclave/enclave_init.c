@@ -45,10 +45,13 @@ static void __sgxlkl_enclave_copy_app_config(
     int i = 0, j = 0;
     char** envp = NULL;
 
+    sgxlkl_info("SEAN A ==============> 1\n");
     app_config->argc = sgxlkl_config->argc;
     app_config->argv = oe_malloc((app_config->argc + 1) * sizeof(char*));
     if (app_config->argv == NULL)
         sgxlkl_fail("Unable to allocate memory for appconfig\n");
+
+    sgxlkl_info("SEAN A ==============> 2\n");
 
     for (i = 0; i < app_config->argc; i++) {
         app_config->argv[i] = oe_strdup(sgxlkl_config->argv[i]);
@@ -57,9 +60,16 @@ static void __sgxlkl_enclave_copy_app_config(
     }
     app_config->argv[i] = NULL;
 
+    sgxlkl_info("SEAN A ==============> 3\n");
+
     envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
-    for (; envp[j++] != NULL;)
-        ;
+    for (j = 0; envp[j] != NULL; j++) {
+        app_config->envp[j] = oe_strdup(envp[j]);
+        if (app_config->envp[j] == NULL)
+            sgxlkl_fail("Unable to allocate memory for appconfig\n");
+    }
+
+    sgxlkl_info("SEAN A ==============> 4\n");
 
     app_config->envp = oe_malloc((j + 1) * sizeof(char*));
     if (app_config->envp == NULL)
@@ -71,9 +81,13 @@ static void __sgxlkl_enclave_copy_app_config(
     }
     app_config->envp[j] = NULL;
 
+    sgxlkl_info("SEAN A ==============> 5\n");
+
     app_config->cwd = oe_strdup(sgxlkl_config->cwd);
     if (app_config->cwd == NULL)
         sgxlkl_fail("Unable to allocate memory for appconfig\n");
+
+    sgxlkl_info("SEAN A ==============> 6\n");
 
     return;
 }
@@ -118,6 +132,9 @@ static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
             __sgxlkl_enclave_copy_app_config(app_config, sgxlkl_enclave);
         }
     }
+
+    sgxlkl_info("SEAN =====> 6\n");
+
     return;
 }
 
@@ -233,9 +250,9 @@ int __libc_init_enclave(int argc, char** argv)
 
     libc.vvar_base = sgxlkl_enclave->shared_memory.vvar;
     libc.user_tls_enabled = sgxlkl_enclave->fsgsbase;
-    //libc.user_tls_enabled =
-    //    sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
-    libc.user_tls_enabled = sgxlkl_enclave->fsgsbase;
+    libc.user_tls_enabled =
+        sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
+    //libc.user_tls_enabled = sgxlkl_enclave->fsgsbase;
 
 
     init_sysconf(
