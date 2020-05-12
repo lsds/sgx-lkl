@@ -2,7 +2,7 @@ SGXLKL_ROOT=../../..
 
 APP_CONTAINER=alpine-tensorflow
 ROOT_IMAGE=alpine-tensorflow.img
-ROOT_IMAGE_SIZE=3G
+ROOT_IMAGE_SIZE=1.5G
 
 SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
 
