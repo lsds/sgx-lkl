@@ -61,7 +61,7 @@
  * either we are in simulation mode, or we are in HW mode and a key is provided
  * via SGXLKL_KEY.
  */
-#define DEFAULT_SGXLKL_OE_HEAP_PAGE_COUNT 8192 /* 8192 * 4K = 32MB */
+#define DEFAULT_SGXLKL_OE_HEAP_PAGE_COUNT 16384 /* 16384 * 4K = 64MB */
 #define DEFAULT_SGXLKL_HEAP_SIZE 200 * 1024 * 1024
 #define DEFAULT_SGXLKL_HOSTNAME "lkl"
 #define DEFAULT_SGXLKL_IP4 "10.0.1.1"
