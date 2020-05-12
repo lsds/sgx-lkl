@@ -144,20 +144,30 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
-    evt_chn_lock = (struct ticketlock**)calloc(
+    evt_chn_lock = (struct ticketlock**)oe_calloc(
         evt_channel_num, sizeof(struct ticketlock*));
+    if (evt_chn_lock == NULL)
+        sgxlkl_fail("Unable to allocate memory during enclave channel init\n");
 
     vio_tasks =
         (struct lthread**)oe_calloc(evt_channel_num, sizeof(struct lthread*));
+    if (vio_tasks == NULL)
+        sgxlkl_fail("Unable to allocate memory during enclave channel init\n");
 
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
     {
         evt_chn_lock[i] =
-            (struct ticketlock*)calloc(1, sizeof(struct ticketlock));
+            (struct ticketlock*)oe_calloc(1, sizeof(struct ticketlock));
+        if (evt_chn_lock[i] == NULL)
+            sgxlkl_fail(
+                "Unable to allocate memory during enclave channel init\n");
         memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
 
         dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));
+        if (dev_id == NULL)
+            sgxlkl_fail(
+                "Unable to allocate memory during enclave channel init\n");
         *dev_id = enc_dev_config[i].dev_id;
 
         struct lthread* lt = NULL;

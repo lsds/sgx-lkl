@@ -43,22 +43,34 @@ static void __sgxlkl_enclave_copy_app_config(
     char** envp = NULL;
 
     app_config->argc = sgxlkl_config->argc;
-    app_config->argv = malloc((app_config->argc + 1) * sizeof(char*));
+    app_config->argv = oe_malloc((app_config->argc + 1) * sizeof(char*));
+    if (app_config->argv == NULL)
+        sgxlkl_fail("Unable to allocate memory for appconfig\n");
 
-    for (i = 0; i < app_config->argc; i++)
-        app_config->argv[i] = strdup(sgxlkl_config->argv[i]);
+    for (i = 0; i < app_config->argc; i++) {
+        app_config->argv[i] = oe_strdup(sgxlkl_config->argv[i]);
+        if (app_config->argv[i] == NULL)
+            sgxlkl_fail("Unable to allocate memory for appconfig\n");
+    }
     app_config->argv[i] = NULL;
 
     envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
     for (; envp[j++] != NULL;)
         ;
 
-    app_config->envp = malloc((j + 1) * sizeof(char*));
-    for (j = 0; envp[j] != NULL; j++)
-        app_config->envp[j] = strdup(envp[j]);
+    app_config->envp = oe_malloc((j + 1) * sizeof(char*));
+    if (app_config->envp == NULL)
+        sgxlkl_fail("Unable to allocate memory for appconfig\n");
+    for (j = 0; envp[j] != NULL; j++) {
+        app_config->envp[j] = oe_strdup(envp[j]);
+        if (app_config->envp[j] == NULL)
+            sgxlkl_fail("Unable to allocate memory for appconfig\n");
+    }
     app_config->envp[j] = NULL;
 
-    app_config->cwd = strdup(sgxlkl_config->cwd);
+    app_config->cwd = oe_strdup(sgxlkl_config->cwd);
+    if (app_config->cwd == NULL)
+        sgxlkl_fail("Unable to allocate memory for appconfig\n");
 
     return;
 }

@@ -58,17 +58,21 @@ static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
         return 1;
 
     config->argc = json_object_array_length(args_val) + 1; // Reserve argv[0]
-    config->argv = malloc(
+    config->argv = oe_malloc(
         sizeof(char*) *
         (config->argc +
          1)); // Allocate space for argv[] + NULL element at argv[argc]
+    if (config->argv == NULL)
+        sgxlkl_fail("Unable to allocate memory for appconfig\n");
     int i;
     for (i = 1; i < config->argc; i++)
     {
         json_object* val = json_object_array_get_idx(args_val, i - 1);
         if (json_object_get_type(val) != json_type_string)
             return 1;
-        config->argv[i] = strdup(json_object_get_string(val));
+        config->argv[i] = oe_strdup(json_object_get_string(val));
+        if (config->argv[i] == NULL)
+            sgxlkl_fail("Unable to allocate memory for appconfig\n");
     }
 
     config->argv[config->argc] = NULL;
@@ -82,7 +86,9 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
         return 1;
 
     int env_len = json_object_object_length(env_val);
-    config->envp = malloc(sizeof(char*) * (env_len + 1));
+    config->envp = oe_malloc(sizeof(char*) * (env_len + 1));
+    if (config->envp == NULL)
+        sgxlkl_fail("Unable to allocate memory for appconfig\n");
     config->envp[env_len] = NULL;
 
     struct json_object_iterator it;
@@ -96,7 +102,7 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
         const char* str_val = json_object_get_string(val);
         size_t kv_len =
             strlen(key) + strlen(str_val) + 2 /* for '=' and '\0' */;
-        char* env_kv = malloc(kv_len);
+        char* env_kv = oe_malloc(kv_len);
         if (!env_kv)
             sgxlkl_fail(
                 "Failed to allocate memory for environment key value pair.\n");
@@ -308,7 +314,9 @@ static int parse_sgxlkl_app_config_entry(
             fprintf(stderr, "String expected for 'run' configuration.\n");
             return 1;
         }
-        config->run = strdup(json_object_get_string(value));
+        config->run = oe_strdup(json_object_get_string(value));
+        if (config->run == NULL)
+            sgxlkl_fail("Unable to allocate memory for appconfig\n");
     }
     else if (!strcmp("cwd", key))
     {
@@ -317,7 +325,9 @@ static int parse_sgxlkl_app_config_entry(
             fprintf(stderr, "String expected for 'cwd' configuration.\n");
             return 1;
         }
-        config->cwd = strdup(json_object_get_string(value));
+        config->cwd = oe_strdup(json_object_get_string(value));
+        if (config->cwd == NULL)
+            sgxlkl_fail("Unable to allocate memory for appconfig\n");
     }
     else if (!strcmp("args", key))
     {
@@ -384,7 +394,12 @@ int parse_sgxlkl_app_config_from_str(
     if (res)
     {
         if (!*err)
-            *err = strdup("Unexpected application configuration format");
+        {
+            *err = oe_strdup("Unexpected application configuration format");
+            if (*err == NULL)
+                sgxlkl_fail(
+                    "Unable to allocate memory for config error message\n");
+        }
     }
 
     return res;
@@ -401,7 +416,7 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     if (!config->argv)
     {
-        if (!(config->argv = malloc(sizeof(config->argv) * 2)))
+        if (!(config->argv = oe_malloc(sizeof(config->argv) * 2)))
             sgxlkl_fail(
                 "Failed to allocate memory for app config argv: %s\n",
                 strerror(errno));
@@ -411,7 +426,7 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     if (!config->envp)
     {
-        if (!(config->envp = malloc(sizeof(config->envp))))
+        if (!(config->envp = oe_malloc(sizeof(config->envp))))
             sgxlkl_fail(
                 "Failed to allocate memory for app config envp: %s\n",
                 strerror(errno));
