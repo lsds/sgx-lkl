@@ -1,9 +1,10 @@
 include ../../common.mk
 
-APP_ROOT=app
 PROG=MainApp
+MAINAPP_JAVA=app/MainApp.java
+FILEREADER_JAVA=app/FileReadSample.java
 
-DISK_IMAGE=sgxlkl-java-fs.img
+DISK_IMAGE=sgxlkl-java.img
 IMAGE_SIZE=400M
 
 ifeq ($(SGXLKL_VERBOSE),)
@@ -16,11 +17,9 @@ endif
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
 
-$(APP_ROOT)/%.class: $(APP_ROOT)/%.java
-	javac -source 1.8 -target 1.8 $(APP_ROOT)/*.java
-
-$(DISK_IMAGE): $(APP_ROOT)/$(PROG).class
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="iputils iproute2 unzip libstdc++ openjdk8-jre nss" --copy=./${APP_ROOT}/ ${DISK_IMAGE}
+$(DISK_IMAGE): $(MAINAPP_JAVA) $(FILEREADER_JAVA)
+	docker build -t java-app:dev .
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=java-app:dev ${DISK_IMAGE}
 
 run: run-hw run-sw
 
@@ -33,4 +32,4 @@ run-sw: $(DISK_IMAGE)
 	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} ${PROG}
 
 clean:
-	rm -f $(DISK_IMAGE) $(APP_ROOT)/*.class
+	rm -f $(DISK_IMAGE)
