@@ -45,7 +45,7 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
      {.def_char = NULL},
      0}, /* 0 */
 
-    {"SGXLKL_CMDLINE", "cmdline", TYPE_CHAR, {.def_char = "mem=32M"}, 0},
+    {"SGXLKL_CMDLINE", "cmdline", TYPE_CHAR, {.def_char = "mem=64M"}, 0},
     /* 1 */ /* set LKL mem to 32MB (default is 64MB) */
 
     {"SGXLKL_CWD",
