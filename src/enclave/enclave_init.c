@@ -169,10 +169,14 @@ static int startmain(void* args)
     /* Get the application configuration & disk param from remote server */
     enclave_get_app_config(&app_config);
 
+    sgxlkl_info("SEAN B ==============> 1\n");
+
     /* Disk config has been set through app config
      * Merge host-provided disk info (fd, capacity, mmap) */
     if (app_config.disks)
     {
+            sgxlkl_info("SEAN B ==============> 1.1\n");
+
         for (int i = 0; i < app_config.num_disks; i++)
         {
             enclave_disk_config_t* disk = &app_config.disks[i];
@@ -208,8 +212,12 @@ static int startmain(void* args)
         app_config.disks = sgxlkl_enclave->disks;
     }
 
+    sgxlkl_info("SEAN B ==============> 2\n");
+
     // Mount disks
     lkl_mount_disks(app_config.disks, app_config.num_disks, app_config.cwd);
+
+    sgxlkl_info("SEAN B ==============> 3\n");
 
     // Add Wireguard peers
     if (wg_dev)
@@ -222,6 +230,8 @@ static int startmain(void* args)
     }
     if (app_config.num_peers && sgxlkl_verbose)
         wgu_list_devices();
+
+    sgxlkl_info("SEAN B ==============> 4\n");
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
