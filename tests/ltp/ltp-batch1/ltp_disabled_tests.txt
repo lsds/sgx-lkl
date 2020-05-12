@@ -2,7 +2,7 @@
 #/ltp/testcases/kernel/syscalls/accept/accept01
 /ltp/testcases/kernel/syscalls/accept/accept02
 #/ltp/testcases/kernel/syscalls/access/access01
-#/ltp/testcases/kernel/syscalls/access/access02
+/ltp/testcases/kernel/syscalls/access/access02
 /ltp/testcases/kernel/syscalls/access/access03
 #/ltp/testcases/kernel/syscalls/access/access04
 /ltp/testcases/kernel/syscalls/acct/acct01

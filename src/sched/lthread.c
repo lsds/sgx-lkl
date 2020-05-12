@@ -145,8 +145,9 @@ __asm__("    .text                                  \n"
         "       movq 24(%rdi), %rbx                              \n"
         "       movq 8(%rdi), %rbp      # restore frame_pointer  \n"
         "       movq 0(%rdi), %rsp      # restore stack_pointer  \n"
-        "       movq 16(%rdi), %rax     # restore insn_pointer   \n"
-        "       movq %rax, (%rsp)                                \n"
+        "       movq 16(%rdi), %rdx     # restore insn_pointer   \n"
+        "       xor  %rax, %rax         # Clear return register 1\n"
+        "       movq %rdx, (%rsp)                                \n"
         "       ret                                              \n");
 #endif
 
@@ -627,6 +628,98 @@ static void init_file_lock(FILE* f)
         f->lock = 0;
 }
 
+int lthread_create_primitive(
+    struct lthread** new_lt,
+    void* pc,
+    void* sp,
+    void* tls)
+{
+    struct lthread* lt;
+
+    // FIXME: Remove when we no longer have lthread / libc layering issues.
+    if (!libc.threaded && libc.threads_minus_1 >= 0)
+    {
+        for (FILE* f = *__ofl_lock(); f; f = f->next)
+            init_file_lock(f);
+        __ofl_unlock();
+        init_file_lock(__stdin_used);
+        init_file_lock(__stdout_used);
+        init_file_lock(__stderr_used);
+        libc.threaded = 1;
+    }
+
+    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
+    {
+        return -1;
+    }
+
+    // FIXME: Once lthread / pthread layering is fixed, just use the tls
+    // argument as gs base.  We can't do that now because _lthread_free
+    // attempts to unmap this area.
+    lt->itlssz = libc.tls_size;
+    if (libc.tls_size)
+    {
+        if ((lt->itls = (uint8_t*)enclave_mmap(
+                 0,
+                 lt->itlssz,
+                 0, /* map_fixed */
+                 PROT_READ | PROT_WRITE,
+                 1 /* zero_pages */)) == MAP_FAILED)
+        {
+            oe_free(lt);
+            return -1;
+        }
+        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
+        {
+            oe_free(lt);
+            return -1;
+        }
+    }
+    LIST_INIT(&lt->tls);
+    lt->locale = &libc.global_locale;
+
+    lt->attr.state = BIT(LT_ST_READY);
+    lt->tid = a_fetch_add(&spawned_lthreads, 1);
+    lt->robust_list.head = &lt->robust_list.head;
+
+    lthread_set_funcname(lt, "cloned host task");
+
+    if (new_lt)
+    {
+        *new_lt = lt;
+    }
+
+    a_inc(&libc.threads_minus_1);
+
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+
+#if DEBUG
+    struct lthread_queue* new_ltq =
+        (struct lthread_queue*)oe_malloc(sizeof(struct lthread_queue));
+    new_ltq->lt = lt;
+    new_ltq->next = NULL;
+    if (__active_lthreads_tail)
+    {
+        __active_lthreads_tail->next = new_ltq;
+    }
+    else
+    {
+        __active_lthreads = new_ltq;
+    }
+    __active_lthreads_tail = new_ltq;
+#endif /* DEBUG */
+
+    // Set up the lthread initial PC and stack pointer.
+    lt->ctx.eip = pc;
+    // Reserve space on the stack for the return address.  `_switch` will pop
+    // this off.
+    lt->ctx.esp = ((char*)sp) - sizeof(void*);
+    (void)tls;
+
+    return 0;
+}
+
 int lthread_create(
     struct lthread** new_lt,
     struct lthread_attr* attrp,
@@ -899,10 +992,15 @@ int lthread_setcancelstate(int new, int* old)
     return 0;
 }
 
-static struct lthread_tls* lthread_findtlsslot(long key)
+/**
+ * Find the TLS slot for a specified lthread.  It is the caller's
+ * responsibility to ensure that the specified lthread is not concurrently
+ * accessed.  `lthread_current()` is always safe to use here as is any lthread
+ * that has not yet been scheduled.
+ */
+static struct lthread_tls* lthread_findtlsslot(struct lthread *lt, long key)
 {
     struct lthread_tls *d, *d_tmp;
-    struct lthread* lt = lthread_current();
     LIST_FOREACH_SAFE(d, &lt->tls, tls_next, d_tmp)
     {
         if (d->key == key)
@@ -913,10 +1011,15 @@ static struct lthread_tls* lthread_findtlsslot(long key)
     return NULL;
 }
 
-static int lthread_addtlsslot(long key, void* data)
+/**
+ * Add a TLS slot for a specified lthread.  It is the caller's responsibility
+ * to ensure that the specified lthread is not concurrently accessed.
+ * `lthread_current()` is always safe to use here as is any lthread that has
+ * not yet been scheduled.
+ */
+static int lthread_addtlsslot(struct lthread* lt, long key, void* data)
 {
     struct lthread_tls* d;
-    struct lthread* lt = lthread_current();
     d = oe_calloc(1, sizeof(struct lthread_tls));
     if (d == NULL)
     {
@@ -928,27 +1031,27 @@ static int lthread_addtlsslot(long key, void* data)
     return 0;
 }
 
-void* lthread_getspecific(long key)
+void* lthread_getspecific_remote(struct lthread* lt, long key)
 {
     struct lthread_tls* d;
-    if ((d = lthread_findtlsslot(key)) == NULL)
+    if ((d = lthread_findtlsslot(lt, key)) == NULL)
     {
         return NULL;
     }
     return d->data;
 }
 
-int lthread_setspecific(long key, const void* value)
+int lthread_setspecific_remote(struct lthread* lt, long key, const void* value)
 {
     struct lthread_tls* d;
-    if ((d = lthread_findtlsslot(key)) != NULL)
+    if ((d = lthread_findtlsslot(lt, key)) != NULL)
     {
         d->data = (void*)value;
         return 0;
     }
     else
     {
-        return lthread_addtlsslot(key, (void*)value);
+        return lthread_addtlsslot(lt, key, (void*)value);
     }
 }
 
