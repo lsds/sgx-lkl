@@ -3,7 +3,7 @@ include ../../common.mk
 PROG=/app/HelloWorld.dll
 
 DISK_IMAGE=sgxlkl-dotnet.img
-IMAGE_SIZE=250M
+IMAGE_SIZE=512M
 
 ENCLAVE_CMD=/usr/bin/dotnet ${PROG}
 
