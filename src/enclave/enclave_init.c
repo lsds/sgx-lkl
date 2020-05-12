@@ -19,6 +19,9 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 
+#include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
+
 _Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
 
 int sgxlkl_verbose = 1;
