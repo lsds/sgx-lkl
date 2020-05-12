@@ -18,8 +18,7 @@ endif
 .PHONY: run run-hw run-sw clean
 
 $(DISK_IMAGE): $(MAINAPP_JAVA) $(FILEREADER_JAVA)
-	docker build -t java-app:dev .
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=java-app:dev ${DISK_IMAGE}
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=Dockerfile ${DISK_IMAGE}
 
 run: run-hw run-sw
 

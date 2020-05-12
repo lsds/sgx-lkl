@@ -11,12 +11,8 @@ public class MainApp
 		System.out.println("Content of the file:");
 		System.out.println(data);
 		
-		if (data.compareTo("This is the first line of the file\nThis is the second line of the file\n") == 0) {
-		    System.out.println("TEST_PASSED");
-		    System.exit(0);
-		} else {
-		    System.out.println("TEST_FAILED");
+		if (data.compareTo("This is the first line of the file\nThis is the second line of the file\n") != 0) {
 		    System.exit(1);
-		}
+		} 
 	}
 }
