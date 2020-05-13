@@ -262,7 +262,7 @@ int __libc_init_enclave(int argc, char** argv)
     //libc.user_tls_enabled = sgxlkl_enclave->fsgsbase;
     //libc.user_tls_enabled =
     //    sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
-    libc.user_tls_enabled = 0;
+    libc.user_tls_enabled = 1;
 
 
     init_sysconf(
