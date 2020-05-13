@@ -28,6 +28,9 @@ parameters:
   type: object
   default:
   - 8
+- name: 'test_timeout_minutes'
+  type: number
+  default: 60
 - name: 'install_prefix_mapping'
   type: object
   default:
@@ -108,6 +111,8 @@ stages:
             condition: and(succeeded(), not(and(eq('${{ test_suite }}', 'ltp1'), eq('${{ run_mode }}', 'sw'))))
 
             pool: ${{ parameters.test_pool_mapping[run_mode] }}
+
+            timeoutInMinutes: ${{ parameters.test_timeout_minutes }}
 
             steps:
             - checkout: self
