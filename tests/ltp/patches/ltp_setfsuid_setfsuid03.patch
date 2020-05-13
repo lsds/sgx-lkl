@@ -1,28 +1,33 @@
 diff --git a/testcases/kernel/syscalls/setfsuid/setfsuid03.c b/testcases/kernel/syscalls/setfsuid/setfsuid03.c
-index 0e5f860c8..9002af8ba 100644
+index 0e5f860c8..b307f79d9 100644
 --- a/testcases/kernel/syscalls/setfsuid/setfsuid03.c
 +++ b/testcases/kernel/syscalls/setfsuid/setfsuid03.c
-@@ -22,7 +22,7 @@
+@@ -22,7 +22,10 @@
   * Testcase to test the basic functionality of the setfsuid(2) system
   * call when called by a user other than root.
   */
 -
-+// Patch Description: Test is failing to open /etc/passwd file with nobody user, as test intention is not testing /etc/passwd, moved this piece of code to setup to get uid
++/*
++ *  Patch Description: Test is failing to open /etc/passwd file with nobody user. Logged issue 224 for the same
++ *  As test intention is not testing opening /etc/passwd, moved this piece of code to setup function
++ */
  #include <stdio.h>
  #include <unistd.h>
  #include <sys/types.h>
-@@ -40,20 +40,21 @@ int TST_TOTAL = 1;
+@@ -37,6 +40,7 @@ static void cleanup(void);
+
+ TCID_DEFINE(setfsuid03);
+ int TST_TOTAL = 1;
++uid_t uid = 1;
 
  static char nobody_uid[] = "nobody";
  static struct passwd *ltpuser;
-+uid_t uid = 1;
-
- int main(int ac, char **av)
+@@ -45,15 +49,15 @@ int main(int ac, char **av)
  {
         int lc;
 
 -       uid_t uid;
-+//     uid_t uid;
++       //uid_t uid;
 
         tst_parse_opts(ac, av, NULL, NULL);
 
@@ -31,19 +36,20 @@ index 0e5f860c8..9002af8ba 100644
 -       uid = 1;
 -       while (!getpwuid(uid))
 -               uid++;
-+//     uid = 1;
-+//     while (!getpwuid(uid)) // nobody user doesnot have permissions open /etc/passwd raised github issue :224
-+//             uid++;
++       //uid = 1;
++       //while (!getpwuid(uid)) TODO:Enable after issue 224 is fixed
++       //      uid++;
 
         UID16_CHECK(uid, setfsuid, cleanup);
 
-@@ -86,6 +87,9 @@ int main(int ac, char **av)
- static void setup(void)
+@@ -87,6 +91,9 @@ static void setup(void)
  {
         tst_require_root();
-+
-+       while (!getpwuid(uid)) // gets valid uid present in /etc/passwd, takes uid 1 as initial value
-+              uid++;
 
++       while (!getpwuid(uid))
++              uid++;
++
         ltpuser = getpwnam(nobody_uid);
         if (ltpuser == NULL)
+                tst_brkm(TBROK, cleanup, "getpwnam failed for user id %s",
+
