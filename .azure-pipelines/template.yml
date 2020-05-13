@@ -103,7 +103,7 @@ stages:
       - ${{ each ethreads in parameters.ethreads }}:
         - ${{ each test_suite in parameters.test_suites }}:
           - job: test_${{ test_suite }}_${{ build_mode }}_${{ run_mode }}_${{ ethreads }}
-            displayName: 'Test: ${{ test_suite }} (${{ build_mode }} ${{ run_mode }} ${{ ethreads }})'
+            displayName: 'Test: ${{ test_suite }} (${{ build_mode }}, ${{ run_mode }}, ${{ ethreads }} ethreads)'
 
             dependsOn: build_${{ build_mode }}
 
@@ -156,7 +156,7 @@ stages:
               inputs:
                 testResultsFormat: "JUnit"
                 testResultsFiles: "report/*-junit.xml"
-                testRunTitle: "${{ test_suite }} (${{ build_mode }} ${{ run_mode }} ${{ ethreads }})"
+                testRunTitle: "${{ test_suite }} (${{ build_mode }}, ${{ run_mode }}, ${{ ethreads }} ethreads)"
                 mergeTestResults: true
                 failTaskOnFailedTests: true
 

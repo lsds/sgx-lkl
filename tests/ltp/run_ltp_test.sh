@@ -65,7 +65,7 @@ for file in ${ltp_tests[@]}; do
     # Initialize the variables.
     test_name=${final_test_name#"-ltp-testcases-"}
     ltp_testcase_name=$(echo ${test_name%.*.*} | sed 's/-/\//g; s/_/\//g')
-    test_name="${test_name}-($build_mode)-($test_mode)-($SGXLKL_ETHREADS)"
+    test_name="${test_name}-($build_mode)-($test_mode)-($SGXLKL_ETHREADS-ethreads)"
     error_message_file_path="$report_dir/$test_name.error"
     stack_trace_file_path="$report_dir/$test_name.stack"
     stdout_file="$report_dir/$test_name.stdout.txt"
