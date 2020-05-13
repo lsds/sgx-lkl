@@ -1,4 +1,4 @@
-include ../../common.mk
+include ../../../common.mk
 
 PROG=MainApp
 MAINAPP_JAVA=app/MainApp.java
