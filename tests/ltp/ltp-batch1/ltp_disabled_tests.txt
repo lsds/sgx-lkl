@@ -512,7 +512,7 @@
 /ltp/testcases/kernel/syscalls/migrate_pages/migrate_pages03
 /ltp/testcases/kernel/syscalls/mincore/mincore01
 /ltp/testcases/kernel/syscalls/mincore/mincore02
-/ltp/testcases/kernel/syscalls/mkdir/mkdir02
+#/ltp/testcases/kernel/syscalls/mkdir/mkdir02
 /ltp/testcases/kernel/syscalls/mkdir/mkdir03
 /ltp/testcases/kernel/syscalls/mkdir/mkdir04
 #/ltp/testcases/kernel/syscalls/mkdir/mkdir05
