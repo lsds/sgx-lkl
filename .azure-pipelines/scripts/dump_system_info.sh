@@ -22,3 +22,6 @@ ps -aux | grep sgx-lkl-run-oe | grep -v grep || echo "none"
 echo
 echo "Environment variables:"
 printenv | sort
+echo
+echo "User:"
+id -un

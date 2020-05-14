@@ -19,9 +19,6 @@ pr:
 variables:
   - name: SGXLKL_ROOT
     value: $(Build.SourcesDirectory)
-  # For some reason $USER is undefined in the scale set agents (Ubuntu stock image)
-  - name: USER
-    value: root
 
 parameters:
 - name: 'build_modes'

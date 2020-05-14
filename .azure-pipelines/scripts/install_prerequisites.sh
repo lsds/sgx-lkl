@@ -10,3 +10,6 @@ sudo apt-get install -y \
     ninja-build ansible linux-headers-$(uname -r) \
     docker.io python3-venv unzip dkms debhelper apt-utils openjdk-8-jdk-headless \
     expect
+
+# Allow to run Docker without sudo
+sudo chmod u+s $(which docker)
