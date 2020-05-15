@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +14,19 @@ static char child_stack[8192];
 static char *child_stack_end = child_stack + 8192;
 static char child_tls[4069];
 
+volatile int thread_started;
 __attribute__((weak)) int lkl_syscall(int, long*);
+
+static void assert(int cond, const char *msg, ...)
+{
+	if (cond) return;
+	va_list ap;
+	va_start(ap, msg);
+	vfprintf(stderr, msg, ap);
+	va_end(ap);
+	fprintf(stderr, "\nTEST_FAILED\n");
+	exit(-1);
+}
 
 int do_clone(int syscall_number, long *args);
 static int clone_wrapper(int (*fn)(void *), void *child_stack, int flags, void *arg, pid_t *ptid, void *newtls, pid_t *ctid)
@@ -42,13 +55,11 @@ static void sigsegv(int signo, siginfo_t *si, void *addr)
 
 int newthr(void *arg)
 {
-	if (arg == (void*)0x42)
-	{
-		char buf[] = "Thread started!\n";
-		write(2, buf, sizeof(buf));
-		return 0;
-	}
-	int x;
+	thread_started = 1;
+	assert(arg == (void*)0x42, "New thread got correct argument");
+	char x;
+	assert(&x > child_stack, "Local variable is not on the stack");
+	assert(&x < child_stack_end, "Local variable is not on the stack");
 	fprintf(stderr, "New thread created.\n");
 	fprintf(stderr, "Arg: %p.\n", arg);
 	fprintf(stderr, "Stack: %p.\n", &x);
@@ -78,8 +89,11 @@ int main(int argc, char** argv)
 		perror("Clone failed");
 	}
 	fprintf(stderr, "Clone returned %d, ctid: %d ptid: %d\n", clone_ret, ctid, ptid);
-	sleep(1);
+	sleep(2);
+	fprintf(stderr, "Other thread should have terminated by now.\n");
+	assert(thread_started == 1, "Thread did not run");
 
+	fprintf(stderr, "\nTEST_PASSED\n");
 
     return 0;
 }
