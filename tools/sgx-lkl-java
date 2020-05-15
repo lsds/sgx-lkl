@@ -33,7 +33,7 @@ DISK_IMAGE=$2
 # sample usage:
 # sgx-lkl-java --hw-debug sgxlkl-java.img --debug
 
-if [[ ! -z "$3" && "$3" == "--debug" ]]; then
+if [ "$3" == "--debug" ]; then
     if [ -f ${THIS_DIR}/../tools/gdb/sgx-lkl-gdb ]; then
         SGX_LKL_GDB=${THIS_DIR}/../tools/gdb/sgx-lkl-gdb
     else
