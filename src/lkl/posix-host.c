@@ -337,6 +337,27 @@ static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl
     return (lkl_thread_t)thread;
 }
 
+static void host_thread_exit(void)
+{
+    LKL_TRACE("enter");
+    lthread_detach();
+    lthread_exit(0);
+}
+
+static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
+{
+    static const size_t teardown_stack_size = 8192;
+    struct lthread *thr = (struct lthread*)tid;
+    lthread_setspecific_remote(thr, task_key->key, NULL);
+    thr->attr.stack_size = teardown_stack_size;
+    thr->attr.stack = enclave_mmap(0, teardown_stack_size, 0, PROT_READ | PROT_WRITE, 1);
+    thr->ctx.eip = host_thread_exit;
+    thr->ctx.esp = thr->attr.stack + teardown_stack_size;
+    __scheduler_enqueue(thr);
+    //_lthread_free((struct lthread*)tid);
+}
+
+
 static void thread_detach(void)
 {
     LKL_TRACE("enter\n");
@@ -599,6 +620,7 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .terminate = terminate,
     .thread_create = thread_create,
     .thread_create_host = thread_create_host,
+    .thread_destroy_host = thread_destroy_host,
     .thread_detach = thread_detach,
     .thread_exit = thread_exit,
     .thread_join = thread_join,
