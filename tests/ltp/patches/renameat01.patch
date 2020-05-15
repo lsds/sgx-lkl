@@ -1,0 +1,99 @@
+diff --git a/testcases/kernel/syscalls/renameat/renameat01.c b/testcases/kernel/syscalls/renameat/renameat01.c
+index 817e21729..165244b6c 100644
+--- a/testcases/kernel/syscalls/renameat/renameat01.c
++++ b/testcases/kernel/syscalls/renameat/renameat01.c
+@@ -36,6 +36,9 @@
+  *      maximum number of links.
+  */
+ 
++/* Patch to use root file system for the test as loop device file
++ * system cannot be used as lkl Kernel Memory is set to 32M.
++ */
+ #define _GNU_SOURCE
+ 
+ #include <sys/types.h>
+@@ -83,7 +86,7 @@ static char looppathname[sizeof(TESTDIR2) * 43] = ".";
+ static int max_subdirs;
+ 
+ static int mount_flag;
+-static const char *device;
++static const char *device = "/dev/vda";
+ 
+ static struct test_case_t {
+ 	int *oldfdptr;
+@@ -98,8 +101,7 @@ static struct test_case_t {
+ 	{ &badfd, TESTFILE, &badfd, NEW_TESTFILE, EBADF },
+ 	{ &filefd, TESTFILE, &filefd, NEW_TESTFILE, ENOTDIR },
+ 	{ &curfd, looppathname, &curfd, NEW_TESTDIR2, ELOOP },
+-	{ &curfd, TESTFILE5, &curfd, NEW_TESTFILE5, EROFS },
+-	{ &curfd, TESTDIR3, &curfd, NEW_TESTDIR3, EMLINK },
++	{ &curfd, TESTFILE5, &curfd, NEW_TESTFILE5, EROFS }
+ };
+ 
+ static void setup(void);
+@@ -131,7 +133,7 @@ int main(int ac, char **av)
+ static void setup(void)
+ {
+ 	char *tmpdir;
+-	const char *fs_type;
++	const char *fs_type = "ext4";
+ 	int i;
+ 
+ 	if ((tst_kvercmp(2, 6, 16)) < 0) {
+@@ -145,13 +147,6 @@ static void setup(void)
+ 	tst_sig(NOFORK, DEF_HANDLER, cleanup);
+ 
+ 	tst_tmpdir();
+-
+-	fs_type = tst_dev_fs_type();
+-	device = tst_acquire_device(cleanup);
+-
+-	if (!device)
+-		tst_brkm(TCONF, cleanup, "Failed to obtain block device");
+-
+ 	TEST_PAUSE;
+ 
+ 	SAFE_TOUCH(cleanup, TESTFILE, FILEMODE, NULL);
+@@ -161,7 +156,8 @@ static void setup(void)
+ 	sprintf(absoldpath, "%s/%s", tmpdir, TESTFILE2);
+ 	sprintf(absnewpath, "%s/%s", tmpdir, NEW_TESTFILE2);
+ 	free(tmpdir);
+-
++	rmdir(TESTDIR);
++	rmdir(NEW_TESTDIR);
+ 	SAFE_MKDIR(cleanup, TESTDIR, DIRMODE);
+ 	SAFE_TOUCH(cleanup, TESTFILE3, FILEMODE, NULL);
+ 	SAFE_MKDIR(cleanup, NEW_TESTDIR, DIRMODE);
+@@ -177,19 +173,20 @@ static void setup(void)
+ 	 * consecutive symlinks limit in kernel is hardwired
+ 	 * to 40.
+ 	 */
++	rmdir("loopdir");
+ 	SAFE_MKDIR(cleanup, "loopdir", DIRMODE);
+ 	SAFE_SYMLINK(cleanup, "../loopdir", "loopdir/loopdir");
+ 	for (i = 0; i < 43; i++)
+ 		strcat(looppathname, TESTDIR2);
+ 
+-	tst_mkfs(cleanup, device, fs_type, NULL, NULL);
++	rmdir(MNTPOINT);
+ 	SAFE_MKDIR(cleanup, MNTPOINT, DIRMODE);
+ 	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, NULL);
+ 	mount_flag = 1;
+ 	SAFE_TOUCH(cleanup, TESTFILE5, FILEMODE, NULL);
+ 	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, MS_REMOUNT | MS_RDONLY,
+ 		   NULL);
+-
++	rmdir(MNTPOINT);
+ 	SAFE_MKDIR(cleanup, TESTDIR3, DIRMODE);
+ 	max_subdirs = tst_fs_fill_subdirs(cleanup, "testemlinkdir");
+ }
+@@ -245,9 +242,5 @@ static void cleanup(void)
+ 
+ 	if (mount_flag && tst_umount(MNTPOINT) < 0)
+ 		tst_resm(TWARN | TERRNO, "umount %s failed", MNTPOINT);
+-
+-	if (device)
+-		tst_release_device(device);
+-
+ 	tst_rmdir();
+ }

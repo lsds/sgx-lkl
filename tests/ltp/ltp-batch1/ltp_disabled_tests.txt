@@ -226,7 +226,7 @@
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync01
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync02
 /ltp/testcases/kernel/syscalls/fdatasync/fdatasync03
-/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr01
+#/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr01
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr02
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr03
 /ltp/testcases/kernel/syscalls/flistxattr/flistxattr01
@@ -675,7 +675,7 @@
 /ltp/testcases/kernel/syscalls/preadv/preadv03
 /ltp/testcases/kernel/syscalls/preadv2/preadv201
 /ltp/testcases/kernel/syscalls/preadv2/preadv202
-/ltp/testcases/kernel/syscalls/preadv2/preadv203
+#/ltp/testcases/kernel/syscalls/preadv2/preadv203
 /ltp/testcases/kernel/syscalls/profil/profil01
 /ltp/testcases/kernel/syscalls/pselect/pselect01
 /ltp/testcases/kernel/syscalls/pselect/pselect02
@@ -739,7 +739,7 @@
 /ltp/testcases/kernel/syscalls/rename/rename12
 /ltp/testcases/kernel/syscalls/rename/rename13
 /ltp/testcases/kernel/syscalls/rename/rename14
-/ltp/testcases/kernel/syscalls/renameat/renameat01
+#/ltp/testcases/kernel/syscalls/renameat/renameat01
 /ltp/testcases/kernel/syscalls/renameat2/renameat201
 /ltp/testcases/kernel/syscalls/renameat2/renameat202
 /ltp/testcases/kernel/syscalls/request_key/request_key01
@@ -922,7 +922,7 @@
 /ltp/testcases/kernel/syscalls/statfs/statfs03
 /ltp/testcases/kernel/syscalls/statvfs/statvfs01
 /ltp/testcases/kernel/syscalls/statvfs/statvfs02
-/ltp/testcases/kernel/syscalls/statx/statx01
+#/ltp/testcases/kernel/syscalls/statx/statx01
 /ltp/testcases/kernel/syscalls/statx/statx02
 /ltp/testcases/kernel/syscalls/statx/statx03
 /ltp/testcases/kernel/syscalls/statx/statx04

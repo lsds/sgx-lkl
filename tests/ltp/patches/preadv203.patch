@@ -1,0 +1,72 @@
+diff --git a/testcases/kernel/syscalls/preadv2/preadv203.c b/testcases/kernel/syscalls/preadv2/preadv203.c
+index 91618f5f5..4b8ac66ab 100644
+--- a/testcases/kernel/syscalls/preadv2/preadv203.c
++++ b/testcases/kernel/syscalls/preadv2/preadv203.c
+@@ -35,6 +35,10 @@
+  *
+  */
+ 
++/* Patch to use root file system for the test as loop device file
++ * system cannot be used as lkl Kernel Memory is set to 32M.
++ */
++
+ #define _GNU_SOURCE
+ #include <string.h>
+ #include <sys/uio.h>
+@@ -42,6 +46,7 @@
+ #include <stdlib.h>
+ #include <ctype.h>
+ #include <pthread.h>
++#include <sys/mount.h>
+ 
+ #include "tst_test.h"
+ #include "tst_safe_pthread.h"
+@@ -51,7 +56,7 @@
+ #define CHUNKS 60
+ #define MNTPOINT "mntpoint"
+ #define FILES 500
+-
++#define DIR_MODE (S_IRWXU | S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
+ static int fds[FILES];
+ 
+ static volatile int stop;
+@@ -244,7 +249,19 @@ static void setup(void)
+ 	char buf[CHUNK_SZ];
+ 	unsigned int i;
+ 	char j;
+-
++	rmdir(MNTPOINT);
++ 	SAFE_MKDIR(MNTPOINT, DIR_MODE);
++	const char* src  = "/dev/vda";
++	const char* type = "ext4";
++	const unsigned long mntflags = 0;
++	const char* opts = "mode=0777";   
++	int result = mount(src, MNTPOINT, type, mntflags, opts);
++
++	if (result != 0) {
++		TST_RET = result;
++		tst_res(TFAIL, "umount()- setup Failed");
++		return;
++	}
+ 	for (i = 0; i < FILES; i++) {
+ 		snprintf(path, sizeof(path), MNTPOINT"/file_%i", i);
+ 
+@@ -268,6 +285,8 @@ static void do_cleanup(void)
+ 		if (fds[i] > 0)
+ 			SAFE_CLOSE(fds[i]);
+ 	}
++	umount(MNTPOINT);
++	rmdir(MNTPOINT);
+ }
+ 
+ TST_DECLARE_ONCE_FN(cleanup, do_cleanup);
+@@ -276,9 +295,6 @@ static struct tst_test test = {
+ 	.setup = setup,
+ 	.cleanup = cleanup,
+ 	.test_all = verify_preadv2,
+-	.mntpoint = MNTPOINT,
+-	.mount_device = 1,
+-	.all_filesystems = 1,
+ 	.needs_tmpdir = 1,
+ 	.needs_root = 1,
+ };
