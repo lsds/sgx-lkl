@@ -14,10 +14,11 @@ CFLAGS_MAIN = -I$(OE_SDK_INCLUDES)
 CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE
 LINK_MAIN =
 
-GIT_VERSION = "$(shell git describe --dirty --always --tags || echo unknown)"
+SGXLKL_VERSION = "$(shell cat ${SGXLKL_ROOT}/VERSION)"
+SGXLKL_GIT_COMMIT = "$(shell git rev-parse --short HEAD || echo unknown)"
 LKL_VERSION = "$(shell make --quiet -C ${SGXLKL_ROOT}/lkl kernelversion)"
 
-CFLAGS_MAIN += $(SGXLKL_CFLAGS_EXTRA) -DGIT_VERSION=\"$(GIT_VERSION)\" -DLKL_VERSION=\"$(LKL_VERSION)\"
+CFLAGS_MAIN += $(SGXLKL_CFLAGS_EXTRA) -DSGXLKL_VERSION=\"$(SGXLKL_VERSION)\" -DSGXLKL_GIT_COMMIT=\"$(SGXLKL_GIT_COMMIT)\" -DLKL_VERSION=\"$(LKL_VERSION)\"
 
 # Copied from sgx-lkl-musl/config.mak after ./configure
 # TODO: Do not hardcode cflags here
