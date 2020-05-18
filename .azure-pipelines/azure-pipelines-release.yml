@@ -11,3 +11,8 @@ extends:
     # this makes it easier to mess with them, e.g. via external pull requests.
     build_pool:
       vmImage: ubuntu-latest
+    test_timeout_minutes: 120 # ethread==1 takes longer to run
+    ethreads:
+    - 1
+    - 4
+    - 8
