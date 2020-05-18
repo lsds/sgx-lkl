@@ -1,0 +1,8 @@
+trigger: none
+pr: none
+
+extends:
+  template: template.yml
+  parameters:
+    skip_publish: false
+    apt_repo_blob_container: apt
