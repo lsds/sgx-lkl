@@ -1,7 +1,8 @@
-This patch is necessary to fix failure of the test case 
-(testcases/kernel/syscalls/mkdir/mkdir04) in sgx-lkl
-Environment. Test case is updated to use multi-threaded
-Environment instead of multi-process.
+This patch is necessary to fix the test case
+(testcases/kernel/syscalls/mkdir/mkdir04) failure
+in sgx-lkl environment. Test case is updated to
+use multi-threaded environment instead of
+multi-process.
 
 diff --git a/testcases/kernel/syscalls/mkdir/mkdir04.c b/testcases/kernel/syscalls/mkdir/mkdir04.c
 index 87512a4be..730d116d1 100644
