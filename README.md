@@ -119,9 +119,8 @@ may lead to compilation and/or linking errors.
 
 2. Clone the SGX-LKL git repository:
 ```
-git clone git@github.com:lsds/sgx-lkl.git sgx-lkl
+git clone --branch oe_port git@github.com:lsds/sgx-lkl.git sgx-lkl
 cd sgx-lkl
-git checkout oe_port
 ```
 
 3. Build SGX-LKL in the source tree:
