@@ -1,12 +1,19 @@
-trigger: none
+trigger:
+  branches:
+    include:
+    - 'oe_port'
+  paths:
+    exclude:
+    - 'README.md'
+    - 'docs/'
 pr: none
 
 extends:
   template: template.yml
   parameters:
     publish: true
-    apt_repo_blob_container: apt
-    # Use hosted agent for building to ensure releases are always built on a fresh VM.
+    apt_repo_blob_container: apt-dev
+    # Use hosted agent for building to ensure dev-releases are always built on a fresh VM.
     # Our own pools currently re-use VMs to decrease queueing and execution time and
     # this makes it easier to mess with them, e.g. via external pull requests.
     build_pool:

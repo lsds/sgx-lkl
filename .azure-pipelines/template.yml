@@ -33,6 +33,10 @@ parameters:
   default:
     debug: /opt/sgx-lkl-debug
     nondebug: /opt/sgx-lkl-nondebug
+- name: 'build_pool'
+  type: object
+  default:
+    name: scaleset-nosgx
 - name: 'test_pool_mapping'
   type: object
   default:
@@ -40,7 +44,7 @@ parameters:
       name: scaleset-nosgx
     hw:
       name: scaleset-sgx
-- name: 'skip_publish'
+- name: 'publish'
   type: boolean
   default: false
 - name: 'apt_repo_blob_container'
@@ -58,8 +62,7 @@ stages:
     - job: build_${{ build_mode }}
       displayName: 'Build: ${{ build_mode }}'
 
-      pool:
-        name: "scaleset-nosgx"
+      pool: ${{ parameters.build_pool }}
 
       steps:
         - checkout: self
@@ -164,15 +167,12 @@ stages:
                 pathtoPublish: "report"
                 artifactName: logs
 
-- ${{ if not(parameters.skip_publish) }}:
+- ${{ if parameters.publish }}:
   - stage: publish
     displayName: Publish
     dependsOn: build_and_test
     jobs:
     - job: Publish
-
-      # Don't publish for PR builds.
-      condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
 
       # A free hosted agent is good enough for the publish job.
       # It also has the Azure CLI installed already.
