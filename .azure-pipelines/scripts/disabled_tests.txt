@@ -8,3 +8,4 @@ tests/containers/unencrypted/env/Makefile
 tests/virtio/ping_test/Makefile
 tests/virtio/python_read/Makefile
 tests/languages/java/network/Makefile
+tests/languages/java/hello_world/Makefile
