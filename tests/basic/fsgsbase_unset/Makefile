@@ -1,6 +1,7 @@
 include ../../common.mk
 
-PROG=/bin/echo Hello World
+PROG=fsgsbase_unset-test
+PROG_SRC=$(PROG).c
 IMAGE_SIZE=10M
 
 EXECUTION_TIMEOUT=60
@@ -17,8 +18,8 @@ UNSET_FSGSBASE=make -C $(SGXLKL_ROOT)/tools/kmod-set-fsgsbase unset-cr4-fsgsbase
 .DELETE_ON_ERROR:
 .PHONY: all clean
 
-$(SGXLKL_ROOTFS):
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="" ${SGXLKL_ROOTFS}
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
 
 gettimeout:
 	@echo ${EXECUTION_TIMEOUT}
