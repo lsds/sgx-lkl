@@ -1,0 +1,15 @@
+{
+  "run": "app/hello-eeid",
+  "argv": [
+    "arg"
+  ],
+  "envp": [
+    "ABC=DEF"
+  ],
+  "disks": [
+    {
+      "mnt": "/",
+      "readonly": "0"
+    }
+  ]
+}

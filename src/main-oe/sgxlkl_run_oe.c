@@ -38,6 +38,7 @@
 
 #include <openenclave/bits/exception.h>
 #include <openenclave/host.h>
+#include <openenclave/internal/eeid.h>
 
 #include <host/virtio_debug.h>
 #include "host/host_device_ifc.h"
@@ -64,6 +65,12 @@
 #define RDFSBASE_LEN 5 // Instruction length
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
+
+extern void compose_enclave_config(
+    const sgxlkl_config_t* config,
+    char** buffer,
+    size_t* buffer_size,
+    const char* filename);
 
 extern char __sgxlklrun_text_segment_start;
 
@@ -108,7 +115,12 @@ __gdb_hook_starter_ready(void* base_addr, int mode, char* libsgxlkl_path)
 
 static void version()
 {
-    printf(SGXLKL_INFO_STRING, SGXLKL_VERSION, SGXLKL_GIT_COMMIT, LKL_VERSION, BUILD_INFO);
+    printf(
+        SGXLKL_INFO_STRING,
+        SGXLKL_VERSION,
+        SGXLKL_GIT_COMMIT,
+        LKL_VERSION,
+        BUILD_INFO);
     printf("\n");
 }
 
@@ -373,10 +385,7 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_TRACE_THREAD",
         "Trace in-enclave user level thread scheduling.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_TRACE_DISK",
-        "Trace in-enclave disk setup.\n");
+    printf("%-35s %s", "  SGXLKL_TRACE_DISK", "Trace in-enclave disk setup.\n");
     printf("%-35s %s", "  SGXLKL_TRACE_SYSCALL", "Trace all system calls.\n");
     printf(
         "%-35s %s",
@@ -821,8 +830,7 @@ void set_tls(sgxlkl_config_t* conf)
         // If the following instruction causes a segfault, WRFSBASE will be
         // emulated inside the enclave. This can be a performance penalty.
         volatile unsigned long x;
-        __asm__ volatile("rdfsbase %0"
-                         : "=r"(x));
+        __asm__ volatile("rdfsbase %0" : "=r"(x));
     }
     else
     {
@@ -832,8 +840,10 @@ void set_tls(sgxlkl_config_t* conf)
     sgxlkl_host_verbose("HW TLS support: conf->fsgsbase=%i\n", conf->fsgsbase);
     if (rdfsbase_caused_sigill)
     {
-        sgxlkl_host_warn("WRFSBASE instruction raises SIGILL and will be emulated within the enclave. "
-			 "Run `sgx-lkl-run-oe -t` for information about how to fix this performance issue.\n");
+        sgxlkl_host_warn("WRFSBASE instruction raises SIGILL and will be "
+                         "emulated within the enclave. "
+                         "Run `sgx-lkl-run-oe -t` for information about how to "
+                         "fix this performance issue.\n");
     }
 }
 
@@ -1093,6 +1103,7 @@ static void register_hd(
     disk->enc = is_disk_encrypted(fd);
     disk->create = 0; // set by app config
     disk->overlay = overlay;
+    disk->size = size;
 
     blk_device_init(disk, encl->shared_memory.enable_swiotlb);
 
@@ -1650,7 +1661,11 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     sgxlkl_host_verbose(
-        SGXLKL_INFO_STRING, SGXLKL_VERSION, SGXLKL_GIT_COMMIT, LKL_VERSION, BUILD_INFO);
+        SGXLKL_INFO_STRING,
+        SGXLKL_VERSION,
+        SGXLKL_GIT_COMMIT,
+        LKL_VERSION,
+        BUILD_INFO);
     sgxlkl_host_verbose_raw(
         encl.mode == SW_DEBUG_MODE
             ? " [SOFTWARE DEBUG]\n"
@@ -1815,8 +1830,35 @@ int main(int argc, char* argv[], char* envp[])
 
     /* Enclave creation */
     sgxlkl_host_verbose("oe_create_enclave... ");
+#ifdef OE_WITH_EXPERIMENTAL_EEID
+    /* app_config goes into EEID */
+    oe_enclave_setting_t setting;
+    setting.setting_type = OE_EXTENDED_ENCLAVE_INITIALIZATION_DATA;
+    size_t app_config_len = strlen(encl.app_config_str) + 1;
+
+    char* buffer = NULL;
+    size_t buffer_size = 0;
+    compose_enclave_config(&encl, &buffer, &buffer_size, "enclave-config.json");
+
+    oe_eeid_t* eeid = NULL;
+    oe_create_eeid_sgx(buffer_size, &eeid);
+    eeid->size_settings.num_heap_pages = 40000; // 262144;
+    eeid->size_settings.num_stack_pages = 1024;
+    eeid->size_settings.num_tcs = 8;
+    memcpy(eeid->data, buffer, buffer_size);
+
+    setting.u.eeid = eeid;
+    encl.app_config_str = NULL;
+
+    result = oe_create_sgxlkl_enclave(
+        libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, &oe_enclave);
+
+    free(setting.u.eeid);
+    setting.u.eeid = NULL;
+#else
     result = oe_create_sgxlkl_enclave(
         libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, NULL, 0, &oe_enclave);
+#endif
     sgxlkl_host_verbose_raw("result=%u (%s)\n", result, oe_result_str(result));
     if (result != OE_OK)
     {
@@ -1896,7 +1938,10 @@ int main(int argc, char* argv[], char* envp[])
     else
     {
         pthread_create(
-            host_timerdev_task, NULL, timerdev_task, encl.shared_memory.timer_dev_mem);
+            host_timerdev_task,
+            NULL,
+            timerdev_task,
+            encl.shared_memory.timer_dev_mem);
         pthread_setname_np(*host_timerdev_task, "HOST_TIMER_DEVICE");
     }
 

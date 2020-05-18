@@ -1,10 +1,19 @@
-#include <string.h>
+#include <enclave/oe_compat.h>
 
 #include <enclave/enclave_util.h>
+#include <enclave/sgxlkl_app_config.h>
+
 #include <shared/sgxlkl_config.h>
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
 #include "openenclave/internal/safecrt.h"
+
+typedef struct json_callback_data
+{
+    sgxlkl_app_config_t* config;
+    size_t buffer_sz;
+    unsigned long index;
+} json_callback_data_t;
 
 // Duplicate a string
 static int strdupz(char** to, const char* from)
@@ -139,7 +148,7 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
         STRDUPZ_CHECKED(cfg->argv[i], from->argv[i]);
     cfg->argv[argv_sz] = NULL;
     cfg->argc = from->argc;
-    cfg->auxv = NULL; // Necessary?
+    cfg->auxv = NULL;
     STRDUPZ_CHECKED(cfg->cwd, from->cwd);
 
     cfg->exit_status = from->exit_status;
@@ -178,12 +187,15 @@ int sgxlkl_free_config(sgxlkl_config_t* config)
         }
         oe_free(config->disks);
 
-        for (size_t i = 0; i < config->argc; i++)
-            oe_free(config->argv[i]);
-        char** envp = &config->argv[config->argc + 1];
-        while (*envp != NULL)
-            oe_free(*envp++);
-        oe_free(config->argv);
+        if (config->argv)
+        {
+            for (size_t i = 0; i < config->argc; i++)
+                oe_free(config->argv[i]);
+            char** envp = &config->argv[config->argc + 1];
+            while (*envp != NULL)
+                oe_free(*envp++);
+            oe_free(config->argv);
+        }
 
         oe_free(config->cwd);
         oe_free(config->wg.key);

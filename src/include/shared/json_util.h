@@ -35,5 +35,5 @@ int get_string_value_from_json_str(
     const char* key,
     char** data,
     char** err);
-    
+
 #endif /* JSON_UTIL_H */

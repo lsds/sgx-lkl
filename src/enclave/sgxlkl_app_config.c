@@ -113,7 +113,7 @@ static int parse_enclave_disk_config_entry(
     void* arg)
 {
     int err = 0;
-    enclave_disk_config_t* disk = (enclave_disk_config_t*)arg;
+    sgxlkl_app_disk_config_t* disk = (sgxlkl_app_disk_config_t*)arg;
 
     if (assert_entry_type(key, value))
         return 1;
@@ -141,7 +141,6 @@ static int parse_enclave_disk_config_entry(
         else
         {
             disk->key_len = key_len;
-            disk->enc = 1;
         }
     }
     else if (!oe_strcmp("roothash", key))
@@ -154,7 +153,7 @@ static int parse_enclave_disk_config_entry(
     }
     else if (!oe_strcmp("readonly", key))
     {
-        disk->ro = json_object_get_boolean(value);
+        disk->readonly = json_object_get_boolean(value);
     }
     else if (!oe_strcmp("overlay", key))
     {
@@ -185,9 +184,9 @@ static int parse_disks(
         return 1;
 
     int num_disks = json_object_array_length(disks_val);
-    enclave_disk_config_t* disks =
-        oe_malloc(sizeof(enclave_disk_config_t) * num_disks);
-    memset(disks, 0, sizeof(enclave_disk_config_t) * num_disks);
+    sgxlkl_app_disk_config_t* disks =
+        oe_malloc(sizeof(sgxlkl_app_disk_config_t) * num_disks);
+    memset(disks, 0, sizeof(sgxlkl_app_disk_config_t) * num_disks);
 
     int i, j, ret;
     for (i = 0; i < num_disks; i++)

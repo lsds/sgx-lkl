@@ -126,8 +126,8 @@ $(SGXLKL_LIB_TARGET): $(SGXLKL_BUILD_VARIANT)
 $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED): $(SGXLKL_LIB_TARGET)
 	@echo "openssl genrsa -out private.pem -3 3072"
 	@openssl genrsa -out $(BUILD_DIR)/private.pem -3 3072
-	@echo "oesign sign -e $(SGXLKL_LIB_TARGET) -c config/params.conf -k private.pem"
-	@$(OE_OESIGN_TOOL_PATH)/oesign sign -e $(BUILD_DIR)/$(SGXLKL_LIB_TARGET) -c $(OESIGN_CONFIG_PATH)/params.conf -k $(BUILD_DIR)/private.pem
+	@echo "oesign sign -e $(SGXLKL_LIB_TARGET) -c config/eeid-params.conf -k private.pem"
+	@$(OE_OESIGN_TOOL_PATH)/oesign sign -e $(BUILD_DIR)/$(SGXLKL_LIB_TARGET) -c $(OESIGN_CONFIG_PATH)/eeid-params.conf -k $(BUILD_DIR)/private.pem
 
 # Create a link named build to appropiate build directory.
 create-build-link:

@@ -6,6 +6,7 @@
 #include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_mem.h"
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
 #include "enclave/sgxlkl_app_config.h"
@@ -28,93 +29,86 @@ extern struct mpmcq __scheduler_queue;
 _Noreturn void __dls3(sgxlkl_app_config_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
-/* Copy the application setting/conf to enclave memory */
-static void __sgxlkl_enclave_copy_app_config(
-    sgxlkl_app_config_t* app_config,
-    const sgxlkl_config_t* sgxlkl_config)
+int find_and_mount_disks(const sgxlkl_app_config_t* app_config)
 {
-    int i = 0, envc = 0;
-    char** envp = NULL;
-    size_t total_size = 0;
+    if (!app_config)
+        sgxlkl_fail("bug: no app config\n");
 
-    app_config->argc = sgxlkl_config->argc;
+    size_t num_disks =
+        app_config->disks ? app_config->num_disks : sgxlkl_enclave->num_disks;
 
-    for (i = 0; i < app_config->argc; i++)
-        total_size += oe_strlen(sgxlkl_config->argv[i]) + 1;
+    if (num_disks == 0)
+        sgxlkl_fail("bug: no disks\n");
 
-    envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
-    while (envp[envc] != NULL)
+    enclave_disk_config_t disks_to_mount[num_disks];
+
+    /* Disk config has been set through app config
+     * Merge host-provided disk info (fd, capacity, mmap) */
+    if (app_config->disks)
     {
-        total_size += oe_strlen(envp[envc]) + 1;
-        envc++;
-    }
-
-    char* buf = oe_malloc((total_size + 1) * sizeof(char*));
-    app_config->argv =
-        oe_malloc((sgxlkl_config->argc + envc + 2) * sizeof(char*));
-    size_t remaining = total_size + 1;
-
-    char* p = buf;
-    for (i = 0; i < app_config->argc; i++)
-    {
-        app_config->argv[i] = p;
-        p += oe_snprintf(p, remaining, "%s", sgxlkl_config->argv[i]) + 1;
-        remaining -= p - app_config->argv[i];
-    }
-    app_config->argv[i] = NULL;
-
-    app_config->envp = &app_config->argv[i + 1];
-    for (i = 0; i < envc; i++)
-    {
-        app_config->envp[i] = p;
-        p += oe_snprintf(p, remaining, "%s", envp[i]) + 1;
-        remaining -= p - app_config->envp[i];
-    }
-    app_config->envp[i] = NULL;
-
-    app_config->cwd = oe_strdup(sgxlkl_config->cwd);
-
-    return;
-}
-
-static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
-{
-    /* Get the application configuration & HDD param from remote server */
-    if (sgxlkl_enclave->mode == HW_RELEASE_MODE)
-    {
-        sgxlkl_fail("Remote configuration not supported.\n");
+        for (int i = 0; i < num_disks; i++)
+        {
+            sgxlkl_app_disk_config_t* app_disk = &app_config->disks[i];
+            enclave_disk_config_t* host_disk = NULL;
+            for (int j = 0; j < sgxlkl_enclave->num_disks && !host_disk; j++)
+            {
+                enclave_disk_config_t* it = &sgxlkl_enclave->disks[j];
+                if (strcmp(app_disk->mnt, it->mnt) == 0)
+                    host_disk = it;
+            }
+            if (!host_disk)
+                sgxlkl_fail(
+                    "Disk image for mount point '%s' has not been provided by "
+                    "host.\n",
+                    app_disk->mnt);
+            else
+            {
+                disks_to_mount[i] = *host_disk;
+                if (app_disk->key_len && app_disk->key)
+                {
+                    host_disk->key = malloc(app_disk->key_len);
+                    memcpy(host_disk->key, app_disk->key, app_disk->key_len);
+                }
+            }
+        }
     }
     else
     {
-        if (sgxlkl_enclave->app_config_str)
-        {
-            char* err_desc;
-            int ret = parse_sgxlkl_app_config_from_str(
-                sgxlkl_enclave->app_config_str, app_config, &err_desc);
-            if (ret)
-                sgxlkl_fail(
-                    "Failed to parse application configuration: %s\n",
-                    err_desc);
-
-            /* Validate the app config after parsing */
-            ret = validate_sgxlkl_app_config(app_config);
-            if (ret)
-                sgxlkl_fail("Application configuration is not proper\n");
-        }
-        else
-        {
-            __sgxlkl_enclave_copy_app_config(app_config, sgxlkl_enclave);
-        }
+        for (size_t i = 0; i < sgxlkl_enclave->num_disks; i++)
+            disks_to_mount[i] = sgxlkl_enclave->disks[i];
     }
-    return;
+
+    lkl_mount_disks(disks_to_mount, num_disks, app_config->cwd);
+}
+
+static void test_attestation()
+{
+    /* Retrieve remote attestation report to exercise Azure DCAP Client (for
+     * testing only) */
+    // TODO replace this later on
+    if (sgxlkl_enclave->mode == HW_DEBUG_MODE)
+    {
+        uint8_t* remote_report;
+        size_t remote_report_size;
+        oe_result_t result = OE_UNEXPECTED;
+        result = oe_get_report_v2(
+            OE_REPORT_FLAGS_REMOTE_ATTESTATION,
+            NULL,
+            0,
+            NULL,
+            0,
+            &remote_report,
+            &remote_report_size);
+        if (OE_OK != result)
+            sgxlkl_fail(
+                "Failed to retrieve report via oe_get_report_v2: %d.\n",
+                result);
+        oe_free_report(&remote_report);
+    }
 }
 
 static int startmain(void* args)
 {
-    sgxlkl_app_config_t app_config = {0};
-
-    SGXLKL_VERBOSE("enter\n");
-
     __libc_start_init();
     a_barrier();
 
@@ -141,66 +135,27 @@ static int startmain(void* args)
         sgxlkl_info("wg0 has public key %s\n", key);
     }
 
-    /* Get the application configuration & disk param from remote server */
-    enclave_get_app_config(&app_config);
+    if (false)
+        test_attestation();
 
-    /* Disk config has been set through app config
-     * Merge host-provided disk info (fd, capacity, mmap) */
-    if (app_config.disks)
-    {
-        for (int i = 0; i < app_config.num_disks; i++)
-        {
-            enclave_disk_config_t* disk = &app_config.disks[i];
-            // Initialize fd with -1 to make sure we don't try to mount disks
-            // for which no fd has been provided by the host.
-            disk->fd = -1;
-            for (int j = 0; j < sgxlkl_enclave->num_disks; j++)
-            {
-                enclave_disk_config_t* disk_untrusted =
-                    &sgxlkl_enclave->disks[j];
-                if (!oe_strcmp(disk->mnt, disk_untrusted->mnt))
-                {
-                    disk->fd = disk_untrusted->fd;
-                    disk->capacity = disk_untrusted->capacity;
-                    disk->mmap = disk_untrusted->mmap;
-                    /* restore the virtio memory allocated by loader */
-                    disk->virtio_blk_dev_mem =
-                        sgxlkl_enclave->disks[j].virtio_blk_dev_mem;
-                    break;
-                }
-            }
-            // TODO Propagate error (message) back to remote user.
-            if (disk->fd == -1)
-                sgxlkl_fail(
-                    "Disk image for mount point '%s' has not been provided by "
-                    "host.\n",
-                    disk->mnt);
-        }
-    }
-    else
-    {
-        app_config.num_disks = sgxlkl_enclave->num_disks;
-        app_config.disks = sgxlkl_enclave->disks;
-    }
-
-    // Mount disks
-    lkl_mount_disks(app_config.disks, app_config.num_disks, app_config.cwd);
+    sgxlkl_app_config_t* app_config = sgxlkl_enclave_state.app_config;
+    find_and_mount_disks(app_config);
 
     // Add Wireguard peers
     if (wg_dev)
     {
-        wgu_add_peers(wg_dev, app_config.peers, app_config.num_peers, 1);
+        wgu_add_peers(wg_dev, app_config->peers, app_config->num_peers, 1);
     }
-    else if (app_config.num_peers)
+    else if (app_config->num_peers)
     {
         sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
     }
-    if (app_config.num_peers && sgxlkl_verbose)
+    if (app_config->num_peers && sgxlkl_verbose)
         wgu_list_devices();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
-    __dls3(&app_config, __builtin_frame_address(0));
+    __dls3(app_config, __builtin_frame_address(0));
 }
 
 int __libc_init_enclave(int argc, char** argv)

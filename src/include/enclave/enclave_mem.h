@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <sys/sysinfo.h>
 #include <sys/types.h>
+#include <time.h>
 
 #define ENCLAVE_MMAP_FILES_NONE 0
 #define ENCLAVE_MMAP_FILES_PRIVATE 1

@@ -1,23 +1,31 @@
+#include <openenclave/bits/eeid.h>
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
+#include "enclave/sgxlkl_app_config.h"
 #include "enclave/sgxlkl_config.h"
+#include "shared/env.h"
+#include "shared/sgxlkl_config_json.h"
 
 extern int sgxlkl_verbose;
 
 extern _Atomic(enum sgxlkl_libc_state) __libc_state;
 
-sgxlkl_config_t* sgxlkl_enclave;
+sgxlkl_config_t* sgxlkl_enclave = NULL;
+
+sgxlkl_enclave_state_t sgxlkl_enclave_state;
 
 // We need to have a separate function here
 int __sgx_init_enclave()
 {
     _register_enclave_signal_handlers(sgxlkl_enclave->mode);
 
-    return __libc_init_enclave(sgxlkl_enclave->argc, sgxlkl_enclave->argv);
+    return __libc_init_enclave(
+        sgxlkl_enclave_state.app_config->argc,
+        sgxlkl_enclave_state.app_config->argv);
 }
 
 #ifdef DEBUG
@@ -102,14 +110,47 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
 {
     SGXLKL_ASSERT(config_on_host);
 
+    sgxlkl_verbose = 0;
+
+#ifndef OE_WITH_EXPERIMENTAL_EEID
+    if (!config_on_host->app_config_str)
+    {
+        // Make sure all configuration and state is held in enclave memory.
+        if (sgxlkl_copy_config(config_on_host, &sgxlkl_enclave))
+            return 1;
+    }
+    else
+#endif
+    {
+        const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
+        const char* app_config_json = (const char*)eeid->data;
+
+        if (sgxlkl_read_config_json(
+                app_config_json,
+                &sgxlkl_enclave_state.host_memory,
+                &sgxlkl_enclave_state.app_config))
+            return 1;
+
+        // Copy shared memory
+        for (size_t i = 0; i < sgxlkl_enclave_state.host_memory->num_disks; i++)
+            sgxlkl_enclave_state.host_memory->disks[i].virtio_blk_dev_mem =
+                config_on_host->disks[i].virtio_blk_dev_mem;
+
+        memcpy(
+            &sgxlkl_enclave_state.host_memory->shared_memory,
+            &config_on_host->shared_memory,
+            sizeof(sgxlkl_shared_memory_t));
+
+        // This will be removed once shared memory and config have been
+        // separated fully.
+        sgxlkl_enclave = sgxlkl_enclave_state.host_memory;
+    }
+
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
-    sgxlkl_verbose = config_on_host->verbose;
+    sgxlkl_verbose = sgxlkl_enclave->verbose;
 
     SGXLKL_VERBOSE("enter\n");
-
-    // Make sure all configuration and state is held in enclave memory.
-    sgxlkl_copy_config(config_on_host, &sgxlkl_enclave);
 
     // Sanity checks
     SGXLKL_ASSERT(oe_is_within_enclave(&sgxlkl_enclave->mode, sizeof(int)));

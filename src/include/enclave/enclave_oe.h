@@ -17,4 +17,12 @@ extern int __libc_init_enclave(int argc, char** argv);
 
 sgxlkl_config_t* sgxlkl_enclave;
 
+typedef struct sgxlkl_enclave_state
+{
+    sgxlkl_config_t* host_memory;
+    struct sgxlkl_app_config* app_config;
+} sgxlkl_enclave_state_t;
+
+extern sgxlkl_enclave_state_t sgxlkl_enclave_state;
+
 #endif /* ENCLAVE_OE_H */
