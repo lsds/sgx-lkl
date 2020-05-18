@@ -6,7 +6,7 @@
 - Critical issues should have fixes delivered to both master and `release/20.05`.
 - On the release branch, update the version in `VERSION`.
 - Commit and push.
-- Trigger the release CI pipeline (**TODO**) and wait for successful completion.
+- Run the [release pipeline](https://dev.azure.com/sgx-lkl/sgx-lkl/_build?definitionId=5) and wait for successful completion.
 - Create and push a new git tag `20.05` from the release branch.
 - Switch to master and update `VERSION` to `20.06-dev` with the expected next version.
 
