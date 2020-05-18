@@ -11,10 +11,12 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# TODO verify host-side networking for DCAP Client
+# TODO verify host-side networking for DCAP Client once oe_get_report is used in SGX-LKL
+# Note: /etc/ssl/certs is read by libcurl which is used by the Azure DCAP Client.
 CC_DOCKER_ARGS=\
 	--rm --privileged --network=host \
 	-v $(SGXLKL_PREFIX):$(SGXLKL_PREFIX) \
+	-v /etc/ssl/certs:/etc/ssl/certs:ro \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0
 
 .DELETE_ON_ERROR:
