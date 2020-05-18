@@ -4,6 +4,7 @@ tests/containers/encrypted/create-disk/Makefile
 tests/containers/encrypted/verify-integrity/Makefile
 tests/containers/encrypted/verify-verity/Makefile
 tests/basic/network/Makefile
+tests/basic/fsgsbase_unset/Makefile
 tests/containers/unencrypted/env/Makefile
 tests/virtio/ping_test/Makefile
 tests/virtio/python_read/Makefile
