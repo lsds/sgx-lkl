@@ -30,7 +30,7 @@ clean:
 	rm -f $(DISK_IMAGE)
 
 $(DISK_IMAGE): Dockerfile
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile --copy=./${APP_ROOT}/ ${DISK_IMAGE}
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} -V --docker=./Dockerfile --copy=./${APP_ROOT}/ ${DISK_IMAGE}
 
 run: run-hw
 
