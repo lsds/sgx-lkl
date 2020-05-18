@@ -1,15 +1,5 @@
-	This change is necessary to run this test case in sgx-lkl
-	environment. Test case is modified to work in single
-	process environment by Removing exit code from child and 
-	wait code from parent. FORK_OR_VFORK return always 0 in
-	sgxlkl environment. Application in sgx-lkl environment
-	start with root user if this is the case Effective
-	capabilities of an user cleared when changing user
-	from root to non-root.Hence, test case is updated
-	to handle this scenario as well.
-
 diff --git a/testcases/kernel/syscalls/mkdir/mkdir02.c b/testcases/kernel/syscalls/mkdir/mkdir02.c
-index f09e3c33d..99f4324d5 100644
+index f09e3c33d..50dbcd2e5 100644
 --- a/testcases/kernel/syscalls/mkdir/mkdir02.c
 +++ b/testcases/kernel/syscalls/mkdir/mkdir02.c
 @@ -17,6 +17,8 @@
@@ -32,17 +22,14 @@ index f09e3c33d..99f4324d5 100644
  	SAFE_RMDIR(TESTDIR2);
  }
  
-@@ -67,6 +67,19 @@ static void setup(void)
+@@ -67,6 +67,16 @@ static void setup(void)
  	struct passwd *pw;
  	struct stat buf;
  	pid_t pid;
 +	int usr_secbits;
 +
-+	/*
-+	 * if program started as a root user, avoid clearing of
-+	 * effective capabilities when changing from user root
-+         * non-root user.
-+	 */
++	// set the flag "SECBIT_NO_SETUID_FIXUP" to retain the
++	// effective capabilities, when user id changed from root to non-root.
 +	if(!getuid())
 +	{
 +		usr_secbits = prctl(PR_GET_SECUREBITS, 0, 0, 0, 0);
@@ -52,7 +39,7 @@ index f09e3c33d..99f4324d5 100644
  
  	pw = SAFE_GETPWNAM("nobody");
  	nobody_uid = pw->pw_uid;
-@@ -74,7 +87,7 @@ static void setup(void)
+@@ -74,7 +84,7 @@ static void setup(void)
  	pw = SAFE_GETPWNAM("bin");
  	bin_uid = pw->pw_uid;
  	bin_gid = pw->pw_gid;
@@ -61,7 +48,7 @@ index f09e3c33d..99f4324d5 100644
  	umask(0);
  
  	pid = SAFE_FORK();
-@@ -84,10 +97,7 @@ static void setup(void)
+@@ -84,10 +94,7 @@ static void setup(void)
  		SAFE_MKDIR(TESTDIR1, 0777);
  		SAFE_STAT(TESTDIR1, &buf);
  		SAFE_CHMOD(TESTDIR1, buf.st_mode | S_ISGID);
