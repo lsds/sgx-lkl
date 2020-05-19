@@ -82,12 +82,12 @@ https://github.com/openenclave/openenclave (branch: feature/sgx-lkl-support).
 
 1. Clone the `feature.sgx-lkl` branch of the Open Enclave SDK:
 ```
-git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl.git
+git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl
 ```
 
 2. Install the Open Enclave build requirements:
 ```
-cd openenclave-sgxlkl.git
+cd openenclave-sgxlkl
 sudo scripts/ansible/install-ansible.sh
 sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
 ```
