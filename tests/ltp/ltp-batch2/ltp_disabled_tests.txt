@@ -929,7 +929,7 @@
 /ltp/testcases/kernel/syscalls/statx/statx05
 /ltp/testcases/kernel/syscalls/statx/statx06
 /ltp/testcases/kernel/syscalls/statx/statx07
-/ltp/testcases/kernel/syscalls/stime/stime01
+#/ltp/testcases/kernel/syscalls/stime/stime01
 #/ltp/testcases/kernel/syscalls/stime/stime02
 #/ltp/testcases/kernel/syscalls/string/string01
 /ltp/testcases/kernel/syscalls/swapoff/swapoff01
