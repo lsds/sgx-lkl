@@ -483,7 +483,7 @@ A Confidential Container is a Docker image that only contains the disk images
 and the host and app config files.
 It is used for deploying an SGX-LKL application to a target system that has
 Docker as well as SGX-LKL installed on the host.
-This allows to update SGX-LKL without rebuilding all Docker images.
+This allows to update SGX-LKL without rebuilding all Confidential Containers.
 Like Docker, SGX-LKL can be considered part of the host runtime environment.
 
 To create a Confidential Container, run:
