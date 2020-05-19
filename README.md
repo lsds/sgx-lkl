@@ -58,8 +58,9 @@ echo "deb [trusted=yes] https://clcpackages.blob.core.windows.net/apt/1fa5fb889b
 Now, install with:
 ```sh
 sudo apt update
-sudo apt install clc
+sudo apt install clc-debug
 ```
+To install the non-release variant, use `clc-nonrelease`. A release variant is not available yet.
 
 The FSGSBASE DKMS driver can be installed with:
 ```sh
@@ -270,14 +271,21 @@ sgx-lkl-run-oe --hw-debug ./sgxlkl-disk.img /usr/bin/python /app/myapp.py
 
 #### Creating Docker-based disk images
 
-The `sgx-lkl-disk` tool can also build disk images from Dockerfiles with the `--docker`
-flag, e.g. when an application needs to be compiled manually. Note that SGX-LKL 
-applications still need to be linked against musl libc, so a good starting 
-point is an Alpine Docker base image.
+The `sgx-lkl-disk` tool can also build disk images from Dockerfiles or Docker images
+with the `--docker` flag, e.g. when an application needs to be compiled manually.
+Note that SGX-LKL applications still need to be linked against musl libc,
+so a good starting point is an Alpine Docker base image.
 
 To build an SGX-LKL disk image from a Dockerfile, run:
+```sh
+# This assumes a MyDockerfile file exists in the current directory.
+sgx-lkl-disk create --size=100M --docker=./MyDockerfile sgxlkl-disk.img
 ```
-sgx-lkl-disk create --size=100M --docker=MyDockerfile sgxlkl-disk.img
+
+To build an SGX-LKL disk image from an existing Docker image, run:
+```sh
+# This assumes a Docker image tagged 'my-app' exists on the system.
+sgx-lkl-disk create --size=100M --docker=my-app sgxlkl-disk.img
 ```
 
 #### Creating plain disk images
@@ -438,22 +446,78 @@ _To be added_
 
 ### 3. Other configuration options
 
-SGX-LKL-OE has a number of other configuration options e.g. for configuring the
-in-enclave scheduling, network configuration, or debugging/tracing. To see all
-options, run:
-```
-sgx-lkl-run-oe --help
-```
+SGX-LKL-OE has a number of other configuration options, e.g. for configuring the
+disks, in-enclave scheduling, network configuration, or debugging/tracing.
 
-Note that for the debugging options to have an effect, SGX-LKL must be built
+There are two ways to specify configuration options: environment variables and JSON files.
+
+During debugging, it can be convenient to specify debugging options as environment
+variables. Note that for debugging options to have an effect, SGX-LKL must be built
 with `DEBUG=true`.
+To see a list of all environment configuration variables, run:
+```
+sgx-lkl-run-oe --help-config
+```
 
-F. Remote attestation
+The recommended way to configure SGX-LKL is through host config and app config JSON files.
+Using JSON files is also required when creating Confidential Containers (see next section).
+To create initial host and app config files in the current directory, run:
+```
+sgx-lkl-cfg create --disk sgxlkl-disk.img
+```
+Note that you may have to adapt the generated files to your needs.
+See the `tests/containers/cc` folder for example host and app config files.
+You can then run SGX-LKL using the host and app config files alone:
+```
+sgx-lkl-run-oe --hw-debug --host-config=host-config.json --app-config=app-config.json
+```
+Note that environment variables can still be used to specify additional options.
+This is especially useful for host configuration options that are only known
+at runtime in the target system where SGX-LKL will run, for example the name
+of the network tap device (`SGXLKL_TAP`).
+
+F. Confidential Container bundling for deployment
+-------------------------------------------------
+
+A Confidential Container is a Docker image that only contains the disk images
+and the host and app config files.
+It is used for deploying an SGX-LKL application to a target system that has
+Docker as well as SGX-LKL installed on the host.
+This allows to update SGX-LKL without rebuilding all Docker images.
+Like Docker, SGX-LKL can be considered part of the host runtime environment.
+
+To create a Confidential Container, run:
+```
+sgx-lkl-docker build-cc --name=my-app-cc --mode=debug --host-cfg=host-config.json --app-cfg=app-config.json
+```
+Note that `--mode` determines the SGX-LKL installation to be used when running
+the container, in this case `/opt/sgx-lkl-debug`.
+Currently, only `debug` and `nonrelease` are available, `release` will be added
+in the future. 
+
+On the target system where the Confidential Container is run, install SGX-LKL
+from the published Debian packages (see A. Installing SGX-LKL-OE).
+Note that an SGX-LKL installation built from source (see B. Building SGX-LKL-OE from source)
+cannot be used directly as it is not a self-contained installation 
+(bundling required library dependencies).
+
+To run the Confidential Container, run:
+```
+docker run --rm --privileged --network=host \
+  -v /opt/sgx-lkl-debug:/opt/sgx-lkl-debug \
+  -v /etc/ssl/certs:/etc/ssl/certs:ro \
+  my-app-cc --hw-debug
+```
+Note that environment configuration variables can be specified using
+`-e` flags, for example `-e SGXLKL_VERBOSE=1`.
+The above example assumes that the debug build of SGX-LKL was installed.
+
+G. Remote attestation
 ---------------------
 
 _To be added_
 
-G. Debugging SGX-LKL-OE and applications
+H. Debugging SGX-LKL-OE and applications
 -----------------------------------------
 
 SGX-LKL provides a wrapper around gdb.
