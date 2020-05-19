@@ -28,7 +28,7 @@ function usage() {
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
     echo "    --app-cfg=<path>                                 Path to app configuration file."
-    echo "    --mode=<debug|nondebug>                          Select the deployment mode of SGX-LKL (default: debug)"
+    echo "    --mode=<debug|nonrelease>                          Select the deployment mode of SGX-LKL (default: debug)"
     echo
     echo " [-?]                                                Display this help message."
     exit 1

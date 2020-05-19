@@ -47,7 +47,7 @@ if [ -z $SGXLKL_PREFIX ]; then
 fi
 
 if [ -z $SGXLKL_BUILD_MODE ]; then
-    echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<debug|nondebug>"
+    echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<debug|nonrelease>"
     exit 1
 fi
 
