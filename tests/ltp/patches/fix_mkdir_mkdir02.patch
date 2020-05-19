@@ -1,5 +1,14 @@
+This change is necessary to run this test case in sgx-lkl
+environment. Test case is modified to work in single
+process environment by removing exit code from child and
+wait code from parent. FORK_OR_VFORK always returns 0 in
+sgxlkl environment. Application in sgx-lkl environment
+starts with root user and effective capabilities are cleared
+when user changed from root to non-root. Hence, test case
+is updated to handle this scenario as well.
+
 diff --git a/testcases/kernel/syscalls/mkdir/mkdir02.c b/testcases/kernel/syscalls/mkdir/mkdir02.c
-index f09e3c33d..50dbcd2e5 100644
+index f09e3c33d..64ca4ad10 100644
 --- a/testcases/kernel/syscalls/mkdir/mkdir02.c
 +++ b/testcases/kernel/syscalls/mkdir/mkdir02.c
 @@ -17,6 +17,8 @@
@@ -30,7 +39,7 @@ index f09e3c33d..50dbcd2e5 100644
 +
 +	// set the flag "SECBIT_NO_SETUID_FIXUP" to retain the
 +	// effective capabilities, when user id changed from root to non-root.
-+	if(!getuid())
++	if(getuid() == 0)
 +	{
 +		usr_secbits = prctl(PR_GET_SECUREBITS, 0, 0, 0, 0);
 +		usr_secbits |= SECBIT_NO_SETUID_FIXUP;
@@ -39,15 +48,6 @@ index f09e3c33d..50dbcd2e5 100644
  
  	pw = SAFE_GETPWNAM("nobody");
  	nobody_uid = pw->pw_uid;
-@@ -74,7 +84,7 @@ static void setup(void)
- 	pw = SAFE_GETPWNAM("bin");
- 	bin_uid = pw->pw_uid;
- 	bin_gid = pw->pw_gid;
--
-+	
- 	umask(0);
- 
- 	pid = SAFE_FORK();
 @@ -84,10 +94,7 @@ static void setup(void)
  		SAFE_MKDIR(TESTDIR1, 0777);
  		SAFE_STAT(TESTDIR1, &buf);
