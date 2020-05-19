@@ -9,7 +9,7 @@ parameters:
   # Names must not have dashes as job names cannot have them.
   # NOTE: When changing this list, also change install_prefix_mapping.
   - debug
-  - nondebug
+  - nonrelease
 - name: 'run_modes'
   type: object
   default:
@@ -32,7 +32,7 @@ parameters:
   type: object
   default:
     debug: /opt/sgx-lkl-debug
-    nondebug: /opt/sgx-lkl-nondebug
+    nonrelease: /opt/sgx-lkl-nonrelease
 - name: 'test_pool_mapping'
   type: object
   default:

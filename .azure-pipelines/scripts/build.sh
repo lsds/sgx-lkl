@@ -15,8 +15,8 @@ fi
 # Initialize the variables.
 if [[ "$build_mode" == "debug" ]]; then
     make_args="DEBUG=true"
-elif [[ "$build_mode" == "nondebug" ]]; then
-    make_args="DEBUG=false"
+elif [[ "$build_mode" == "nonrelease" ]]; then
+    make_args=""
 else
     echo "unknown build_mode: $build_mode"
     exit 1

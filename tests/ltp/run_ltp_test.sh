@@ -32,7 +32,7 @@ csv_filename="sgxlkl_oe_ltp_test_result_$(date +%d%m%y_%H%M%S).csv"
 echo "SI No, Test Name, Stdout logfile name, Stderr logfile name, Execution Status" > $csv_filename
 
 report_dir="report"
-# Delete all files except ltp-batch(debug).* or ltp-batch(nondebug).*
+# Delete all files except ltp-batch(debug).* or ltp-batch(nonrelease).*
 # Don't delete files that has paranthesis in file name
 # Deleting this file causes problem in the parent test_runner.sh script
 if [ -d $report_dir ]

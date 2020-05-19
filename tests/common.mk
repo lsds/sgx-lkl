@@ -19,8 +19,8 @@ else
 	ifeq (${SGXLKL_BUILD_MODE},)
 		ifeq (${SGXLKL_PREFIX},/opt/sgx-lkl-debug)
 			export SGXLKL_BUILD_MODE=debug
-		else ifeq (${SGXLKL_PREFIX},/opt/sgx-lkl-nondebug)
-			export SGXLKL_BUILD_MODE=nondebug
+		else ifeq (${SGXLKL_PREFIX},/opt/sgx-lkl-nonrelease)
+			export SGXLKL_BUILD_MODE=nonrelease
 		else
 			$(error SGXLKL_BUILD_MODE not set and SGXLKL_PREFIX is not a standard path)
 		endif
