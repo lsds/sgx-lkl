@@ -925,7 +925,7 @@
 /ltp/testcases/kernel/syscalls/statx/statx01
 /ltp/testcases/kernel/syscalls/statx/statx02
 /ltp/testcases/kernel/syscalls/statx/statx03
-/ltp/testcases/kernel/syscalls/statx/statx04
+#/ltp/testcases/kernel/syscalls/statx/statx04
 /ltp/testcases/kernel/syscalls/statx/statx05
 /ltp/testcases/kernel/syscalls/statx/statx06
 /ltp/testcases/kernel/syscalls/statx/statx07
