@@ -465,8 +465,8 @@ To create initial host and app config files in the current directory, run:
 ```
 sgx-lkl-cfg create --disk sgxlkl-disk.img
 ```
-Note that you may have to adapt the generated files to your needs.
-See the `tests/containers/cc` folder for example host and app config files.
+Note that you may have to adapt the generated files to your needs
+(see the `tests/containers/cc` folder for sample host and app config files).
 You can then run SGX-LKL using the host and app config files alone:
 ```
 sgx-lkl-run-oe --hw-debug --host-config=host-config.json --app-config=app-config.json
