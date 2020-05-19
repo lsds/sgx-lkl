@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/fgetxattr/fgetxattr01.c b/testcases/kernel/syscalls/fgetxattr/fgetxattr01.c
-index 227e090ea..6ae5cc706 100644
+index 227e090ea..0fd63663b 100644
 --- a/testcases/kernel/syscalls/fgetxattr/fgetxattr01.c
 +++ b/testcases/kernel/syscalls/fgetxattr/fgetxattr01.c
 @@ -17,6 +17,10 @@
@@ -13,9 +13,12 @@ index 227e090ea..6ae5cc706 100644
  #include "config.h"
  #include <sys/types.h>
  #include <sys/stat.h>
-@@ -31,6 +35,8 @@
+@@ -29,8 +33,10 @@
+ #include <stdlib.h>
+ #include <string.h>
  #ifdef HAVE_SYS_XATTR_H
- # include <sys/xattr.h>
+-# include <sys/xattr.h>
++#include <sys/xattr.h>
  #endif
 +#include <sys/mount.h>
 +
