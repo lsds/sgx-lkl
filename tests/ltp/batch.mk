@@ -21,7 +21,7 @@ ESCALATE_CMD=sudo
 $(ALPINE_TAR):
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-$(ROOT_FS): $(ALPINE_TAR) ../buildenv.sh 
+$(ROOT_FS): $(ALPINE_TAR) ../buildenv.sh
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$@"
 	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)
@@ -49,6 +49,12 @@ run-hw: $(ROOT_FS)
 
 run-sw: $(ROOT_FS)
 	@${LTP_TEST_SCRIPT} run-sw
+
+run-single-hw: $(ROOT_FS)
+	${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
+
+run-single-sw: $(ROOT_FS)
+	${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
 
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true
