@@ -38,7 +38,7 @@ report_dir="report"
 if [ -d $report_dir ]
 then
     find $report_dir/ -type f -not -name '*\(*\)*' -delete
-else 
+else
     mkdir $report_dir
 fi
 
@@ -99,7 +99,7 @@ for file in ${ltp_tests[@]}; do
             total_failures=$(($total_failures + $failure_count))
             if [[ $failure_count -gt 0 ]]; then
                 echo "Failure : '$failure' observed in '$stderr_file'"
-            fi                
+            fi
         fi
     done
     pass_count=$(cat "$stdout_file" "$stderr_file" | grep PASS | wc -l)
@@ -117,6 +117,8 @@ for file in ${ltp_tests[@]}; do
         total_failed=$(($total_failed + 1))
         echo "'$test_name' failed. Failure Count = $total_failures, Pass Count = $pass_count"
         echo "'$test_name' failed. Failure Count = $total_failures, Pass Count = $pass_count" > "$error_message_file_path"
+        echo "'make $test_mode-single test=$file' can be used to test this individually failing ltp test"
+        echo "'make $test_mode-single test=$file' can be used to test this individually failing ltp test" >> "$error_message_file_path"
         echo "$counter, $test_name, $stdout_file, $stderr_file, Failed"
         echo "$counter, $ltp_testcase_name, $stdout_file, $stderr_file, Failed" >> $csv_filename
         if [ ! -z "$stderr_file" ]; then
