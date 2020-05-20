@@ -1,0 +1,65 @@
+diff --git a/testcases/kernel/syscalls/getxattr/getxattr02.c b/testcases/kernel/syscalls/getxattr/getxattr02.c
+index dca6b13be..7867b0bec 100644
+--- a/testcases/kernel/syscalls/getxattr/getxattr02.c
++++ b/testcases/kernel/syscalls/getxattr/getxattr02.c
+@@ -38,6 +38,10 @@
+  *    return -1 and set errno to ENODATA
+  */
+ 
++/* Currently xattr is not enabled while mounting root file system. Patch is
++ * mount root file system with xattr enabled and then use  it for the test.
++ */
++
+ #include "config.h"
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -51,8 +55,9 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #ifdef HAVE_SYS_XATTR_H
+-# include <sys/xattr.h>
++#include <sys/xattr.h>
+ #endif
++#include <sys/mount.h>
+ #include "test.h"
+ #include "safe_macros.h"
+ 
+@@ -66,6 +71,13 @@ char *TCID = "getxattr02";
+ #define BLK  "getxattr02blk"
+ #define SOCK "getxattr02sock"
+ 
++#define DIR_MODE        (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
++#define FILE_MODE       (S_IRWXU | S_IRWXG | S_IRWXO | S_ISUID | S_ISGID)
++#define MNTPOINT        "mntpoint"
++
++static const char *device = "/dev/vda";
++static const char *fs_type = "ext4";
++
+ static void setup(void);
+ static void cleanup(void);
+ 
+@@ -125,9 +137,12 @@ static void setup(void)
+ 	tst_require_root();
+ 
+ 	tst_tmpdir();
++	rmdir(MNTPOINT);
++	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, "user_xattr");
+ 
+ 	/* Test for xattr support */
+-	fd = SAFE_CREAT(cleanup, "testfile", 0644);
++	fd = SAFE_CREAT(cleanup, "mntpoint/getxattr02testfile", 0644);
+ 	close(fd);
+ 	if (setxattr("testfile", "user.test", "test", 4, XATTR_CREATE) == -1)
+ 		if (errno == ENOTSUP)
+@@ -158,6 +173,10 @@ static void setup(void)
+ 
+ static void cleanup(void)
+ {
++	remove("mntpoint/getxattr02testfile");
++	umount(MNTPOINT);
++	rmdir(MNTPOINT);
++
+ 	tst_rmdir();
+ }
+ #else /* HAVE_SYS_XATTR_H */

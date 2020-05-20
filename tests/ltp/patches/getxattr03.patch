@@ -1,0 +1,61 @@
+diff --git a/testcases/kernel/syscalls/getxattr/getxattr03.c b/testcases/kernel/syscalls/getxattr/getxattr03.c
+index b6ea14287..a7819c2b1 100644
+--- a/testcases/kernel/syscalls/getxattr/getxattr03.c
++++ b/testcases/kernel/syscalls/getxattr/getxattr03.c
+@@ -27,6 +27,10 @@
+  * the current size of the named extended attribute.
+  */
+ 
++/* Currently xattr is not enabled while mounting root file system. Patch is
++ * to mount root file system with xattr enabled and then use it for the test.
++*/
++
+ #include "config.h"
+ #include <sys/types.h>
+ #include <sys/stat.h>
+@@ -39,8 +43,9 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #ifdef HAVE_SYS_XATTR_H
+-# include <sys/xattr.h>
++#include <sys/xattr.h>
+ #endif
++#include <sys/mount.h>
+ #include "test.h"
+ #include "safe_macros.h"
+ 
+@@ -50,8 +55,13 @@ char *TCID = "getxattr03";
+ #define XATTR_TEST_KEY "user.testkey"
+ #define XATTR_TEST_VALUE "test value"
+ #define XATTR_TEST_VALUE_SIZE (sizeof(XATTR_TEST_VALUE) - 1)
+-#define TESTFILE "getxattr03testfile"
++#define TESTFILE "mntpoint/getxattr03testfile"
++#define DIR_MODE        (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
++#define FILE_MODE       (S_IRWXU | S_IRWXG | S_IRWXO | S_ISUID | S_ISGID)
++#define MNTPOINT        "mntpoint"
+ 
++static const char *device = "/dev/vda";
++static const char *fs_type = "ext4";
+ static void setup(void);
+ static void cleanup(void);
+ 
+@@ -87,6 +97,9 @@ static void setup(void)
+ 	tst_require_root();
+ 
+ 	tst_tmpdir();
++	rmdir(MNTPOINT);
++	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, "user_xattr");
+ 
+ 	/* Test for xattr support and set attr value */
+ 	fd = SAFE_CREAT(cleanup, TESTFILE, 0644);
+@@ -107,6 +120,9 @@ static void setup(void)
+ 
+ static void cleanup(void)
+ {
++	remove(TESTFILE);
++	umount(MNTPOINT);
++	rmdir(MNTPOINT);
+ 	tst_rmdir();
+ }
+ #else /* HAVE_SYS_XATTR_H */

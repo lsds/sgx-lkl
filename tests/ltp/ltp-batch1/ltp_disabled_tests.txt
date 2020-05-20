@@ -346,9 +346,9 @@
 #/ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday02
 #/ltp/testcases/kernel/syscalls/getuid/getuid01
 #/ltp/testcases/kernel/syscalls/getuid/getuid03
-/ltp/testcases/kernel/syscalls/getxattr/getxattr01
-/ltp/testcases/kernel/syscalls/getxattr/getxattr02
-/ltp/testcases/kernel/syscalls/getxattr/getxattr03
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr01
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr02
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr03
 /ltp/testcases/kernel/syscalls/getxattr/getxattr04
 /ltp/testcases/kernel/syscalls/getxattr/getxattr05
 /ltp/testcases/kernel/syscalls/inotify/inotify01
