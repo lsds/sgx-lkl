@@ -50,10 +50,10 @@ run-hw: $(ROOT_FS)
 run-sw: $(ROOT_FS)
 	@${LTP_TEST_SCRIPT} run-sw
 
-run-single-hw: $(ROOT_FS)
+run-hw-single: $(ROOT_FS)
 	${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
 
-run-single-sw: $(ROOT_FS)
+run-sw-single: $(ROOT_FS)
 	${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
 
 clean:
