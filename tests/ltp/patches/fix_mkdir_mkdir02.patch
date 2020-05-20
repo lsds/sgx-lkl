@@ -1,14 +1,15 @@
 In the original test a child process is used,
-and parent process waits for child process to finish,
-and child process calls exit to return to parent process.
-The test case is modified to work in sgx-lkl single
-process environment by removing codes related to exit
-from child and wait on parent. FORK_OR_VFORK always
-returns 0 in sgxlkl environment. In addition, application
-in sgx-lkl environment starts with root user and
-admin permissions lost when user changed from root
-to non-root user. Test case is updated to handle
-this scenario as well.
+and parent process waits for child process to
+finish, and child process calls exit to return
+to parent process. The test case is modified to
+work in sgx-lkl single process environment by
+removing codes related to exit from child and
+wait on parent. FORK_OR_VFORK always returns 0
+in sgxlkl environment. In addition, application
+in sgx-lkl environment starts with root user
+and admin permissions lost when user changed
+from root to non-root user. Test case is updated
+to handle this scenario as well.
 
 diff --git a/testcases/kernel/syscalls/mkdir/mkdir02.c b/testcases/kernel/syscalls/mkdir/mkdir02.c
 index f09e3c33d..64ca4ad10 100644
