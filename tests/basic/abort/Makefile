@@ -4,7 +4,7 @@ PROG=abort
 PROG_C=abort.c
 
 DISK_IMAGE=sgxlkl-abort.img
-IMAGE_SIZE=5M
+IMAGE_SIZE=50M
 
 EXECUTION_TIMEOUT=60
 

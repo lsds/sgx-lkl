@@ -2,7 +2,7 @@ include ../../common.mk
 
 PROG=stat
 PROG_SRC=$(PROG).c
-IMAGE_SIZE=5M
+IMAGE_SIZE=50M
 
 EXECUTION_TIMEOUT=60
 

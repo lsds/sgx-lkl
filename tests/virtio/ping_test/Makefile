@@ -4,7 +4,7 @@ SHELL := /bin/bash
 
 PROG=dummy_server
 PROG_SRC=$(PROG).c
-IMAGE_SIZE=5M
+IMAGE_SIZE=50M
 
 EXECUTION_TIMEOUT=60
 

@@ -9,6 +9,9 @@ LKL_DEBUG   ?= false
 # Select libc version (currently only musl libc is supported)
 LIBC        ?= musl
 
+# Measure code coverage
+CODE_COVERAGE ?= false
+
 SGXLKL_ROOT                 ?= $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 $(info $$SGXLKL_ROOT        = [${SGXLKL_ROOT}])
 
@@ -129,6 +132,10 @@ else
     SGXLKL_CFLAGS_EXTRA     += -O3
     THIRD_PARTY_CFLAGS      += -O3
 
+endif
+
+ifeq ($(CODE_COVERAGE),true)
+    SGXLKL_CFLAGS_ENCLAVE_EXTRA += -fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(DEBUG),true)
