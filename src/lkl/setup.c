@@ -109,8 +109,7 @@ static void lkl_prepare_rootfs(const char* dirname, int perm)
             err = lkl_sys_mkdir(dirname, perm);
         if (err < 0)
         {
-            sgxlkl_fail(
-                "Unable to mkdir %s: %s\n", dirname, lkl_strerror(err));
+            sgxlkl_fail("Unable to mkdir %s: %s\n", dirname, lkl_strerror(err));
         }
     }
 }
@@ -183,8 +182,7 @@ static void lkl_mount_shmtmpfs()
     int err = lkl_sys_mount("tmpfs", "/dev/shm", "tmpfs", 0, "rw,nodev");
     if (err != 0)
     {
-        sgxlkl_fail(
-            "lkl_sys_mount(tmpfs) (/dev/shm): %s\n", lkl_strerror(err));
+        sgxlkl_fail("lkl_sys_mount(tmpfs) (/dev/shm): %s\n", lkl_strerror(err));
     }
 }
 
@@ -365,7 +363,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     if (err == -1)
     {
         sgxlkl_fail("Unable to activate encrypted disk. Please ensure you "
-                     "have provided the correct passphrase/keyfile!\n");
+                    "have provided the correct passphrase/keyfile!\n");
     }
     else if (err != 0)
     {
@@ -1082,30 +1080,26 @@ out:
         free(pool_info);
 }
 
-/* Requires starttime to be higher or equal to endtime */
-static int timespec_diff(
-    struct timespec* starttime,
-    struct timespec* endtime,
-    struct timespec* diff)
+/* Get the difference between end and start. If end is before start,
+ * returns {0, 0}
+ */
+struct timespec timespec_diff(struct timespec end, struct timespec start)
 {
-    if (starttime->tv_sec > endtime->tv_sec ||
-        (starttime->tv_sec == endtime->tv_sec &&
-         starttime->tv_nsec > endtime->tv_nsec))
+    struct timespec diff = {0, 0};
+
+    if (start.tv_sec <= end.tv_sec ||
+        (start.tv_sec == end.tv_sec && start.tv_nsec < end.tv_nsec))
     {
-        errno = EINVAL;
-        return -1;
+        diff.tv_sec = end.tv_sec - start.tv_sec;
+        if (start.tv_nsec > end.tv_nsec)
+        {
+            diff.tv_sec--;
+        }
+
+        diff.tv_nsec = (1000000000 + end.tv_nsec - start.tv_nsec) % 1000000000;
     }
 
-    diff->tv_sec = endtime->tv_sec - starttime->tv_sec;
-    if (starttime->tv_nsec > endtime->tv_nsec)
-    {
-        diff->tv_sec--;
-    }
-
-    diff->tv_nsec =
-        (1000000000 + endtime->tv_nsec - starttime->tv_nsec) % 1000000000;
-
-    return 0;
+    return diff;
 }
 
 /* Semaphore used to block LKL termination thread */
@@ -1154,7 +1148,7 @@ static int lkl_termination_thread(void* args)
     {
         struct timespec endtime, runtime;
         clock_gettime(CLOCK_MONOTONIC, &endtime);
-        timespec_diff(&sgxlkl_app_starttime, &endtime, &runtime);
+        runtime = timespec_diff(endtime, sgxlkl_app_starttime);
         sgxlkl_info(
             "Application runtime: %lld.%.9lds\n",
             runtime.tv_sec,
@@ -1279,7 +1273,8 @@ static void init_enclave_clock()
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
     if (oe_is_within_enclave(
-            sgxlkl_enclave->shared_memory.timer_dev_mem, sizeof(struct timer_dev)))
+            sgxlkl_enclave->shared_memory.timer_dev_mem,
+            sizeof(struct timer_dev)))
     {
         sgxlkl_fail(
             "timer_dev memory isn't outside of the enclave. Aborting.\n");
