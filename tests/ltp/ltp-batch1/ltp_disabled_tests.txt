@@ -308,7 +308,7 @@
 /ltp/testcases/kernel/syscalls/getitimer/getitimer02
 #/ltp/testcases/kernel/syscalls/getitimer/getitimer03
 #/ltp/testcases/kernel/syscalls/getpagesize/getpagesize01
-#/ltp/testcases/kernel/syscalls/getpeername/getpeername01
+/ltp/testcases/kernel/syscalls/getpeername/getpeername01
 #/ltp/testcases/kernel/syscalls/getpgid/getpgid01
 #/ltp/testcases/kernel/syscalls/getpgid/getpgid02
 #/ltp/testcases/kernel/syscalls/getpgrp/getpgrp01
