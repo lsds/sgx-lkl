@@ -1,8 +1,8 @@
 diff --git a/testcases/kernel/syscalls/flistxattr/flistxattr02.c b/testcases/kernel/syscalls/flistxattr/flistxattr02.c
-index 13aa0b7e7..25defe2c8 100644
+index 13aa0b7e7..f1cc48f95 100644
 --- a/testcases/kernel/syscalls/flistxattr/flistxattr02.c
 +++ b/testcases/kernel/syscalls/flistxattr/flistxattr02.c
-@@ -17,14 +17,20 @@
+@@ -17,12 +17,17 @@
  * 2) flistxattr(2) should return -1 and set errno to EBADF.
  */
  
@@ -20,11 +20,8 @@ index 13aa0b7e7..25defe2c8 100644
 +#include <sys/xattr.h>
  #endif
  
-+#include <sys/mount.h>
  #include "tst_test.h"
- 
- #ifdef HAVE_SYS_XATTR_H
-@@ -33,6 +39,13 @@
+@@ -33,6 +38,13 @@
  #define VALUE	"test"
  #define VALUE_SIZE	(sizeof(VALUE) - 1)
  
@@ -38,7 +35,7 @@ index 13aa0b7e7..25defe2c8 100644
  static int fd1;
  static int fd2 = -1;
  
-@@ -70,7 +83,11 @@ static void verify_flistxattr(unsigned int n)
+@@ -70,7 +82,11 @@ static void verify_flistxattr(unsigned int n)
  
  static void setup(void)
  {
@@ -51,14 +48,13 @@ index 13aa0b7e7..25defe2c8 100644
  
  	SAFE_FSETXATTR(fd1, SECURITY_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
  }
-@@ -79,6 +96,10 @@ static void cleanup(void)
+@@ -79,6 +95,9 @@ static void cleanup(void)
  {
  	if (fd1 > 0)
  		SAFE_CLOSE(fd1);
 +	remove(TESTFILE);
-+	umount(MNTPOINT);
-+	rmdir(MNTPOINT);
-+
++	SAFE_UMOUNT(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
  }
  
  static struct tst_test test = {

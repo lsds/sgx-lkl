@@ -1,8 +1,8 @@
 diff --git a/testcases/kernel/syscalls/listxattr/listxattr03.c b/testcases/kernel/syscalls/listxattr/listxattr03.c
-index 4c1e7f16c..7f5a901d9 100644
+index 4c1e7f16c..e20a19b5d 100644
 --- a/testcases/kernel/syscalls/listxattr/listxattr03.c
 +++ b/testcases/kernel/syscalls/listxattr/listxattr03.c
-@@ -12,23 +12,35 @@
+@@ -12,12 +12,17 @@
  * of extended attribute names, which can be used to estimate a suitable buffer.
  */
  
@@ -19,13 +19,9 @@ index 4c1e7f16c..7f5a901d9 100644
 -# include <sys/xattr.h>
 +#include <sys/xattr.h>
  #endif
--
-+#include <sys/mount.h>
- #include "tst_test.h"
--
- #ifdef HAVE_SYS_XATTR_H
  
- #define SECURITY_KEY	"security.ltptest"
+ #include "tst_test.h"
+@@ -28,7 +33,15 @@
  #define VALUE	"test"
  #define VALUE_SIZE	(sizeof(VALUE) - 1)
  
@@ -42,28 +38,29 @@ index 4c1e7f16c..7f5a901d9 100644
  
  static int check_suitable_buf(const char *name, long size)
  {
-@@ -58,6 +70,10 @@ static void verify_listxattr(unsigned int n)
+@@ -58,6 +71,10 @@ static void verify_listxattr(unsigned int n)
  
  static void setup(void)
  {
-+        rmdir(MNTPOINT);
-+        SAFE_MKDIR(MNTPOINT, DIR_MODE);
-+        SAFE_MOUNT(device, MNTPOINT, fs_type, 0, "user_xattr");
++	rmdir(MNTPOINT);
++	SAFE_MKDIR(MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(device, MNTPOINT, fs_type, 0, "user_xattr");
 +
  	SAFE_TOUCH(filename[0], 0644, NULL);
  
  	SAFE_TOUCH(filename[1], 0644, NULL);
-@@ -65,12 +81,20 @@ static void setup(void)
+@@ -65,12 +82,21 @@ static void setup(void)
  	SAFE_SETXATTR(filename[1], SECURITY_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
  }
  
 +static void cleanup(void)
 +{
-+        remove(TESTFILE1);
-+        remove(TESTFILE2);
-+        umount(MNTPOINT);
-+        rmdir(MNTPOINT);
++	remove(TESTFILE1);
++	remove(TESTFILE2);
++	SAFE_UMOUNT(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
 +}
++
  static struct tst_test test = {
  	.needs_tmpdir = 1,
  	.needs_root = 1,

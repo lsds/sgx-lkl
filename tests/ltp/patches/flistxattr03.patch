@@ -1,8 +1,8 @@
 diff --git a/testcases/kernel/syscalls/flistxattr/flistxattr03.c b/testcases/kernel/syscalls/flistxattr/flistxattr03.c
-index 49b463425..2b7130211 100644
+index 49b463425..ab17f8703 100644
 --- a/testcases/kernel/syscalls/flistxattr/flistxattr03.c
 +++ b/testcases/kernel/syscalls/flistxattr/flistxattr03.c
-@@ -13,14 +13,19 @@
+@@ -13,12 +13,17 @@
  * which can be used to estimate a suitable buffer.
  */
  
@@ -19,11 +19,8 @@ index 49b463425..2b7130211 100644
 -# include <sys/xattr.h>
 +#include <sys/xattr.h>
  #endif
--
-+#include <sys/mount.h>
- #include "tst_test.h"
  
- #ifdef HAVE_SYS_XATTR_H
+ #include "tst_test.h"
 @@ -28,6 +33,14 @@
  #define SECURITY_KEY	"security.ltptest"
  #define VALUE	"test"
@@ -54,15 +51,14 @@ index 49b463425..2b7130211 100644
  
  	SAFE_FSETXATTR(fd[1], SECURITY_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
  }
-@@ -68,6 +84,11 @@ static void cleanup(void)
+@@ -68,6 +84,10 @@ static void cleanup(void)
  {
  	SAFE_CLOSE(fd[1]);
  	SAFE_CLOSE(fd[0]);
 +	remove(TESTFILE1);
 +	remove(TESTFILE2);
-+	umount(MNTPOINT);
-+	rmdir(MNTPOINT);
-+
++	SAFE_UMOUNT(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
  }
  
  static struct tst_test test = {
