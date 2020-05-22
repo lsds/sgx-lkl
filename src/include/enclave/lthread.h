@@ -290,6 +290,12 @@ extern "C"
 
     static inline void __scheduler_enqueue(struct lthread* lt)
     {
+#ifndef NDEBUG
+        // Abort if we try to schedule an exited lthread.  We cannot rely on
+        // our normal assert machinery working if this invariant is violated.
+        if (lt->attr.state & (1<<(LT_ST_EXITED)))
+            __builtin_trap();
+#endif
         if (!lt)
         {
             a_crash();
@@ -297,6 +303,11 @@ extern "C"
         for (; !mpmc_enqueue(&__scheduler_queue, lt);)
             a_spin();
     }
+
+    /**
+     * Remove a thread from the list blocking on a futex.
+     */
+    void futex_dequeue(struct lthread *lt);
 
 #ifdef __cplusplus
 }

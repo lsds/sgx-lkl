@@ -682,7 +682,8 @@ int lthread_create_primitive(
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
     lt->robust_list.head = &lt->robust_list.head;
 
-    lthread_set_funcname(lt, "cloned host task");
+    static unsigned long long n = 0;
+    snprintf(lt->funcname, 64, "cloned host task %llu", __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
 
     if (new_lt)
     {

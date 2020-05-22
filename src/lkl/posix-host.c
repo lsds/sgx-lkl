@@ -344,17 +344,13 @@ static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl
     // mechanism begin life in the kernel and so need to be associated with the
     // kernel task that created them.
     lthread_setspecific_remote(thread, task_key->key, task_value);
+    // Detach the thread.  Any join operations will be handled by LKL.
+    lthread_detach2(thread);
     // Mark the thread as runnable.  This must be done *after* the
     // `lthread_setspecific_remote` call, to ensure that the thread does not
     // run while we are modifying its TLS.
     __scheduler_enqueue(thread);
     return (lkl_thread_t)thread;
-}
-
-static void host_thread_exit(void)
-{
-    LKL_TRACE("enter");
-    lthread_exit(0);
 }
 
 /**
@@ -369,22 +365,22 @@ static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
     // enough that `host_thread_exit` can run and call any remaining TLS
     // destructors.  This can be removed once there is a clean mechanism for
     // destroying a not-running lthread without scheduling it.
-    static const size_t teardown_stack_size = 8192;
     struct lthread *thr = (struct lthread*)tid;
+    SGXLKL_ASSERT(thr->lt_join == NULL);
     // The thread is currently blocking on the LKL scheduler semaphore, remove
     // it from the sleeping list.
     _lthread_desched_sleep(thr);
+    // Ensure that the enclave futex does not wake this thread up.  This thread
+    // is currently sleeping on its scheduler semaphore.  If another semaphore
+    // is allocated at this address this could get a spurious wakeup (which
+    // would then dereference memory in the thread structure, which may also
+    // have been reallocated and can corrupt the futex wait queue).
+    futex_dequeue(thr);
     // Delete its task reference in TLS.  Without this, the thread's destructor
     // will call back into LKL and deadlock.
     lthread_setspecific_remote(thr, task_key->key, NULL);
-    // Give the thread a stack to use during lthread teardown.
-    thr->attr.stack_size = teardown_stack_size;
-    thr->attr.stack = enclave_mmap(0, teardown_stack_size, 0, PROT_READ | PROT_WRITE, 1);
-    // Set up the state so that this will call into the host_thread_exit function and 
-    thr->ctx.eip = host_thread_exit;
-    thr->ctx.esp = thr->attr.stack + teardown_stack_size;
-    // Schedule the thread again.  It will exit when it is next scheduled.
-    __scheduler_enqueue(thr);
+    // Delete the thread.
+    _lthread_free(thr);
 }
 
 
