@@ -11,7 +11,7 @@ index 534179eae..7a6516ca9 100644
 -       {                               /* case 3: bad name attribute */
 -        .exp_err = EFAULT,
 -       },
-+//     {                               /* case 3: bad name attribute */ TODO: Will be enabled once issue 169 is fixed
++//     {                               /* case 3: bad name attribute */ TODO: Will be enabled once issue 297 is fixed
 +//      .exp_err = EFAULT,
 +//     },
  };
