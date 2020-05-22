@@ -1,32 +1,29 @@
 + // Patch Description: Tests are failing with kernel panic while using loop device filesystem
 + // So modified the tests to use root file system.
 diff --git a/testcases/kernel/syscalls/fsync/fsync01.c b/testcases/kernel/syscalls/fsync/fsync01.c
-index 9af38dce0..3e0e7d5f5 100644
+index 9af38dce0..5bea2773a 100644
 --- a/testcases/kernel/syscalls/fsync/fsync01.c
 +++ b/testcases/kernel/syscalls/fsync/fsync01.c
-@@ -33,6 +33,9 @@ static void verify_fsync(void)
+@@ -33,6 +33,8 @@ static void verify_fsync(void)
 
  static void setup(void)
  {
-+       rmdir("mntpoint");
 +       SAFE_MKDIR("mntpoint", 0644);
 +       SAFE_MOUNT("/dev/vda", "mntpoint", "ext4", 0, NULL);
         sprintf(fname, "mntpoint/tfile_%d", getpid());
         fd = SAFE_OPEN(fname, O_RDWR | O_CREAT, 0700);
  }
-@@ -41,6 +44,11 @@ static void cleanup(void)
+@@ -41,6 +43,9 @@ static void cleanup(void)
  {
         if (fd > 0)
                 SAFE_CLOSE(fd);
 +       remove(fname);
-+       if (tst_umount("mntpoint") < 0) {
-+               tst_res(TWARN | TERRNO, "umount device :mntpoint failed");
-+       }
-+       rmdir("mntpoint");
++       SAFE_UMOUNT("mntpoint");
++       SAFE_RMDIR("mntpoint");
  }
 
  static struct tst_test test = {
-@@ -49,7 +57,4 @@ static struct tst_test test = {
+@@ -49,7 +54,4 @@ static struct tst_test test = {
         .test_all = verify_fsync,
         .needs_tmpdir = 1,
         .needs_root = 1,

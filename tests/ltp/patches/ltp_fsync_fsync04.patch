@@ -1,15 +1,14 @@
 + // Patch Description: Tests are failing with kernel panic while using loop device filesystem
 + // So modified the tests to use root file system.
 diff --git a/testcases/kernel/syscalls/fsync/fsync04.c b/testcases/kernel/syscalls/fsync/fsync04.c
-index c67fc5692..f8682e950 100644
+index c67fc5692..b9711350a 100644
 --- a/testcases/kernel/syscalls/fsync/fsync04.c
 +++ b/testcases/kernel/syscalls/fsync/fsync04.c
-@@ -29,10 +29,12 @@ static void verify_fsync(void)
+@@ -29,10 +29,11 @@ static void verify_fsync(void)
  {
         int fd;
         unsigned long written;
 -
-+       rmdir(MNTPOINT);
 +       SAFE_MKDIR(MNTPOINT, MODE);
 +       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, NULL);
         fd = SAFE_OPEN(FNAME, O_RDWR|O_CREAT, MODE);
@@ -19,7 +18,7 @@ index c67fc5692..f8682e950 100644
 
         tst_fill_fd(fd, 0, TST_MB, FILE_SIZE_MB);
 
-@@ -41,9 +43,14 @@ static void verify_fsync(void)
+@@ -41,9 +42,12 @@ static void verify_fsync(void)
         if (TST_RET)
                 tst_brk(TFAIL | TTERRNO, "fsync(fd) failed");
 
@@ -28,14 +27,12 @@ index c67fc5692..f8682e950 100644
 
         SAFE_CLOSE(fd);
 +       remove(FNAME);
-+       if (tst_umount(MNTPOINT) < 0) {
-+               tst_res(TWARN | TERRNO, "umount device :mntpoint failed");
-+       }
-+       rmdir(MNTPOINT);
++       SAFE_UMOUNT(MNTPOINT);
++       SAFE_RMDIR(MNTPOINT);
 
         if (written >= FILE_SIZE)
                 tst_res(TPASS, "Test file synced to device");
-@@ -53,8 +60,5 @@ static void verify_fsync(void)
+@@ -53,8 +57,5 @@ static void verify_fsync(void)
 
  static struct tst_test test = {
         .needs_root = 1,
