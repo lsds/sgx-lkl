@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/getxattr/getxattr02.c b/testcases/kernel/syscalls/getxattr/getxattr02.c
-index dca6b13be..7867b0bec 100644
+index dca6b13be..891308dd4 100644
 --- a/testcases/kernel/syscalls/getxattr/getxattr02.c
 +++ b/testcases/kernel/syscalls/getxattr/getxattr02.c
 @@ -38,6 +38,10 @@
@@ -13,18 +13,16 @@ index dca6b13be..7867b0bec 100644
  #include "config.h"
  #include <sys/types.h>
  #include <sys/stat.h>
-@@ -51,8 +55,9 @@
+@@ -51,7 +55,7 @@
  #include <stdlib.h>
  #include <string.h>
  #ifdef HAVE_SYS_XATTR_H
 -# include <sys/xattr.h>
 +#include <sys/xattr.h>
  #endif
-+#include <sys/mount.h>
  #include "test.h"
  #include "safe_macros.h"
- 
-@@ -66,6 +71,13 @@ char *TCID = "getxattr02";
+@@ -66,6 +70,13 @@ char *TCID = "getxattr02";
  #define BLK  "getxattr02blk"
  #define SOCK "getxattr02sock"
  
@@ -38,7 +36,7 @@ index dca6b13be..7867b0bec 100644
  static void setup(void);
  static void cleanup(void);
  
-@@ -125,9 +137,12 @@ static void setup(void)
+@@ -125,10 +136,13 @@ static void setup(void)
  	tst_require_root();
  
  	tst_tmpdir();
@@ -48,17 +46,19 @@ index dca6b13be..7867b0bec 100644
  
  	/* Test for xattr support */
 -	fd = SAFE_CREAT(cleanup, "testfile", 0644);
+-	close(fd);
 +	fd = SAFE_CREAT(cleanup, "mntpoint/getxattr02testfile", 0644);
- 	close(fd);
++	SAFE_CLOSE(cleanup,fd);
  	if (setxattr("testfile", "user.test", "test", 4, XATTR_CREATE) == -1)
  		if (errno == ENOTSUP)
-@@ -158,6 +173,10 @@ static void setup(void)
+ 			tst_brkm(TCONF, cleanup, "No xattr support in fs or "
+@@ -158,6 +172,10 @@ static void setup(void)
  
  static void cleanup(void)
  {
 +	remove("mntpoint/getxattr02testfile");
-+	umount(MNTPOINT);
-+	rmdir(MNTPOINT);
++	SAFE_UMOUNT(NULL,MNTPOINT);
++	SAFE_RMDIR(NULL,MNTPOINT);
 +
  	tst_rmdir();
  }

@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/getxattr/getxattr03.c b/testcases/kernel/syscalls/getxattr/getxattr03.c
-index b6ea14287..a7819c2b1 100644
+index b6ea14287..f8b651c34 100644
 --- a/testcases/kernel/syscalls/getxattr/getxattr03.c
 +++ b/testcases/kernel/syscalls/getxattr/getxattr03.c
 @@ -27,6 +27,10 @@
@@ -13,18 +13,16 @@ index b6ea14287..a7819c2b1 100644
  #include "config.h"
  #include <sys/types.h>
  #include <sys/stat.h>
-@@ -39,8 +43,9 @@
+@@ -39,7 +43,7 @@
  #include <stdlib.h>
  #include <string.h>
  #ifdef HAVE_SYS_XATTR_H
 -# include <sys/xattr.h>
 +#include <sys/xattr.h>
  #endif
-+#include <sys/mount.h>
  #include "test.h"
  #include "safe_macros.h"
- 
-@@ -50,8 +55,13 @@ char *TCID = "getxattr03";
+@@ -50,8 +54,13 @@ char *TCID = "getxattr03";
  #define XATTR_TEST_KEY "user.testkey"
  #define XATTR_TEST_VALUE "test value"
  #define XATTR_TEST_VALUE_SIZE (sizeof(XATTR_TEST_VALUE) - 1)
@@ -39,7 +37,7 @@ index b6ea14287..a7819c2b1 100644
  static void setup(void);
  static void cleanup(void);
  
-@@ -87,6 +97,9 @@ static void setup(void)
+@@ -87,10 +96,13 @@ static void setup(void)
  	tst_require_root();
  
  	tst_tmpdir();
@@ -49,13 +47,18 @@ index b6ea14287..a7819c2b1 100644
  
  	/* Test for xattr support and set attr value */
  	fd = SAFE_CREAT(cleanup, TESTFILE, 0644);
-@@ -107,6 +120,9 @@ static void setup(void)
+-	close(fd);
++	SAFE_CLOSE(cleanup,fd);
+ 
+ 	if (setxattr(TESTFILE, XATTR_TEST_KEY, XATTR_TEST_VALUE,
+ 		     XATTR_TEST_VALUE_SIZE, XATTR_CREATE) == -1) {
+@@ -107,6 +119,9 @@ static void setup(void)
  
  static void cleanup(void)
  {
 +	remove(TESTFILE);
-+	umount(MNTPOINT);
-+	rmdir(MNTPOINT);
++	SAFE_UMOUNT(NULL,MNTPOINT);
++	SAFE_RMDIR(NULL,MNTPOINT);
  	tst_rmdir();
  }
  #else /* HAVE_SYS_XATTR_H */

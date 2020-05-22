@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/getxattr/getxattr01.c b/testcases/kernel/syscalls/getxattr/getxattr01.c
-index 54ca65390..63dd06b40 100644
+index 54ca65390..bb1f6ad03 100644
 --- a/testcases/kernel/syscalls/getxattr/getxattr01.c
 +++ b/testcases/kernel/syscalls/getxattr/getxattr01.c
 @@ -35,6 +35,10 @@
@@ -13,18 +13,16 @@ index 54ca65390..63dd06b40 100644
  #include "config.h"
  #include <sys/types.h>
  #include <sys/stat.h>
-@@ -45,8 +49,9 @@
+@@ -45,7 +49,7 @@
  #include <stdlib.h>
  #include <string.h>
  #ifdef HAVE_SYS_XATTR_H
 -# include <sys/xattr.h>
 +#include <sys/xattr.h>
  #endif
-+#include <sys/mount.h>
  #include "test.h"
  #include "safe_macros.h"
- 
-@@ -57,7 +62,13 @@ char *TCID = "getxattr01";
+@@ -57,7 +61,13 @@ char *TCID = "getxattr01";
  #define XATTR_TEST_VALUE "this is a test value"
  #define XATTR_TEST_VALUE_SIZE 20
  #define BUFFSIZE 64
@@ -38,7 +36,7 @@ index 54ca65390..63dd06b40 100644
  static void setup(void);
  static void cleanup(void);
  
-@@ -147,9 +158,12 @@ static void setup(void)
+@@ -147,11 +157,14 @@ static void setup(void)
  	tst_require_root();
  
  	tst_tmpdir();
@@ -50,15 +48,18 @@ index 54ca65390..63dd06b40 100644
 -	snprintf(filename, BUFSIZ, "getxattr01testfile");
 +	snprintf(filename, BUFSIZ, "mntpoint/getxattr01testfile");
  	fd = SAFE_CREAT(cleanup, filename, 0644);
- 	close(fd);
+-	close(fd);
++	SAFE_CLOSE(cleanup,fd);
  	if (setxattr(filename, XATTR_TEST_KEY, XATTR_TEST_VALUE,
-@@ -174,6 +188,9 @@ static void setup(void)
+ 		     strlen(XATTR_TEST_VALUE), XATTR_CREATE) == -1) {
+ 		if (errno == ENOTSUP) {
+@@ -174,6 +187,9 @@ static void setup(void)
  
  static void cleanup(void)
  {
 +	remove("mntpoint/getxattr01testfile");
-+	umount(MNTPOINT);
-+	rmdir(MNTPOINT);
++	SAFE_UMOUNT(NULL,MNTPOINT);
++	SAFE_RMDIR(NULL,MNTPOINT);
  	tst_rmdir();
  }
  #else /* HAVE_SYS_XATTR_H */
