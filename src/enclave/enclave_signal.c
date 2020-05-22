@@ -113,7 +113,8 @@ static uint64_t sgxlkl_enclave_signal_handler(
     struct ucontext uctx;
     struct oe_hw_exception_map trap_info;
     oe_context_t* oe_ctx = exception_record->context;
-    uint16_t opcode = *((uint16_t*)exception_record->context->rip);
+    uint16_t *instr_addr = ((uint16_t*)exception_record->context->rip);
+    uint16_t opcode = instr_addr ? *instr_addr : 0;
 
     SGXLKL_TRACE_SIGNAL(
         "sgxlkl_enclave_signal_handler:: code=%d address=0x%lx opcode=0x%x\n",
