@@ -14,7 +14,7 @@ index 68fae43df..8284b0f61 100644
 -       {&fd_ebadf, &stat_buf, EBADF},
 -       {&fd_ok, NULL, EFAULT},
 +       {&fd_ebadf, &stat_buf, EBADF}
-+//     {&fd_ok, NULL, EFAULT}, TODO: Analyze and enable once issue 169 is fixed
++//     {&fd_ok, NULL, EFAULT}, TODO: Analyze and enable once issue 297 is fixed
  };
 
  static void check_fstat(unsigned int tc_num)

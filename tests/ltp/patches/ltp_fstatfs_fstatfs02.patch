@@ -14,7 +14,7 @@ index db2230f82..5b2666686 100644
 -       -1, &buf, EBADF},
 -#ifndef UCLINUX
 +       -1, &buf, EBADF}
-+//#ifndef UCLINUX // TODO: Analyze and enable once issue 169 is fixed.
++//#ifndef UCLINUX // TODO: Analyze and enable once issue 297 is fixed.
             /* Skip since uClinux does not implement memory protection */
             /* EFAULT - address for buf is invalid */
 -       {
