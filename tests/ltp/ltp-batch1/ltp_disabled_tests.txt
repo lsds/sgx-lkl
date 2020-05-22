@@ -34,7 +34,7 @@
 #/ltp/testcases/kernel/syscalls/chdir/chdir01
 /ltp/testcases/kernel/syscalls/chdir/chdir02
 #/ltp/testcases/kernel/syscalls/chdir/chdir03
-#/ltp/testcases/kernel/syscalls/chdir/chdir04
+/ltp/testcases/kernel/syscalls/chdir/chdir04
 #/ltp/testcases/kernel/syscalls/chmod/chmod01
 #/ltp/testcases/kernel/syscalls/chmod/chmod02
 /ltp/testcases/kernel/syscalls/chmod/chmod03
@@ -48,7 +48,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown04
 #/ltp/testcases/kernel/syscalls/chown/chown05
 /ltp/testcases/kernel/syscalls/chroot/chroot01
-#/ltp/testcases/kernel/syscalls/chroot/chroot02
+/ltp/testcases/kernel/syscalls/chroot/chroot02
 /ltp/testcases/kernel/syscalls/chroot/chroot03
 #/ltp/testcases/kernel/syscalls/chroot/chroot04
 #/ltp/testcases/kernel/syscalls/clock_adjtime/clock_adjtime01
@@ -198,8 +198,8 @@
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl09
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl10
 /ltp/testcases/kernel/syscalls/fcntl/fcntl11
-#/ltp/testcases/kernel/syscalls/fcntl/fcntl12
-#/ltp/testcases/kernel/syscalls/fcntl/fcntl13
+/ltp/testcases/kernel/syscalls/fcntl/fcntl12
+/ltp/testcases/kernel/syscalls/fcntl/fcntl13
 /ltp/testcases/kernel/syscalls/fcntl/fcntl14
 /ltp/testcases/kernel/syscalls/fcntl/fcntl15
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl16
@@ -308,7 +308,7 @@
 /ltp/testcases/kernel/syscalls/getitimer/getitimer02
 #/ltp/testcases/kernel/syscalls/getitimer/getitimer03
 #/ltp/testcases/kernel/syscalls/getpagesize/getpagesize01
-#/ltp/testcases/kernel/syscalls/getpeername/getpeername01
+/ltp/testcases/kernel/syscalls/getpeername/getpeername01
 #/ltp/testcases/kernel/syscalls/getpgid/getpgid01
 #/ltp/testcases/kernel/syscalls/getpgid/getpgid02
 #/ltp/testcases/kernel/syscalls/getpgrp/getpgrp01
@@ -332,14 +332,14 @@
 /ltp/testcases/kernel/syscalls/getrlimit/getrlimit02
 #/ltp/testcases/kernel/syscalls/getrlimit/getrlimit03
 #/ltp/testcases/kernel/syscalls/getrusage/getrusage01
-#/ltp/testcases/kernel/syscalls/getrusage/getrusage02
+/ltp/testcases/kernel/syscalls/getrusage/getrusage02
 /ltp/testcases/kernel/syscalls/getrusage/getrusage03
 /ltp/testcases/kernel/syscalls/getrusage/getrusage03_child
 /ltp/testcases/kernel/syscalls/getrusage/getrusage04
 #/ltp/testcases/kernel/syscalls/getsid/getsid01
 #/ltp/testcases/kernel/syscalls/getsid/getsid02
-#/ltp/testcases/kernel/syscalls/getsockname/getsockname01
-#/ltp/testcases/kernel/syscalls/getsockopt/getsockopt01
+/ltp/testcases/kernel/syscalls/getsockname/getsockname01
+/ltp/testcases/kernel/syscalls/getsockopt/getsockopt01
 /ltp/testcases/kernel/syscalls/getsockopt/getsockopt02
 #/ltp/testcases/kernel/syscalls/gettid/gettid01
 /ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday01
@@ -484,7 +484,7 @@
 #/ltp/testcases/kernel/syscalls/lseek/lseek07
 /ltp/testcases/kernel/syscalls/lseek/lseek11
 #/ltp/testcases/kernel/syscalls/lstat/lstat01
-#/ltp/testcases/kernel/syscalls/lstat/lstat02
+/ltp/testcases/kernel/syscalls/lstat/lstat02
 /ltp/testcases/kernel/syscalls/madvise/madvise01
 /ltp/testcases/kernel/syscalls/madvise/madvise02
 /ltp/testcases/kernel/syscalls/madvise/madvise05
