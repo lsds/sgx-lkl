@@ -1,7 +1,7 @@
 + // Patch Description: Tests were failing with kernel panic in loop filesystem.
 + // So modified the tests to use root file system.
 diff --git a/testcases/kernel/syscalls/fremovexattr/fremovexattr02.c b/testcases/kernel/syscalls/fremovexattr/fremovexattr02.c
-index 534179eae..42ad74112 100644
+index 534179eae..7a6516ca9 100644
 --- a/testcases/kernel/syscalls/fremovexattr/fremovexattr02.c
 +++ b/testcases/kernel/syscalls/fremovexattr/fremovexattr02.c
 @@ -55,9 +55,9 @@ struct test_case tc[] = {
@@ -17,28 +17,25 @@ index 534179eae..42ad74112 100644
  };
 
  static void verify_fremovexattr(unsigned int i)
-@@ -86,12 +86,19 @@ static void cleanup(void)
+@@ -86,12 +86,17 @@ static void cleanup(void)
  {
         if (fd > 0)
                 SAFE_CLOSE(fd);
 +       remove(FNAME);
-+       if (tst_umount(MNTPOINT) < 0) {
-+               tst_res(TWARN | TERRNO, "umount device :mntpoint failed");
-+       }
-++      rmdir(MNTPOINT);
++       SAFE_UMOUNT(MNTPOINT);
++       SAFE_RMDIR(MNTPOINT);
  }
 
  static void setup(void)
  {
         size_t i = 0;
--
-+       rmdir(MNTPOINT);
+
 +       SAFE_MKDIR(MNTPOINT, 0644);
 +       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, NULL);
         fd = SAFE_OPEN(FNAME, O_RDWR | O_CREAT, 0644);
 
         for (i = 0; i < ARRAY_SIZE(tc); i++) {
-@@ -100,7 +107,7 @@ static void setup(void)
+@@ -100,7 +105,7 @@ static void setup(void)
                         tc[i].fd = fd;
 
                 if (!tc[i].key && tc[i].exp_err == EFAULT)
@@ -47,7 +44,7 @@ index 534179eae..42ad74112 100644
         }
  }
 
-@@ -109,9 +116,6 @@ static struct tst_test test = {
+@@ -109,9 +114,6 @@ static struct tst_test test = {
         .test = verify_fremovexattr,
         .cleanup = cleanup,
         .tcnt = ARRAY_SIZE(tc),

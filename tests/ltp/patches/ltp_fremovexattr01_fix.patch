@@ -1,30 +1,28 @@
-+ // Patch Description: Tests were failing with kernel panic in loop filesystem.
++ // Patch Description: Tests were failing with kernel panic in loop filesystem. 
 + // So modified the tests to use root file system.
 diff --git a/testcases/kernel/syscalls/fremovexattr/fremovexattr01.c b/testcases/kernel/syscalls/fremovexattr/fremovexattr01.c
-index a3ea1aa2b..9961c375d 100644
+index a3ea1aa2b..b0ba657ff 100644
 --- a/testcases/kernel/syscalls/fremovexattr/fremovexattr01.c
 +++ b/testcases/kernel/syscalls/fremovexattr/fremovexattr01.c
-@@ -70,10 +70,19 @@ static void cleanup(void)
+@@ -70,10 +70,16 @@ static void cleanup(void)
  {
         if (fd > 0)
                 SAFE_CLOSE(fd);
 +       remove(FNAME);
-+       if (tst_umount(MNTPOINT) < 0) {
-+               tst_res(TWARN | TERRNO, "umount device :mntpoint failed");
-+       }
-+       rmdir(MNTPOINT);
++       SAFE_UMOUNT(MNTPOINT);
++       SAFE_RMDIR(MNTPOINT);
  }
 
  static void setup(void)
- {
-+       rmdir(MNTPOINT);
+-{
++{
 +       SAFE_MKDIR(MNTPOINT, 0644);
 +       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, NULL);
 +
         fd = SAFE_OPEN(FNAME, O_RDWR | O_CREAT, 0644);
 
         TEST(fremovexattr(fd, XATTR_TEST_KEY));
-@@ -86,9 +95,6 @@ static struct tst_test test = {
+@@ -86,9 +92,6 @@ static struct tst_test test = {
         .setup = setup,
         .test_all = verify_fremovexattr,
         .cleanup = cleanup,
