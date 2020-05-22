@@ -1,8 +1,8 @@
 +// Patch Description: Here one test is trying to access invalid address,
 +// Process should get efault if it access invalid address
 +// But in sgx, enclave exits when process access invalid address, so application will not get control.
-+// Please refer git issue 169
-+// This cannot be tested now, so commented the 2nd test and will enable the test once issue 169 is fixed.
++// Please refer git issue 297
++// This cannot be tested now, so commented the 2nd test and will enable the test once issue 297 is fixed.
 diff --git a/testcases/kernel/syscalls/fstat/fstat03.c b/testcases/kernel/syscalls/fstat/fstat03.c
 index 68fae43df..8284b0f61 100644
 --- a/testcases/kernel/syscalls/fstat/fstat03.c
