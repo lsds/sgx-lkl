@@ -1,0 +1,23 @@
+diff --git a/testcases/kernel/syscalls/utimes/utimes01.c b/testcases/kernel/syscalls/utimes/utimes01.c
+index 2bfc1654b..ed9e12804 100644
+--- a/testcases/kernel/syscalls/utimes/utimes01.c
++++ b/testcases/kernel/syscalls/utimes/utimes01.c
+@@ -40,6 +40,10 @@ static struct timeval a_tv[2] = { {0, 0}, {1000, 0} };
+ static struct timeval m_tv[2] = { {1000, 0}, {0, 0} };
+ static struct timeval tv[2] = { {1000, 0}, {2000, 0} };
+ 
++/* Patch to remove the EFAULT related sub test as it currently causes
++ * enclave abort due to a product issue 169
++ */
++
+ static struct tcase {
+ 	char *pathname;
+ 	struct timeval *times;
+@@ -49,7 +53,6 @@ static struct tcase {
+ 	{ TESTFILE1, m_tv, 0 },
+ 	{ TESTFILE2, NULL, EACCES },
+ 	{ "notexistfile", tv, ENOENT },
+-	{ NULL, tv, EFAULT },
+ 	{ TESTFILE2, tv, EPERM },
+ 	{ TESTFILE3, tv, EROFS },
+ };

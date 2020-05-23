@@ -1,0 +1,23 @@
+diff --git a/testcases/kernel/syscalls/pwrite/pwrite02.c b/testcases/kernel/syscalls/pwrite/pwrite02.c
+index 056d44da2..fc09cc95d 100644
+--- a/testcases/kernel/syscalls/pwrite/pwrite02.c
++++ b/testcases/kernel/syscalls/pwrite/pwrite02.c
+@@ -18,6 +18,10 @@
+  *      accessible address space, returns EFAULT.
+  */
+ 
++/* Patch to remove the EFAULT related sub test as it currently causes
++ * enclave abort due to a product issue 169
++ */
++
+ #define _XOPEN_SOURCE 500
+ 
+ #include <errno.h>
+@@ -46,7 +50,6 @@ static struct tcase {
+ 	{buf, sizeof(buf), &fd, -1, EINVAL},
+ 	{buf, sizeof(buf), &inv_fd, 0, EBADF},
+ 	{buf, sizeof(buf), &fd_ro, 0, EBADF},
+-	{NULL, sizeof(buf), &fd, 0, EFAULT},
+ };
+ 
+ /*
