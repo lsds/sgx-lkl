@@ -484,7 +484,7 @@ and the host and app config files.
 It is used for deploying an SGX-LKL application to a target system that has
 Docker as well as SGX-LKL installed on the host.
 This allows to update SGX-LKL without rebuilding all Docker images.
-Like Docker, SGX-LKL can be considered part of the host runtime environment.
+Like the Docker daemon, SGX-LKL can be considered part of the host runtime environment.
 
 To create a Confidential Container, run:
 ```
