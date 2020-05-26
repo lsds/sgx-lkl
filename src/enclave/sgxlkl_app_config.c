@@ -44,8 +44,7 @@ static int assert_entry_type(const char* key, struct json_object* value)
             err = json_object_get_type(value) != json_type_array;
 
     if (err)
-        fprintf(
-            stderr,
+        sgxlkl_fail(
             "Type mismatch for '%s' configuration.\n",
             key); // TODO pass back to client.
 
@@ -162,7 +161,7 @@ static int parse_enclave_disk_config_entry(
     }
     else
     {
-        fprintf(stderr, "Unknown configuration entry: %s\n", key);
+        sgxlkl_fail("Unknown configuration entry: %s\n", key);
         return 1;
     }
 
@@ -231,7 +230,7 @@ static int parse_enclave_wg_peer_config_entry(
     }
     else
     {
-        fprintf(stderr, "Unknown configuration entry: %s\n", key);
+        sgxlkl_fail("Unknown configuration entry: %s\n", key);
         return 1;
     }
 
@@ -305,7 +304,7 @@ static int parse_sgxlkl_app_config_entry(
     {
         if (json_object_get_type(value) != json_type_string)
         {
-            fprintf(stderr, "String expected for 'run' configuration.\n");
+            sgxlkl_fail("String expected for 'run' configuration.\n");
             return 1;
         }
         config->run = oe_strdup(json_object_get_string(value));
@@ -314,7 +313,7 @@ static int parse_sgxlkl_app_config_entry(
     {
         if (json_object_get_type(value) != json_type_string)
         {
-            fprintf(stderr, "String expected for 'cwd' configuration.\n");
+            sgxlkl_fail("String expected for 'cwd' configuration.\n");
             return 1;
         }
         config->cwd = oe_strdup(json_object_get_string(value));
@@ -363,7 +362,7 @@ static int parse_sgxlkl_app_config_entry(
     }
     else
     {
-        fprintf(stderr, "Unknown configuration entry: %s\n", key);
+        sgxlkl_fail("Unknown configuration entry: %s\n", key);
         return 1;
     }
     return err;
