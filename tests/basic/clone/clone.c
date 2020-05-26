@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
@@ -13,6 +14,13 @@
 static char child_stack[8192];
 static char *child_stack_end = child_stack + 8192;
 static char child_tls[4069];
+static char child_tls1[4069];
+static char child_tls2[4069];
+
+static char child_stack1[8192];
+static char *child_stack_end1 = child_stack1 + 8192;
+static char child_stack2[8192];
+static char *child_stack_end2 = child_stack2 + 8192;
 
 volatile int thread_started;
 __attribute__((weak)) int lkl_syscall(int, long*);
@@ -28,13 +36,21 @@ static void assert(int cond, const char *msg, ...)
 	exit(-1);
 }
 
-int __clone(int (*fn)(void *), void *child_stack, int flags, void *arg, pid_t *ptid, void *newtls, pid_t *ctid);
+static int futex_wait(volatile int *addr, int val)
+{
+	return syscall(SYS_futex, addr, 0 /* FUTEX_WAIT */, val, NULL, 0, 0);
+}
 
-
-
+static int futex_wake(volatile int *addr)
+{
+	return syscall(SYS_futex, addr, 1 /* FUTEX_WAKE */, 100, NULL, 0, 0);
+}
 
 int newthr(void *arg)
 {
+	// Sleep long enough to make sure that the caller goes to sleep on the
+	// futex.
+	sleep(2);
 	thread_started = 1;
 	assert(arg == (void*)0x42, "New thread got correct argument");
 	char x;
@@ -46,14 +62,41 @@ int newthr(void *arg)
 	return 0;
 }
 
+volatile int barrier = 0;
+volatile int counter = 0;
+
+int parallelthr(void* arg)
+{
+	int odd = (int)(intptr_t)arg;
+	fprintf(stderr, "Thread %d started\n", odd);
+	futex_wait(&barrier, 0);
+	fprintf(stderr, "Thread %d woke up\n", odd);
+	// After this point, the thread will not yield until the function returns.
+	// This depends on the kernel waking up two clone'd threads and having them
+	// run in parallel.  The purpose of this test is to ensure that nothing in
+	// the SGX-LKL host interface that backs the clone system call causes
+	// host tasks to become serialised.
+	// Note: This test will work only with 2+ ethreads.
+	while (__atomic_load_n(&counter, __ATOMIC_SEQ_CST) < 100)
+	{
+		int v = __atomic_load_n(&counter, __ATOMIC_SEQ_CST);
+		if (v % 2 == odd)
+		{
+			__atomic_compare_exchange_n(&counter, &v, v+1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+		}
+	}
+	return 0;
+}
+
 int main(int argc, char** argv)
 {
 	unsigned flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND
-		| CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS
+		| CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_CHILD_SETTID
 		| CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_DETACHED;
 
+
 	pid_t ptid;
-	pid_t ctid;
+	pid_t ctid = 0;
 	fprintf(stderr, "Clone syscall number: %d\n", SYS_clone);
 	fprintf(stderr, "lkl_syscall: %p\n", lkl_syscall);
 	fprintf(stderr, "fn: %p \n", newthr);
@@ -66,9 +109,25 @@ int main(int argc, char** argv)
 		perror("Clone failed");
 	}
 	fprintf(stderr, "Clone returned %d, ctid: %d ptid: %d\n", clone_ret, ctid, ptid);
-	sleep(2);
+	assert(ctid == clone_ret, "ctid is %d, should be %d\n", ctid, clone_ret);
+	int futex_ret = futex_wait(&ctid, clone_ret);
+	assert(futex_ret == 0, "futex syscall returned %d (%s)\n", strerror(errno));
+	fprintf(stderr, "After futex call, ctid is %d\n", ctid);
+	assert(ctid == 0, "ctid was not zeroed during futex wait\n");
 	fprintf(stderr, "Other thread should have terminated by now.\n");
 	assert(thread_started == 1, "Thread did not run");
+	fprintf(stderr, "Thread stacks: %p, %p, %p\n", child_stack, child_stack1, child_stack2);
+
+	pid_t ctid_futex1, ctid_futex2;
+	pid_t ctid1 = clone(parallelthr, child_stack_end1, flags, (void*)0, &ptid, &child_tls1, &ctid_futex1);
+	pid_t ctid2 = clone(parallelthr, child_stack_end2, flags, (void*)0x1, &ptid, &child_tls2, &ctid_futex2);
+	fprintf(stderr, "Created two threads: %d, %d, waking them now\n", ctid1, ctid2);
+	barrier = 1;
+	fprintf(stderr, "\nIf this test hangs after waking up one thread, check you have at least 2 ethreads\n");
+	fprintf(stderr, "This test is checking that LKL is able to wake up two cloned threads and leaving them running in parallel\n\n");
+	futex_wake(&barrier);
+	futex_wait(&ctid_futex1, ctid1);
+	futex_wait(&ctid_futex2, ctid2);
 
 	fprintf(stderr, "\nTEST_PASSED\n");
 
