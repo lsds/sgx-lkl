@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <atomic.h>
 #include <string.h>
 
@@ -112,7 +111,7 @@ static void vio_enclave_process_host_event(uint8_t* param)
                     __ATOMIC_SEQ_CST))
             {
                 vio_wait_for_host_event(dev_id, evt_chn, new);
-                assert(new & 1);
+                SGXLKL_ASSERT(new & 1);
 
                 /* clear the waiting bit to process all the request queued up */
                 cur = __atomic_add_fetch(evt_chn, -1, __ATOMIC_SEQ_CST);
