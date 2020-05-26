@@ -11,12 +11,10 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# Note: /etc/ssl/certs is read by libcurl which is used by the Azure DCAP Client.
 # Note: OE_LOG_LEVEL=INFO also enables Azure DCAP Client logging.
 CC_DOCKER_ARGS=\
 	--rm --privileged --network=host \
 	-v $(SGXLKL_PREFIX):$(SGXLKL_PREFIX) \
-	-v /etc/ssl/certs:/etc/ssl/certs:ro \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
 	-e OE_LOG_LEVEL=INFO
 

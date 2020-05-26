@@ -52,7 +52,11 @@ function build-cc() {
     install_prefix="/opt/sgx-lkl$suffix"
 
     cat >>${context_dir}/Dockerfile << EOF
+FROM ubuntu:18.04
+RUN apt-get update && apt-get install -y ca-certificates
+
 FROM scratch
+COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY . /
 
 # Note: WORKDIR also creates the directory.
