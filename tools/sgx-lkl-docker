@@ -56,6 +56,7 @@ FROM ubuntu:18.04
 RUN apt-get update && apt-get install -y ca-certificates
 
 FROM scratch
+# ca-certificates.crt is read by libcurl which is used by the Azure DCAP Client.
 COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY . /
 
