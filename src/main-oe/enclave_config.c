@@ -4,8 +4,8 @@
 #include <string.h>
 
 #include "enclave/enclave_mem.h"
-#include "enclave/sgxlkl_app_config.h"
 #include "host/sgxlkl_util.h"
+#include "shared/sgxlkl_app_config.h"
 #include "shared/sgxlkl_config.h"
 #include "shared/sgxlkl_config_json.h"
 
@@ -231,22 +231,23 @@ static json_obj_t* mk_json_app_config(const char* app_config_str)
     char tmp[len];
     snprintf(tmp, len, "{\"app_config\":%s}", app_config_str);
 
-    sgxlkl_app_config_t* app_config = NULL;
-    sgxlkl_read_app_config_json(tmp, &app_config);
+    sgxlkl_app_config_t app_config = {0};
+    char* err = NULL;
+    parse_sgxlkl_app_config_from_str(app_config_str, &app_config, &err);
 
     json_obj_t* r = mk_json_objects("app_config", 6);
-    r->objects[0] = mk_json_string("run", app_config->run);
-    r->objects[1] = mk_json_string("cwd", app_config->cwd);
+    r->objects[0] = mk_json_string("run", app_config.run);
+    r->objects[1] = mk_json_string("cwd", app_config.cwd);
     r->objects[2] =
-        mk_json_string_array("argv", app_config->argv, app_config->argc);
+        mk_json_string_array("argv", app_config.argv, app_config.argc);
     r->objects[3] =
-        mk_json_string_array("envp", app_config->envp, app_config->envc);
+        mk_json_string_array("envp", app_config.envp, app_config.envc);
     r->objects[4] =
-        mk_json_app_disks("disks", app_config->disks, app_config->num_disks);
+        mk_json_app_disks("disks", app_config.disks, app_config.num_disks);
     r->objects[5] =
-        mk_json_wg_peers("peers", app_config->peers, app_config->num_peers);
+        mk_json_wg_peers("peers", app_config.peers, app_config.num_peers);
 
-    free(app_config);
+    // free(app_config);
     return r;
 }
 

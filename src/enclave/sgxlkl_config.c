@@ -1,7 +1,7 @@
 #include <enclave/oe_compat.h>
 
 #include <enclave/enclave_util.h>
-#include <enclave/sgxlkl_app_config.h>
+#include <shared/sgxlkl_app_config.h>
 
 #include <shared/sgxlkl_config.h>
 #include "openenclave/corelibc/oemalloc.h"

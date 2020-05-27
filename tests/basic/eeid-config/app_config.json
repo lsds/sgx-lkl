@@ -1,9 +1,9 @@
 {
   "run": "app/hello-eeid",
-  "argv": [
+  "args": [
     "arg"
   ],
-  "envp": [
+  "environment": [
     "ABC=DEF"
   ],
   "disks": [

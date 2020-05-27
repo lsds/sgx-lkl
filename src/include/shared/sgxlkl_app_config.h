@@ -24,6 +24,8 @@ typedef struct sgxlkl_app_config
     char** argv; /* Array of application arguments of length argc */
     int envc;
     char** envp; /* Array of environment variables of length envc */
+    exit_status_mode_t
+        exit_status; /* Report exit status of process from inside enclave? */
     size_t num_disks;
     sgxlkl_app_disk_config_t*
         disks; /* Array of disk configurations of length num_disks */

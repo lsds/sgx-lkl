@@ -15,9 +15,8 @@
 #include <arpa/inet.h>
 
 #include <enclave/enclave_mem.h>
-#include <enclave/sgxlkl_app_config.h>
-
 #include <shared/json.h>
+#include <shared/sgxlkl_app_config.h>
 #include <shared/sgxlkl_config.h>
 #include <shared/string_list.h>
 
@@ -814,9 +813,8 @@ int sgxlkl_read_config_json(
     free(json_copy);
 
     flatten_stack_strings(&callback_data, *to, *app_to);
-
     strdupz(&(*to)->cwd, (*app_to)->cwd);
-
+    (*to)->exit_status = (*app_to)->exit_status;
     check_config(*to, *app_to);
 
     return 0;
