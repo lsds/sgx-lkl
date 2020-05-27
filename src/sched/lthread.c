@@ -42,6 +42,7 @@
 
 #include <enclave/enclave_mem.h>
 #include <enclave/enclave_oe.h>
+#include <enclave/enclave_util.h>
 #include <enclave/lthread.h>
 #include "enclave/lthread_int.h"
 #include "enclave/sgxlkl_t.h"

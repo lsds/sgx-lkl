@@ -1,23 +1,26 @@
-#ifndef _ENCLAVE_UTIL_H
-#define _ENCLAVE_UTIL_H
+#ifndef _LKL_UTIL_H
+#define _LKL_UTIL_H
 
 #include <openenclave/enclave.h>
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
-
-__attribute__((noreturn)) void sgxlkl_fail(char* msg, ...);
-
-void sgxlkl_error(char* msg, ...);
-
-void sgxlkl_warn(char* msg, ...);
-
-void sgxlkl_info(char* msg, ...);
+#define SGXLKL_LKL_SYSCALL 1
+#define SGXLKL_INTERNAL_SYSCALL 3
+#define SGXLKL_IGNORED_SYSCALL 4
+#define SGXLKL_UNSUPPORTED_SYSCALL 5
+#define SGXLKL_REDIRECT_SYSCALL 6
 
 void __sgxlkl_log_syscall(int type, long n, long res, int params_len, ...);
 
 int int_log2(unsigned long long arg);
 
 #ifdef DEBUG
+
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "openenclave/internal/print.h"
 

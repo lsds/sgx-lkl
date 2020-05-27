@@ -19,6 +19,7 @@
 #include "lkl/setup.h"
 
 #include "enclave/enclave_timer.h"
+#include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "lkl/iomem.h"
