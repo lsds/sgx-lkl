@@ -238,8 +238,10 @@ static json_obj_t* mk_json_app_config(const char* app_config_str)
     char* err = NULL;
     if (parse_sgxlkl_app_config_from_str(app_config_str, &app_config, &err))
         FAIL("%s\n", err);
+    if (validate_sgxlkl_app_config(&app_config))
+        FAIL("app config validation failed\n", err);
 
-    json_obj_t* r = mk_json_objects("app_config", 6);
+    json_obj_t* r = mk_json_objects("app_config", 7);
     r->objects[0] = mk_json_string("run", app_config.run);
     r->objects[1] = mk_json_string("cwd", app_config.cwd);
     r->objects[2] =
@@ -250,7 +252,17 @@ static json_obj_t* mk_json_app_config(const char* app_config_str)
         mk_json_app_disks("disks", app_config.disks, app_config.num_disks);
     r->objects[5] =
         mk_json_wg_peers("peers", app_config.peers, app_config.num_peers);
-
+    switch (app_config.exit_status)
+    {
+        case EXIT_STATUS_FULL:
+            r->objects[6] = mk_json_string("exit_status", "full");
+        case EXIT_STATUS_BINARY:
+            r->objects[6] = mk_json_string("exit_status", "binary");
+        case EXIT_STATUS_NONE:
+            r->objects[6] = mk_json_string("exit_status", "none");
+        default:
+            r->objects[6] = mk_json_string("exit_status", "unknown");
+    }
     return r;
 }
 
@@ -292,7 +304,26 @@ static void print_json(
     if (obj->value)
     {
         print_to_buffer(buffer, buffer_size, position, "\"");
-        print_to_buffer(buffer, buffer_size, position, obj->value);
+
+        char* val_copy = strdup(obj->value);
+        char* remaining = val_copy;
+        while (remaining)
+        {
+            char* quotes = strchr(remaining, '\"');
+            if (!quotes)
+            {
+                print_to_buffer(buffer, buffer_size, position, remaining);
+                remaining = NULL;
+            }
+            else
+            {
+                *quotes = 0;
+                print_to_buffer(buffer, buffer_size, position, remaining);
+                print_to_buffer(buffer, buffer_size, position, "\\\"");
+                remaining = quotes + 1;
+            }
+        }
+        free(val_copy);
         print_to_buffer(buffer, buffer_size, position, "\"");
     }
     else if (obj->array)

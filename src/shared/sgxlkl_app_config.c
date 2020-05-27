@@ -422,34 +422,20 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     if (!config->argv)
     {
-<<<<<<< HEAD:src/enclave/sgxlkl_app_config.c
         if (!(config->argv = oe_malloc(sizeof(config->argv) * 2)))
             sgxlkl_fail("Failed to allocate memory for app config argv\n");
-=======
-        if (!(config->argv = malloc(sizeof(config->argv) * 2)))
-            FAIL(
-                "Failed to allocate memory for app config argv: %s\n",
-                strerror(errno));
->>>>>>> Rewire user-readable app config:src/shared/sgxlkl_app_config.c
         config->argc = 1;
         config->argv[1] = NULL;
     }
 
     if (!config->envp)
     {
-<<<<<<< HEAD:src/enclave/sgxlkl_app_config.c
         if (!(config->envp = oe_malloc(sizeof(config->envp))))
             sgxlkl_fail("Failed to allocate memory for app config envp\n");
-=======
-        if (!(config->envp = malloc(sizeof(config->envp))))
-            FAIL(
-                "Failed to allocate memory for app config envp: %s\n",
-                strerror(errno));
->>>>>>> Rewire user-readable app config:src/shared/sgxlkl_app_config.c
         config->envp[0] = NULL;
     }
 
-    for (size_t i=0; i < config->num_disks; i++)
+    for (size_t i = 0; i < config->num_disks; i++)
     {
         if (config->disks[i].overlay)
         {
@@ -460,8 +446,8 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
         }
     }
 
-    // Fix argv[0]
-    config->argv[0] = (char*) config->run;
+    config->argv[0] = config->run;
+    config->run = NULL;
 
     return 0;
 }
