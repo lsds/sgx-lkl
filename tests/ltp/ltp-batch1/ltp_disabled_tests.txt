@@ -338,8 +338,8 @@
 /ltp/testcases/kernel/syscalls/getrusage/getrusage04
 #/ltp/testcases/kernel/syscalls/getsid/getsid01
 #/ltp/testcases/kernel/syscalls/getsid/getsid02
-/ltp/testcases/kernel/syscalls/getsockname/getsockname01
-/ltp/testcases/kernel/syscalls/getsockopt/getsockopt01
+#/ltp/testcases/kernel/syscalls/getsockname/getsockname01
+#/ltp/testcases/kernel/syscalls/getsockopt/getsockopt01
 /ltp/testcases/kernel/syscalls/getsockopt/getsockopt02
 #/ltp/testcases/kernel/syscalls/gettid/gettid01
 /ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday01
@@ -484,7 +484,7 @@
 #/ltp/testcases/kernel/syscalls/lseek/lseek07
 /ltp/testcases/kernel/syscalls/lseek/lseek11
 #/ltp/testcases/kernel/syscalls/lstat/lstat01
-/ltp/testcases/kernel/syscalls/lstat/lstat02
+#/ltp/testcases/kernel/syscalls/lstat/lstat02
 /ltp/testcases/kernel/syscalls/madvise/madvise01
 /ltp/testcases/kernel/syscalls/madvise/madvise02
 /ltp/testcases/kernel/syscalls/madvise/madvise05
@@ -687,7 +687,7 @@
 /ltp/testcases/kernel/syscalls/ptrace/ptrace05
 /ltp/testcases/kernel/syscalls/ptrace/ptrace07
 /ltp/testcases/kernel/syscalls/pwrite/pwrite01
-/ltp/testcases/kernel/syscalls/pwrite/pwrite02
+#/ltp/testcases/kernel/syscalls/pwrite/pwrite02
 /ltp/testcases/kernel/syscalls/pwrite/pwrite03
 /ltp/testcases/kernel/syscalls/pwrite/pwrite04
 /ltp/testcases/kernel/syscalls/pwritev/pwritev01
@@ -812,7 +812,7 @@
 /ltp/testcases/kernel/syscalls/set_thread_area/set_thread_area01
 /ltp/testcases/kernel/syscalls/set_tid_address/set_tid_address01
 /ltp/testcases/kernel/syscalls/setdomainname/setdomainname01
-/ltp/testcases/kernel/syscalls/setdomainname/setdomainname02
+#/ltp/testcases/kernel/syscalls/setdomainname/setdomainname02
 /ltp/testcases/kernel/syscalls/setdomainname/setdomainname03
 /ltp/testcases/kernel/syscalls/setegid/setegid01
 /ltp/testcases/kernel/syscalls/setegid/setegid02
@@ -870,7 +870,7 @@
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit05
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit06
 /ltp/testcases/kernel/syscalls/setsid/setsid01
-/ltp/testcases/kernel/syscalls/setsockopt/setsockopt01
+#/ltp/testcases/kernel/syscalls/setsockopt/setsockopt01
 /ltp/testcases/kernel/syscalls/setsockopt/setsockopt02
 /ltp/testcases/kernel/syscalls/setsockopt/setsockopt03
 /ltp/testcases/kernel/syscalls/setsockopt/setsockopt04
@@ -905,9 +905,9 @@
 /ltp/testcases/kernel/syscalls/socketcall/socketcall02
 /ltp/testcases/kernel/syscalls/socketcall/socketcall03
 /ltp/testcases/kernel/syscalls/socketcall/socketcall04
-/ltp/testcases/kernel/syscalls/socketpair/socketpair01
+#/ltp/testcases/kernel/syscalls/socketpair/socketpair01
 /ltp/testcases/kernel/syscalls/socketpair/socketpair02
-/ltp/testcases/kernel/syscalls/sockioctl/sockioctl01
+#/ltp/testcases/kernel/syscalls/sockioctl/sockioctl01
 /ltp/testcases/kernel/syscalls/splice/splice01
 /ltp/testcases/kernel/syscalls/splice/splice02
 /ltp/testcases/kernel/syscalls/splice/splice03
@@ -976,7 +976,7 @@
 /ltp/testcases/kernel/syscalls/timer_delete/timer_delete01
 /ltp/testcases/kernel/syscalls/timer_delete/timer_delete02
 /ltp/testcases/kernel/syscalls/timer_getoverrun/timer_getoverrun01
-/ltp/testcases/kernel/syscalls/timer_gettime/timer_gettime01
+#/ltp/testcases/kernel/syscalls/timer_gettime/timer_gettime01
 /ltp/testcases/kernel/syscalls/timer_settime/timer_settime01
 /ltp/testcases/kernel/syscalls/timer_settime/timer_settime02
 /ltp/testcases/kernel/syscalls/timerfd/timerfd01
@@ -1020,7 +1020,7 @@
 /ltp/testcases/kernel/syscalls/utime/utime05
 #/ltp/testcases/kernel/syscalls/utime/utime06
 /ltp/testcases/kernel/syscalls/utimensat/utimensat01
-/ltp/testcases/kernel/syscalls/utimes/utimes01
+#/ltp/testcases/kernel/syscalls/utimes/utimes01
 /ltp/testcases/kernel/syscalls/vfork/vfork01
 /ltp/testcases/kernel/syscalls/vfork/vfork02
 /ltp/testcases/kernel/syscalls/vhangup/vhangup01
