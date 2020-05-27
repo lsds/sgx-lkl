@@ -252,8 +252,8 @@
 /ltp/testcases/kernel/syscalls/fork/fork13
 /ltp/testcases/kernel/syscalls/fork/fork14
 #/ltp/testcases/kernel/syscalls/fpathconf/fpathconf01
-/ltp/testcases/kernel/syscalls/fremovexattr/fremovexattr01
-/ltp/testcases/kernel/syscalls/fremovexattr/fremovexattr02
+#/ltp/testcases/kernel/syscalls/fremovexattr/fremovexattr01
+#/ltp/testcases/kernel/syscalls/fremovexattr/fremovexattr02
 /ltp/testcases/kernel/syscalls/fsetxattr/fsetxattr01
 /ltp/testcases/kernel/syscalls/fsetxattr/fsetxattr02
 #/ltp/testcases/kernel/syscalls/fstat/fstat02
