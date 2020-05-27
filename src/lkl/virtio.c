@@ -8,7 +8,7 @@
 #include <lkl/iomem.h>
 #include <lkl/virtio.h>
 #include <enclave/sgxlkl_t.h>
-#include <enclave/enclave_util.h>
+#include <lkl/lkl_util.h>
 #include <shared/virtio_ring_buff.h>
 #include "enclave/vio_enclave_event_channel.h"
 #include <linux/virtio_blk.h>
@@ -70,7 +70,7 @@ static int virtio_read(void* data, int offset, void* res, int size)
         memcpy(res, dev->config_data + offset, size);
         return 0;
     }
-    
+
     if (size != sizeof(uint32_t))
         return -LKL_EINVAL;
 

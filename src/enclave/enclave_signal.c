@@ -1,7 +1,7 @@
 #include <openenclave/enclave.h>
 #include "openenclave/internal/calls.h"
 
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 
 #include <signal.h>
 #include <asm/sigcontext.h>

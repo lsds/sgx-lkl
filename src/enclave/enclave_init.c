@@ -13,7 +13,7 @@
 #include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_mem.h"
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/lthread.h"
 #include "enclave/sgxlkl_app_config.h"
 #include "enclave/sgxlkl_config.h"

@@ -1,5 +1,5 @@
-#ifndef _ENCLAVE_UTIL_H
-#define _ENCLAVE_UTIL_H
+#ifndef _LKL_UTIL_H
+#define _LKL_UTIL_H
 
 #include <openenclave/enclave.h>
 
@@ -126,4 +126,4 @@ extern int sgxlkl_trace_redirect_syscall;
 #define SGXLKL_TRACE_SYSCALL(x, ...)
 #endif
 
-#endif /* _ENCLAVE_UTIL_H */
+#endif /* _LKL_UTIL_H */

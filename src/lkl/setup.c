@@ -20,7 +20,7 @@
 #include <lkl_host.h>
 #include <unistd.h>
 
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
@@ -37,7 +37,7 @@
 #include "libcryptsetup.h"
 #include "libdevmapper.h"
 
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"

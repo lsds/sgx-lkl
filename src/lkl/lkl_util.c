@@ -1,4 +1,4 @@
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 
 #include <stdarg.h>
 #include <stdlib.h>

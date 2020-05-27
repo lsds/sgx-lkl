@@ -13,7 +13,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/wireguard.h"
 #include "shared/sgxlkl_config.h"
 

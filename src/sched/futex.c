@@ -7,7 +7,7 @@
 
 #include <enclave/lthread.h>
 #include <enclave/ticketlock.h>
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/enclave_timer.h"
 

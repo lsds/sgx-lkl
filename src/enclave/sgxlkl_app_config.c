@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/sgxlkl_app_config.h"
 #include "enclave/sgxlkl_config.h"
 #include "shared/env.h"

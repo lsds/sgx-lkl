@@ -1,7 +1,7 @@
 #include <host/sgxlkl_util.h>
 #include <stdatomic.h>
 #include <time.h>
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 

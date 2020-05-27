@@ -1,7 +1,7 @@
 #include <errno.h>
 #include <linux/virtio_mmio.h>
 #include <string.h>
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"

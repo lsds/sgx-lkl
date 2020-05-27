@@ -8,7 +8,7 @@
 typedef long errcode_t;
 #include <ext2fs/ext2fs.h>
 
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "lkl/ext4_create.h"
 
 #define HANDLE_ERR(fn_name)                       \

@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include <enclave/enclave_util.h>
+#include <lkl/lkl_util.h>
 #include <shared/sgxlkl_config.h>
 #include "openenclave/corelibc/oemalloc.h"
 

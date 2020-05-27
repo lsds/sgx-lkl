@@ -13,7 +13,7 @@
 #include "shared/bitops.h"
 
 #include "enclave/enclave_mem.h"
-#include "enclave/enclave_util.h"
+#include "lkl/lkl_util.h"
 #include "enclave/ticketlock.h"
 #include "enclave/sgxlkl_config.h"
 
