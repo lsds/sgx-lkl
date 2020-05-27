@@ -697,13 +697,31 @@ static void flatten_stack_strings(
 {
     int have_run = app_cfg->run != NULL;
     size_t total_size = 0;
+    size_t total_count = 1;
     if (have_run)
-        total_size += strlen(app_cfg->run);
-    for (size_t i = 0; i < app_cfg->argc; i++)
-        total_size += strlen(app_cfg->argv[i] + 1);
+    {
+        total_size += strlen(app_cfg->run) + 1;
+        total_count++;
+    }
+    if (app_cfg->argv)
+    {
+        for (size_t i = 0; i < app_cfg->argc; i++)
+            total_size += strlen(app_cfg->argv[i]) + 1;
+        total_count += app_cfg->argc + 1;
+    }
+    else
+    {
+        for (size_t i = 0; i < cfg->argc; i++)
+            total_size += strlen(cfg->argv[i]) + 1;
+        total_count += cfg->argc + 1;
+    }
     for (size_t i = 0; i < app_cfg->envc; i++)
-        total_size += strlen(app_cfg->envp[i] + 1);
-    size_t total_count = 1 + app_cfg->argc + app_cfg->envc + 4;
+    {
+        total_size += strlen(app_cfg->envp[i]) + 1;
+        total_count += app_cfg->envc + 1;
+    }
+    total_count += 1; // auxv terminator
+    total_count += 1; // platform-tdependent stuff terminator
 
     char* buf = calloc(total_size, sizeof(char));
     char** out = calloc(total_count, sizeof(char*));
