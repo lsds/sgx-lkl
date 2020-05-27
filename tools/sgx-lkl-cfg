@@ -3,6 +3,20 @@
 import argparse
 from pathlib import Path
 import json
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None
+
+THIS_DIR = Path(__file__).parent
+
+if (THIS_DIR / 'schemas').exists():
+    SCHEMAS_DIR = THIS_DIR / 'schemas'
+else:
+    SCHEMAS_DIR = THIS_DIR.parent / 'share' / 'schemas'
+
+APP_CFG_SCHEMA_PATH = SCHEMAS_DIR / 'app-config.schema.json'
+HOST_CFG_SCHEMA_PATH = SCHEMAS_DIR / 'host-config.schema.json'
 
 def main():
     parser = argparse.ArgumentParser(description='Tool that helps creating SGX-LKL configuration files')
@@ -21,6 +35,16 @@ def main():
         '--app-cfg', metavar='PATH', type=Path, default=Path('app-config.json'),
         help='Path to app config file to be created')
     parser_create.set_defaults(func=create)
+
+    parser_validate = subparsers.add_parser(
+        'validate', help='Validate host and app config files')
+    parser_validate.add_argument(
+        '--app-cfg', metavar='PATH', type=Path,
+        help='Path to app config file to validate')
+    parser_validate.add_argument(
+        '--host-cfg', metavar='PATH', type=Path,
+        help='Path to host config file to validate')
+    parser_validate.set_defaults(func=validate)
 
     parser_finalize = subparsers.add_parser(
         'finalize', help='Finalize an app config file for use with attestation')
@@ -141,6 +165,24 @@ def create(args):
         print( '        It is also implicitly used in the \'shell\' form of CMD or ENTRYPOINT.')
         print( '        Please modify "run" in the app configuration if needed.')
     print('- Change any additional fields if needed (see documentation).')
+
+def validate(args):
+    if jsonschema is None:
+        raise RuntimeError('validate requires the "jsonschema" Python package')
+    items = [
+        (args.app_cfg, APP_CFG_SCHEMA_PATH),
+        (args.host_cfg, HOST_CFG_SCHEMA_PATH)
+    ]
+    for cfg_path, schema_path in items:
+        if not cfg_path:
+            continue
+        print(f'Validating {cfg_path}')
+        with open(cfg_path) as f:
+            cfg = json.load(f)
+        with open(schema_path) as f:
+            cfg_schema = json.load(f)
+        jsonschema.validate(instance=cfg, schema=cfg_schema)
+    print('No errors found.')
 
 def finalize(args):
     with open(args.app_cfg) as f:
