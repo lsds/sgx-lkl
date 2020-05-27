@@ -1,8 +1,6 @@
 #include "enclave/enclave_util.h"
 
-#include <stdarg.h>
-#include <stdlib.h>
-
+#include "openenclave/corelibc/oestdio.h"
 #include "openenclave/internal/print.h"
 
 #define OE_STDERR_FILENO 1
@@ -86,54 +84,54 @@ static void parse_epoll_event_flags(
     size_t written = 0;
     if (evt->events & EPOLLIN)
     {
-        written = snprintf(buf, buf_len - written, "EPOLLIN");
+        written = oe_snprintf(buf, buf_len - written, "EPOLLIN");
         buf += written;
     }
     if (evt->events & EPOLLOUT)
     {
-        written =
-            snprintf(buf, buf_len - written, "%sEPOLLOUT", written ? "|" : "");
+        written = oe_snprintf(
+            buf, buf_len - written, "%sEPOLLOUT", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLRDHUP)
     {
-        written = snprintf(
+        written = oe_snprintf(
             buf, buf_len - written, "%sEPOLLRDHUP", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLPRI)
     {
-        written =
-            snprintf(buf, buf_len - written, "%sEPOLLPRI", written ? "|" : "");
+        written = oe_snprintf(
+            buf, buf_len - written, "%sEPOLLPRI", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLERR)
     {
-        written =
-            snprintf(buf, buf_len - written, "%sEPOLLERR", written ? "|" : "");
+        written = oe_snprintf(
+            buf, buf_len - written, "%sEPOLLERR", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLHUP)
     {
-        written =
-            snprintf(buf, buf_len - written, "%sEPOLLHUP", written ? "|" : "");
+        written = oe_snprintf(
+            buf, buf_len - written, "%sEPOLLHUP", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLET)
     {
-        written =
-            snprintf(buf, buf_len - written, "%sEPOLLET", written ? "|" : "");
+        written = oe_snprintf(
+            buf, buf_len - written, "%sEPOLLET", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLONESHOT)
     {
-        written = snprintf(
+        written = oe_snprintf(
             buf, buf_len - written, "%sEPOLLONESHOT", written ? "|" : "");
         buf += written;
     }
     if (evt->events & EPOLLWAKEUP)
     {
-        written = snprintf(
+        written = oe_snprintf(
             buf, buf_len - written, "%sEPOLLWAKEUP", written ? "|" : "");
         buf += written;
     }
@@ -179,7 +177,7 @@ void __sgxlkl_log_syscall(int type, long n, long res, int params_len, ...)
     if (name == NULL)
         name = "### INVALID ###";
     if (res < 0)
-        snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", lkl_strerror(res));
+        oe_snprintf(errmsg, sizeof(errmsg), " (%s) <--- !", lkl_strerror(res));
 
     int tid = lthread_self() ? lthread_self()->tid : 0;
     if (type == SGXLKL_REDIRECT_SYSCALL)
