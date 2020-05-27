@@ -1233,10 +1233,7 @@ done:
     return result;
 }
 
-json_result_t json_match(
-    json_parser_t* parser,
-    const char* pattern,
-    uint64_t* index)
+json_result_t json_match(json_parser_t* parser, const char* pattern)
 {
     json_result_t result = JSON_UNEXPECTED;
     char buf[256];
@@ -1289,9 +1286,6 @@ json_result_t json_match(
             goto done;
         }
     }
-
-    if (index)
-        *index = n;
 
     result = JSON_OK;
 

@@ -151,10 +151,7 @@ json_result_t json_parser_init(
 
 json_result_t json_parser_parse(json_parser_t* self);
 
-json_result_t json_match(
-    json_parser_t* parser,
-    const char* pattern,
-    size_t* index);
+json_result_t json_match(json_parser_t* parser, const char* pattern);
 
 typedef void (*json_write_t)(
     void* stream,

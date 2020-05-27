@@ -108,10 +108,10 @@ static json_result_t _json_read_callback(
         }
         case JSON_REASON_VALUE:
         {
-            unsigned long i;
-
-            if (json_match(parser, "keyslots.#.type", &i) == JSON_OK)
+            if (json_match(parser, "keyslots.#.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -127,8 +127,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.key_size", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.key_size") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -138,8 +140,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->key_size = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.kdf.type", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -163,8 +167,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.kdf.time", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.time") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -174,8 +180,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->kdf.time = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.kdf.memory", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.memory") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -185,8 +193,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->kdf.memory = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.kdf.hash", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.hash") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -202,8 +212,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.kdf.iterations", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.iterations") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -213,8 +225,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->kdf.iterations = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.kdf.cpus", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.cpus") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -224,8 +238,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->kdf.cpus = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.kdf.salt", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.salt") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -241,8 +257,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.af.type", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.af.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -258,8 +276,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.af.hash", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.af.hash") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -275,8 +295,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.af.stripes", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.af.stripes") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -286,8 +308,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->af.stripes = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.area.type", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -303,8 +327,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.area.encryption", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.encryption") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -320,8 +346,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.area.key_size", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.key_size") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -331,8 +359,10 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->area.key_size = un->integer;
             }
-            else if (json_match(parser, "keyslots.#.area.offset", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.offset") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -347,8 +377,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "keyslots.#.area.size", &i) == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.size") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_KEYSLOTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -363,8 +395,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.type", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -380,8 +414,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.offset", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.offset") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -396,8 +432,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.iv_tweak", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.iv_tweak") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -412,8 +450,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.size", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.size") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -430,8 +470,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.encryption", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.encryption") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -447,8 +489,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.sector_size", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.sector_size") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -458,8 +502,10 @@ static json_result_t _json_read_callback(
                 luks2_segment_t* seg = &data->hdr->segments[i];
                 seg->sector_size = un->integer;
             }
-            else if (json_match(parser, "segments.#.integrity.type", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.integrity.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -475,8 +521,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.integrity.journal_encryption", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.integrity.journal_encryption") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -499,8 +547,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "segments.#.integrity.journal_integrity", &i) == JSON_OK)
+            else if (json_match(parser, "segments.#.integrity.journal_integrity") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_SEGMENTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -523,8 +573,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "digests.#.type", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.type") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_DIGESTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -546,8 +598,9 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "digests.#.keyslots", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.keyslots") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
                 uint64_t n;
 
                 if (type != JSON_TYPE_STRING || i >= NUM_DIGESTS)
@@ -572,8 +625,9 @@ static json_result_t _json_read_callback(
 
                 digest->keyslots[n] = 1;
             }
-            else if (json_match(parser, "digests.#.segments", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.segments") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
                 uint64_t n;
 
                 if (type != JSON_TYPE_STRING || i >= NUM_DIGESTS)
@@ -598,8 +652,10 @@ static json_result_t _json_read_callback(
 
                 digest->segments[n] = 1;
             }
-            else if (json_match(parser, "digests.#.hash", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.hash") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_DIGESTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -615,8 +671,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "digests.#.iterations", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.iterations") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_INTEGER || i >= NUM_DIGESTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -626,8 +684,10 @@ static json_result_t _json_read_callback(
                 luks2_digest_t* digest = &data->hdr->digests[i];
                 digest->iterations = un->integer;
             }
-            else if (json_match(parser, "digests.#.salt", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.salt") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_DIGESTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -643,8 +703,10 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "digests.#.digest", &i) == JSON_OK)
+            else if (json_match(parser, "digests.#.digest") == JSON_OK)
             {
+                uint64_t i = parser->path[1].number;
+
                 if (type != JSON_TYPE_STRING || i >= NUM_DIGESTS)
                 {
                     result = JSON_TYPE_MISMATCH;
@@ -660,14 +722,8 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "config.json_size", &i) == JSON_OK)
+            else if (json_match(parser, "config.json_size") == JSON_OK)
             {
-                if (type != JSON_TYPE_STRING || i >= NUM_CONFIGS)
-                {
-                    result = JSON_TYPE_MISMATCH;
-                    goto done;
-                }
-
                 luks2_config_t* config = &data->hdr->config;
 
                 if (_strtou64(&config->json_size, un->string) != 0)
@@ -676,14 +732,8 @@ static json_result_t _json_read_callback(
                     goto done;
                 }
             }
-            else if (json_match(parser, "config.keyslots_size", &i) == JSON_OK)
+            else if (json_match(parser, "config.keyslots_size") == JSON_OK)
             {
-                if (type != JSON_TYPE_STRING || i >= NUM_CONFIGS)
-                {
-                    result = JSON_TYPE_MISMATCH;
-                    goto done;
-                }
-
                 luks2_config_t* config = &data->hdr->config;
 
                 if (_strtou64(&config->keyslots_size, un->string) != 0)
