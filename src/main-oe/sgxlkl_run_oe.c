@@ -1834,7 +1834,6 @@ int main(int argc, char* argv[], char* envp[])
     /* app_config goes into EEID */
     oe_enclave_setting_t setting;
     setting.setting_type = OE_EXTENDED_ENCLAVE_INITIALIZATION_DATA;
-    size_t app_config_len = strlen(encl.app_config_str) + 1;
 
     char* buffer = NULL;
     size_t buffer_size = 0;

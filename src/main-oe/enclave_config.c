@@ -227,6 +227,9 @@ static json_obj_t* mk_json_auxv(const char* key, const Elf64_auxv_t* auxv)
 
 static json_obj_t* mk_json_app_config(const char* app_config_str)
 {
+    if (!app_config_str)
+        return mk_json_obj("app_config", NULL, NULL, NULL, 0);
+
     size_t len = strlen(app_config_str) + 32;
     char tmp[len];
     snprintf(tmp, len, "{\"app_config\":%s}", app_config_str);

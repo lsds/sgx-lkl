@@ -374,9 +374,7 @@ static json_result_t json_read_app_config_callback(
                     (enclave_wg_peer_config_t*)data->array;
             }
             else
-                FAIL(
-                    "unknown json array '%s'\n",
-                    parser->path[parser->depth - 1]);
+                FAIL("unknown json array '%s'\n", make_path(parser));
             data->array = NULL;
             data->array_count = 0;
             break;
@@ -384,6 +382,12 @@ static json_result_t json_read_app_config_callback(
         {
             // show_path(parser);
 
+            if (json_match(parser, "app_config", &i) == JSON_OK &&
+                type == JSON_TYPE_NULL)
+            {
+                memset(data->app_config, 0, sizeof(sgxlkl_app_config_t));
+                return JSON_OK;
+            }
             JSTRING("app_config.run", data->app_config->run);
             JSTRING("app_config.cwd", data->app_config->cwd);
             JPATHT("app_config.argv", JSON_TYPE_STRING, {
@@ -451,7 +455,7 @@ static json_result_t json_read_app_config_callback(
             FAIL(
                 "Unknown json element '%s', refusing to run with this "
                 "configuration.\n",
-                parser->path[parser->depth - 1]);
+                make_path(parser));
         }
     }
 
@@ -542,9 +546,7 @@ static json_result_t json_read_callback(
                 /* OK */
             }
             else
-                FAIL(
-                    "unknown json array '%s'\n",
-                    parser->path[parser->depth - 1]);
+                FAIL("unknown json array '%s'\n", make_path(parser));
             data->array = NULL;
             data->array_count = 0;
             break;
@@ -678,7 +680,7 @@ static json_result_t json_read_callback(
             FAIL(
                 "Unknown json element '%s', refusing to run with this "
                 "configuration.\n",
-                parser->path[parser->depth - 1]);
+                make_path(parser));
         }
     }
 
@@ -721,9 +723,20 @@ static void flatten_stack_strings(
 
     // argv
     if (have_run)
+    {
         ADD_STRING(app_cfg->run);
-    for (size_t i = 0; i < app_cfg->argc; i++)
-        ADD_STRING(app_cfg->argv[i]);
+    }
+    if (app_cfg->argv)
+    {
+        for (size_t i = 0; i < app_cfg->argc; i++)
+            ADD_STRING(app_cfg->argv[i]);
+    }
+    else
+    {
+        for (size_t i = 0; i < cfg->argc; i++)
+            ADD_STRING(cfg->argv[i]);
+    }
+    app_cfg->argc = j;
     out[j++] = NULL;
     // envp
     for (size_t i = 0; i < app_cfg->envc; i++)
@@ -738,8 +751,6 @@ static void flatten_stack_strings(
     cfg->argc = 0;
 
     app_cfg->argv = out;
-    if (have_run)
-        app_cfg->argc++;
     app_cfg->envp = out + app_cfg->argc + 1;
 }
 
