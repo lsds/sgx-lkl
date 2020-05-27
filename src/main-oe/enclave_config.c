@@ -233,7 +233,8 @@ static json_obj_t* mk_json_app_config(const char* app_config_str)
 
     sgxlkl_app_config_t app_config = {0};
     char* err = NULL;
-    parse_sgxlkl_app_config_from_str(app_config_str, &app_config, &err);
+    if (parse_sgxlkl_app_config_from_str(app_config_str, &app_config, &err))
+        FAIL("%s\n", err);
 
     json_obj_t* r = mk_json_objects("app_config", 6);
     r->objects[0] = mk_json_string("run", app_config.run);
@@ -247,7 +248,6 @@ static json_obj_t* mk_json_app_config(const char* app_config_str)
     r->objects[5] =
         mk_json_wg_peers("peers", app_config.peers, app_config.num_peers);
 
-    // free(app_config);
     return r;
 }
 

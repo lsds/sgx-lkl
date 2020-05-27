@@ -5,9 +5,9 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_app_config.h"
 #include "enclave/sgxlkl_config.h"
 #include "shared/env.h"
+#include "shared/sgxlkl_app_config.h"
 #include "shared/sgxlkl_config_json.h"
 
 extern int sgxlkl_verbose;

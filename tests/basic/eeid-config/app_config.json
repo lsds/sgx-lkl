@@ -3,13 +3,13 @@
   "args": [
     "arg"
   ],
-  "environment": [
-    "ABC=DEF"
-  ],
-  "disks": [
+  "environment": {
+    "ABC": "DEF"
+  },
+  "disk_config": [
     {
-      "mnt": "/",
-      "readonly": "0"
+      "disk": "/",
+      "readonly": false
     }
   ]
 }

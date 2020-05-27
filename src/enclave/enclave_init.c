@@ -9,10 +9,11 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
-#include "enclave/sgxlkl_app_config.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
+#include "shared/env.h"
+#include "shared/sgxlkl_app_config.h"
 
 _Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
 
