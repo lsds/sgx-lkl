@@ -42,10 +42,13 @@
 #define NULL ((void*)0)
 #endif
 
-typedef unsigned long size_t;
+#define UINT64_MAX 0xffffffffffffffffu
+#define LONG_MAX 0x7fffffffffffffffL
+#define ULONG_MAX (2UL * LONG_MAX + 1)
+#define INT64_MIN (-1 - 0x7fffffffffffffff)
+
 typedef unsigned int uint32_t;
-typedef unsigned long uint64_t;
-typedef long int64_t;
+typedef unsigned long size_t;
 typedef long ptrdiff_t;
 
 static int _tolower(int c)
@@ -305,9 +308,6 @@ static long int _strtol(const char* nptr, char** endptr, int base)
     const char* p;
     unsigned long x = 0;
     int negative = 0;
-    const unsigned long UINT64_MAX = 0xffffffffffffffffu;
-    const unsigned long LONG_MAX = 0x7fffffffffffffffL;
-    const unsigned long ULONG_MAX = (2UL * LONG_MAX + 1);
 
     if (endptr)
         *endptr = (char*)nptr;
@@ -583,7 +583,7 @@ static double _strtod(const char* nptr, char** endptr)
 static void _trace(
     json_parser_t* parser,
     const char* file,
-    unsigned int line,
+    uint32_t line,
     const char* func,
     const char* message)
 {
@@ -594,7 +594,7 @@ static void _trace(
 static void _trace_result(
     json_parser_t* parser,
     const char* file,
-    unsigned int line,
+    uint32_t line,
     const char* func,
     json_result_t result)
 {
@@ -658,12 +658,12 @@ static int _is_decimal_or_exponent(char c)
     return c == '.' || c == 'e' || c == 'E';
 }
 
-static int _hex_str4_to_uint(const char* s, unsigned int* x)
+static int _hex_str4_to_u32(const char* s, uint32_t* x)
 {
-    unsigned int n0 = _char_to_nibble(s[0]);
-    unsigned int n1 = _char_to_nibble(s[1]);
-    unsigned int n2 = _char_to_nibble(s[2]);
-    unsigned int n3 = _char_to_nibble(s[3]);
+    uint32_t n0 = _char_to_nibble(s[0]);
+    uint32_t n1 = _char_to_nibble(s[1]);
+    uint32_t n2 = _char_to_nibble(s[2]);
+    uint32_t n3 = _char_to_nibble(s[3]);
 
     if ((n0 | n1 | n2 | n3) & 0xF0)
         return -1;
@@ -793,7 +793,7 @@ static json_result_t _get_string(json_parser_t* parser, char** str)
                         break;
                     case 'u':
                     {
-                        unsigned int x;
+                        uint32_t x;
 
                         p++;
 
@@ -801,7 +801,7 @@ static json_result_t _get_string(json_parser_t* parser, char** str)
                         if (end - p < 4)
                             RAISE(JSON_EOF);
 
-                        if (_hex_str4_to_uint(p, &x) != 0)
+                        if (_hex_str4_to_u32(p, &x) != 0)
                             RAISE(JSON_BAD_SYNTAX);
 
                         if (x >= 256)
@@ -885,7 +885,7 @@ static json_result_t _get_array(json_parser_t* parser, size_t* array_size)
         }
         else
         {
-            parser->nodes[parser->depth - 1].index = index++;
+            parser->path[parser->depth - 1].index = index++;
 
             parser->ptr--;
             CHECK(_get_value(parser));
@@ -897,6 +897,18 @@ static json_result_t _get_array(json_parser_t* parser, size_t* array_size)
 
 done:
     return result;
+}
+
+static int _strtou64(uint64_t* x, const char* str)
+{
+    char* end;
+
+    *x = _strtoul(str, &end, 10);
+
+    if (!end || *end != '\0')
+        return -1;
+
+    return 0;
 }
 
 static json_result_t _get_object(json_parser_t* parser)
@@ -933,8 +945,15 @@ static json_result_t _get_object(json_parser_t* parser)
 
             /* Insert node */
             {
-                json_node_t node = { un.string, 0, 0 };
-                parser->nodes[parser->depth - 1] = node;
+                uint64_t n;
+                json_node_t node = { un.string, 0, 0, 0 };
+
+                if (_strtou64(&n, un.string) == 0)
+                    node.number = n;
+                else
+                    node.number = UINT64_MAX;
+
+                parser->path[parser->depth - 1] = node;
             }
 
             CHECK(_invoke_callback(parser, JSON_REASON_NAME, JSON_TYPE_STRING,
@@ -1104,7 +1123,7 @@ static json_result_t _get_value(json_parser_t* parser)
 
                 un.integer = (signed long long)array_size;
 
-                parser->nodes[parser->depth - 1].size = array_size;
+                parser->path[parser->depth - 1].size = array_size;
             }
 
             CHECK(_invoke_callback(
@@ -1214,22 +1233,10 @@ done:
     return result;
 }
 
-static int _strtou64(uint64_t* x, const char* str)
-{
-    char* end;
-
-    *x = _strtoul(str, &end, 10);
-
-    if (!end || *end != '\0')
-        return -1;
-
-    return 0;
-}
-
 json_result_t json_match(
     json_parser_t* parser,
     const char* pattern,
-    unsigned long* index)
+    uint64_t* index)
 {
     json_result_t result = JSON_UNEXPECTED;
     char buf[256];
@@ -1273,10 +1280,10 @@ json_result_t json_match(
     {
         if (_strcmp(pattern_path[i], "#") == 0)
         {
-            if (_strtou64(&n, parser->nodes[i].name) != 0)
+            if (_strtou64(&n, parser->path[i].name) != 0)
                 RAISE(JSON_TYPE_MISMATCH);
         }
-        else if (_strcmp(pattern_path[i], parser->nodes[i].name) != 0)
+        else if (_strcmp(pattern_path[i], parser->path[i].name) != 0)
         {
             result = JSON_NO_MATCH;
             goto done;
@@ -1366,7 +1373,6 @@ static const char* _i64tostr(strbuf_t* buf, int64_t x, size_t* size)
     int neg = 0;
     static const char _str[] = "-9223372036854775808";
     char* end = buf->data + sizeof(buf->data) - 1;
-    const long INT64_MIN = (-1 - 0x7fffffffffffffff);
 
     if (x == INT64_MIN)
     {
@@ -1713,14 +1719,14 @@ void json_dump_path(
 
         for (size_t i = 0; i < depth; i++)
         {
-            (*write)(stream, parser->nodes[i].name,
-                _strlen(parser->nodes[i].name));
+            (*write)(stream, parser->path[i].name,
+                _strlen(parser->path[i].name));
 
-            if (parser->nodes[i].size)
+            if (parser->path[i].size)
             {
                 strbuf_t buf;
                 size_t size;
-                const char* str = _i64tostr(&buf, parser->nodes[i].size, &size);
+                const char* str = _i64tostr(&buf, parser->path[i].size, &size);
 
                 (*write)(stream, STRLIT("["));
                 (*write)(stream, str, size);

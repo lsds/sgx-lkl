@@ -31,6 +31,8 @@
 #define _JSON_H
 
 typedef unsigned long size_t;
+typedef unsigned long uint64_t;
+typedef long int64_t;
 
 #define JSON_MAX_NESTING 256
 
@@ -69,7 +71,7 @@ const char* json_result_string(json_result_t result);
 typedef union _json_union
 {
     unsigned char boolean;
-    signed long long integer;
+    int64_t integer;
     double real;
     char* string;
 }
@@ -105,8 +107,16 @@ json_allocator_t;
 
 typedef struct _json_node
 {
+    /* Name of the JSON object */
     const char* name;
+
+    /* Integer value if JSON object name is a number (else UINT64_MAX) */
+    uint64_t number;
+
+    /* The array size (if an array) */
     size_t size;
+
+    /* The array index (if an array) */
     size_t index;
 }
 json_node_t;
@@ -120,7 +130,7 @@ struct _json_parser
     int scan;
     json_parser_callback_t callback;
     void* callback_data;
-    json_node_t nodes[JSON_MAX_NESTING];
+    json_node_t path[JSON_MAX_NESTING];
     size_t depth;
     json_allocator_t* allocator;
     void (*trace)(
@@ -144,7 +154,7 @@ json_result_t json_parser_parse(json_parser_t* self);
 json_result_t json_match(
     json_parser_t* parser,
     const char* pattern,
-    unsigned long* index);
+    size_t* index);
 
 typedef void (*json_write_t)(
     void* stream,

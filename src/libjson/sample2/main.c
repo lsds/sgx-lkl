@@ -105,7 +105,7 @@ static void _print_value(
             fprintf(cd->stream, "%s", value->boolean ? "true" : "false");
             break;
         case JSON_TYPE_INTEGER:
-            fprintf(cd->stream, "%lld", value->integer);
+            fprintf(cd->stream, "%ld", value->integer);
             break;
         case JSON_TYPE_REAL:
             fprintf(cd->stream, "%E", value->real);
