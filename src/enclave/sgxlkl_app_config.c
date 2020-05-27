@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <json-c/json_object.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "enclave/enclave_util.h"
@@ -10,6 +9,7 @@
 #include "shared/json_util.h"
 
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestdio.h"
 #include "openenclave/corelibc/oestring.h"
 
 static const char* STRING_KEYS[] = {"run",
@@ -99,7 +99,7 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
         if (!env_kv)
             sgxlkl_fail(
                 "Failed to allocate memory for environment key value pair.\n");
-        snprintf(env_kv, kv_len, "%s=%s", key, str_val);
+        oe_snprintf(env_kv, kv_len, "%s=%s", key, str_val);
         config->envp[i++] = env_kv;
     }
 
