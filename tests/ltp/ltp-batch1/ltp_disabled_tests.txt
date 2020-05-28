@@ -220,7 +220,7 @@
 /ltp/testcases/kernel/syscalls/fcntl/fcntl31
 /ltp/testcases/kernel/syscalls/fcntl/fcntl32
 /ltp/testcases/kernel/syscalls/fcntl/fcntl33
-#/ltp/testcases/kernel/syscalls/fcntl/fcntl34
+/ltp/testcases/kernel/syscalls/fcntl/fcntl34
 #/ltp/testcases/kernel/syscalls/fcntl/fcntl35
 /ltp/testcases/kernel/syscalls/fcntl/fcntl36
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync01
@@ -346,9 +346,9 @@
 #/ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday02
 #/ltp/testcases/kernel/syscalls/getuid/getuid01
 #/ltp/testcases/kernel/syscalls/getuid/getuid03
-/ltp/testcases/kernel/syscalls/getxattr/getxattr01
-/ltp/testcases/kernel/syscalls/getxattr/getxattr02
-/ltp/testcases/kernel/syscalls/getxattr/getxattr03
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr01
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr02
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr03
 /ltp/testcases/kernel/syscalls/getxattr/getxattr04
 /ltp/testcases/kernel/syscalls/getxattr/getxattr05
 /ltp/testcases/kernel/syscalls/inotify/inotify01
