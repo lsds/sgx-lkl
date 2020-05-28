@@ -230,8 +230,8 @@
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr02
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr03
 /ltp/testcases/kernel/syscalls/flistxattr/flistxattr01
-/ltp/testcases/kernel/syscalls/flistxattr/flistxattr02
-/ltp/testcases/kernel/syscalls/flistxattr/flistxattr03
+#/ltp/testcases/kernel/syscalls/flistxattr/flistxattr02
+#/ltp/testcases/kernel/syscalls/flistxattr/flistxattr03
 #/ltp/testcases/kernel/syscalls/flock/flock01
 #/ltp/testcases/kernel/syscalls/flock/flock02
 #/ltp/testcases/kernel/syscalls/flock/flock03
@@ -471,7 +471,7 @@
 #/ltp/testcases/kernel/syscalls/listen/listen01
 /ltp/testcases/kernel/syscalls/listxattr/listxattr01
 /ltp/testcases/kernel/syscalls/listxattr/listxattr02
-/ltp/testcases/kernel/syscalls/listxattr/listxattr03
+#/ltp/testcases/kernel/syscalls/listxattr/listxattr03
 /ltp/testcases/kernel/syscalls/llistxattr/llistxattr01
 /ltp/testcases/kernel/syscalls/llistxattr/llistxattr02
 /ltp/testcases/kernel/syscalls/llistxattr/llistxattr03
