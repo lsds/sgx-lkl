@@ -1,8 +1,8 @@
 diff --git a/testcases/kernel/syscalls/flistxattr/flistxattr03.c b/testcases/kernel/syscalls/flistxattr/flistxattr03.c
-index 49b463425..ab17f8703 100644
+index 49b463425..82fe02f64 100644
 --- a/testcases/kernel/syscalls/flistxattr/flistxattr03.c
 +++ b/testcases/kernel/syscalls/flistxattr/flistxattr03.c
-@@ -13,12 +13,17 @@
+@@ -13,6 +13,11 @@
  * which can be used to estimate a suitable buffer.
  */
  
@@ -14,13 +14,6 @@ index 49b463425..ab17f8703 100644
  #include "config.h"
  #include <errno.h>
  #include <sys/types.h>
- 
- #ifdef HAVE_SYS_XATTR_H
--# include <sys/xattr.h>
-+#include <sys/xattr.h>
- #endif
- 
- #include "tst_test.h"
 @@ -28,6 +33,14 @@
  #define SECURITY_KEY	"security.ltptest"
  #define VALUE	"test"

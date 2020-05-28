@@ -1,8 +1,8 @@
 diff --git a/testcases/kernel/syscalls/flistxattr/flistxattr02.c b/testcases/kernel/syscalls/flistxattr/flistxattr02.c
-index 13aa0b7e7..f1cc48f95 100644
+index 13aa0b7e7..67cc27877 100644
 --- a/testcases/kernel/syscalls/flistxattr/flistxattr02.c
 +++ b/testcases/kernel/syscalls/flistxattr/flistxattr02.c
-@@ -17,12 +17,17 @@
+@@ -17,6 +17,11 @@
  * 2) flistxattr(2) should return -1 and set errno to EBADF.
  */
  
@@ -14,13 +14,6 @@ index 13aa0b7e7..f1cc48f95 100644
  #include "config.h"
  #include <errno.h>
  #include <sys/types.h>
- 
- #ifdef HAVE_SYS_XATTR_H
--# include <sys/xattr.h>
-+#include <sys/xattr.h>
- #endif
- 
- #include "tst_test.h"
 @@ -33,6 +38,13 @@
  #define VALUE	"test"
  #define VALUE_SIZE	(sizeof(VALUE) - 1)
