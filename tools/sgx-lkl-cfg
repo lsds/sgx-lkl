@@ -166,25 +166,39 @@ def create(args):
         print( '        Please modify "run" in the app configuration if needed.')
     print('- Change any additional fields if needed (see documentation).')
 
+def dict_raise_on_duplicates(ordered_pairs):
+    # https://stackoverflow.com/a/14902564
+    d = {}
+    for k, v in ordered_pairs:
+        if k in d:
+           raise ValueError("duplicate key: %r" % (k,))
+        else:
+           d[k] = v
+    return d
+
 def validate(args):
+    _validate(args.app_cfg, args.host_cfg)
+
+def _validate(app_cfg_path=None, host_cfg_path=None):
     if jsonschema is None:
         raise RuntimeError('validate requires the "jsonschema" Python package')
     items = [
-        (args.app_cfg, APP_CFG_SCHEMA_PATH),
-        (args.host_cfg, HOST_CFG_SCHEMA_PATH)
+        (app_cfg_path, APP_CFG_SCHEMA_PATH),
+        (host_cfg_path, HOST_CFG_SCHEMA_PATH)
     ]
     for cfg_path, schema_path in items:
         if not cfg_path:
             continue
         print(f'Validating {cfg_path}')
         with open(cfg_path) as f:
-            cfg = json.load(f)
+            cfg = json.load(f, object_pairs_hook=dict_raise_on_duplicates)
         with open(schema_path) as f:
             cfg_schema = json.load(f)
         jsonschema.validate(instance=cfg, schema=cfg_schema)
     print('No errors found.')
 
 def finalize(args):
+    _validate(args.app_cfg)
     with open(args.app_cfg) as f:
         cfg = json.load(f)
     with open(args.app_cfg_final, 'w') as f:
