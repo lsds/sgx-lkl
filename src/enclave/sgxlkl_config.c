@@ -3,6 +3,8 @@
 #include <enclave/enclave_util.h>
 #include <shared/sgxlkl_config.h>
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
+#include "openenclave/internal/safecrt.h"
 
 // Duplicate a string
 static int strdupz(char** to, const char* from)
@@ -16,7 +18,7 @@ static int strdupz(char** to, const char* from)
     }
     else
     {
-        size_t l = strlen(from);
+        size_t l = oe_strlen(from);
         *to = oe_malloc(l + 1);
         if (!*to)
         {
@@ -100,7 +102,7 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
     cfg->net_gw4 = from->net_gw4;
     cfg->net_mask4 = from->net_mask4;
 
-    strncpy(cfg->hostname, from->hostname, sizeof(cfg->hostname));
+    oe_strncpy_s(cfg->hostname, sizeof(cfg->hostname),from->hostname, sizeof(cfg->hostname));
     cfg->hostnet = from->hostnet;
     cfg->tap_offload = from->tap_offload;
     cfg->tap_mtu = from->tap_mtu;
