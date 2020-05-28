@@ -1,5 +1,5 @@
 diff --git a/testcases/kernel/syscalls/getxattr/getxattr03.c b/testcases/kernel/syscalls/getxattr/getxattr03.c
-index b6ea14287..f8b651c34 100644
+index b6ea14287..d6a99fbee 100644
 --- a/testcases/kernel/syscalls/getxattr/getxattr03.c
 +++ b/testcases/kernel/syscalls/getxattr/getxattr03.c
 @@ -27,6 +27,10 @@
@@ -13,15 +13,6 @@ index b6ea14287..f8b651c34 100644
  #include "config.h"
  #include <sys/types.h>
  #include <sys/stat.h>
-@@ -39,7 +43,7 @@
- #include <stdlib.h>
- #include <string.h>
- #ifdef HAVE_SYS_XATTR_H
--# include <sys/xattr.h>
-+#include <sys/xattr.h>
- #endif
- #include "test.h"
- #include "safe_macros.h"
 @@ -50,8 +54,13 @@ char *TCID = "getxattr03";
  #define XATTR_TEST_KEY "user.testkey"
  #define XATTR_TEST_VALUE "test value"
