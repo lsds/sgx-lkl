@@ -627,7 +627,7 @@
 /ltp/testcases/kernel/syscalls/open/open13
 /ltp/testcases/kernel/syscalls/open/open14
 #/ltp/testcases/kernel/syscalls/openat/openat01
-#/ltp/testcases/kernel/syscalls/openat/openat02
+/ltp/testcases/kernel/syscalls/openat/openat02
 /ltp/testcases/kernel/syscalls/openat/openat02_child
 /ltp/testcases/kernel/syscalls/openat/openat03
 #/ltp/testcases/kernel/syscalls/pathconf/pathconf01
@@ -797,7 +797,7 @@
 /ltp/testcases/kernel/syscalls/sendfile/sendfile05
 /ltp/testcases/kernel/syscalls/sendfile/sendfile06
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile07
-#/ltp/testcases/kernel/syscalls/sendfile/sendfile08
+/ltp/testcases/kernel/syscalls/sendfile/sendfile08
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile09
 #/ltp/testcases/kernel/syscalls/sendmmsg/sendmmsg01
 /ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
