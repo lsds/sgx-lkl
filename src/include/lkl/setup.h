@@ -10,7 +10,7 @@ void lkl_start_init();
 
 /* Mount all LKL disks */
 void lkl_mount_disks(
-    struct enclave_disk_config* disks,
+    sgxlkl_enclave_disk_config_t* disks,
     size_t num_disks,
     const char* cwd);
 

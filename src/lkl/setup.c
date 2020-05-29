@@ -20,6 +20,7 @@
 #include <lkl_host.h>
 #include <unistd.h>
 
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
@@ -90,9 +91,6 @@ extern void initialize_enclave_event_channel(
     size_t evt_channel_num);
 
 extern void lkl_virtio_netdev_remove(void);
-
-size_t num_disks = 0;
-struct enclave_disk_config* disks;
 
 /* Set by sgx-lkl-disk measure */
 const uint8_t disk_dm_verity_root_hash[32] = {
@@ -341,7 +339,7 @@ struct lkl_crypt_device
 {
     char* disk_path;
     int readonly;
-    struct enclave_disk_config* disk_config;
+    sgxlkl_enclave_disk_config_t* disk_config;
     char* crypt_name;
 };
 
@@ -651,9 +649,10 @@ static void lkl_mount_virtual()
 }
 
 static void lkl_mount_disk(
-    struct enclave_disk_config* disk,
+    sgxlkl_enclave_disk_config_t* disk,
     char device,
-    const char* mnt_point)
+    const char* mnt_point,
+    size_t disk_index)
 {
     char dev_str_raw[] = {"/dev/vdX"};
     char dev_str_enc[] = {"/dev/mapper/cryptX"};
@@ -667,14 +666,14 @@ static void lkl_mount_disk(
         "lkl_mount_disk(dev=\"%s\", mnt=\"%s\", ro=%i)\n",
         dev_str,
         mnt_point,
-        disk->ro);
+        disk->readonly);
 
     struct lkl_crypt_device lkl_cd;
     lkl_cd.disk_path = dev_str;
-    lkl_cd.readonly = disk->ro;
+    lkl_cd.readonly = disk->readonly;
     lkl_cd.disk_config = disk;
 
-    if (disk->create && disk->enc)
+    if (disk->create && disk->key)
     {
         disk->key_len = CREATED_DISK_KEY_LENGTH / 8;
         SGXLKL_VERBOSE("Generating random disk encryption key\n");
@@ -690,7 +689,7 @@ static void lkl_mount_disk(
     int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
     if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) &&
-        (disk->roothash || disk->enc))
+        (disk->roothash || disk->key))
     {
         sgxlkl_trace_lkl_syscall = 0;
         sgxlkl_trace_internal_syscall = 0;
@@ -711,10 +710,10 @@ static void lkl_mount_disk(
         dev_str = dev_str_verity;
         lkl_cd.disk_path = dev_str_verity;
         // dm-verity is read only
-        disk->ro = 1;
+        disk->readonly = 1;
         lkl_cd.readonly = 1;
     }
-    if (disk->enc)
+    if (disk->key)
     {
         dev_str_enc[sizeof dev_str_enc - 2] = device;
         lkl_cd.crypt_name = dev_str_enc + offset_dev_str_crypt_name;
@@ -748,7 +747,7 @@ static void lkl_mount_disk(
     {
         size_t fs_size = disk->size;
 
-        if (disk->enc)
+        if (disk->key)
         {
             SGXLKL_VERBOSE(
                 "Assuming a disk encryption/integrity overhead of %d %%\n",
@@ -774,14 +773,17 @@ static void lkl_mount_disk(
     }
 
     const int err = lkl_mount_blockdev(
-        dev_str, mnt_point, "ext4", disk->ro ? LKL_MS_RDONLY : 0, NULL);
+        dev_str, mnt_point, "ext4", disk->readonly ? LKL_MS_RDONLY : 0, NULL);
     if (err < 0)
         sgxlkl_fail(
             "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
-    disk->mounted = 1;
+
+    sgxlkl_enclave_state.disk_state[disk_index].mounted = true;
 }
 
-static void lkl_mount_root_disk(struct enclave_disk_config* disk)
+static void lkl_mount_root_disk(
+    sgxlkl_enclave_disk_config_t* disk,
+    size_t disk_index)
 {
     int err = 0;
     char mnt_point[] = "/mnt/vda";
@@ -813,7 +815,7 @@ static void lkl_mount_root_disk(struct enclave_disk_config* disk)
         }
     }
 
-    lkl_mount_disk(disk, 'a', mnt_point);
+    lkl_mount_disk(disk, 'a', mnt_point, disk_index);
 
     if (disk->overlay)
     {
@@ -876,8 +878,8 @@ static void lkl_mount_root_disk(struct enclave_disk_config* disk)
 }
 
 void lkl_mount_disks(
-    struct enclave_disk_config* _disks,
-    size_t _num_disks,
+    sgxlkl_enclave_disk_config_t* disks,
+    size_t num_disks,
     const char* cwd)
 {
 #ifdef DEBUG
@@ -885,26 +887,23 @@ void lkl_mount_disks(
         crypt_set_debug_level(CRYPT_LOG_DEBUG);
 #endif
 
-    num_disks = _num_disks;
     if (num_disks <= 0)
         sgxlkl_fail("No root disk provided. Aborting...\n");
 
-    // We copy the disk config as we need to keep track of mount paths and can't
-    // rely on the enclave_config to be around and unchanged for the lifetime of
-    // the enclave.
-    // (Decryption keys are copied in lkl_activate_crypto_thread)
-    disks = (struct enclave_disk_config*)malloc(
-        sizeof(struct enclave_disk_config) * num_disks);
-    memcpy(disks, _disks, sizeof(struct enclave_disk_config) * num_disks);
+    if (num_disks != sgxlkl_enclave_state.enclave_config->num_disks)
+        sgxlkl_fail("Bug: inconsistent numbers of disks. Aborting...\n");
+
     lkl_add_disks(disks, num_disks);
 
     // Find root disk
-    enclave_disk_config_t* root_disk = NULL;
+    sgxlkl_enclave_disk_config_t* root_disk = NULL;
+    size_t root_disk_index;
     for (size_t i = 0; i < num_disks; ++i)
     {
         if (!strcmp(disks[i].mnt, "/"))
         {
             root_disk = &disks[i];
+            root_disk_index = i;
             break;
         }
     }
@@ -914,11 +913,11 @@ void lkl_mount_disks(
         sgxlkl_fail("No root disk (mount point '/') provided.\n");
     }
 
-    lkl_mount_root_disk(root_disk);
+    lkl_mount_root_disk(root_disk, root_disk_index);
 
     for (size_t i = 0; i < num_disks; ++i)
     {
-        if (root_disk == &disks[i] || disks[i].fd == -1)
+        if (root_disk == &disks[i]) // || disks[i].fd == -1)
             continue;
 
         // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
@@ -934,7 +933,7 @@ void lkl_mount_disks(
             num_disks = 26;
             return;
         }
-        lkl_mount_disk(&disks[i], 'a' + i, disks[i].mnt);
+        lkl_mount_disk(&disks[i], 'a' + i, disks[i].mnt, i);
     }
 
     if (cwd)
@@ -991,7 +990,7 @@ void lkl_poststart_net(int net_dev_id)
     }
 }
 
-static void do_sysctl(sgxlkl_config_t* encl)
+static void do_sysctl(sgxlkl_enclave_config_t* encl)
 {
     if (!encl->sysctl)
         return;
@@ -1248,9 +1247,10 @@ static void* lkl_termination_thread(void* args)
 
     // Unmount disks (assumes i==0 is the root disk)
     long res;
-    for (int i = num_disks - 1; i >= 0; --i)
+    for (int i = sgxlkl_enclave_state.enclave_config->num_disks - 1; i >= 0;
+         --i)
     {
-        if (!disks[i].mounted)
+        if (!sgxlkl_enclave_state.disk_state[i].mounted)
             continue;
 
         /*
@@ -1259,8 +1259,10 @@ static void* lkl_termination_thread(void* args)
          * system or sometimes blocks indefinitely. (We should still
          * check that the file system was unmounted cleanly.)
          */
-        SGXLKL_VERBOSE("calling lkl_umount_timeout(\"%s\", %s, %i)\n", disks[i].mnt, i == 0 ? "MNT_DETACH" : "0", UMOUNT_DISK_TIMEOUT);
-        res = lkl_umount_timeout(disks[i].mnt, i == 0 ? MNT_DETACH : 0, UMOUNT_DISK_TIMEOUT);
+        sgxlkl_enclave_disk_config_t* disk_i =
+            &sgxlkl_enclave_state.enclave_config->disks[i];
+          SGXLKL_VERBOSE("calling lkl_umount_timeout(\"%s\", %s, %i)\n", disk_i->mnt, i == 0 ? "MNT_DETACH" : "0", UMOUNT_DISK_TIMEOUT);        
+        res = lkl_umount_timeout(disk_i->mnt, i == 0 ? MNT_DETACH : 0, UMOUNT_DISK_TIMEOUT);
         if (res < 0)
         {
             sgxlkl_warn(
@@ -1268,12 +1270,7 @@ static void* lkl_termination_thread(void* args)
         }
 
         // Root disk, no need to remove mount point ("/").
-        if (i == 0)
-            continue;
-
-        // Read-only root disk, cannot remove pre-existing mount points for
-        // secondary disks.
-        if (disks[0].ro)
+        if (strcmp(disk_i->mnt, "/") == 0)
             continue;
 
         // Not really necessary for mounts in /mnt since /mnt is
@@ -1281,12 +1278,12 @@ static void* lkl_termination_thread(void* args)
         // secondary images at any place in the root file system,
         // including persistent storage, if the root file system is
         // writeable. For simplicity, remove all mount points here.
-        res = lkl_sys_rmdir(disks[i].mnt);
+        res = lkl_sys_rmdir(disk_i->mnt);
         if (res < 0)
         {
             sgxlkl_warn(
                 "Could not remove mount point %s\n",
-                disks[i].mnt,
+                disk_i->mnt,
                 lkl_strerror(res));
         }
     }
@@ -1491,16 +1488,17 @@ void lkl_start_init()
     const char* lkl_cmdline = bootargs;
     SGXLKL_VERBOSE("kernel command line: \'%s\'\n", lkl_cmdline);
 
+    size_t num_disks = sgxlkl_enclave_state.enclave_config->num_disks;
     for (i = 0; i < num_disks; ++i)
     {
+        const sgxlkl_enclave_disk_config_t* disk_i =
+            &sgxlkl_enclave_state.enclave_config->disks[i];
         SGXLKL_VERBOSE(
-            "Disk %zu: Disk encryption: %s\n",
-            i,
-            (disks[i].enc ? "ON" : "off"));
+            "Disk %zu: Disk encryption: %s\n", i, (disk_i->key ? "ON" : "off"));
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
             i,
-            (!disks[i].ro ? "YES" : "no"));
+            (!disk_i->readonly ? "YES" : "no"));
     }
 
     /* Setup bounce buffer for virtio */

@@ -20,6 +20,7 @@
 #include <shared/sgxlkl_config.h>
 #include <shared/string_list.h>
 
+#include <shared/enclave_config.h>
 #include <shared/sgxlkl_config_json.h>
 
 // Duplicate a string
@@ -72,7 +73,7 @@ static int strndupz(char** to, const char* from, size_t n)
 
 typedef struct json_callback_data
 {
-    sgxlkl_config_t* config;
+    sgxlkl_enclave_config_t* config;
     sgxlkl_app_config_t* app_config;
     size_t buffer_sz;
     unsigned long index;
@@ -407,6 +408,17 @@ static json_result_t json_read_app_config_callback(
                 data->array_count = new_count;
             });
 
+            JPATHT("app_config.exit_status", JSON_TYPE_STRING, {
+                if (strcmp(un->string, "full"))
+                    data->app_config->exit_status = EXIT_STATUS_FULL;
+                else if (strcmp(un->string, "binary"))
+                    data->app_config->exit_status = EXIT_STATUS_BINARY;
+                else if (strcmp(un->string, "none"))
+                    data->app_config->exit_status = EXIT_STATUS_NONE;
+                else
+                    FAIL("Invalid app_config.exit_status value.\n");
+            });
+
 #define APPDISK() \
     (&((sgxlkl_app_disk_config_t*)data->array)[data->array_count - 1])
 
@@ -419,8 +431,7 @@ static json_result_t json_read_app_config_callback(
                 if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
                     FAIL("invalid length of 'mnt' for disk %d\n", i);
                 sgxlkl_app_disk_config_t* disk = APPDISK();
-                strncpy(disk->mnt, un->string, len + 1);
-                disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = 0;
+                memcpy(disk->mnt, un->string, len + 1);
                 return JSON_OK;
             }
             JBOOL("app_config.disks.readonly", &APPDISK()->readonly);
@@ -488,13 +499,14 @@ static json_result_t json_read_callback(
             {
                 size_t new_count = data->array_count + 1;
                 data->array = realloc(
-                    data->array, new_count * sizeof(enclave_disk_config_t));
+                    data->array,
+                    new_count * sizeof(sgxlkl_enclave_disk_config_t));
                 if (!data->array)
                     FAIL("out of memory\n");
-                enclave_disk_config_t* disks =
-                    (enclave_disk_config_t*)data->array;
+                sgxlkl_enclave_disk_config_t* disks =
+                    (sgxlkl_enclave_disk_config_t*)data->array;
                 for (size_t i = data->array_count; i < new_count; i++)
-                    memset(&disks[i], 0, sizeof(enclave_disk_config_t));
+                    memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
                 data->array_count = new_count;
             }
             else
@@ -523,7 +535,8 @@ static json_result_t json_read_callback(
             else if (json_match(parser, "disks", &i) == JSON_OK)
             {
                 data->config->num_disks = data->array_count;
-                data->config->disks = (enclave_disk_config_t*)data->array;
+                data->config->disks =
+                    (sgxlkl_enclave_disk_config_t*)data->array;
             }
             else if (json_match(parser, "wg.peers", &i) == JSON_OK)
             {
@@ -533,7 +546,7 @@ static json_result_t json_read_callback(
             else if (json_match(parser, "auxv", &i) == JSON_OK)
             {
                 data->auxc = data->array_count;
-                data->config->auxv = (Elf64_auxv_t*)data->array;
+                data->config->auxv = (Elf64_auxv_t**)data->array;
             }
             else if (json_match(parser, "clock_res", &i) == JSON_OK)
             {
@@ -567,16 +580,17 @@ static json_result_t json_read_callback(
             JUX64("stacksize", &data->config->stacksize);
 
 #define HOSTDISK() \
-    (&((enclave_disk_config_t*)data->array)[data->array_count - 1])
+    (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
 
             JBOOL("disks.create", &HOSTDISK()->create);
             JUX64("disks.size", &HOSTDISK()->size);
-            JBOOL("disks.enc", &HOSTDISK()->enc);
+            // JBOOL("disks.enc", &HOSTDISK()->enc);
             JPATHT("disks.mnt", JSON_TYPE_STRING, {
-                if (strlen(un->string) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
+                size_t len = strlen(un->string);
+                if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
                     FAIL("invalid length of 'mnt' for disk %d\n", i);
-                enclave_disk_config_t* disk = HOSTDISK();
-                strncpy(disk->mnt, un->string, sizeof(disk->mnt));
+                sgxlkl_enclave_disk_config_t* disk = HOSTDISK();
+                memcpy(disk->mnt, un->string, len + 1);
             });
 
             JPATHT("mmap_files", JSON_TYPE_STRING, {
@@ -692,7 +706,7 @@ done:
 
 static void flatten_stack_strings(
     const json_callback_data_t* callback_data,
-    sgxlkl_config_t* cfg,
+    sgxlkl_enclave_config_t* cfg,
     sgxlkl_app_config_t* app_cfg)
 {
     int have_run = app_cfg->run != NULL;
@@ -773,7 +787,7 @@ static void flatten_stack_strings(
 }
 
 void check_config(
-    const sgxlkl_config_t* cfg,
+    const sgxlkl_enclave_config_t* cfg,
     const sgxlkl_app_config_t* app_cfg)
 {
 #define CONFCHECK(C, M) \
@@ -788,13 +802,13 @@ void check_config(
 
 int sgxlkl_read_config_json(
     const char* from,
-    sgxlkl_config_t** to,
+    sgxlkl_enclave_config_t** to,
     sgxlkl_app_config_t** app_to)
 {
     if (!from || !to || !app_to)
         return 1;
 
-    *to = calloc(1, sizeof(sgxlkl_config_t));
+    *to = calloc(1, sizeof(sgxlkl_enclave_config_t));
     *app_to = calloc(1, sizeof(sgxlkl_app_config_t));
 
     if (!*to || !*app_to)

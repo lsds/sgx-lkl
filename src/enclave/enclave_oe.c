@@ -14,9 +14,9 @@ extern int sgxlkl_verbose;
 
 extern _Atomic(enum sgxlkl_libc_state) __libc_state;
 
-sgxlkl_config_t* sgxlkl_enclave = NULL;
+sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
 
-sgxlkl_enclave_state_t sgxlkl_enclave_state;
+sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 // We need to have a separate function here
 int __sgx_init_enclave()
@@ -110,6 +110,8 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
 {
     SGXLKL_ASSERT(config_on_host);
 
+    sgxlkl_enclave_state.disk_state = NULL;
+
     sgxlkl_verbose = 0;
 
 #ifndef OE_WITH_EXPERIMENTAL_EEID
@@ -127,23 +129,28 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
 
         if (sgxlkl_read_config_json(
                 app_config_json,
-                &sgxlkl_enclave_state.host_memory,
+                &sgxlkl_enclave_state.enclave_config,
                 &sgxlkl_enclave_state.app_config))
             return 1;
 
         // Copy shared memory
-        for (size_t i = 0; i < sgxlkl_enclave_state.host_memory->num_disks; i++)
-            sgxlkl_enclave_state.host_memory->disks[i].virtio_blk_dev_mem =
+        sgxlkl_enclave_config_shared_memory_t* shm =
+            &sgxlkl_enclave_state.enclave_config->shared_memory;
+        shm->num_virtio_blk_dev = config_on_host->num_disks;
+        shm->virtio_blk_dev_mem =
+            oe_calloc(config_on_host->num_disks, sizeof(void*));
+        for (size_t i = 0; i < config_on_host->num_disks; i++)
+            shm->virtio_blk_dev_mem[i] =
                 config_on_host->disks[i].virtio_blk_dev_mem;
 
         memcpy(
-            &sgxlkl_enclave_state.host_memory->shared_memory,
+            &sgxlkl_enclave_state.enclave_config->shared_memory,
             &config_on_host->shared_memory,
-            sizeof(sgxlkl_shared_memory_t));
+            sizeof(sgxlkl_shared_memory_t)); // CHECK: wrong type
 
         // This will be removed once shared memory and config have been
         // separated fully.
-        sgxlkl_enclave = sgxlkl_enclave_state.host_memory;
+        sgxlkl_enclave = sgxlkl_enclave_state.enclave_config;
     }
 
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this

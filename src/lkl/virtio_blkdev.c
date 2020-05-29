@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <linux/virtio_mmio.h>
 #include <string.h>
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
@@ -17,8 +18,8 @@ static void lkl_deliver_irq(uint8_t dev_id)
 {
     ticket_lock(&__vio_event_notifier_lock);
 
-    enclave_disk_config_t* disk = &sgxlkl_enclave->disks[dev_id];
-    struct virtio_dev* dev = disk->virtio_blk_dev_mem;
+    struct virtio_dev* dev =
+        sgxlkl_enclave->shared_memory.virtio_blk_dev_mem[dev_id];
 
     __sync_synchronize();
     dev->int_status |= VIRTIO_MMIO_INT_VRING;
@@ -31,12 +32,14 @@ static void lkl_deliver_irq(uint8_t dev_id)
 /*
  * Function to perform virtio device setup
  */
-void lkl_add_disks(struct enclave_disk_config* disks, size_t num_disks)
+void lkl_add_disks(sgxlkl_enclave_disk_config_t* disks, size_t num_disks)
 {
     memset(&__vio_event_notifier_lock, 0, sizeof(struct ticketlock));
     for (size_t i = 0; i < num_disks; ++i)
     {
-        struct virtio_dev* dev = disks[i].virtio_blk_dev_mem;
+        struct virtio_dev* dev =
+            sgxlkl_enclave->shared_memory.virtio_blk_dev_mem
+                [sgxlkl_enclave_state.disk_state[i].host_disk_index];
         int mmio_size = VIRTIO_MMIO_CONFIG + dev->config_len;
         lkl_virtio_dev_setup(dev, mmio_size, lkl_deliver_irq);
     }

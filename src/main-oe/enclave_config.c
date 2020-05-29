@@ -9,6 +9,8 @@
 #include "shared/sgxlkl_config.h"
 #include "shared/sgxlkl_config_json.h"
 
+#include "shared/enclave_config.h"
+
 #define FAIL sgxlkl_host_fail
 #define INFO sgxlkl_host_info
 
@@ -132,12 +134,11 @@ static json_obj_t* mk_json_disks(
         _Static_assert(
             sizeof(enclave_disk_config_t) == 352,
             "enclave_disk_config_t size has changed");
-        r->array[i] = mk_json_objects(NULL, 4);
+        r->array[i] = mk_json_objects(NULL, 3);
         r->array[i]->objects[0] = mk_json_x32("create", disks[i].create);
-        r->array[i]->objects[1] = mk_json_x64(
-            "size", disks[i].size); // Check: sometimes uninitialized?
-        r->array[i]->objects[2] = mk_json_x32("enc", disks[i].enc);
-        r->array[i]->objects[3] = mk_json_string("mnt", disks[i].mnt);
+        r->array[i]->objects[1] = mk_json_x64("size", disks[i].size);
+        // r->array[i]->objects[2] = mk_json_x32("enc", disks[i].enc);
+        r->array[i]->objects[2] = mk_json_string("mnt", disks[i].mnt);
     }
     return r;
 }

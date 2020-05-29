@@ -41,7 +41,11 @@ int find_and_mount_disks(const sgxlkl_app_config_t* app_config)
     if (num_disks == 0)
         sgxlkl_fail("bug: no disks\n");
 
-    enclave_disk_config_t disks_to_mount[num_disks];
+    sgxlkl_enclave_disk_config_t disks_to_mount[num_disks];
+
+    sgxlkl_enclave_state.disk_state =
+        oe_calloc(num_disks, sizeof(sgxlkl_enclave_disk_state_t));
+    sgxlkl_enclave_state.num_disk_state = num_disks;
 
     /* Disk config has been set through app config
      * Merge host-provided disk info (fd, capacity, mmap) */
@@ -50,12 +54,15 @@ int find_and_mount_disks(const sgxlkl_app_config_t* app_config)
         for (int i = 0; i < num_disks; i++)
         {
             sgxlkl_app_disk_config_t* app_disk = &app_config->disks[i];
-            enclave_disk_config_t* host_disk = NULL;
+            sgxlkl_enclave_disk_config_t* host_disk = NULL;
             for (int j = 0; j < sgxlkl_enclave->num_disks && !host_disk; j++)
             {
-                enclave_disk_config_t* it = &sgxlkl_enclave->disks[j];
+                sgxlkl_enclave_disk_config_t* it = &sgxlkl_enclave->disks[j];
                 if (strcmp(app_disk->mnt, it->mnt) == 0)
+                {
                     host_disk = it;
+                    sgxlkl_enclave_state.disk_state[i].host_disk_index = j;
+                }
             }
             if (!host_disk)
                 sgxlkl_fail(
@@ -65,6 +72,7 @@ int find_and_mount_disks(const sgxlkl_app_config_t* app_config)
             else
             {
                 disks_to_mount[i] = *host_disk;
+
                 if (app_disk->key_len && app_disk->key)
                 {
                     host_disk->key = malloc(app_disk->key_len);

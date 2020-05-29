@@ -1,8 +1,7 @@
-#include <enclave/oe_compat.h>
-
 #include <enclave/enclave_util.h>
 #include <shared/sgxlkl_app_config.h>
 
+#include <shared/enclave_config.h>
 #include <shared/sgxlkl_config.h>
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -112,7 +111,11 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
     cfg->net_gw4 = from->net_gw4;
     cfg->net_mask4 = from->net_mask4;
 
-    oe_strncpy_s(cfg->hostname, sizeof(cfg->hostname),from->hostname, sizeof(cfg->hostname));
+    oe_strncpy_s(
+        cfg->hostname,
+        sizeof(cfg->hostname),
+        from->hostname,
+        sizeof(cfg->hostname));
     cfg->hostnet = from->hostnet;
     cfg->tap_offload = from->tap_offload;
     cfg->tap_mtu = from->tap_mtu;
@@ -175,13 +178,13 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
 }
 
 // Free resources allocated during sgxlkl_copy_config.
-int sgxlkl_free_config(sgxlkl_config_t* config)
+int sgxlkl_free_config(sgxlkl_enclave_config_t* config)
 {
     if (config)
     {
         for (size_t i = 0; i < config->num_disks; i++)
         {
-            oe_free(config->disks[i].mmap);
+            // oe_free(config->disks[i].mmap);
             oe_free(config->disks[i].key);
             oe_free(config->disks[i].roothash);
         }
@@ -209,7 +212,7 @@ int sgxlkl_free_config(sgxlkl_config_t* config)
         oe_free(config->kernel_cmd);
         oe_free(config->sysctl);
 
-        oe_free(config->app_config_str);
+        // oe_free(config->app_config_str);
 
         oe_free(config);
     }
