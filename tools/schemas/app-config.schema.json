@@ -4,7 +4,6 @@
     "title": "SGX-LKL app config schema",
     "required": [
         "run",
-        "args",
         "disk_config"
     ],
     "additionalProperties": false,
@@ -25,7 +24,8 @@
         "cwd": {
             "type": "string",
             "description": "Absolute path to the working directory",
-            "pattern": "^/.*$"
+            "pattern": "^/.*$",
+            "default": "/"
         },
         "environment": {
             "type": "object",
@@ -33,7 +33,8 @@
             "patternProperties": {
                 "^.*$": { "type": "string" }
             },
-            "additionalProperties": false
+            "additionalProperties": false,
+            "default": {}
         },
         "exit_status": {
             "type": "string",
