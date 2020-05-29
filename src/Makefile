@@ -11,7 +11,7 @@ CROSS_COMPILE =
 RANLIB  = $(CROSS_COMPILE)ranlib
 
 CFLAGS_MAIN = -I$(OE_SDK_INCLUDES)
-CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE
+CFLAGS_ENCLAVE = ${SGXLKL_CFLAGS_ENCLAVE_EXTRA} -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE
 LINK_MAIN =
 
 GIT_VERSION = "$(shell git describe --dirty --always --tags || echo unknown)"
