@@ -1,7 +1,7 @@
 + Currently xattr is not enabled while mounting root file system. Patch is
 + to mount root file system with xattr enabled and then use it for the test.
 diff --git a/testcases/kernel/syscalls/flistxattr/flistxattr01.c b/testcases/kernel/syscalls/flistxattr/flistxattr01.c
-index 98a6fa254..a5b8473a1 100644
+index 98a6fa254..599f3cc56 100644
 --- a/testcases/kernel/syscalls/flistxattr/flistxattr01.c
 +++ b/testcases/kernel/syscalls/flistxattr/flistxattr01.c
 @@ -13,7 +13,7 @@
@@ -31,9 +31,9 @@ index 98a6fa254..a5b8473a1 100644
  static void setup(void)
  {
 -	fd = SAFE_OPEN("testfile", O_RDWR | O_CREAT, 0644);
-+        rmdir(MNTPOINT);
-+        SAFE_MKDIR(MNTPOINT, DIR_MODE);
-+        SAFE_MOUNT(device, MNTPOINT, fs_type, 0, "user_xattr");
++	rmdir(MNTPOINT);
++	SAFE_MKDIR(MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(device, MNTPOINT, fs_type, 0, "user_xattr");
 +
 +	fd = SAFE_OPEN(TESTFILE, O_RDWR | O_CREAT, 0644);
  
@@ -43,9 +43,9 @@ index 98a6fa254..a5b8473a1 100644
  {
  	if (fd > 0)
  		SAFE_CLOSE(fd);
-+        remove(TESTFILE);
-+        SAFE_UMOUNT(MNTPOINT);
-+        SAFE_RMDIR(MNTPOINT);
++	remove(TESTFILE);
++	SAFE_UMOUNT(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
 +
  }
  
