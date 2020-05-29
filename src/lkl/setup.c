@@ -309,6 +309,35 @@ fail:
     return err;
 }
 
+static int lkl_mount_overlay_tmpfs(
+    const char* mnt_point)
+{
+    int err = lkl_sys_mount("tmpfs", mnt_point, "tmpfs", 0, "mode=0777");
+    if (err != 0)
+    {
+        sgxlkl_fail("lkl_sys_mount(tmpfs): %s\n", lkl_strerror(err));
+    }
+}
+
+static int lkl_mount_overlayfs(
+    const char* lower_dir,
+    const char* upper_dir,
+    const char* work_dir,
+    const char* mnt_point)
+{
+    char opts[200];
+    snprintf(
+            opts,
+            sizeof(opts),
+            "lowerdir=%s,upperdir=%s,workdir=%s",
+            lower_dir, upper_dir, work_dir);
+    int err = lkl_sys_mount("overlay", mnt_point, "overlay", 0, opts);
+    if (err != 0)
+    {
+        sgxlkl_fail("lkl_sys_mount(overlayfs): %s\n", lkl_strerror(err));
+    }
+}
+
 struct lkl_crypt_device
 {
     char* disk_path;
@@ -755,9 +784,15 @@ static void lkl_mount_disk(
 
 static void lkl_mount_root_disk(struct enclave_disk_config* disk)
 {
+    bool use_overlay = false;
     int err = 0;
-    char mnt_point[] = {"/mnt/vda"};
-    char new_dev_str[] = {"/mnt/vda/dev/"};
+    const char mnt_point_original[] = {"/mnt/vda"};
+    const char mnt_point_overlay[] = {"/mnt/vda-overlay"};
+    const char mnt_point_overlay_upper[] = { "/mnt/vda-overlay-upper" };
+    const char overlay_upper_dir[] = { "/mnt/vda-overlay-upper/upper" };
+    const char overlay_work_dir[] = { "/mnt/vda-overlay-upper/work" };
+    const char* mnt_point = { use_overlay ? mnt_point_overlay : mnt_point_original };
+    const char* new_dev_str = { use_overlay ? "/mnt/vda-overlay/dev/" : "/mnt/vda/dev/" };
 
     // If any byte of disk_dm_verity_root_hash is not 0xff, the verification
     // is run to compare disk_dm_verity_root_hash against disk->roothash.
@@ -785,7 +820,21 @@ static void lkl_mount_root_disk(struct enclave_disk_config* disk)
         }
     }
 
-    lkl_mount_disk(disk, 'a', mnt_point);
+    lkl_mount_disk(disk, 'a', mnt_point_original);
+
+    if (use_overlay)
+    {
+        lkl_prepare_rootfs(mnt_point_overlay_upper, 0700);
+        lkl_mount_overlay_tmpfs(mnt_point_overlay_upper);
+        lkl_prepare_rootfs(overlay_upper_dir, 0700);
+        lkl_prepare_rootfs(overlay_work_dir, 0700);
+        lkl_prepare_rootfs(mnt_point_overlay, 0700);
+        lkl_mount_overlayfs(
+            mnt_point_original,
+            overlay_upper_dir,
+            overlay_work_dir,
+            mnt_point_overlay);
+    }
 
     /* set up /dev in the new root */
     lkl_prepare_rootfs(new_dev_str, 0700);
