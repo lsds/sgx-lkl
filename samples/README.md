@@ -14,10 +14,10 @@
     
     b. [encrypted](containers/encrypterd) <br>
         Running an Encrypted and Integrity Protected Confidential Container with SGX-LKL. This sample created an encrypted image using a AES cipher and creates keys. You can run python applications in the container using `dm-integrity` and `dm-verity`
-        Prints hello world from an encrypted confidential container
-        FAIL:
-        run hw/sw variety -  success/problem changing owners while mounting
-        run hw/sw integrity - problem activating crypto disk 
+        Prints hello world from an encrypted confidential container <br>
+        FAIL: <br>
+        run hw/sw variety -  success/problem changing owners while mounting <br>
+        run hw/sw integrity - problem activating crypto disk
 
     c. [redis](containers/redis) <br>
         Build redis file system within SGX-LKL and experiment with the redis-cli commands in this enclave 
@@ -40,7 +40,7 @@
 2. ml
    
     a. [openvino](ml/openvino) <br>
-        Use openvino deep-learning optimization tools to perform image classification using [SqueezeNet](https://arxiv.org/abs/1602.07360) topology (`squeezenet1.1`). For more information look at [this](ml/openvino/app/public_models/squeezenet1.md)
+        Use openvino deep-learning optimization tools to perform image classification using [SqueezeNet](https://arxiv.org/abs/1602.07360) topology (`squeezenet1.1`). For more information look at [this](ml/openvino/app/public_models/squeezenet1.md) <br>
         FAIL: Could not build
 
     b. [pytorch](ml/pytorch) <br>
