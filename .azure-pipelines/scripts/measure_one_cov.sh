@@ -13,24 +13,11 @@ fi
 # Get the timeout from the test module
 DEFAULT_TIMEOUT=300
 timeout=$(make gettimeout 2> /dev/null)
-[[ $? != 0 ]] && timeout=$DEFAULT_TIMEOUT
+[[ $? -ne 0 ]] && timeout=$DEFAULT_TIMEOUT
 echo "Execution timeout: $timeout"
 
 timeout --kill-after=$(($timeout + 15))  $timeout make run-hw
-make_exit=$?
-
-if [ $make_exit != 0 ]; then
-    echo "ERROR: run-hw failed with error code $make_exit"
-    exit $make_exit
-fi
-
 timeout --kill-after=$(($timeout + 15))  $timeout make run-sw
-make_exit=$?
-
-if [ $make_exit != 0 ]; then
-    echo "ERROR: run-sw failed with error code $make_exit"
-    exit $make_exit
-fi
 
 if ls *.img 1> /dev/null 2>&1; then
     mkdir img
@@ -41,8 +28,8 @@ if ls *.img 1> /dev/null 2>&1; then
     
     # Gather all necessary files for lcov
     cp -r $SGXLKL_ROOT/src/* $SGXLKL_ROOT/cov
-    sudo cp -r img/home/xuejun/sgx-lkl/build_musl $SGXLKL_ROOT/cov
-    sudo cp -r img/home/xuejun/sgx-lkl/sgx-lkl-musl $SGXLKL_ROOT/cov
+    sudo cp -r img$SGXLKL_ROOT/build_musl $SGXLKL_ROOT/cov
+    sudo cp -r img$SGXLKL_ROOT/sgx-lkl-musl $SGXLKL_ROOT/cov
     sudo cp -r $SGXLKL_ROOT/build_musl $SGXLKL_ROOT/cov
     sudo cp -r $SGXLKL_ROOT/sgx-lkl-musl $SGXLKL_ROOT/cov
     
