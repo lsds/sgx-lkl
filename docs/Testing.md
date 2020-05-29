@@ -108,6 +108,17 @@ mkdir mountdir
 # Mount image to this folder 
 sudo mount -t ext4 -o loop sgxlkl-miniroot-fs.img  mountdir
 
-# Navigate image folders
+# You will need admin permission to see the content of monted image
+# Below command will change your current folder to /root
+# Change your directory back to sgx-lkl root folder after running this command
+sudo su - 
+
+# Now you can see image folders
 cd mountdir
+
+# LTP test cases are available under ltp/testcases/kernel/syscalls
+cd ltp/testcases/kernel/syscalls
+
+# Exit from admin/sudo mode
+exit
 ```
