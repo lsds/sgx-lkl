@@ -22,6 +22,7 @@ use with sgx-musl hosting redis.
 
         Prints hello world from an encrypted confidential container
 
+        FAIL:
         run hw/sw variety -  success/problem changing owners while mounting
         run hw/sw integrity - problem activating crypto disk 
 
@@ -46,8 +47,12 @@ use with sgx-musl hosting redis.
 
 2. ml
    
-    a. openvino
+    a. [openvino](ml/openvino)
+        Use openvino deep-learning optimization tools to perform image classification using [SqueezeNet](https://arxiv.org/abs/1602.07360) topology (`squeezenet1.1`). For more information look at [this](ml/openvino/app/public_models/squeezenet1.md)
+        FAIL: Could not build
 
-    b. pytorch 
+    b. [pytorch](ml/pytorch)
+        Use pytorch open source machine learning library to run [this](ml/pytorch/app/sample.py) sample within SGX-LKL. It uses the `nn` package which modularizes a neural network and implements a two-layer network. 
 
-    c. tensorflow
+    c. [tensorflow](ml/tensorflow)
+    FAIL: config file missing 
