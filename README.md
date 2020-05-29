@@ -68,6 +68,17 @@ echo "enable_fsgsbase" | sudo tee -a /etc/modules
 sudo modprobe enable_fsgsbase
 ```
 
+To make the SGX-LKL commands available from any directory, add an entry to 
+the `PATH` environment variable:
+```
+PATH="$PATH:/opt/sgx-lkl/bin"
+```
+
+Finally, setup the host environment by running:
+```
+sgx-lkl-setup
+```
+
 B. Building SGX-LKL-OE from source
 ----------------------------------
 
@@ -154,9 +165,9 @@ To build SGX-LKL in release mode, run:
     make RELEASE=true
 ```
 
-2. To install SGX-LKL on the host system, use the following command:
+4. To install SGX-LKL on the host system, use the following command:
 ```
-sudo make install
+sudo -E make install
 ```
 
 SGX-LKL is installed under `/opt/sgx-lkl` by default. To change the install prefix, 
@@ -173,13 +184,13 @@ sudo make uninstall
 This removes SGX-LKL specific artefacts from the installation directory as
 well as cached artefacts of `sgx-lkl-disk` (stored in `~/.cache/sgxlkl`).
 
-3. To make the SGX-LKL commands available from any directory, add an entry to 
+5. To make the SGX-LKL commands available from any directory, add an entry to 
 the `PATH` environment variable:
 ```
 PATH="$PATH:/opt/sgx-lkl/bin"
 ```
 
-4. Finally, setup the host environment by running:
+6. Finally, setup the host environment by running:
 ```
 sgx-lkl-setup
 ```
