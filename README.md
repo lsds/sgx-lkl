@@ -167,6 +167,7 @@ To build SGX-LKL in release mode, run:
 
 4. To install SGX-LKL on the host system, use the following command:
 ```
+source /opt/openenclave/share/openenclave/openenclaverc
 sudo -E make install
 ```
 
