@@ -7,8 +7,8 @@
 	url = https://github.com/lsds/musl.git
 [submodule "sgx-lkl-musl"]
 	path = sgx-lkl-musl
-	url = https://github.com/lsds/sgx-lkl-musl.git
-	branch = oe_port
+	url = https://github.com/vtikoo/sgx-lkl-musl.git
+	branch = move-lthread-out
 [submodule "openenclave"]
 	path = openenclave
 	url = https://github.com/openenclave/openenclave.git
