@@ -56,6 +56,12 @@ run-hw-single: $(ROOT_FS)
 run-sw-single: $(ROOT_FS)
 	${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
 
+run-hw-single-gdb: $(ROOT_FS)
+	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
+
+run-sw-single-gdb: $(ROOT_FS)
+	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
+
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true
 	@test -f $(ROOT_FS) && rm $(ROOT_FS) || true
