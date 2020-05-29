@@ -2,7 +2,7 @@ SGX-LKL-OE Python and NumPy Sample Application
 ==============================================
 
 In this sample you will run a simple Python application in SGX-LKL and get used to the available tools.
-The aim of this sample is to verify that an application works in SGX-LKL without considering more advanced topics like encryption, attestation, networking, and deployment via Docker.
+The aim of this sample is to verify that the Python application works in SGX-LKL without considering more advanced topics like encryption, attestation, networking, and deployment via Docker.
 
 The Python application is packaged as a Docker image. Let's first verify that it works outside of SGX-LKL:
 
