@@ -5,11 +5,6 @@
    Cross-compile a C application for running with SGX-LKL
    Simple hello world C program run in sgx-lkl
     
-    b.dynamic_loading:
-        Shared library test 
-        A program calls a function from another file within a secure enclave 
-        Shared library is compiled into a shared object and the program into a binary. They are both transferred into a folder within the new image created and the folder is mounted
-    
 2. containers
    
     a. [alpine](containers/alpine)
