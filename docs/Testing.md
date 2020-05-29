@@ -102,13 +102,13 @@ SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=0 SGXLKL_TRACE_LKL_SYSCALL=1 SGXLKL_TRACE
 ## Mounting SGX-LKL image to look at testcases source code
 
 ```
-# Create a directory under [tests/ltp/ltp-batch1](../tests/ltp/ltp-batch1)
+# Create a directory under tests/ltp/ltp-batch1
 mkdir mountdir
 
 # Mount image to this folder 
 sudo mount -t ext4 -o loop sgxlkl-miniroot-fs.img  mountdir
 
-# You will need admin permission to see the content of monted image
+# You will need admin permission to see the content of mounted image
 # Below command will change your current folder to /root
 # Change your directory back to sgx-lkl root folder after running this command
 sudo su - 
