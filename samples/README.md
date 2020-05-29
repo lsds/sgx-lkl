@@ -14,15 +14,12 @@
     
     b. [encrypted](containers/encrypterd) <br>
         Running an Encrypted and Integrity Protected Confidential Container with SGX-LKL. This sample created an encrypted image using a AES cipher and creates keys. You can run python applications in the container using `dm-integrity` and `dm-verity`
-
         Prints hello world from an encrypted confidential container
-
         FAIL:
         run hw/sw variety -  success/problem changing owners while mounting
         run hw/sw integrity - problem activating crypto disk 
 
     c. [redis](containers/redis) <br>
-
         Build redis file system within SGX-LKL and experiment with the redis-cli commands in this enclave 
 
 1. languages
@@ -34,8 +31,8 @@
         Run a hello-world program written in java from within SGX-LKL.
 
     c. [openmp](languages/openmp) <br>
-         FAIL: Encountered an illegal instruction inside enclave (opcode=0x50f)
-         (as soon as it says running 8 threads)
+        FAIL: Encountered an illegal instruction inside enclave (opcode=0x50f)
+        (as soon as it says running 8 threads)
 
     d. [python](languages/python) <br>
         Run a small python application within SGX-LKL. Uses pythons numpy to display numbers from 0 to 9999. Uses alpine as the root image.
