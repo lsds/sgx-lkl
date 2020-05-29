@@ -257,10 +257,10 @@
 /ltp/testcases/kernel/syscalls/fsetxattr/fsetxattr01
 /ltp/testcases/kernel/syscalls/fsetxattr/fsetxattr02
 #/ltp/testcases/kernel/syscalls/fstat/fstat02
-/ltp/testcases/kernel/syscalls/fstat/fstat03
+#/ltp/testcases/kernel/syscalls/fstat/fstat03
 #/ltp/testcases/kernel/syscalls/fstatat/fstatat01
 #/ltp/testcases/kernel/syscalls/fstatfs/fstatfs01
-/ltp/testcases/kernel/syscalls/fstatfs/fstatfs02
+#/ltp/testcases/kernel/syscalls/fstatfs/fstatfs02
 #/ltp/testcases/kernel/syscalls/fsync/fsync01
 #/ltp/testcases/kernel/syscalls/fsync/fsync02
 #/ltp/testcases/kernel/syscalls/fsync/fsync03
