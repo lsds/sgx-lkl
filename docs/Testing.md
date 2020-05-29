@@ -4,51 +4,8 @@ SGX-LKL Testing
 How to run LTP tests
 --------------------
 
-To be able to run one or all LTP tests, we must first build sgx-lkl. Below are the step by step instructions to run all LTP tests or one LTP test locally.
-## Build and install SGX-LKL
+To be able to run one or all LTP tests, we must first build and install sgx-lkl following these [instructions](../README.md).
 
-### Clone the repo and use oe_port branch
-
-```
-git clone git@github.com:lsds/sgx-lkl.git
-cd sgx-lkl
-git checkout oe_port
-```
-
-###  Checkout the submodules
-
-`.azure-pipelines/scripts/checkout_submodules.sh`
-
-###  Install prerequisites
-
-`.azure-pipelines/scripts/install_prerequisites.sh`
-
-###  Install Open Enclave SDK
-
-```
-.azure-pipelines/scripts/install_openenclave.sh
-source /opt/openenclave/share/openenclave/openenclaverc
-```
-
-### Build SGX-LKL
-
-`DEBUG=true make`
-
-### Install SGX-LKL
-
-```
-source /opt/openenclave/share/openenclave/openenclaverc
-sudo -E make install
-export PATH=$PATH:/opt/sgx-lkl/bin
-```
-
-### Run sgx-lkl-setup
-
-```
-/opt/sgx-lkl/bin/sgx-lkl-setup
-
-# sgx-lkl-setup should also work due to $PATH command above  
-```
 
 ## Running all LTP tests
 
@@ -57,7 +14,7 @@ LTP test batch folders are in [`tests/ltp`](../tests/ltp)
 You need to go into the batch folder that you want to run tests, for example [`tests/ltp/ltp-batch1`](../tests/ltp/ltp-batch1)
 
 ```
-DEBUG=true make clean
+make clean
 DEBUG=true make
 make run
 
@@ -73,27 +30,21 @@ make run-sw
 
 ```
 # This will build and create an image but will not run any test. This image is required to run any LTP test
-rm sgxlkl-miniroot-fs.img
+make clean
 make sgxlkl-miniroot-fs.img
 
 # /opt/sgx-lkl/bin/ prefix is optional for commands sgx-lkl-run-oe and sgx-lkl-gdb below if added to $PATH
 
 # Running single test without gdb:
-SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=0 
-	/opt/sgx-lkl/bin/sgx-lkl-run-oe --hw-debug 
-	sgxlkl-miniroot-fs.img /ltp/testcases/kernel/syscalls/chmod/chmod06
-
-# You can also use this command to run one test:
 make run-hw-single test=/ltp/testcases/kernel/syscalls/chmod/chmod06
 make run-sw-single test=/ltp/testcases/kernel/syscalls/chmod/chmod06
 
 # Running single test with gdb:
-SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 /opt/sgx-lkl/bin/sgx-lkl-gdb --args 
-	/opt/sgx-lkl/bin/sgx-lkl-run-oe --hw-debug 
-	sgxlkl-miniroot-fs.img /ltp/testcases/kernel/syscalls/sysfs/sysfs06
+make run-hw-single-gdb test=/ltp/testcases/kernel/syscalls/chmod/chmod06
+make run-sw-single-gdb test=/ltp/testcases/kernel/syscalls/chmod/chmod06
 
 # Running single test with gdb with more trace details:
-SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=0 SGXLKL_TRACE_LKL_SYSCALL=1 SGXLKL_TRACE_MMAP=1
+SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_LKL_SYSCALL=1 SGXLKL_TRACE_MMAP=1
 	/opt/sgx-lkl/bin/sgx-lkl-gdb --args
 	/opt/sgx-lkl/bin/sgx-lkl-run-oe --hw-debug
 	sgxlkl-miniroot-fs.img /ltp/testcases/kernel/syscalls/eventfd/eventfd01
@@ -114,7 +65,7 @@ sudo mount -t ext4 -o loop sgxlkl-miniroot-fs.img  mountdir
 sudo su - 
 
 # Now you can see image folders
-cd mountdir
+cd tests/ltp/ltp-batch1/mountdir
 
 # LTP test cases are available under ltp/testcases/kernel/syscalls
 cd ltp/testcases/kernel/syscalls
