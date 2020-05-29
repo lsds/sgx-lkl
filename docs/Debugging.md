@@ -24,17 +24,21 @@ Debugging enclave code (SGX-LKL as well as the application code) is only possibl
 
 ### Encrypted disks
 
-TODO add note on how to handle situations when disk keys are retrieved from a remote service that would not release them to debug/non-release builds of SGX-LKL (either re-create disks unencrypted, or, if available locally, hard-code key in app config for local debugging)
+TODO add note on how to handle situations when disk keys are retrieved from a remote service  (either re-create disks unencrypted, re-create disks encrypted but with debug-enabled key release policy (closest to production), or hard-code key in app config)
 
-### Confidential Containers
+### Application type
 
-The instructions below assume that disk images and configuration are available outside of a Confidential Container. Debugging of Confidential Containers (via Docker) is not supported currently.
+Debugging of non-native applications like Python, Java or .NET applications is currently not possible.
+
+### Docker deployment container
+
+The instructions below assume that disk images and configuration are available outside of a Docker deployment container. Debugging of such deployment containers is not supported currently as they do not contain the necessary debugging tools.
 
 ## Option A: Debugging with an SGX-LKL installation
 
 The instructions below assume that SGX-LKL was installed in `/opt/sgx-lkl`.
 
-To debug an application, invoke `sgx-lkl-gdb` as follows:
+To debug an application, prefix the regular `sgx-lkl-run-oe` command with `sgx-lkl-gdb --args`, for example:
 ```
 /opt/sgx-lkl/bin/sgx-lkl-gdb --args /opt/sgx-lkl/bin/sgx-lkl-run-oe --hw-debug root_disk.img /app
 ```
@@ -44,7 +48,7 @@ See `sgx-lkl-run-oe --help` for how to run using host and app config files.
 
 This assumes you want to debug SGX-LKL directly from the source tree without installing it.
 
-To debug an application, invoke `sgx-lkl-gdb` as follows:
+To debug an application, prefix the regular `sgx-lkl-run-oe` command with `sgx-lkl-gdb --args`, for example:
 ```
 tools/gdb/sgx-lkl-gdb --args build/sgx-lkl-run-oe --hw-debug root_disk.img /app
 ```
@@ -60,7 +64,7 @@ Tip: Use the "Visual Studio Code Remote - SSH" extension to debug on a remote VM
 
 ### Run mode
 
-Apart from obvious differences (security, performance, ...) there are subtle differences between SGX-LKL software mode (`--sw-debug`) and hardware mode (`--hw-debug`).
+When using `--sw-debug` then SGX hardware is simulated. However, not all aspects are simulated, for example, certain CPU instructions are invalid within SGX, but would execute fine in simulation mode.
 If possible, debugging should be done in hardware mode to be as close to a production environment as possible.
 
 ### Ignore SIGILL
