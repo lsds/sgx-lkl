@@ -10,7 +10,7 @@ The Python application is packaged as a Docker image. Let's first verify that it
 docker build -t pythonapp .
 docker run --rm pythonapp
 # Output:
-# Confidential Computing using Intel SGX in Python with NumPy... 
+# Confidential Computing using SGX-LKL in Python with NumPy... 
 # [[   0    1    2 ...   97   98   99]
 #  [ 100  101  102 ...  197  198  199]
 #  [ 200  201  202 ...  297  298  299]
