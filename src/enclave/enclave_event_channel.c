@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <atomic.h>
 #include <string.h>
 
@@ -112,7 +111,7 @@ static void vio_enclave_process_host_event(uint8_t* param)
                     __ATOMIC_SEQ_CST))
             {
                 vio_wait_for_host_event(dev_id, evt_chn, new);
-                assert(new & 1);
+                SGXLKL_ASSERT(new & 1);
 
                 /* clear the waiting bit to process all the request queued up */
                 cur = __atomic_add_fetch(evt_chn, -1, __ATOMIC_SEQ_CST);
@@ -144,7 +143,7 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
-    evt_chn_lock = (struct ticketlock**)calloc(
+    evt_chn_lock = (struct ticketlock**)oe_calloc(
         evt_channel_num, sizeof(struct ticketlock*));
 
     vio_tasks =
@@ -154,7 +153,7 @@ void initialize_enclave_event_channel(
     for (int i = 0; i < evt_channel_num; i++)
     {
         evt_chn_lock[i] =
-            (struct ticketlock*)calloc(1, sizeof(struct ticketlock));
+            (struct ticketlock*)oe_calloc(1, sizeof(struct ticketlock));
         memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
 
         dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));

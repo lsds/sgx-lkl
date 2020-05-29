@@ -44,6 +44,20 @@ static uint32_t to_futex_key(int* uaddr)
     return (uint32_t)uaddr;
 }
 
+/**
+ * If a thread is being exited while blocked, remove it from the futex list.
+ */
+void futex_dequeue(struct lthread *lt)
+{
+    a_barrier();
+
+    ticket_lock(&futex_q_lock);
+
+    SLIST_REMOVE(&futex_queues, &lt->fq, futex_q, entries);
+
+    ticket_unlock(&futex_q_lock);
+}
+
 /* called on a scheduler tick to check for timed out, sleeping futexes */
 void futex_tick()
 {

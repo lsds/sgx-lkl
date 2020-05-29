@@ -19,10 +19,12 @@
 #include "lkl/setup.h"
 
 #include "enclave/enclave_timer.h"
+#include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
+#include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/internal/print.h"
 #include "syscall.h"
 
@@ -189,7 +191,7 @@ static struct lkl_sem* sem_alloc(int count)
 {
     struct lkl_sem* sem;
 
-    sem = calloc(1, sizeof(*sem));
+    sem = oe_calloc(1, sizeof(*sem));
     if (!sem)
         return NULL;
 
@@ -200,7 +202,7 @@ static struct lkl_sem* sem_alloc(int count)
 
 static void sem_free(struct lkl_sem* sem)
 {
-    free(sem);
+    oe_free(sem);
 }
 
 static void sem_up(struct lkl_sem* sem)
@@ -237,7 +239,7 @@ static void sem_down(struct lkl_sem* sem)
 
 static struct lkl_mutex* mutex_alloc(int recursive)
 {
-    struct lkl_mutex* mutex = calloc(1, sizeof(struct lkl_mutex));
+    struct lkl_mutex* mutex = oe_calloc(1, sizeof(struct lkl_mutex));
 
     if (!mutex)
         return NULL;
@@ -309,7 +311,7 @@ static void mutex_unlock(struct lkl_mutex* mutex)
 
 static void mutex_free(struct lkl_mutex* _mutex)
 {
-    free(_mutex);
+    oe_free(_mutex);
 }
 
 static lkl_thread_t thread_create(void (*fn)(void*), void* arg)
@@ -323,6 +325,66 @@ static lkl_thread_t thread_create(void (*fn)(void*), void* arg)
     LKL_TRACE("created (thread=%p)\n", thread);
     return (lkl_thread_t)thread;
 }
+
+/**
+ * Create an lthread to back a Linux task, created with a clone-family call
+ * into the kernel.
+ */
+static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl_tls_key* task_key, void* task_value)
+{
+    struct lthread* thread;
+    // Create the thread.  The lthread layer will set up the threading data
+    // structures and prepare the lthread to run with the specified instruction
+    // and stack addresses.
+    int ret = lthread_create_primitive(&thread, pc, sp, tls);
+    if (ret)
+    {
+        sgxlkl_fail("lthread_create failed\n");
+    }
+    // Store the host task pointer.  LKL normally sets this lazily the first
+    // time that a thread calls into the LKL.  Threads created via this
+    // mechanism begin life in the kernel and so need to be associated with the
+    // kernel task that created them.
+    lthread_setspecific_remote(thread, task_key->key, task_value);
+    // Detach the thread.  Any join operations will be handled by LKL.
+    lthread_detach2(thread);
+    // Mark the thread as runnable.  This must be done *after* the
+    // `lthread_setspecific_remote` call, to ensure that the thread does not
+    // run while we are modifying its TLS.
+    __scheduler_enqueue(thread);
+    return (lkl_thread_t)thread;
+}
+
+/**
+ * Destroy the lthread backing a host task created with a clone-family call.
+ * This is called after an `exit` system call.  The system call does not return
+ * and the lthread backing the LKL thread that issued the task will not be
+ * invoked again.
+ */
+static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
+{
+    // Somewhat arbitrary size of the stack for teardown.  This must be big
+    // enough that `host_thread_exit` can run and call any remaining TLS
+    // destructors.  This can be removed once there is a clean mechanism for
+    // destroying a not-running lthread without scheduling it.
+    struct lthread *thr = (struct lthread*)tid;
+    SGXLKL_ASSERT(thr->lt_join == NULL);
+    // The thread is currently blocking on the LKL scheduler semaphore, remove
+    // it from the sleeping list.
+    _lthread_desched_sleep(thr);
+    // Ensure that the enclave futex does not wake this thread up.  This thread
+    // is currently sleeping on its scheduler semaphore.  If another semaphore
+    // is allocated at this address this could get a spurious wakeup (which
+    // would then dereference memory in the thread structure, which may also
+    // have been reallocated and can corrupt the futex wait queue).
+    futex_dequeue(thr);
+    // Delete its task reference in TLS.  Without this, the thread's destructor
+    // will call back into LKL and deadlock.
+    lthread_setspecific_remote(thr, task_key->key, NULL);
+    // Delete the thread.
+    _lthread_free(thr);
+}
+
 
 static void thread_detach(void)
 {
@@ -360,11 +422,11 @@ static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 static struct lkl_tls_key* tls_alloc(void (*destructor)(void*))
 {
     LKL_TRACE("enter (destructor=%p)\n", destructor);
-    struct lkl_tls_key* ret = malloc(sizeof(struct lkl_tls_key));
+    struct lkl_tls_key* ret = oe_malloc(sizeof(struct lkl_tls_key));
 
     if (WARN_PTHREAD(lthread_key_create(&ret->key, destructor)))
     {
-        free(ret);
+        oe_free(ret);
         return NULL;
     }
     return ret;
@@ -374,7 +436,7 @@ static void tls_free(struct lkl_tls_key* key)
 {
     LKL_TRACE("enter (key=%p)\n", key);
     WARN_PTHREAD(lthread_key_delete(key->key));
-    free(key);
+    oe_free(key);
 }
 
 static int tls_set(struct lkl_tls_key* key, void* data)
@@ -476,7 +538,7 @@ static void* timer_callback(void* _timer)
 
 static void* timer_alloc(void (*fn)(void*), void* arg)
 {
-    sgxlkl_timer* timer = calloc(sizeof(*timer), 1);
+    sgxlkl_timer* timer = oe_calloc(sizeof(*timer), 1);
 
     if (timer == NULL)
     {
@@ -573,7 +635,7 @@ static void timer_free(void* _timer)
         mutex_unlock(&timer->mtx);
     }
 
-    free(_timer);
+    oe_free(_timer);
 }
 
 static long _gettid(void)
@@ -581,10 +643,60 @@ static long _gettid(void)
     return (long)lthread_self();
 }
 
+/**
+ * The allocation for kernel memory.
+ */
+static void *kernel_mem;
+/**
+ * The size of kernel heap area.
+ */
+static size_t kernel_mem_size;
+
+/**
+ * Allocate memory for LKL.  This is used in precisely two places as we build
+ * LKL:
+ *
+ * 1. Allocating the kernel's memory.
+ * 2. Allocating buffers for lkl_vprintf to use printing debug messages.
+ *
+ * We allocate the former from the `enclave_mmap` space, but smaller buffers
+ * from the OE heap.
+ */
+static void *host_malloc(size_t size)
+{
+	// If we're allocating over 1MB, we're probably allocating the kernel heap.
+	// Pull this out of the enclave mmap area: there isn't enough space in the
+	// OE heap for it.
+	if (size > 1024*1024)
+	{
+		SGXLKL_ASSERT(kernel_mem == NULL);
+		kernel_mem = enclave_mmap(0, size, 0, PROT_READ | PROT_WRITE, 0);
+		kernel_mem_size = size;
+		return kernel_mem;
+	}
+	return oe_malloc(size);
+}
+
+/**
+ * Free memory allocated with `host_malloc`.
+ */
+static void host_free(void *ptr)
+{
+	if (ptr == kernel_mem)
+	{
+		enclave_munmap(kernel_mem, kernel_mem_size);
+		kernel_mem = 0;
+		kernel_mem_size = 0;
+	}
+	oe_free(ptr);
+}
+
 struct lkl_host_operations sgxlkl_host_ops = {
     .panic = panic,
     .terminate = terminate,
     .thread_create = thread_create,
+    .thread_create_host = thread_create_host,
+    .thread_destroy_host = thread_destroy_host,
     .thread_detach = thread_detach,
     .thread_exit = thread_exit,
     .thread_join = thread_join,
@@ -607,8 +719,8 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .timer_set_oneshot = timer_set_oneshot,
     .timer_free = timer_free,
     .print = print,
-    .mem_alloc = malloc,
-    .mem_free = free,
+    .mem_alloc = host_malloc,
+    .mem_free = host_free,
     .ioremap = lkl_ioremap,
     .iomem_access = lkl_iomem_access,
     .virtio_devices = lkl_virtio_devs,

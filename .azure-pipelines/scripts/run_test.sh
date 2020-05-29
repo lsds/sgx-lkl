@@ -21,7 +21,7 @@ fi
 tests_dir=$SGXLKL_ROOT/tests
 test_name="$(realpath --relative-to="$tests_dir" "$(pwd)")"
 test_name="${test_name//\//-}"
-test_name+="-($build_mode)-($run_mode)"
+test_name+="-($build_mode)-($run_mode)-($SGXLKL_ETHREADS-ethreads)"
 test_class=$(realpath --relative-to="$tests_dir" "$(pwd)/..")
 test_suite="sgx-lkl-oe"
 

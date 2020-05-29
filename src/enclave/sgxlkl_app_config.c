@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <json-c/json_object.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "enclave/enclave_util.h"
@@ -10,7 +9,9 @@
 #include "shared/json_util.h"
 
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestdio.h"
 #include "openenclave/corelibc/oestring.h"
+#include "openenclave/internal/safecrt.h"
 
 static const char* STRING_KEYS[] = {"run",
                                     "cwd",
@@ -28,24 +29,23 @@ static int assert_entry_type(const char* key, struct json_object* value)
 {
     int err = 0;
     for (int i = 0; i < sizeof(STRING_KEYS) / sizeof(STRING_KEYS[0]); i++)
-        if (!strcmp(STRING_KEYS[i], key))
+        if (!oe_strcmp(STRING_KEYS[i], key))
             err = json_object_get_type(value) != json_type_string;
 
     for (int i = 0; i < sizeof(BOOL_KEYS) / sizeof(BOOL_KEYS[0]); i++)
-        if (!strcmp(BOOL_KEYS[i], key))
+        if (!oe_strcmp(BOOL_KEYS[i], key))
             err = json_object_get_type(value) != json_type_boolean;
 
     for (int i = 0; i < sizeof(INT_KEYS) / sizeof(INT_KEYS[0]); i++)
-        if (!strcmp(INT_KEYS[i], key))
+        if (!oe_strcmp(INT_KEYS[i], key))
             err = json_object_get_type(value) != json_type_int;
 
     for (int i = 0; i < sizeof(ARRAY_KEYS) / sizeof(ARRAY_KEYS[0]); i++)
-        if (!strcmp(ARRAY_KEYS[i], key))
+        if (!oe_strcmp(ARRAY_KEYS[i], key))
             err = json_object_get_type(value) != json_type_array;
 
     if (err)
-        fprintf(
-            stderr,
+        sgxlkl_fail(
             "Type mismatch for '%s' configuration.\n",
             key); // TODO pass back to client.
 
@@ -58,7 +58,7 @@ static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
         return 1;
 
     config->argc = json_object_array_length(args_val) + 1; // Reserve argv[0]
-    config->argv = malloc(
+    config->argv = oe_malloc(
         sizeof(char*) *
         (config->argc +
          1)); // Allocate space for argv[] + NULL element at argv[argc]
@@ -68,7 +68,7 @@ static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
         json_object* val = json_object_array_get_idx(args_val, i - 1);
         if (json_object_get_type(val) != json_type_string)
             return 1;
-        config->argv[i] = strdup(json_object_get_string(val));
+        config->argv[i] = oe_strdup(json_object_get_string(val));
     }
 
     config->argv[config->argc] = NULL;
@@ -82,7 +82,7 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
         return 1;
 
     int env_len = json_object_object_length(env_val);
-    config->envp = malloc(sizeof(char*) * (env_len + 1));
+    config->envp = oe_malloc(sizeof(char*) * (env_len + 1));
     config->envp[env_len] = NULL;
 
     struct json_object_iterator it;
@@ -95,12 +95,12 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
             return 1;
         const char* str_val = json_object_get_string(val);
         size_t kv_len =
-            strlen(key) + strlen(str_val) + 2 /* for '=' and '\0' */;
-        char* env_kv = malloc(kv_len);
+            oe_strlen(key) + oe_strlen(str_val) + 2 /* for '=' and '\0' */;
+        char* env_kv = oe_malloc(kv_len);
         if (!env_kv)
             sgxlkl_fail(
                 "Failed to allocate memory for environment key value pair.\n");
-        snprintf(env_kv, kv_len, "%s=%s", key, str_val);
+        oe_snprintf(env_kv, kv_len, "%s=%s", key, str_val);
         config->envp[i++] = env_kv;
     }
 
@@ -118,17 +118,21 @@ static int parse_enclave_disk_config_entry(
     if (assert_entry_type(key, value))
         return 1;
 
-    if (!strcmp("disk", key))
+    if (!oe_strcmp("disk", key))
     {
         const char* mnt_point = json_object_get_string(value);
-        if (strlen(mnt_point) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
+        if (oe_strlen(mnt_point) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
             sgxlkl_warn(
                 "Truncating configured disk mount point...\n"); // TODO pass
                                                                 // back to
                                                                 // client.
-        strncpy(disk->mnt, mnt_point, SGXLKL_DISK_MNT_MAX_PATH_LEN);
+        oe_strncpy_s(
+            disk->mnt,
+            SGXLKL_DISK_MNT_MAX_PATH_LEN + 1,
+            mnt_point,
+            SGXLKL_DISK_MNT_MAX_PATH_LEN);
     }
-    else if (!strcmp("key", key))
+    else if (!oe_strcmp("key", key))
     {
         const char* enc_key = json_object_get_string(value);
         ssize_t key_len = hex_to_bytes(enc_key, &disk->key);
@@ -140,29 +144,29 @@ static int parse_enclave_disk_config_entry(
             disk->enc = 1;
         }
     }
-    else if (!strcmp("roothash", key))
+    else if (!oe_strcmp("roothash", key))
     {
         disk->roothash = oe_strdup(json_object_get_string(value));
     }
-    else if (!strcmp("roothash_offset", key))
+    else if (!oe_strcmp("roothash_offset", key))
     {
         disk->roothash_offset = json_object_get_int64(value);
     }
-    else if (!strcmp("readonly", key))
+    else if (!oe_strcmp("readonly", key))
     {
         disk->ro = json_object_get_boolean(value);
     }
-    else if (!strcmp("create", key))
+    else if (!oe_strcmp("create", key))
     {
         disk->create = json_object_get_boolean(value);
     }
-    else if (!strcmp("size", key))
+    else if (!oe_strcmp("size", key))
     {
         disk->size = json_object_get_int64(value);
     }
     else
     {
-        fprintf(stderr, "Unknown configuration entry: %s\n", key);
+        sgxlkl_fail("Unknown configuration entry: %s\n", key);
         return 1;
     }
 
@@ -217,21 +221,21 @@ static int parse_enclave_wg_peer_config_entry(
     if (assert_entry_type(key, value))
         return 1;
 
-    if (!strcmp("key", key))
+    if (!oe_strcmp("key", key))
     {
         peer->key = oe_strdup(json_object_get_string(value));
     }
-    else if (!strcmp("allowedips", key))
+    else if (!oe_strcmp("allowedips", key))
     {
         peer->allowed_ips = oe_strdup(json_object_get_string(value));
     }
-    else if (!strcmp("endpoint", key))
+    else if (!oe_strcmp("endpoint", key))
     {
         peer->endpoint = oe_strdup(json_object_get_string(value));
     }
     else
     {
-        fprintf(stderr, "Unknown configuration entry: %s\n", key);
+        sgxlkl_fail("Unknown configuration entry: %s\n", key);
         return 1;
     }
 
@@ -252,7 +256,7 @@ static int parse_network(
     {
         // For now, the only acceptable field is 'peers' which is expected to
         // contain an array of wireguard peer configurations.
-        if (strcmp(key, "peers"))
+        if (oe_strcmp(key, "peers"))
             continue;
         if (assert_entry_type(key, value))
             return 1;
@@ -301,33 +305,33 @@ static int parse_sgxlkl_app_config_entry(
     int err = 0;
     sgxlkl_app_config_t* config = (sgxlkl_app_config_t*)arg;
 
-    if (!strcmp("run", key))
+    if (!oe_strcmp("run", key))
     {
         if (json_object_get_type(value) != json_type_string)
         {
-            fprintf(stderr, "String expected for 'run' configuration.\n");
+            sgxlkl_fail("String expected for 'run' configuration.\n");
             return 1;
         }
-        config->run = strdup(json_object_get_string(value));
+        config->run = oe_strdup(json_object_get_string(value));
     }
-    else if (!strcmp("cwd", key))
+    else if (!oe_strcmp("cwd", key))
     {
         if (json_object_get_type(value) != json_type_string)
         {
-            fprintf(stderr, "String expected for 'cwd' configuration.\n");
+            sgxlkl_fail("String expected for 'cwd' configuration.\n");
             return 1;
         }
-        config->cwd = strdup(json_object_get_string(value));
+        config->cwd = oe_strdup(json_object_get_string(value));
     }
-    else if (!strcmp("args", key))
+    else if (!oe_strcmp("args", key))
     {
         err = parse_args(config, value);
     }
-    else if (!strcmp("environment", key))
+    else if (!oe_strcmp("environment", key))
     {
         err = parse_env(config, value);
     }
-    else if (!strcmp("exit_status", key))
+    else if (!oe_strcmp("exit_status", key))
     {
         if (json_object_get_type(value) != json_type_string)
         {
@@ -335,15 +339,15 @@ static int parse_sgxlkl_app_config_entry(
                 "Appconfig error: String expected for 'exit_status'.\n");
         }
 
-        if (!strcmp("full", json_object_get_string(value)))
+        if (!oe_strcmp("full", json_object_get_string(value)))
         {
             sgxlkl_enclave->exit_status = EXIT_STATUS_FULL;
         }
-        else if (!strcmp("binary", json_object_get_string(value)))
+        else if (!oe_strcmp("binary", json_object_get_string(value)))
         {
             sgxlkl_enclave->exit_status = EXIT_STATUS_BINARY;
         }
-        else if (!strcmp("none", json_object_get_string(value)))
+        else if (!oe_strcmp("none", json_object_get_string(value)))
         {
             sgxlkl_enclave->exit_status = EXIT_STATUS_NONE;
         }
@@ -353,17 +357,17 @@ static int parse_sgxlkl_app_config_entry(
                         "\"full\"|\"binary\"|\"none\".\n");
         }
     }
-    else if (!strcmp("disk_config", key))
+    else if (!oe_strcmp("disk_config", key))
     {
         err = parse_disks(config, value);
     }
-    else if (!strcmp("network_config", key))
+    else if (!oe_strcmp("network_config", key))
     {
         err = parse_network(config, value);
     }
     else
     {
-        fprintf(stderr, "Unknown configuration entry: %s\n", key);
+        sgxlkl_fail("Unknown configuration entry: %s\n", key);
         return 1;
     }
     return err;
@@ -384,7 +388,7 @@ int parse_sgxlkl_app_config_from_str(
     if (res)
     {
         if (!*err)
-            *err = strdup("Unexpected application configuration format");
+            *err = oe_strdup("Unexpected application configuration format");
     }
 
     return res;
@@ -401,20 +405,16 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     if (!config->argv)
     {
-        if (!(config->argv = malloc(sizeof(config->argv) * 2)))
-            sgxlkl_fail(
-                "Failed to allocate memory for app config argv: %s\n",
-                strerror(errno));
+        if (!(config->argv = oe_malloc(sizeof(config->argv) * 2)))
+            sgxlkl_fail("Failed to allocate memory for app config argv\n");
         config->argc = 1;
         config->argv[1] = NULL;
     }
 
     if (!config->envp)
     {
-        if (!(config->envp = malloc(sizeof(config->envp))))
-            sgxlkl_fail(
-                "Failed to allocate memory for app config envp: %s\n",
-                strerror(errno));
+        if (!(config->envp = oe_malloc(sizeof(config->envp))))
+            sgxlkl_fail("Failed to allocate memory for app config envp\n");
         config->envp[0] = NULL;
     }
 

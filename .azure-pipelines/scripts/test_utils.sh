@@ -25,9 +25,19 @@ function ChangeDirectory()
 
 function CheckNotRunning()
 {
-    if pgrep -x sgx-lkl-run-oe >/dev/null; then
+    process="sgx-lkl-run-oe"
+    if pgrep -x $process >/dev/null; then
         echo "SGX-LKL still running:"
-        ps -aux | grep sgx-lkl-run-oe
-        exit 1
+        ps -aux | grep $process
+        echo "Trying to kill hanging $process process"
+        pkill -9 $process
+        pkill_exit=$?
+        if [[ $pkill_exit -ne 0 ]]; then
+            echo "Failed to kill hanging $process process. Exit code: $pkill_exit"
+            exit $pkill_exit
+        else
+	    echo "Killed the hanging $process process successfully"
+	    ps -aux | grep sgx-lkl-run-oe
+        fi
     fi
 }

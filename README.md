@@ -68,6 +68,17 @@ echo "enable_fsgsbase" | sudo tee -a /etc/modules
 sudo modprobe enable_fsgsbase
 ```
 
+To make the SGX-LKL commands available from any directory, add an entry to 
+the `PATH` environment variable:
+```
+PATH="$PATH:/opt/sgx-lkl/bin"
+```
+
+Finally, setup the host environment by running:
+```
+sgx-lkl-setup
+```
+
 B. Building SGX-LKL-OE from source
 ----------------------------------
 
@@ -82,13 +93,12 @@ https://github.com/openenclave/openenclave (branch: feature/sgx-lkl-support).
 
 1. Clone the `feature.sgx-lkl` branch of the Open Enclave SDK:
 ```
-git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl.git
-cd openenclave-sgxlkl.git
+git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl
 ```
 
 2. Install the Open Enclave build requirements:
 ```
-cd openenclave-sgxlkl.git
+cd openenclave-sgxlkl
 sudo scripts/ansible/install-ansible.sh
 sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
 ```
@@ -119,8 +129,8 @@ may lead to compilation and/or linking errors.
 
 2. Clone the SGX-LKL git repository:
 ```
-git clone git@github.com:lsds/sgx-lkl-oe.git sgx-lkl-oe.git
-cd sgx-lkl-oe.git
+git clone --branch oe_port git@github.com:lsds/sgx-lkl.git sgx-lkl
+cd sgx-lkl
 ```
 
 3. Build SGX-LKL in the source tree:
@@ -155,9 +165,9 @@ To build SGX-LKL in release mode, run:
     make RELEASE=true
 ```
 
-2. To install SGX-LKL on the host system, use the following command:
+4. To install SGX-LKL on the host system, use the following command:
 ```
-sudo make install
+sudo -E make install
 ```
 
 SGX-LKL is installed under `/opt/sgx-lkl` by default. To change the install prefix, 
@@ -174,13 +184,13 @@ sudo make uninstall
 This removes SGX-LKL specific artefacts from the installation directory as
 well as cached artefacts of `sgx-lkl-disk` (stored in `~/.cache/sgxlkl`).
 
-3. To make the SGX-LKL commands available from any directory, add an entry to 
+5. To make the SGX-LKL commands available from any directory, add an entry to 
 the `PATH` environment variable:
 ```
 PATH="$PATH:/opt/sgx-lkl/bin"
 ```
 
-4. Finally, setup the host environment by running:
+6. Finally, setup the host environment by running:
 ```
 sgx-lkl-setup
 ```
