@@ -1,0 +1,48 @@
+In this ltp test case (testcases/kernel/syscalls/fcntl/fcntl13),
+some of the sub test cases designed to test EFAULT behaviour of
+“fcntl” syscall by passing/accessing invalid address values(“-1”)
+to “fcntl” syscall. Currently sgx behaviour is to call enclave
+abort, if address is not with in enclave address range.
+Because of this test program is causing enclave abort and exiting
+with exit code 1. 
+
+Github issue169 (https://github.com/lsds/sgx-lkl/issues/169)
+is raised to fix this behaviour. The sub test cases which test
+EFAULT error behaviour is commented/disabled until github
+issue169 is fixed.
+
+diff --git a/testcases/kernel/syscalls/fcntl/fcntl13.c b/testcases/kernel/syscalls/fcntl/fcntl13.c
+index dae4c37fa..2d0c58496 100644
+--- a/testcases/kernel/syscalls/fcntl/fcntl13.c
++++ b/testcases/kernel/syscalls/fcntl/fcntl13.c
+@@ -40,6 +40,10 @@
+ 
+ #define F_BADCMD 99999
+ 
++//TODO: Remove 'FIXED_GITHUB_ISSUE_169' macro after fixing github issue 169.
++//url: https://github.com/lsds/sgx-lkl/issues/169
++#define FIXED_GITHUB_ISSUE_169 0
++
+ char *TCID = "fcntl13";
+ int TST_TOTAL = 1;
+ 
+@@ -66,6 +70,9 @@ int main(int ac, char **av)
+ 			tst_resm(TPASS, "got EINVAL");
+ 
+ #ifndef UCLINUX
++//TODO: Remove below '#if FIXED_GITHUB_ISSUE_169' directive after fixing github issue 169.
++//url: https://github.com/lsds/sgx-lkl/issues/169
++#if FIXED_GITHUB_ISSUE_169
+ 		if (fcntl(1, F_SETLK, (void *)-1) != -1) {
+ 			tst_resm(TFAIL, "F_SETLK: fcntl(2) failed to FAIL");
+ 		} else if (errno != EFAULT) {
+@@ -95,6 +102,9 @@ int main(int ac, char **av)
+ 
+ #else
+ 		tst_resm(TCONF, "Skip EFAULT on uClinux");
++//TODO: Remove below '#endif' directive after fixing github issue 169.
++//url: https://github.com/lsds/sgx-lkl/issues/169
++#endif
+ #endif
+ 		flock.l_whence = -1;
+ 		flock.l_type = F_WRLCK;

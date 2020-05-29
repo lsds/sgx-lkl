@@ -1,0 +1,44 @@
+In this ltp test case (testcases/kernel/syscalls/chdir/chdir04),
+one of the sub test case designed to test generation of EFAULT
+by passing/accessing invalid address values (“-1”) to “chdir” syscall.
+Currently sgx behaviour is to call enclave abort, if address is
+not within enclave address range. Because of this test program
+is causing enclave abort and exiting with non-zero exit code. 
+
+Github issue169 (https://github.com/lsds/sgx-lkl/issues/169)
+is raised to fix this behaviour. The sub test cases which test
+EFAULT error behaviour is commented/disabled until github
+issue169 is fixed.
+
+diff --git a/testcases/kernel/syscalls/chdir/chdir04.c b/testcases/kernel/syscalls/chdir/chdir04.c
+index f0420e4c9..89f460a97 100644
+--- a/testcases/kernel/syscalls/chdir/chdir04.c
++++ b/testcases/kernel/syscalls/chdir/chdir04.c
+@@ -60,6 +60,10 @@
+ #include <sys/mman.h>
+ #include "test.h"
+ 
++//TODO: Remove below line after fixing github issue 169.
++//url: https://github.com/lsds/sgx-lkl/issues/169
++#define FIXED_GITHUB_ISSUE_169 0
++
+ char *TCID = "chdir04";
+ 
+ char bad_dir[] =
+@@ -83,12 +87,16 @@ struct test_case_t {
+ 	     */
+ 	{
+ 	noexist_dir, ENOENT},
++//TODO: Remove '#if FIXED_GITHUB_ISSUE_169' & '#endif'  directive after fixing github issue 169.
++//url: https://github.com/lsds/sgx-lkl/issues/169
++#if FIXED_GITHUB_ISSUE_169
+ 	    /*
+ 	     * to test whether chdir() is setting EFAULT if the
+ 	     * directory is an invalid address.
+ 	     */
+ 	{
+ 	(void *)-1, EFAULT}
++#endif
+ };
+ 
+ int TST_TOTAL = ARRAY_SIZE(TC);
