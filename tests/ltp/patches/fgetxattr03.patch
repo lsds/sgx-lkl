@@ -1,0 +1,40 @@
++ Currently xattr is not enabled while mounting root file system. Patch is
++ to mount root file system with xattr enabled and then use it for the test.
+diff --git a/testcases/kernel/syscalls/fgetxattr/fgetxattr03.c b/testcases/kernel/syscalls/fgetxattr/fgetxattr03.c
+index d293ffca9..df4ea79f3 100644
+--- a/testcases/kernel/syscalls/fgetxattr/fgetxattr03.c
++++ b/testcases/kernel/syscalls/fgetxattr/fgetxattr03.c
+@@ -29,7 +29,11 @@
+ #define XATTR_TEST_KEY "user.testkey"
+ #define XATTR_TEST_VALUE "this is a test value"
+ #define XATTR_TEST_VALUE_SIZE 20
+-#define FILENAME "fgetxattr03testfile"
++#define FILENAME "mntpoint/fgetxattr03testfile"
++#define MNTPOINT       "mntpoint"
++#define DIR_MODE        (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
++const char *device = "/dev/vda";
++static const char *fs_type = "ext4";
+ 
+ static int fd = -1;
+ 
+@@ -47,6 +51,10 @@ static void verify_fgetxattr(void)
+ 
+ static void setup(void)
+ {
++	rmdir(MNTPOINT);
++	SAFE_MKDIR(MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(device, MNTPOINT, fs_type, 0, "user_xattr");
++
+ 	SAFE_TOUCH(FILENAME, 0644, NULL);
+ 	fd = SAFE_OPEN(FILENAME, O_RDONLY, NULL);
+ 
+@@ -58,6 +66,9 @@ static void cleanup(void)
+ {
+ 	if (fd > 0)
+ 		SAFE_CLOSE(fd);
++	remove(FILENAME);
++	SAFE_UMOUNT(MNTPOINT);
++	SAFE_RMDIR(MNTPOINT);
+ }
+ 
+ static struct tst_test test = {
