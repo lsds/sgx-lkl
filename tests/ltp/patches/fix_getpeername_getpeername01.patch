@@ -1,5 +1,5 @@
 In this ltp test case (testcases/kernel/syscalls/ getpeername/getpeername01),
-some of the sub test case designed to test generation of EFAULT
+some of the sub test cases designed to test generation of EFAULT
 by passing/accessing invalid address values to “getpeername” syscall.
 Currently sgx behaviour is to call enclave abort, if address is
 not within enclave address range. Because of this test program
@@ -11,35 +11,26 @@ EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/getpeername/getpeername01.c b/testcases/kernel/syscalls/getpeername/getpeername01.c
-index 817cd38ad..742a161b4 100644
+index 817cd38ad..ca0d2c41b 100644
 --- a/testcases/kernel/syscalls/getpeername/getpeername01.c
 +++ b/testcases/kernel/syscalls/getpeername/getpeername01.c
-@@ -35,6 +35,10 @@
- #include "test.h"
- #include "safe_macros.h"
- 
-+//TODO: Remove below line after fixing github issue 169.
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#define FIXED_GITHUB_ISSUE_169 0
-+
- static struct sockaddr_in server_addr;
- static struct sockaddr_in fsin1;
- static socklen_t sinlen;
-@@ -68,6 +72,9 @@ struct test_case_t {
+@@ -68,12 +68,13 @@ struct test_case_t {
  	{-1, (struct sockaddr *)&fsin1, &invalid_sinlen, -1, EINVAL, setup4,
  	 cleanup4, "EINVAL"},
  #ifndef UCLINUX
-+//TODO: Remove below "#if" and corresponding "#endif" after fixing github issue 169
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#if FIXED_GITHUB_ISSUE_169
- 	{-1, (struct sockaddr *)-1, &sinlen, -1, EFAULT, setup4, cleanup4,
- 	 "EFAULT"},
- 	{-1, (struct sockaddr *)&fsin1, NULL, -1, EFAULT, setup4,
-@@ -75,6 +82,7 @@ struct test_case_t {
- 	{-1, (struct sockaddr *)&fsin1, (socklen_t *)1, -1, EFAULT, setup4,
- 	 cleanup4, "EFAULT"},
+-	{-1, (struct sockaddr *)-1, &sinlen, -1, EFAULT, setup4, cleanup4,
+-	 "EFAULT"},
+-	{-1, (struct sockaddr *)&fsin1, NULL, -1, EFAULT, setup4,
+-	 cleanup4, "EFAULT"},
+-	{-1, (struct sockaddr *)&fsin1, (socklen_t *)1, -1, EFAULT, setup4,
+-	 cleanup4, "EFAULT"},
++	// TODO: Enable back after issue 169 fixed
++	//{-1, (struct sockaddr *)-1, &sinlen, -1, EFAULT, setup4, cleanup4,
++	// "EFAULT"},
++	//{-1, (struct sockaddr *)&fsin1, NULL, -1, EFAULT, setup4,
++	// cleanup4, "EFAULT"},
++	//{-1, (struct sockaddr *)&fsin1, (socklen_t *)1, -1, EFAULT, setup4,
++	// cleanup4, "EFAULT"},
  #endif
-+#endif
  };
  
- char *TCID = "getpeername01";

@@ -11,34 +11,18 @@ EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/chdir/chdir04.c b/testcases/kernel/syscalls/chdir/chdir04.c
-index f0420e4c9..89f460a97 100644
+index f0420e4c9..1646e3a94 100644
 --- a/testcases/kernel/syscalls/chdir/chdir04.c
 +++ b/testcases/kernel/syscalls/chdir/chdir04.c
-@@ -60,6 +60,10 @@
- #include <sys/mman.h>
- #include "test.h"
- 
-+//TODO: Remove below line after fixing github issue 169.
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#define FIXED_GITHUB_ISSUE_169 0
-+
- char *TCID = "chdir04";
- 
- char bad_dir[] =
-@@ -83,12 +87,16 @@ struct test_case_t {
- 	     */
- 	{
- 	noexist_dir, ENOENT},
-+//TODO: Remove '#if FIXED_GITHUB_ISSUE_169' & '#endif'  directive after fixing github issue 169.
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#if FIXED_GITHUB_ISSUE_169
- 	    /*
+@@ -87,8 +87,9 @@ struct test_case_t {
  	     * to test whether chdir() is setting EFAULT if the
  	     * directory is an invalid address.
  	     */
- 	{
- 	(void *)-1, EFAULT}
-+#endif
+-	{
+-	(void *)-1, EFAULT}
++	//TODO: Enable back after issue 169 fixed
++	//{
++	//(void *)-1, EFAULT}
  };
  
  int TST_TOTAL = ARRAY_SIZE(TC);

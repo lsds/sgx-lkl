@@ -11,29 +11,16 @@ EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/readlink/readlink03.c b/testcases/kernel/syscalls/readlink/readlink03.c
-index 01ff304d8..c3457054f 100644
+index 01ff304d8..c26a57e4d 100644
 --- a/testcases/kernel/syscalls/readlink/readlink03.c
 +++ b/testcases/kernel/syscalls/readlink/readlink03.c
-@@ -42,6 +42,10 @@
- #define TESTFILE	"test_file"
- #define SYMFILE		"slink_file"
- 
-+//TODO: Remove below line after fixing github issue 169.
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#define FIXED_GITHUB_ISSUE_169 0
-+
- static char longpathname[PATH_MAX + 2];
- static char elooppathname[sizeof(ELOOPFILE) * 43] = ".";
- static char buffer[256];
-@@ -59,7 +63,11 @@ static struct tcase {
+@@ -59,7 +59,8 @@ static struct tcase {
  	{"", buffer, sizeof(buffer), ENOENT},
  	{SYM_FILE3, buffer, sizeof(buffer), ENOTDIR},
  	{elooppathname, buffer, sizeof(buffer), ELOOP},
-+//TODO: Remove below "#if" and corosponding "#endif" directive after fixing git hub issue 169
-+//Issue link: https://github.com/lsds/sgx-lkl/issues/169
-+#if FIXED_GITHUB_ISSUE_169
- 	{SYMFILE, (char *)-1, sizeof(buffer), EFAULT},
-+#endif
+-	{SYMFILE, (char *)-1, sizeof(buffer), EFAULT},
++	// TODO: Enable back after issue 169 fixed
++	//{SYMFILE, (char *)-1, sizeof(buffer), EFAULT},
  };
  
  static void verify_readlink(unsigned int n)

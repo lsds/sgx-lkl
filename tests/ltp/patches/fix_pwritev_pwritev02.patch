@@ -1,5 +1,5 @@
 In this ltp test case (testcases/kernel/syscalls/pwritev/pwritev02),
-some of the sub test case designed to test generation of EFAULT
+one of the sub test case designed to test generation of EFAULT
 by passing/accessing invalid address values to “pwritev” syscall.
 Currently sgx behaviour is to call enclave abort, if address is
 not within enclave address range. Because of this test program
@@ -11,29 +11,16 @@ EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/pwritev/pwritev02.c b/testcases/kernel/syscalls/pwritev/pwritev02.c
-index 82792df27..7de94e0fe 100644
+index 82792df27..ea0c529e2 100644
 --- a/testcases/kernel/syscalls/pwritev/pwritev02.c
 +++ b/testcases/kernel/syscalls/pwritev/pwritev02.c
-@@ -35,6 +35,10 @@
- 
- #define CHUNK           64
- 
-+//TODO: Remove below line after fixing github issue 169.
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#define FIXED_GITHUB_ISSUE_169 0
-+
- static int fd1;
- static int fd2;
- static int fd3 = -1;
-@@ -64,7 +68,11 @@ static struct tcase {
+@@ -64,7 +64,8 @@ static struct tcase {
  	{&fd1, wr_iovec1, 1, 0, EINVAL},
  	{&fd1, wr_iovec2, -1, 0, EINVAL},
  	{&fd1, wr_iovec2, 1, -1, EINVAL},
-+//TODO: Remove below "#if" and corresponding "#endif" after fixing github issue 169
-+//url: https://github.com/lsds/sgx-lkl/issues/169
-+#if FIXED_GITHUB_ISSUE_169
- 	{&fd1, wr_iovec3, 1, 0, EFAULT},
-+#endif
+-	{&fd1, wr_iovec3, 1, 0, EFAULT},
++	// TODO: Enable back after issue 169 fixed
++	//{&fd1, wr_iovec3, 1, 0, EFAULT},
  	{&fd3, wr_iovec2, 1, 0, EBADF},
  	{&fd2, wr_iovec2, 1, 0, EBADF},
  	{&fd4[1], wr_iovec2, 1, 0, ESPIPE}
