@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "eraise.h"
 #include "luks1.h"
@@ -667,8 +668,6 @@ int __crypt_activate_by_passphrase(
     }
     else if (_is_luks2(cd->type))
     {
-        vic_key_t key;
-        size_t key_size;
         /* Open the LUKS1 device */
 
         /* ATTN: only support read-only flag for now */
@@ -678,16 +677,16 @@ int __crypt_activate_by_passphrase(
         if (!(flags & CRYPT_ACTIVATE_READONLY))
             ECHECK(_force_open_for_write(cd));
 
-        /* Use the passphrase to recover the master key */
-        if (luks2_recover_master_key(cd->bd, passphrase, passphrase_size,
-            &key, &key_size) != VIC_OK)
+        if (luks2_open_by_passphrase(
+            cd->bd,
+            cd->luks2.hdr,
+            cd->path,
+            name,
+            passphrase,
+            passphrase_size) != VIC_OK)
         {
             ERAISE(EIO);
         }
-
-        /* Open the LUKS1 device */
-        if (luks2_open(cd->bd, cd->path, name, &key, key_size) != VIC_OK)
-            ERAISE(EIO);
 
         ECHECK(STRLCPY(cd->dm_name, name));
     }

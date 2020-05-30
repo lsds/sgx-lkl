@@ -231,4 +231,12 @@ vic_result_t luks2_open(
     const vic_key_t* master_key,
     size_t master_key_bytes);
 
+vic_result_t luks2_open_by_passphrase(
+    vic_blockdev_t* dev,
+    luks2_hdr_t* hdr,
+    const char* path,
+    const char* name,
+    const char* pwd,
+    size_t pwd_size);
+
 #endif /* _VIC_LUKS2_H */

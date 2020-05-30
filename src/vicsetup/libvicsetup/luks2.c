@@ -2097,7 +2097,6 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
                 GOTO(done);
         }
     }
-
     *hdr_out = &ext->phdr;
     ext = NULL;
 
@@ -3918,8 +3917,6 @@ vic_result_t luks2_open(
     }
     else
     {
-printf("<<<<<<<<<<<<<<<<<<<<<<<\n");
-fflush(stdout);
         CHECK(vic_dm_create_crypt(
             name,
             path,
@@ -3932,8 +3929,6 @@ fflush(stdout);
             master_key_bytes,
             iv_offset,
             offset));
-printf(">>>>>>>>>>>>>>>>>>>>>>>\n");
-fflush(stdout);
     }
 
 done:
@@ -3942,4 +3937,104 @@ done:
         vic_free(ext);
 
     return result;
+}
+
+vic_result_t luks2_open_by_passphrase(
+    vic_blockdev_t* dev,
+    luks2_hdr_t* hdr,
+    const char* path,
+    const char* name,
+    const char* pwd,
+    size_t pwd_size)
+{
+    vic_result_t result = VIC_OK;
+    luks2_ext_hdr_t* ext = (luks2_ext_hdr_t*)hdr;
+    const uint64_t start = 0;
+    uint64_t size;
+    uint64_t offset;
+    uint64_t iv_offset = 0;
+    const char* integrity;
+    vic_key_t master_key;
+    size_t master_key_bytes;
+
+    if (!_is_valid_device(dev) || !name || !pwd || !pwd_size)
+        RAISE(VIC_BAD_PARAMETER);
+
+    if (!ext && luks2_read_hdr(dev, (luks2_hdr_t**)&ext) != 0)
+        RAISE(VIC_HEADER_READ_FAILED);
+
+    CHECK(_find_key_by_pwd(
+        dev, ext, pwd, pwd_size, &master_key, &master_key_bytes, NULL));
+
+    /* Get the payload offset in sectors */
+    offset = ext->segments[0].offset / VIC_SECTOR_SIZE;
+
+    /* Get the payload size */
+    CHECK(_get_payload_size_in_sectors(dev, offset, &size));
+
+    /* Get the integrity type */
+    integrity = _get_integrity_type(ext);
+
+    /* Create the crypt device */
+    if (*integrity)
+    {
+        char name_dif[PATH_MAX];
+        char dmpath[PATH_MAX];
+        const char mode = 'J';
+
+        /* Format the name of the integrity device */
+        if (snprintf(name_dif, sizeof(name_dif), "%s_dif", name) >= PATH_MAX)
+            RAISE(VIC_BUFFER_TOO_SMALL);
+
+        CHECK(_open_integrity_device(dev, ext, name_dif, mode));
+
+        /* Format the name of the integrity device (under /dev/mapper) */
+        snprintf(dmpath, sizeof(dmpath), "/dev/mapper/%s", name_dif);
+
+        CHECK(_open_integrity_luks2_device(
+            dev, ext, name, dmpath, &master_key, master_key_bytes));
+    }
+    else
+    {
+        CHECK(vic_dm_create_crypt(
+            name,
+            path,
+            ext->phdr.uuid,
+            start,
+            size,
+            _get_integrity_type(ext),
+            _get_encryption(ext),
+            master_key.buf,
+            master_key_bytes,
+            iv_offset,
+            offset));
+    }
+
+done:
+
+    if (ext)
+        vic_free(ext);
+
+    return result;
+}
+
+void luks2_open_hardcoded(void)
+{
+    vic_key_t mk =
+    {
+        .buf = { 0x90, 0x3e, 0x1e, 0xe2, 0x43, 0x8b, 0x87, 0xa4, 0xd8, 0x73, 0xc1, 0x5d, 0xf2, 0xf9, 0x28, 0x75, 0xb2, 0x6b, 0xae, 0xf1, 0xf2, 0x40, 0xa8, 0x91, 0xbf, 0x5a, 0x79, 0x1b, 0xa8, 0xc2, 0x4c, 0x4b }
+    };
+
+    vic_dm_create_crypt(
+        "crypta",
+        "/dev/vda",
+        "9cc87365-356e-4425-931b-ca245ad2073e",
+        0,
+        1315968,
+        "",
+        "aes-xts-plain64",
+        mk.buf,
+        32,
+        0,
+        8192);
 }
