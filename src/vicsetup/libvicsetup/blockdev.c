@@ -1,12 +1,10 @@
 #include <vic.h>
-#include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <linux/fs.h>
+#include <sys/mount.h>
 
 #include "strings.h"
 #include "raise.h"

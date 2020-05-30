@@ -19,7 +19,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <linux/fs.h>
 #include <json.h>
 
 #include "luks2.h"

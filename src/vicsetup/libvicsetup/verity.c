@@ -4,10 +4,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <linux/fs.h>
 #include <assert.h>
 
 #include "vic.h"
