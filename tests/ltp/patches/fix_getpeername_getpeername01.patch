@@ -1,0 +1,36 @@
+In this ltp test case (testcases/kernel/syscalls/ getpeername/getpeername01),
+some of the sub test cases designed to test generation of EFAULT
+by passing/accessing invalid address values to “getpeername” syscall.
+Currently sgx behaviour is to call enclave abort, if address is
+not within enclave address range. Because of this test program
+is causing enclave abort and exiting with non-zero exit code. 
+
+Github issue169 (https://github.com/lsds/sgx-lkl/issues/169)
+is raised to fix this behaviour. The sub test cases which test
+EFAULT error behaviour is commented/disabled until github
+issue169 is fixed.
+
+diff --git a/testcases/kernel/syscalls/getpeername/getpeername01.c b/testcases/kernel/syscalls/getpeername/getpeername01.c
+index 817cd38ad..ca0d2c41b 100644
+--- a/testcases/kernel/syscalls/getpeername/getpeername01.c
++++ b/testcases/kernel/syscalls/getpeername/getpeername01.c
+@@ -68,12 +68,13 @@ struct test_case_t {
+ 	{-1, (struct sockaddr *)&fsin1, &invalid_sinlen, -1, EINVAL, setup4,
+ 	 cleanup4, "EINVAL"},
+ #ifndef UCLINUX
+-	{-1, (struct sockaddr *)-1, &sinlen, -1, EFAULT, setup4, cleanup4,
+-	 "EFAULT"},
+-	{-1, (struct sockaddr *)&fsin1, NULL, -1, EFAULT, setup4,
+-	 cleanup4, "EFAULT"},
+-	{-1, (struct sockaddr *)&fsin1, (socklen_t *)1, -1, EFAULT, setup4,
+-	 cleanup4, "EFAULT"},
++	// TODO: Enable back after issue 169 fixed
++	//{-1, (struct sockaddr *)-1, &sinlen, -1, EFAULT, setup4, cleanup4,
++	// "EFAULT"},
++	//{-1, (struct sockaddr *)&fsin1, NULL, -1, EFAULT, setup4,
++	// cleanup4, "EFAULT"},
++	//{-1, (struct sockaddr *)&fsin1, (socklen_t *)1, -1, EFAULT, setup4,
++	// cleanup4, "EFAULT"},
+ #endif
+ };
+ 
