@@ -520,6 +520,7 @@ static void* timer_callback(void* _timer)
         // Check if the timer has triggered
         if (did_timeout)
         {
+            timer->next_delay_ns = 0;
             timer->callback_fn(timer->callback_arg);
             // If the callback function itself resets the timer,
             // timer->next_delay_ns will be non-zero.
