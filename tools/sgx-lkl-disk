@@ -585,9 +585,14 @@ function encrypt() {
         echo "  PBKDF: ${pbkdf}"
     else
         integrity_cmd=""
-        type="luks"
         echo "  Integrity: Disabled"
-        pbkdf_cmd=""
+
+        #type="luks"
+        #pbkdf_cmd=""
+
+        type="luks2"
+        pbkdf=${pbkdf:-pbkdf2}
+        pbkdf_cmd="--pbkdf=${pbkdf}"
     fi
 
     passphrase_cmd=""

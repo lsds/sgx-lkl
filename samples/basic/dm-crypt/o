@@ -1,0 +1,241 @@
+SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=0 SGXLKL_TRACE_HOST_SYSCALL=0 SGXLKL_TRACE_LKL_SYSCALL=0 SGXLKL_TRACE_MMAP=0 SGXLKL_HD_KEY=pass ../../../build/sgx-lkl-run-oe --hw-debug sgxlkl-dm-crypt.img app/dm-crypt
+[    0.000000] Linux version 5.3.0+ (root@mikenuc) (gcc version 7.5.0 (Ubuntu 7.5.0-3ubuntu1~18.04)) #4 Fri May 29 02:10:33 UTC 2020
+[    0.000000] memblock address range: 0x7fecbe837000 - 0x7fecc0836000
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 8079
+[    0.000000] Kernel command line: mem=32M console=hvc0 virtio_mmio.device=256@0x1000000:1
+[    0.000000] Dentry cache hash table entries: 4096 (order: 3, 32768 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 2048 (order: 2, 16384 bytes, linear)
+[    0.000000] mem auto-init: stack:off, heap alloc:off, heap free:off
+[    0.000000] Memory available: 32172k/32764k RAM
+[    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.000000] NR_IRQS: 4096
+[    0.000000] lkl: irqs initialized
+[    0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+[    0.000000] lkl: time and timers initialized (irq2)
+[    0.001588] printk: console [hvc0] enabled
+[    0.001588] pid_max: default: 4096 minimum: 301
+[    0.001588] Mount-cache hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.002100] Mountpoint-cache hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.008611] devtmpfs: initialized
+[    0.017981] random: get_random_bytes called from 0x00007fec805f59a0 with crng_init=0
+[    0.019509] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+[    0.019509] futex hash table entries: 16 (order: -4, 384 bytes, linear)
+[    0.020022] xor: automatically using best checksumming function   8regs     
+[    0.020534] NET: Registered protocol family 16
+[    0.028315] clocksource: Switched to clocksource lkl
+[    0.030410] NET: Registered protocol family 2
+[    0.031428] tcp_listen_portaddr_hash hash table entries: 256 (order: 0, 4096 bytes, linear)
+[    0.031428] TCP established hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.031428] TCP bind hash table entries: 512 (order: 0, 4096 bytes, linear)
+[    0.031935] TCP: Hash tables configured (established 512 bind 512)
+[    0.031935] UDP hash table entries: 128 (order: 0, 4096 bytes, linear)
+[    0.031935] UDP-Lite hash table entries: 128 (order: 0, 4096 bytes, linear)
+[    0.032444] NET: Registered protocol family 1
+[    0.032444] virtio-mmio: Registering device virtio-mmio.0 at 0x1000000-0x10000ff, IRQ 1.
+[    0.033463] workingset: timestamp_bits=62 max_order=14 bucket_order=0
+[    0.036643] NET: Registered protocol family 38
+[    0.037718] io scheduler mq-deadline registered
+[    0.037718] io scheduler kyber registered
+[    0.349762] software IO TLB: mapped [mem 0x7fed5c8a0000-0x7fed608a0000] (64MB)
+[    0.356950] loop: module loaded
+[    0.357511] device-mapper: ioctl: 4.40.0-ioctl (2019-01-18) initialised: dm-devel@redhat.com
+[    0.360880] wireguard: WireGuard 0.0.20191219 loaded. See www.wireguard.com for information.
+[    0.360880] wireguard: Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+[    0.361992] NET: Registered protocol family 10
+[    0.364716] Segment Routing with IPv6
+[    0.365274] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    0.367518] This architecture does not have kernel memory protection.
+[    0.367518] Run /init as init process
+[    0.370165] random: crng init done
+[    0.376375] virtio_blk virtio1: [vda] 1324160 512-byte logical blocks (678 MB/647 MiB)
+TRACE: /root/libjson2/src/vicsetup/libvicsetup/dm.c(164): vic_dm_create_crypt()
+TRACE: /root/libjson2/src/vicsetup/libvicsetup/dm.c(179): vic_dm_create_crypt()
+<<<< dm_task_create >>>>
+*** dm_task_run()
+*** dm_task_run(): name={version}
+BEFORE:
+    version=4.0.0
+    data_size=16384
+    data_start=312
+    target_count=0
+    open_count=0
+    flags=4
+    event_nr=0
+    padding=0
+    dev=0
+    name=
+    uuid=
+    target.sector_start=0]
+    target.length=0
+    target.status=0
+    target.next=0
+    target.target_type=
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+................................................................................................................................................................................................................................................................
+_do_dm_ioctl(5, 3241737472, 7fecbdd2f020)
+AFTER:
+    version=4.40.0
+    data_size=16384
+    data_start=312
+    target_count=0
+    open_count=0
+    flags=4
+    event_nr=0
+    padding=0
+    dev=0
+    name=
+    uuid=
+    target.sector_start=0]
+    target.length=0
+    target.status=0
+    target.next=0
+    target.target_type=
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+_do_dm_ioctl: okay
+<<<< dm_task_set_name >>>>
+<<<< dm_task_set_uuid: uuid={4c3d44cd-65fe-4cba-ab5a-02a87da7f9d8} >>>>
+TARGET: start{0} size{1320064} target{crypt} params{aes-xts-plain64 76e8dc0edc3ae11fb8e828ab385d1ec7aea07c88a4eca21492e57c2d7048f95d 0 /dev/vda 4096}
+<<<< dm_task_add_target >>>>
+<<<< dm_task_run >>>>
+*** dm_task_run()
+*** dm_task_run(): name={create}
+*** dm_task_run()
+*** dm_task_run(): name={create}
+BEFORE:
+    version=4.0.0
+    data_size=16384
+    data_start=312
+    target_count=0
+    open_count=0
+    flags=4
+    event_nr=0
+    padding=0
+    dev=0
+    name=crypta
+    uuid=4c3d44cd-65fe-4cba-ab5a-02a87da7f9d8
+    target.sector_start=0]
+    target.length=0
+    target.status=0
+    target.next=0
+    target.target_type=
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+................................................................................................................................................................................................................................................................
+_do_dm_ioctl(5, 3241737475, 7fecbdd2f020)
+AFTER:
+    version=4.40.0
+    data_size=305
+    data_start=312
+    target_count=0
+    open_count=0
+    flags=4
+    event_nr=0
+    padding=0
+    dev=64768
+    name=crypta
+    uuid=4c3d44cd-65fe-4cba-ab5a-02a87da7f9d8
+    target.sector_start=0]
+    target.length=0
+    target.status=0
+    target.next=0
+    target.target_type=
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+_do_dm_ioctl: okay
+*** dm_task_run()
+*** dm_task_run(): name={reload}
+***DM: ADD TARGET
+BEFORE:
+    version=4.0.0
+    data_size=16384
+    data_start=312
+    target_count=1
+    open_count=0
+    flags=4
+    event_nr=0
+    padding=0
+    dev=0
+    name=crypta
+    uuid=
+    target.sector_start=0]
+    target.length=1320064
+    target.status=0
+    target.next=144
+    target.target_type=crypt
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+aes-xts-plain64 76e8dc0edc3ae11fb8e828ab385d1ec7aea07c88a4eca21492e57c2d7048f95d 0 /dev/vda 4096................................................................................................................................................................
+_do_dm_ioctl(5, 3241737481, 7fecbdd2f020)
+AFTER:
+    version=4.40.0
+    data_size=305
+    data_start=312
+    target_count=0
+    open_count=0
+    flags=68
+    event_nr=0
+    padding=0
+    dev=64768
+    name=crypta
+    uuid=4c3d44cd-65fe-4cba-ab5a-02a87da7f9d8
+    target.sector_start=0]
+    target.length=1320064
+    target.status=0
+    target.next=144
+    target.target_type=crypt
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+_do_dm_ioctl: okay
+*** dm_task_run()
+*** dm_task_run(): name={resume}
+***DM: ADD TARGET
+BEFORE:
+    version=4.0.0
+    data_size=16384
+    data_start=312
+    target_count=1
+    open_count=0
+    flags=4
+    event_nr=4194304
+    padding=0
+    dev=0
+    name=crypta
+    uuid=
+    target.sector_start=0]
+    target.length=1320064
+    target.status=0
+    target.next=144
+    target.target_type=crypt
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+aes-xts-plain64 76e8dc0edc3ae11fb8e828ab385d1ec7aea07c88a4eca21492e57c2d7048f95d 0 /dev/vda 4096................................................................................................................................................................
+_do_dm_ioctl(5, 3241737478, 7fecbdd2f020)
+AFTER:
+    version=4.40.0
+    data_size=305
+    data_start=312
+    target_count=1
+    open_count=0
+    flags=8228
+    event_nr=0
+    padding=0
+    dev=64768
+    name=crypta
+    uuid=4c3d44cd-65fe-4cba-ab5a-02a87da7f9d8
+    target.sector_start=0]
+    target.length=1320064
+    target.status=0
+    target.next=144
+    target.target_type=crypt
+    sizeof(struct target)=40
+    sizeof(struct dm_ioctl_create)=352
+_do_dm_ioctl: okay
+TRACE: /root/libjson2/src/vicsetup/libvicsetup/dm.c(358): vic_dm_create_crypt()
+<<<< dm_task_get_info >>>>
+TRACE: /root/libjson2/src/vicsetup/libvicsetup/dm.c(368): vic_dm_create_crypt()
+[   18.246427] EXT4-fs (dm-0): mounted filesystem without journal. Opts: 
+*** dm-crypt passed
+[   18.261019] EXT4-fs (dm-0): re-mounted. Opts: (null)
+[   18.261542] reboot: Restarting system

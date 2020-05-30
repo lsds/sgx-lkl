@@ -47,16 +47,8 @@ builddirs:
 
 # Build enclave static library: libsgxlkl.a
 
-LIBVICSETUP_SRCS += $(LIBVICSETUP_DIR)/argon2//src/argon2.c
-LIBVICSETUP_SRCS += $(LIBVICSETUP_DIR)/argon2//src/core.c
-LIBVICSETUP_SRCS += $(LIBVICSETUP_DIR)/argon2//src/blake2/blake2b.c
-LIBVICSETUP_SRCS += $(LIBVICSETUP_DIR)/argon2//src/thread.c
-LIBVICSETUP_SRCS += $(LIBVICSETUP_DIR)/argon2//src/encoding.c
-LIBVICSETUP_SRCS += $(LIBVICSETUP_DIR)/argon2//src/opt.c
-LIBVICSETUP_SRCS += $(wildcard $(LIBVICSETUP_DIR)/*.c)
-
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
-              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c) $(LIBVICSETUP_SRCS)
+              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c) $(LIBVICSETUP_SRCS) $(wildcard $(LIBVICSETUP_DIR)/*.c)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))

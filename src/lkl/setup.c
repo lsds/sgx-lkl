@@ -330,13 +330,14 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_init(): %s (%d)\n", strerror(-err), err);
     }
 
-    err = crypt_load(cd, CRYPT_LUKS, NULL);
+    err = crypt_load(cd, CRYPT_LUKS2, NULL);
     if (err != 0)
     {
         sgxlkl_fail("crypt_load(): %s (%d)\n", strerror(-err), err);
     }
 
     char* key_outside = lkl_cd->disk_config->key;
+#if 0
     lkl_cd->disk_config->key = (char*)lkl_sys_mmap(
         NULL,
         lkl_cd->disk_config->key_len,
@@ -351,6 +352,12 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
             "enclave: %s\n",
             lkl_strerror((intptr_t)lkl_cd->disk_config->key));
     }
+#else
+    if (!(lkl_cd->disk_config->key = malloc(lkl_cd->disk_config->key_len)))
+    {
+        sgxlkl_fail("failed to allocate key\n");
+    }
+#endif
     memcpy(lkl_cd->disk_config->key, key_outside, lkl_cd->disk_config->key_len);
 
     err = crypt_activate_by_passphrase(
@@ -374,12 +381,15 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
             strerror(-err));
     }
 
+#if 0
     crypt_free(cd);
+#endif
 
     // The key is only needed during activation, so don't keep it around
     // afterwards and free up space.
     memset(lkl_cd->disk_config->key, 0, lkl_cd->disk_config->key_len);
 
+#if 0
     unsigned long munmap_ret;
     if ((munmap_ret = lkl_sys_munmap(
              (unsigned long)lkl_cd->disk_config->key,
@@ -389,6 +399,9 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
             "Unable to unmap memory for disk encryption key: %s\n",
             lkl_strerror((int)munmap_ret));
     }
+#else
+    free(lkl_cd->disk_config->key);
+#endif
     lkl_cd->disk_config->key = NULL;
     lkl_cd->disk_config->key_len = 0;
 
