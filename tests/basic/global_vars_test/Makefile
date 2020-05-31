@@ -3,7 +3,7 @@ include ../../common.mk
 PROG=global_vars_test
 PROG_SRC=$(PROG).c
 PROG_ARGS=-a -b -c hello
-IMAGE_SIZE=5M
+IMAGE_SIZE=50M
 
 EXECUTION_TIMEOUT=60
 
