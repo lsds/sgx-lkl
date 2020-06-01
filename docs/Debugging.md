@@ -22,10 +22,6 @@ If you used a different directory, run `. <OE_PREFIX>/share/openenclave/openencl
 
 Note that debugging enclave code (SGX-LKL as well as application code) is not possible in RELEASE builds of SGX-LKL.
 
-### Encrypted disks
-
-TODO add note on how to handle situations when disk keys are retrieved from a remote service  (either re-create disks unencrypted, re-create disks encrypted but with debug-enabled key release policy (closest to production), or hard-code key in app config)
-
 ### Application type
 
 Debugging of non-native applications like Python, Java or .NET applications is currently not possible.
