@@ -28,7 +28,7 @@ We can now convert the Docker image into a filesystem image which SGX-LKL can us
 sgx-lkl-disk create --docker=pythonapp --size=300M pythonapp.img
 ```
 
-The filesystem image contains only the files of the Docker image, but not its runtime metadata (like entrypoint, working directory, and environment variables). To run SGX-LKL we need to create configuration files containing these information. Fortunately, during conversion, this runtime metadata was queried from Docker and stored in special files named `pythonapp.img.*`. The `sgx-lkl-cfg` tool can use these files to generate an initial set of SGX-LKL host and application configuration files:
+The `sgx-lkl-cfg` tool can be used to generate an initial set of SGX-LKL host and application configuration files:
 
 ```sh
 sgx-lkl-cfg create --disk pythonapp.img
