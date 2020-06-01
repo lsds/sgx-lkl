@@ -3,7 +3,7 @@ FROM alpine:3.10
 RUN apk add --no-cache \
     python3 py3-numpy
 
-ADD app /app
+ADD src /src
 
 ENTRYPOINT ["python3"]
-CMD ["/app/python-helloworld.py"]
+CMD ["/src/python-helloworld.py"]
