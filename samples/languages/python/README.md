@@ -22,7 +22,7 @@ docker run --rm pythonapp
 
 The Python script is located in the `app/` folder, the Docker image is defined in the `Dockerfile`. Have a look at both files to understand what is happening.
 
-We can now convert the Docker image into a filesystem image which SGX-LKL can use:
+We can now convert the Docker image into a filesystem image suitable for SGX-LKL:
 
 ```sh
 sgx-lkl-disk create --docker=pythonapp --size=300M pythonapp.img
