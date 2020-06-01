@@ -49,11 +49,22 @@ static uint32_t to_futex_key(int* uaddr)
  */
 void futex_dequeue(struct lthread *lt)
 {
+    struct futex_q *fq, *tmp;
+
     a_barrier();
 
     ticket_lock(&futex_q_lock);
 
-    SLIST_REMOVE(&futex_queues, &lt->fq, futex_q, entries);
+    SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp)
+    {
+        if (lt == fq->futex_lt)
+        {
+            fq->futex_lt = NULL;
+            a_fetch_add(&futex_sleepers, -1);
+            SLIST_REMOVE(&futex_queues, fq, futex_q, entries);
+            break;
+        }
+    }
 
     ticket_unlock(&futex_q_lock);
 }
