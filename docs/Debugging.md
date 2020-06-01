@@ -20,7 +20,7 @@ If you used a different directory, run `. <OE_PREFIX>/share/openenclave/openencl
 
 ### Build mode
 
-Debugging enclave code (SGX-LKL as well as the application code) is only possible in debug and non-release builds of SGX-LKL.
+Note that debugging enclave code (SGX-LKL as well as application code) is not possible in RELEASE builds of SGX-LKL.
 
 ### Encrypted disks
 
@@ -32,7 +32,7 @@ Debugging of non-native applications like Python, Java or .NET applications is c
 
 ### Docker deployment container
 
-The instructions below assume that disk images and configuration are available outside of a Docker deployment container. Debugging of such deployment containers is not supported currently as they do not contain the necessary debugging tools.
+The instructions below assume that disk images and the host/app configurations are available outside of a Docker deployment container. Debugging of deployment containers directly is not supported yet as they do not contain the necessary debugging tools.
 
 ## Option A: Debugging with an SGX-LKL installation
 
@@ -69,7 +69,7 @@ If possible, debugging should be done in hardware mode to be as close to a produ
 
 ### Ignore SIGILL
 
-In some cases `sgx-lkl-gdb` still incorrectly stops at illegal instructions that are emulated inside the enclave (see e.g. https://github.com/lsds/sgx-lkl/issues/167). To avoid that, run `handle SIGILL pass nostop noprint` as first command in the active `gdb` session.
+In some cases `sgx-lkl-gdb` stops at illegal instructions that are emulated inside the enclave (see e.g. https://github.com/lsds/sgx-lkl/issues/167). To avoid that, run `handle SIGILL pass nostop noprint` as the first command in the active `gdb` session.
 
 ### Optimized code
 
