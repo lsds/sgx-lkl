@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "SGX-LKL host config schema",
+    "required": [],
+    "additionalProperties": true,
+    "properties": {
+        "hd": {
+            "type": "string",
+            "description": "Path to the root filesystem disk"
+        }
+    }
+}

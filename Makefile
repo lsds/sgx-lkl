@@ -135,7 +135,7 @@ fsgsbase-kernel-module:
 	make -C ${TOOLS}/kmod-set-fsgsbase
 
 install:
-	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
+	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb ${PREFIX}/share ${PREFIX}/share/schemas ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
 	cp $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) $(PREFIX)/lib
 	cp $(BUILD_DIR)/$(SGXLKL_RUN_TARGET) $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
@@ -146,6 +146,8 @@ install:
 	cp $(TOOLS)/gdb/sgx-lkl-gdb $(PREFIX)/bin
 	cp $(TOOLS)/gdb/gdbcommands.py $(PREFIX)/lib/gdb
 	cp $(TOOLS)/gdb/sgx-lkl-gdb.py $(PREFIX)/lib/gdb
+	cp ${TOOLS}/schemas/app-config.schema.json $(PREFIX)/share/schemas
+	cp ${TOOLS}/schemas/host-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko $(PREFIX)/tools/kmod-set-fsgsbase/
 
 uninstall:
@@ -160,7 +162,8 @@ uninstall:
 	rm -f $(PREFIX)/bin/sgx-lkl-gdb
 	rm -rf $(PREFIX)/lib/gdb
 	rm -rf $(PREFIX)/tools/kmod-set-fsgsbase
-	rmdir $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/tools
+	rm -rf $(PREFIX)/share/schemas
+	rmdir $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/tools $(PREFIX)/share
 	rmdir $(PREFIX)
 
 builddirs:
