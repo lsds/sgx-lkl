@@ -264,41 +264,6 @@ static int futex_wake(int* uaddr, unsigned int num, uint32_t bitset)
     return w;
 }
 
-static int futex_requeue(
-    int* uaddr,
-    int* uaddr2,
-    unsigned int num,
-    unsigned int limit)
-{
-    uint32_t futex_key, futex_key2;
-    struct futex_q *fq, *tmp;
-    unsigned int w = 0;
-
-    futex_key = to_futex_key(uaddr);
-    futex_key2 = to_futex_key(uaddr2);
-
-    SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp)
-    {
-        if (fq->futex_key == futex_key && w < num)
-        {
-            struct lthread* lt = fq->futex_lt;
-            fq->futex_lt = NULL;
-            w++;
-            a_fetch_add(&futex_sleepers, -1);
-            SLIST_REMOVE(&futex_queues, fq, futex_q, entries);
-            lt->err = FUTEX_NONE;
-            __scheduler_enqueue(lt);
-        }
-        else if (fq->futex_key == futex_key && w < num + limit)
-        {
-            fq->futex_key = futex_key2;
-            w++;
-        }
-    }
-
-    return w;
-}
-
 int enclave_futex(
     int* uaddr,
     int op,
@@ -357,18 +322,6 @@ int enclave_futex(
             /* Fall through to FUTEX_WAKE */
         case FUTEX_WAKE:
             rc = futex_wake(uaddr, val, bitset);
-            break;
-        case FUTEX_CMP_REQUEUE:
-            if (*uaddr != val3)
-            {
-                rc == -EAGAIN;
-                break;
-            }
-            /* Fall through to FUTEX_REQUEUE */
-        case FUTEX_REQUEUE:
-            /* In the case of FUTEX_REQUEUE, the third argument is actually of
-             * type uint32_t */
-            rc = futex_requeue(uaddr, uaddr2, val, (int)timeout);
             break;
         default:
             FUTEX_SGXLKL_VERBOSE("futex invalid op: %d\n", op);
