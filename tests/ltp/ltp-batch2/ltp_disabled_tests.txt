@@ -37,8 +37,8 @@
 #/ltp/testcases/kernel/syscalls/chdir/chdir04
 /ltp/testcases/kernel/syscalls/chmod/chmod01
 /ltp/testcases/kernel/syscalls/chmod/chmod02
-/ltp/testcases/kernel/syscalls/chmod/chmod03
-/ltp/testcases/kernel/syscalls/chmod/chmod04
+#/ltp/testcases/kernel/syscalls/chmod/chmod03
+#/ltp/testcases/kernel/syscalls/chmod/chmod04
 /ltp/testcases/kernel/syscalls/chmod/chmod05
 /ltp/testcases/kernel/syscalls/chmod/chmod06
 /ltp/testcases/kernel/syscalls/chmod/chmod07
@@ -1014,10 +1014,10 @@
 #/ltp/testcases/kernel/syscalls/ustat/ustat01
 /ltp/testcases/kernel/syscalls/ustat/ustat02
 /ltp/testcases/kernel/syscalls/utime/utime01
-/ltp/testcases/kernel/syscalls/utime/utime02
+#/ltp/testcases/kernel/syscalls/utime/utime02
 #/ltp/testcases/kernel/syscalls/utime/utime03
 #/ltp/testcases/kernel/syscalls/utime/utime04
-/ltp/testcases/kernel/syscalls/utime/utime05
+#/ltp/testcases/kernel/syscalls/utime/utime05
 /ltp/testcases/kernel/syscalls/utime/utime06
 /ltp/testcases/kernel/syscalls/utimensat/utimensat01
 /ltp/testcases/kernel/syscalls/utimes/utimes01
