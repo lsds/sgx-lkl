@@ -62,7 +62,7 @@ void futex_dequeue(struct lthread *lt)
             fq->futex_lt = NULL;
             a_fetch_add(&futex_sleepers, -1);
             SLIST_REMOVE(&futex_queues, fq, futex_q, entries);
-            lt->err = FUTEX_NONE;
+            break;
         }
     }
 
