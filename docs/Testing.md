@@ -4,15 +4,14 @@ SGX-LKL Testing
 How to run LTP tests
 --------------------
 
-To be able to run one or all LTP tests, we must first build and install sgx-lkl following these [instructions](../README.md).
-
+To be able to run one or all LTP tests, SGX-LKL must have been built and installed according to the instructions in [README.md](../README.md).
 
 ## Running all LTP tests
 
-LTP tests are partitioned into several batches for parallel run in [CI pipeline](https://dev.azure.com/sgx-lkl/sgx-lkl/_build)
-LTP test batch folders are in [`tests/ltp`](../tests/ltp)
-You need to go into the batch folder that you want to run tests, for example [`tests/ltp/ltp-batch1`](../tests/ltp/ltp-batch1)
-
+LTP tests are partitioned into several batches for parallel execution in the [CI pipeline](https://dev.azure.com/sgx-lkl/sgx-lkl/_build).
+LTP test batch folders are in [`tests/ltp`](../tests/ltp).
+Depending on which batch you like to run, switch to the corresponding folder, for example [`tests/ltp/ltp-batch1`](../tests/ltp/ltp-batch1).
+Then run:
 ```
 make clean
 DEBUG=true make
@@ -44,13 +43,11 @@ make run-hw-single-gdb test=/ltp/testcases/kernel/syscalls/chmod/chmod06
 make run-sw-single-gdb test=/ltp/testcases/kernel/syscalls/chmod/chmod06
 
 # Running single test with gdb with more trace details:
-SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_LKL_SYSCALL=1 SGXLKL_TRACE_MMAP=1
-	/opt/sgx-lkl/bin/sgx-lkl-gdb --args
-	/opt/sgx-lkl/bin/sgx-lkl-run-oe --hw-debug
-	sgxlkl-miniroot-fs.img /ltp/testcases/kernel/syscalls/eventfd/eventfd01
+SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_LKL_SYSCALL=1 SGXLKL_TRACE_MMAP=1 \
+    make run-hw-single-gdb test=/ltp/testcases/kernel/syscalls/chmod/chmod06
 ```
 
-## Mounting SGX-LKL image to look at testcases source code
+## Mounting SGX-LKL image to look at test case source code
 
 ```
 # Create a directory under tests/ltp/ltp-batch1
