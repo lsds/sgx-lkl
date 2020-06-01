@@ -77,9 +77,13 @@ int parallelthr(void* arg)
 	// the SGX-LKL host interface that backs the clone system call causes
 	// host tasks to become serialised.
 	// Note: This test will work only with 2+ ethreads.
-	while (__atomic_load_n(&counter, __ATOMIC_SEQ_CST) < 100)
+	while (1)
 	{
 		int v = __atomic_load_n(&counter, __ATOMIC_SEQ_CST);
+
+		if (v == 100)
+			break;
+
 		if (v % 2 == odd)
 		{
 			__atomic_compare_exchange_n(&counter, &v, v+1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
