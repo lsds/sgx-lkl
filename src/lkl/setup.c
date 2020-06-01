@@ -784,15 +784,10 @@ static void lkl_mount_disk(
 
 static void lkl_mount_root_disk(struct enclave_disk_config* disk)
 {
-    bool use_overlay = false;
+    bool use_overlay = true;
     int err = 0;
-    const char mnt_point_original[] = {"/mnt/vda"};
-    const char mnt_point_overlay[] = {"/mnt/vda-overlay"};
-    const char mnt_point_overlay_upper[] = { "/mnt/vda-overlay-upper" };
-    const char overlay_upper_dir[] = { "/mnt/vda-overlay-upper/upper" };
-    const char overlay_work_dir[] = { "/mnt/vda-overlay-upper/work" };
-    const char* mnt_point = { use_overlay ? mnt_point_overlay : mnt_point_original };
-    const char* new_dev_str = { use_overlay ? "/mnt/vda-overlay/dev/" : "/mnt/vda/dev/" };
+    char mnt_point[] = "/mnt/vda";
+    char new_dev_str[] = "/mnt/vda/dev/";
 
     // If any byte of disk_dm_verity_root_hash is not 0xff, the verification
     // is run to compare disk_dm_verity_root_hash against disk->roothash.
@@ -820,20 +815,26 @@ static void lkl_mount_root_disk(struct enclave_disk_config* disk)
         }
     }
 
-    lkl_mount_disk(disk, 'a', mnt_point_original);
+    lkl_mount_disk(disk, 'a', mnt_point);
 
     if (use_overlay)
     {
+        const char mnt_point_overlay[] = "/mnt/oda";
+        const char mnt_point_overlay_upper[] = "/mnt/oda-upper";
+        const char overlay_upper_dir[] = "/mnt/oda-upper/upper";
+        const char overlay_work_dir[] = "/mnt/oda-upper/work";
         lkl_prepare_rootfs(mnt_point_overlay_upper, 0700);
         lkl_mount_overlay_tmpfs(mnt_point_overlay_upper);
         lkl_prepare_rootfs(overlay_upper_dir, 0700);
         lkl_prepare_rootfs(overlay_work_dir, 0700);
         lkl_prepare_rootfs(mnt_point_overlay, 0700);
         lkl_mount_overlayfs(
-            mnt_point_original,
+            mnt_point,
             overlay_upper_dir,
             overlay_work_dir,
             mnt_point_overlay);
+        strcpy(mnt_point, mnt_point_overlay);
+        strcpy(new_dev_str, "/mnt/oda/dev/");
     }
 
     /* set up /dev in the new root */
