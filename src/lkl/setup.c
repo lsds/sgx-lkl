@@ -784,7 +784,6 @@ static void lkl_mount_disk(
 
 static void lkl_mount_root_disk(struct enclave_disk_config* disk)
 {
-    bool use_overlay = true;
     int err = 0;
     char mnt_point[] = "/mnt/vda";
     char new_dev_str[] = "/mnt/vda/dev/";
@@ -817,8 +816,9 @@ static void lkl_mount_root_disk(struct enclave_disk_config* disk)
 
     lkl_mount_disk(disk, 'a', mnt_point);
 
-    if (use_overlay)
+    if (disk->overlay)
     {
+        SGXLKL_VERBOSE("Creating writable in-memory overlay for rootfs.\n");
         const char mnt_point_overlay[] = "/mnt/oda";
         const char mnt_point_overlay_upper[] = "/mnt/oda-upper";
         const char overlay_upper_dir[] = "/mnt/oda-upper/upper";
