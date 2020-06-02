@@ -107,7 +107,7 @@ sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
 ```
 mkdir build
 cd build
-cmake -G "Unix Makefiles" ..
+cmake -G "Unix Makefiles" -DCOMPILE_SYSTEM_EDL=ON ..
 make
 sudo make install
 ```

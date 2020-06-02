@@ -36,7 +36,7 @@ sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 
 mkdir -p build
 cd build
-cmake -G "Ninja" ..
+cmake -G "Ninja" -DCOMPILE_SYSTEM_EDL=ON ..
 sudo ninja
 sudo ninja install
 if [[ "$?" == "0" ]]; then
