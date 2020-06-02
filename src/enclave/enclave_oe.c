@@ -10,7 +10,7 @@
 #include "shared/sgxlkl_app_config.h"
 #include "shared/sgxlkl_config_json.h"
 
-extern int sgxlkl_verbose;
+int sgxlkl_verbose = 1;
 
 extern _Atomic(enum sgxlkl_libc_state) __libc_state;
 
@@ -24,8 +24,8 @@ int __sgx_init_enclave()
     _register_enclave_signal_handlers(sgxlkl_enclave->mode);
 
     return __libc_init_enclave(
-        sgxlkl_enclave_state.app_config->argc,
-        sgxlkl_enclave_state.app_config->argv);
+        sgxlkl_enclave_state.enclave_config->argc,
+        sgxlkl_enclave_state.enclave_config->argv);
 }
 
 #ifdef DEBUG
@@ -106,6 +106,43 @@ void sgxlkl_ethread_init(void)
     return;
 }
 
+static void _copy_shared_memory(const sgxlkl_config_t* config_on_host)
+{
+    sgxlkl_enclave_config_shared_memory_t* shm =
+        &sgxlkl_enclave_state.enclave_config->shared_memory;
+    shm->num_virtio_blk_dev = config_on_host->num_disks;
+    shm->virtio_blk_dev_mem =
+        oe_calloc(config_on_host->num_disks, sizeof(void*));
+    for (size_t i = 0; i < config_on_host->num_disks; i++)
+        shm->virtio_blk_dev_mem[i] =
+            config_on_host->disks[i].virtio_blk_dev_mem;
+
+    memcpy(
+        &sgxlkl_enclave_state.enclave_config->shared_memory,
+        &config_on_host->shared_memory,
+        sizeof(sgxlkl_shared_memory_t)); // CHECK: wrong type
+}
+
+static int _read_eeid_config(const sgxlkl_config_t* config_on_host)
+{
+    const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
+    const char* app_config_json = (const char*)eeid->data;
+
+    if (sgxlkl_read_config_json(
+            app_config_json,
+            &sgxlkl_enclave_state.enclave_config,
+            &sgxlkl_enclave_state.app_config))
+        return 1;
+
+    _copy_shared_memory(config_on_host);
+
+    // This will be removed once shared memory and config have been
+    // separated fully.
+    sgxlkl_enclave = sgxlkl_enclave_state.enclave_config;
+
+    return 0;
+}
+
 int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
 {
     SGXLKL_ASSERT(config_on_host);
@@ -123,39 +160,12 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
     }
     else
 #endif
-    {
-        const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
-        const char* app_config_json = (const char*)eeid->data;
-
-        if (sgxlkl_read_config_json(
-                app_config_json,
-                &sgxlkl_enclave_state.enclave_config,
-                &sgxlkl_enclave_state.app_config))
-            return 1;
-
-        // Copy shared memory
-        sgxlkl_enclave_config_shared_memory_t* shm =
-            &sgxlkl_enclave_state.enclave_config->shared_memory;
-        shm->num_virtio_blk_dev = config_on_host->num_disks;
-        shm->virtio_blk_dev_mem =
-            oe_calloc(config_on_host->num_disks, sizeof(void*));
-        for (size_t i = 0; i < config_on_host->num_disks; i++)
-            shm->virtio_blk_dev_mem[i] =
-                config_on_host->disks[i].virtio_blk_dev_mem;
-
-        memcpy(
-            &sgxlkl_enclave_state.enclave_config->shared_memory,
-            &config_on_host->shared_memory,
-            sizeof(sgxlkl_shared_memory_t)); // CHECK: wrong type
-
-        // This will be removed once shared memory and config have been
-        // separated fully.
-        sgxlkl_enclave = sgxlkl_enclave_state.enclave_config;
-    }
+        if (_read_eeid_config(config_on_host))
+        return 1;
 
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
-    sgxlkl_verbose = sgxlkl_enclave->verbose;
+    sgxlkl_verbose = sgxlkl_enclave_state.enclave_config->verbose;
 
     SGXLKL_VERBOSE("enter\n");
 

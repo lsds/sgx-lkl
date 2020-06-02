@@ -4,6 +4,8 @@
 #include <enclave/enclave_util.h>
 #define FAIL sgxlkl_fail
 #define INFO sgxlkl_info
+// oe_strtol missing
+long int strtol(const char* nptr, char** endptr, int base);
 #else
 #include <host/sgxlkl_util.h>
 #include <stdlib.h>
@@ -13,6 +15,7 @@
 #endif
 
 #include <arpa/inet.h>
+#include <errno.h>
 
 #include <enclave/enclave_mem.h>
 #include <shared/json.h>
@@ -178,38 +181,6 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
     return r;
 }
 
-static json_result_t decode_x1(
-    json_parser_t* parser,
-    json_type_t type,
-    const json_union_t* value,
-    char* path,
-    size_t* index,
-    int* to)
-{
-    if (!to)
-        return JSON_BAD_PARAMETER;
-
-    if (json_match(parser, path, index) == JSON_OK)
-    {
-        if (type != JSON_TYPE_STRING)
-            FAIL(
-                "invalid value type for '%s'\n",
-                parser->path[parser->depth - 1]);
-        size_t num_digits = strlen(value->string);
-        if (num_digits > 1)
-            FAIL(
-                "value for '%s' has excessive length",
-                parser->path[parser->depth - 1]);
-        int tmp = hex2int(value->string, num_digits);
-        if (tmp < 0 || tmp > 1)
-            FAIL("invalid value for '%s'", parser->path[parser->depth - 1]);
-        *to = tmp;
-        return JSON_OK;
-    }
-
-    return JSON_NO_MATCH;
-}
-
 static json_result_t decode_x16(
     json_parser_t* parser,
     json_type_t type,
@@ -268,48 +239,103 @@ static json_result_t decode_x32(
     return JSON_NO_MATCH;
 }
 
-static json_result_t decode_x64(
-    json_parser_t* parser,
-    json_type_t type,
-    const json_union_t* value,
-    char* path,
-    size_t* index,
-    uint64_t* to)
-{
-    if (!to)
-        return JSON_BAD_PARAMETER;
-
-    if (json_match(parser, path, index) == JSON_OK)
-    {
-        if (type != JSON_TYPE_STRING)
-            FAIL(
-                "invalid value type for '%s'\n",
-                parser->path[parser->depth - 1]);
-        size_t num_digits = strlen(value->string);
-        if (num_digits > 16)
-            FAIL(
-                "value for '%s' has excessive length",
-                parser->path[parser->depth - 1]);
-        *to = hex2int(value->string, num_digits);
-        return JSON_OK;
+#define JINTDECLU(T, B)                                      \
+    static json_result_t decode_##T(                         \
+        json_parser_t* parser,                               \
+        json_type_t type,                                    \
+        const json_union_t* value,                           \
+        char* path,                                          \
+        size_t* index,                                       \
+        T* to)                                               \
+    {                                                        \
+        if (!to)                                             \
+            return JSON_BAD_PARAMETER;                       \
+                                                             \
+        if (json_match(parser, path, index) == JSON_OK)      \
+        {                                                    \
+            if (type != JSON_TYPE_STRING)                    \
+                FAIL(                                        \
+                    "invalid value type for '%s'\n",         \
+                    parser->path[parser->depth - 1]);        \
+            _Static_assert(                                  \
+                sizeof(unsigned long) == 8,                  \
+                "unexpected size of unsigned long");         \
+            uint64_t tmp = strtoul(value->string, NULL, 10); \
+            if (!(B))                                        \
+                return JSON_UNKNOWN_VALUE;                   \
+            else                                             \
+            {                                                \
+                *to = tmp;                                   \
+                return JSON_OK;                              \
+            }                                                \
+        }                                                    \
+        return JSON_NO_MATCH;                                \
     }
 
-    return JSON_NO_MATCH;
-}
+#define JINTDECLS(T, B)                                    \
+    static json_result_t decode_##T(                       \
+        json_parser_t* parser,                             \
+        json_type_t type,                                  \
+        const json_union_t* value,                         \
+        char* path,                                        \
+        size_t* index,                                     \
+        T* to)                                             \
+    {                                                      \
+        if (!to)                                           \
+            return JSON_BAD_PARAMETER;                     \
+                                                           \
+        if (json_match(parser, path, index) == JSON_OK)    \
+        {                                                  \
+            if (type != JSON_TYPE_STRING)                  \
+                FAIL(                                      \
+                    "invalid value type for '%s'\n",       \
+                    parser->path[parser->depth - 1]);      \
+            _Static_assert(                                \
+                sizeof(unsigned long) == 8,                \
+                "unexpected size of unsigned long");       \
+            int64_t tmp = strtol(value->string, NULL, 10); \
+            if (!(B))                                      \
+                return JSON_UNKNOWN_VALUE;                 \
+            else                                           \
+            {                                              \
+                *to = tmp;                                 \
+                return JSON_OK;                            \
+            }                                              \
+        }                                                  \
+        return JSON_NO_MATCH;                              \
+    }
 
-#define JINT(P, W, D)                                           \
-    do                                                          \
-    {                                                           \
-        if (decode_x##W(parser, type, un, P, &i, D) == JSON_OK) \
-            return JSON_OK;                                     \
+JINTDECLU(uint64_t, tmp <= UINT64_MAX);
+JINTDECLS(int64_t, INT64_MIN <= tmp && tmp <= INT64_MAX);
+JINTDECLU(uint32_t, tmp <= UINT32_MAX);
+JINTDECLS(int32_t, INT32_MIN <= tmp && tmp <= INT32_MAX);
+JINTDECLU(uint16_t, tmp <= UINT16_MAX);
+
+#define JBOOL(P, D)                               \
+    do                                            \
+    {                                             \
+        if (json_match(parser, P, &i) == JSON_OK) \
+        {                                         \
+            *(D) = un->boolean;                   \
+            return JSON_OK;                       \
+        }                                         \
     } while (0);
 
-#define JBOOL(P, D) JINT(P, 1, D)
-#define JUX16(P, D) JINT(P, 16, D)
-#define JUX32(P, D) JINT(P, 32, D)
-#define JUX64(P, D) JINT(P, 64, D)
-#define JSX32(P, D) JINT(P, 32, ((uint32_t*)D))
-#define JSX64(P, D) JINT(P, 64, ((uint64_t*)D))
+#define JU64(P, D)                                                          \
+    if (decode_uint64_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+        return JSON_OK;
+#define JS64(P, D)                                                         \
+    if (decode_int64_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+        return JSON_OK;
+#define JU32(P, D)                                                          \
+    if (decode_uint32_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+        return JSON_OK;
+#define JS32(P, D)                                                         \
+    if (decode_int32_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+        return JSON_OK;
+#define JU16(P, D)                                                          \
+    if (decode_uint16_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+        return JSON_OK;
 
 static json_result_t json_read_app_config_callback(
     json_parser_t* parser,
@@ -423,7 +449,7 @@ static json_result_t json_read_app_config_callback(
     (&((sgxlkl_app_disk_config_t*)data->array)[data->array_count - 1])
 
             JBOOL("app_config.disks.create", &APPDISK()->create);
-            JUX64("app_config.disks.size", &APPDISK()->size);
+            JU64("app_config.disks.size", &APPDISK()->size);
             if (json_match(parser, "app_config.disks.mnt", &i) == JSON_OK)
             {
                 SEEN(parser);
@@ -456,16 +482,16 @@ static json_result_t json_read_app_config_callback(
                 return JSON_OK;
             }
             JSTRING("app_config.disks.key_id", APPDISK()->key_id);
-            JUX64("app_config.disks.key_len", &APPDISK()->key_len);
+            JU64("app_config.disks.key_len", &APPDISK()->key_len);
             JSTRING("app_config.disks.roothash", APPDISK()->roothash);
-            JUX64(
+            JU64(
                 "app_config.disks.roothash_offset",
                 &APPDISK()->roothash_offset);
 
             // else
             FAIL(
-                "Unknown json element '%s', refusing to run with this "
-                "configuration.\n",
+                "Unknown json element (or value for) '%s', refusing to run "
+                "with this configuration.\n",
                 make_path(parser));
         }
     }
@@ -576,14 +602,14 @@ static json_result_t json_read_callback(
             }
             last_path = cur_path;
 
-            JUX64("max_user_threads", &data->config->max_user_threads);
-            JUX64("stacksize", &data->config->stacksize);
+            JU64("max_user_threads", &data->config->max_user_threads);
+            JU64("stacksize", &data->config->stacksize);
 
 #define HOSTDISK() \
     (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
 
             JBOOL("disks.create", &HOSTDISK()->create);
-            JUX64("disks.size", &HOSTDISK()->size);
+            JU64("disks.size", &HOSTDISK()->size);
             // JBOOL("disks.enc", &HOSTDISK()->enc);
             JPATHT("disks.mnt", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string);
@@ -603,23 +629,23 @@ static json_result_t json_read_callback(
                 else
                     FAIL("invalid setting for mmap_files: %s\n", un->string);
             });
-            JSX32("net_fd", &data->config->net_fd);
-            JSX32("oe_heap_pagecount", &data->config->oe_heap_pagecount);
-            JSX32("net_ip4", &data->config->net_ip4);
-            JSX32("net_gw4", &data->config->net_gw4);
-            JSX32("net_mask4", &data->config->net_mask4);
+            JS32("net_fd", &data->config->net_fd);
+            JU32("oe_heap_pagecount", &data->config->oe_heap_pagecount);
+            JU32("net_ip4", &data->config->net_ip4);
+            JU32("net_gw4", &data->config->net_gw4);
+            JS32("net_mask4", &data->config->net_mask4);
             JPATHT("hostname", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string) + 1;
                 if (len > sizeof(data->config->hostname))
                     FAIL("hostname too long");
                 memcpy(data->config->hostname, un->string, len);
             });
-            JSX32("hostnet", &data->config->hostnet);
-            JSX32("tap_offload", &data->config->tap_offload);
-            JSX32("tap_mtu", &data->config->tap_mtu);
+            JS32("hostnet", &data->config->hostnet);
+            JS32("tap_offload", &data->config->tap_offload);
+            JS32("tap_mtu", &data->config->tap_mtu);
 
-            JSX32("wg.ip", &data->config->wg.ip);
-            JUX16("wg.listen_port", &data->config->wg.listen_port);
+            JU32("wg.ip", &data->config->wg.ip);
+            JU16("wg.listen_port", &data->config->wg.listen_port);
             JSTRING("wg.key", data->config->wg.key);
 
 #define WGPEER() \
@@ -647,8 +673,8 @@ static json_result_t json_read_callback(
             });
 
 #define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
-            JUX64("auxv.a_type", &AUXV()->a_type);
-            JUX64("auxv.a_val", &AUXV()->a_un.a_val);
+            JU64("auxv.a_type", &AUXV()->a_type);
+            JU64("auxv.a_val", &AUXV()->a_un.a_val);
 
             JSTRING("cwd", data->config->cwd);
 
@@ -663,10 +689,10 @@ static json_result_t json_read_callback(
                     FAIL("Invalid exit_status value.\n");
             });
 
-            JUX64("espins", &data->config->espins);
-            JUX64("esleep", &data->config->esleep);
-            JSX64("sysconf_nproc_conf", &data->config->sysconf_nproc_conf);
-            JSX64("sysconf_nproc_onln", &data->config->sysconf_nproc_onln);
+            JU64("espins", &data->config->espins);
+            JU64("esleep", &data->config->esleep);
+            JS64("sysconf_nproc_conf", &data->config->sysconf_nproc_conf);
+            JS64("sysconf_nproc_onln", &data->config->sysconf_nproc_onln);
 
             JPATHT("clock_res", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string);
@@ -679,10 +705,10 @@ static json_result_t json_read_callback(
                 data->array_count++;
             });
 
-            JSX32("mode", &data->config->mode);
-            JSX32("fsgsbase", &data->config->fsgsbase);
-            JSX32("verbose", &data->config->verbose);
-            JSX32("kernel_verbose", &data->config->kernel_verbose);
+            JS32("mode", &data->config->mode);
+            JBOOL("fsgsbase", &data->config->fsgsbase);
+            JBOOL("verbose", &data->config->verbose);
+            JBOOL("kernel_verbose", &data->config->kernel_verbose);
             JSTRING("kernel_cmd", data->config->kernel_cmd);
             JSTRING("sysctl", data->config->sysctl);
 
@@ -768,7 +794,7 @@ static void flatten_stack_strings(
         for (size_t i = 0; i < cfg->argc; i++)
             ADD_STRING(cfg->argv[i]);
     }
-    app_cfg->argc = j;
+    cfg->argc = j;
     out[j++] = NULL;
     // envp
     for (size_t i = 0; i < app_cfg->envc; i++)
@@ -779,11 +805,11 @@ static void flatten_stack_strings(
     // TODO: platform independent things?
     out[j++] = NULL;
 
-    cfg->argv = NULL;
-    cfg->argc = 0;
+    app_cfg->argv = NULL;
+    app_cfg->argc = 0;
 
-    app_cfg->argv = out;
-    app_cfg->envp = out + app_cfg->argc + 1;
+    cfg->argv = out;
+    cfg->envp = out + cfg->argc + 1;
 }
 
 void check_config(

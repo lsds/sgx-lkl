@@ -10,6 +10,7 @@
 #include "shared/sgxlkl_config_json.h"
 
 #include "shared/enclave_config.h"
+#include "shared/json.h"
 
 #define FAIL sgxlkl_host_fail
 #define INFO sgxlkl_host_info
@@ -17,7 +18,11 @@
 typedef struct json_obj
 {
     char* key;
-    char* value;
+    json_type_t type;
+    union {
+        char* string;
+        bool boolean;
+    } value;
     struct json_obj** array;
     struct json_obj** objects;
     size_t size;
@@ -25,7 +30,7 @@ typedef struct json_obj
 
 static json_obj_t* mk_json_obj(
     const char* key,
-    const char* value,
+    json_type_t type,
     json_obj_t** array,
     json_obj_t** objects,
     size_t size)
@@ -35,8 +40,8 @@ static json_obj_t* mk_json_obj(
         FAIL("out of memory\n");
     if (key)
         r->key = strdup(key);
-    if (value)
-        r->value = strdup(value);
+    r->type = type;
+    r->value.string = NULL;
     r->array = array;
     r->objects = objects;
     r->size = size;
@@ -45,12 +50,21 @@ static json_obj_t* mk_json_obj(
 
 static json_obj_t* mk_json_string(const char* key, const char* value)
 {
-    return mk_json_obj(key, value, NULL, NULL, 0);
+    json_obj_t* obj = mk_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
+    obj->value.string = value ? strdup(value) : NULL;
+    return obj;
+}
+
+static json_obj_t* mk_json_boolean(const char* key, const bool value)
+{
+    json_obj_t* obj = mk_json_obj(key, JSON_TYPE_BOOLEAN, NULL, NULL, 0);
+    obj->value.boolean = value;
+    return obj;
 }
 
 static json_obj_t* mk_json_array(const char* key, size_t len)
 {
-    json_obj_t* r = mk_json_obj(key, NULL, NULL, NULL, len);
+    json_obj_t* r = mk_json_obj(key, JSON_TYPE_NULL, NULL, NULL, len);
     r->array = calloc(len, sizeof(char*));
     if (!r->array)
         FAIL("out of memory\n");
@@ -59,38 +73,45 @@ static json_obj_t* mk_json_array(const char* key, size_t len)
 
 static json_obj_t* mk_json_objects(const char* key, size_t len)
 {
-    json_obj_t* r = mk_json_obj(key, NULL, NULL, NULL, len);
+    json_obj_t* r = mk_json_obj(key, JSON_TYPE_NULL, NULL, NULL, len);
     r->objects = calloc(len, sizeof(json_obj_t*));
     if (!r->objects)
         FAIL("out of memory\n");
     return r;
 }
 
-static json_obj_t* mk_json_x16(const char* key, uint32_t value)
-{
-    char* tmp = calloc(1, 4 * 2 + 1);
-    if (!tmp)
-        FAIL("out of memory\n");
-    snprintf(tmp, sizeof(tmp), "%" PRIx16, value);
-    return mk_json_string(key, tmp);
-}
-
-static json_obj_t* mk_json_x32(const char* key, uint32_t value)
-{
-    char* tmp = calloc(1, 4 * 2 + 1);
-    if (!tmp)
-        FAIL("out of memory\n");
-    snprintf(tmp, sizeof(tmp), "%" PRIx32, value);
-    return mk_json_string(key, tmp);
-}
-
-static json_obj_t* mk_json_x64(const char* key, uint64_t value)
+static json_obj_t* mk_json_int(const char* key, uint64_t value, const char* fmt)
 {
     char* tmp = calloc(1, 8 * 2 + 1);
     if (!tmp)
         FAIL("out of memory\n");
-    snprintf(tmp, sizeof(tmp), "%" PRIx64, value);
+    snprintf(tmp, sizeof(tmp), fmt, value);
     return mk_json_string(key, tmp);
+}
+
+static json_obj_t* mk_json_u16(const char* key, uint32_t value)
+{
+    return mk_json_int(key, value, "%" PRIu16);
+}
+
+static json_obj_t* mk_json_s32(const char* key, uint32_t value)
+{
+    return mk_json_int(key, value, "%" PRId32);
+}
+
+static json_obj_t* mk_json_u32(const char* key, uint32_t value)
+{
+    return mk_json_int(key, value, "%" PRIu32);
+}
+
+static json_obj_t* mk_json_u64(const char* key, uint64_t value)
+{
+    return mk_json_int(key, value, "%" PRIu64);
+}
+
+static json_obj_t* mk_json_s64(const char* key, uint64_t value)
+{
+    return mk_json_int(key, value, "%" PRId64);
 }
 
 static json_obj_t* mk_json_string_array(
@@ -135,9 +156,8 @@ static json_obj_t* mk_json_disks(
             sizeof(enclave_disk_config_t) == 352,
             "enclave_disk_config_t size has changed");
         r->array[i] = mk_json_objects(NULL, 3);
-        r->array[i]->objects[0] = mk_json_x32("create", disks[i].create);
-        r->array[i]->objects[1] = mk_json_x64("size", disks[i].size);
-        // r->array[i]->objects[2] = mk_json_x32("enc", disks[i].enc);
+        r->array[i]->objects[0] = mk_json_boolean("create", disks[i].create);
+        r->array[i]->objects[1] = mk_json_u64("size", disks[i].size);
         r->array[i]->objects[2] = mk_json_string("mnt", disks[i].mnt);
     }
     return r;
@@ -159,13 +179,14 @@ static json_obj_t* mk_json_app_disks(
         r->array[i]->objects[0] = mk_json_string("mnt", disks[i].mnt);
         r->array[i]->objects[1] = mk_json_string("key", disks[i].key);
         r->array[i]->objects[2] = mk_json_string("key_id", disks[i].key_id);
-        r->array[i]->objects[3] = mk_json_x64("key_len", disks[i].key_len);
+        r->array[i]->objects[3] = mk_json_u64("key_len", disks[i].key_len);
         r->array[i]->objects[4] = mk_json_string("roothash", disks[i].roothash);
         r->array[i]->objects[5] =
-            mk_json_x64("roothash_offset", disks[i].roothash_offset);
-        r->array[i]->objects[6] = mk_json_x32("readonly", disks[i].readonly);
-        r->array[i]->objects[7] = mk_json_x32("create", disks[i].create);
-        r->array[i]->objects[8] = mk_json_x64("size", disks[i].size);
+            mk_json_u64("roothash_offset", disks[i].roothash_offset);
+        r->array[i]->objects[6] =
+            mk_json_boolean("readonly", disks[i].readonly);
+        r->array[i]->objects[7] = mk_json_boolean("create", disks[i].create);
+        r->array[i]->objects[8] = mk_json_u64("size", disks[i].size);
     }
     return r;
 }
@@ -200,8 +221,8 @@ static json_obj_t* mk_json_wg(const char* key, const enclave_wg_config_t* wg)
         "enclave_wg_config_t size has changed");
 
     json_obj_t* r = mk_json_objects(key, 4);
-    r->objects[0] = mk_json_x32("ip", wg->ip);
-    r->objects[1] = mk_json_x16("listen_port", wg->listen_port);
+    r->objects[0] = mk_json_u32("ip", wg->ip);
+    r->objects[1] = mk_json_u16("listen_port", wg->listen_port);
     r->objects[2] = mk_json_string("key", wg->key);
     r->objects[3] = mk_json_wg_peers("peers", wg->peers, wg->num_peers);
 
@@ -220,8 +241,8 @@ static json_obj_t* mk_json_auxv(const char* key, const Elf64_auxv_t* auxv)
     for (size_t i = 0; i < auxc; i++)
     {
         r->objects[i] = mk_json_objects(NULL, 2);
-        r->objects[i]->objects[0] = mk_json_x64("a_type", auxv->a_type);
-        r->objects[i]->objects[1] = mk_json_x64("a_val", auxv->a_un.a_val);
+        r->objects[i]->objects[0] = mk_json_u64("a_type", auxv->a_type);
+        r->objects[i]->objects[1] = mk_json_u64("a_val", auxv->a_un.a_val);
     }
     return r;
 }
@@ -229,7 +250,7 @@ static json_obj_t* mk_json_auxv(const char* key, const Elf64_auxv_t* auxv)
 static json_obj_t* mk_json_app_config(const char* app_config_str)
 {
     if (!app_config_str)
-        return mk_json_obj("app_config", NULL, NULL, NULL, 0);
+        return mk_json_obj("app_config", JSON_TYPE_NULL, NULL, NULL, 0);
 
     size_t len = strlen(app_config_str) + 32;
     char tmp[len];
@@ -302,30 +323,45 @@ static void print_json(
         print_to_buffer(buffer, buffer_size, position, "\":");
     }
 
-    if (obj->value)
+    if (obj->type == JSON_TYPE_BOOLEAN)
     {
-        print_to_buffer(buffer, buffer_size, position, "\"");
-
-        char* val_copy = strdup(obj->value);
-        char* remaining = val_copy;
-        while (remaining)
+        print_to_buffer(
+            buffer,
+            buffer_size,
+            position,
+            obj->value.boolean ? "true" : "false");
+    }
+    else if (obj->type == JSON_TYPE_STRING)
+    {
+        if (obj->value.string == NULL)
         {
-            char* quotes = strchr(remaining, '\"');
-            if (!quotes)
-            {
-                print_to_buffer(buffer, buffer_size, position, remaining);
-                remaining = NULL;
-            }
-            else
-            {
-                *quotes = 0;
-                print_to_buffer(buffer, buffer_size, position, remaining);
-                print_to_buffer(buffer, buffer_size, position, "\\\"");
-                remaining = quotes + 1;
-            }
+            print_to_buffer(buffer, buffer_size, position, "null");
         }
-        free(val_copy);
-        print_to_buffer(buffer, buffer_size, position, "\"");
+        else
+        {
+            print_to_buffer(buffer, buffer_size, position, "\"");
+
+            char* val_copy = strdup(obj->value.string);
+            char* remaining = val_copy;
+            while (remaining)
+            {
+                char* quotes = strchr(remaining, '\"');
+                if (!quotes)
+                {
+                    print_to_buffer(buffer, buffer_size, position, remaining);
+                    remaining = NULL;
+                }
+                else
+                {
+                    *quotes = 0;
+                    print_to_buffer(buffer, buffer_size, position, remaining);
+                    print_to_buffer(buffer, buffer_size, position, "\\\"");
+                    remaining = quotes + 1;
+                }
+            }
+            free(val_copy);
+            print_to_buffer(buffer, buffer_size, position, "\"");
+        }
     }
     else if (obj->array)
     {
@@ -350,7 +386,7 @@ static void print_json(
         print_to_buffer(buffer, buffer_size, position, "}");
     }
     else
-        print_to_buffer(buffer, buffer_size, position, "null");
+        FAIL("Unidentified json object\n");
 }
 
 static void free_json(json_obj_t* obj)
@@ -358,7 +394,8 @@ static void free_json(json_obj_t* obj)
     if (obj)
     {
         free(obj->key);
-        free(obj->value);
+        if (obj->type == JSON_TYPE_STRING)
+            free(obj->value.string);
         if (obj->array)
             for (size_t i = 0; i < obj->size; i++)
                 free_json(obj->array[i]);
@@ -372,12 +409,12 @@ static void free_json(json_obj_t* obj)
 
 static bool is_json_object(const json_obj_t* obj)
 {
-    return !obj->value && !obj->array && obj->objects;
+    return obj->type == JSON_TYPE_NULL && !obj->array && obj->objects;
 }
 
 static bool is_json_array(const json_obj_t* obj)
 {
-    return !obj->value && obj->array && !obj->objects;
+    return obj->type == JSON_TYPE_NULL && obj->array && !obj->objects;
 }
 
 static void sort_json(json_obj_t* obj)
@@ -430,8 +467,11 @@ void compose_enclave_config(
     _Static_assert(
         sizeof(sgxlkl_config_t) == 472, "sgxlkl_config_t size has changed");
 
-#define FPF32(N) root->objects[cnt++] = mk_json_x32(#N, config->N)
-#define FPF64(N) root->objects[cnt++] = mk_json_x64(#N, config->N)
+#define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
+#define FPFS32(N) root->objects[cnt++] = mk_json_s32(#N, config->N)
+#define FPFU32(N) root->objects[cnt++] = mk_json_u32(#N, config->N)
+#define FPFS64(N) root->objects[cnt++] = mk_json_s64(#N, config->N)
+#define FPFU64(N) root->objects[cnt++] = mk_json_u64(#N, config->N)
 #define FPFS(N) root->objects[cnt++] = mk_json_string(#N, config->N)
 #define FPFSS(N, S) root->objects[cnt++] = mk_json_string(#N, S)
 
@@ -439,8 +479,8 @@ void compose_enclave_config(
     json_obj_t* root = mk_json_objects(NULL, root_size);
 
     size_t cnt = 0;
-    FPF64(max_user_threads);
-    FPF64(stacksize);
+    FPFU64(max_user_threads);
+    FPFU64(stacksize);
     root->objects[cnt++] =
         mk_json_disks("disks", config->disks, config->num_disks);
     FPFSS(
@@ -452,15 +492,15 @@ void compose_enclave_config(
                   : config->mmap_files == ENCLAVE_MMAP_FILES_PRIVATE
                         ? "private"
                         : "unknown");
-    FPF32(net_fd);
-    FPF32(oe_heap_pagecount);
-    FPF32(net_ip4);
-    FPF32(net_gw4);
-    FPF32(net_mask4);
+    FPFS32(net_fd);
+    FPFU32(oe_heap_pagecount);
+    FPFU32(net_ip4);
+    FPFU32(net_gw4);
+    FPFU32(net_mask4);
     FPFS(hostname);
-    FPF32(hostnet);
-    FPF32(tap_offload);
-    FPF32(tap_mtu);
+    FPFS32(hostnet);
+    FPFS32(tap_offload);
+    FPFS32(tap_mtu);
     root->objects[cnt++] = mk_json_wg("wg", &config->wg);
     root->objects[cnt++] =
         mk_json_string_array("argv", config->argv, config->argc);
@@ -479,16 +519,16 @@ void compose_enclave_config(
                   ? "binary"
                   : config->exit_status == EXIT_STATUS_NONE ? "none"
                                                             : "unknown");
-    FPF64(espins);
-    FPF64(esleep);
-    FPF64(sysconf_nproc_conf);
-    FPF64(sysconf_nproc_onln);
+    FPFU64(espins);
+    FPFU64(esleep);
+    FPFS64(sysconf_nproc_conf);
+    FPFS64(sysconf_nproc_onln);
     root->objects[cnt++] =
         mk_json_string_clock_res("clock_res", config->clock_res);
-    FPF32(mode);
-    FPF32(fsgsbase);
-    FPF32(verbose);
-    FPF32(kernel_verbose);
+    FPFS32(mode);
+    FPFBOOL(fsgsbase);
+    FPFBOOL(verbose);
+    FPFBOOL(kernel_verbose);
     FPFS(kernel_cmd);
     FPFS(sysctl);
 

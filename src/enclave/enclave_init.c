@@ -17,8 +17,6 @@
 
 _Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
 
-int sgxlkl_verbose = 1;
-
 _Atomic(int)
     sgxlkl_exit_status = 0; /* Exit status returned when LKL terminates */
 
@@ -27,7 +25,7 @@ struct lkl_host_operations sgxlkl_host_ops;
 
 extern struct mpmcq __scheduler_queue;
 
-_Noreturn void __dls3(sgxlkl_app_config_t* conf, void* tos);
+_Noreturn void __dls3(sgxlkl_enclave_config_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
 int find_and_mount_disks(const sgxlkl_app_config_t* app_config)
@@ -137,7 +135,7 @@ static int startmain(void* args)
     if (wg_get_device(&wg_dev, "wg0"))
         sgxlkl_fail("Failed to locate Wireguard interface 'wg0'.\n");
 
-    if (sgxlkl_verbose)
+    if (sgxlkl_enclave->verbose)
     {
         wg_key_b64_string key;
         wg_key_to_base64(key, wg_dev->public_key);
@@ -159,12 +157,12 @@ static int startmain(void* args)
     {
         sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
     }
-    if (app_config->num_peers && sgxlkl_verbose)
+    if (app_config->num_peers && sgxlkl_enclave->verbose)
         wgu_list_devices();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
-    __dls3(app_config, __builtin_frame_address(0));
+    __dls3(sgxlkl_enclave_state.enclave_config, __builtin_frame_address(0));
 }
 
 int __libc_init_enclave(int argc, char** argv)
