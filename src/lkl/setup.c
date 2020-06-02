@@ -673,7 +673,7 @@ static void lkl_mount_disk(
     lkl_cd.readonly = disk->readonly;
     lkl_cd.disk_config = disk;
 
-    if (disk->create && disk->key)
+    if (disk->create && disk->fresh_key)
     {
         disk->key_len = CREATED_DISK_KEY_LENGTH / 8;
         SGXLKL_VERBOSE("Generating random disk encryption key\n");
@@ -682,6 +682,7 @@ static void lkl_mount_disk(
             sgxlkl_fail("Could not allocate memory for disk encryption key\n");
         for (size_t i = 0; i < disk->key_len; i++)
             // TODO verify that this is secure
+            // cwinter: it's not, but I think we don't need this at all!
             disk->key[i] = rand();
     }
 

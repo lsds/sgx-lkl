@@ -9,10 +9,11 @@ typedef struct sgxlkl_enclave_disk_config
     char* key;
     char* key_id;
     size_t key_len;
+    bool fresh_key;
     char* roothash;
     size_t roothash_offset;
-    int readonly;
-    int create;
+    bool readonly;
+    bool create;
     size_t size;
 } sgxlkl_enclave_disk_config_t;
 
@@ -80,9 +81,9 @@ typedef struct sgxlkl_enclave_config
     struct timespec clock_res[8];
 
     int mode;
-    int fsgsbase;
-    int verbose;
-    int kernel_verbose;
+    bool fsgsbase;
+    bool verbose;
+    bool kernel_verbose;
     char* kernel_cmd;
     char* sysctl;
 

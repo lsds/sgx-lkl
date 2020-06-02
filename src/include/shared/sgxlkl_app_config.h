@@ -9,6 +9,7 @@ typedef struct sgxlkl_app_disk_config
     char* key;
     char* key_id;
     size_t key_len;
+    bool fresh_key;
     char* roothash;
     size_t roothash_offset;
     int readonly;

@@ -181,64 +181,6 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
     return r;
 }
 
-static json_result_t decode_x16(
-    json_parser_t* parser,
-    json_type_t type,
-    const json_union_t* value,
-    char* path,
-    size_t* index,
-    uint16_t* to)
-{
-    if (!to)
-        return JSON_BAD_PARAMETER;
-
-    if (json_match(parser, path, index) == JSON_OK)
-    {
-        if (type != JSON_TYPE_STRING)
-            FAIL(
-                "invalid value type for '%s'\n",
-                parser->path[parser->depth - 1]);
-        size_t num_digits = strlen(value->string);
-        if (num_digits > 4)
-            FAIL(
-                "value for '%s' has excessive length",
-                parser->path[parser->depth - 1]);
-        *to = (uint16_t)hex2int(value->string, num_digits);
-        return JSON_OK;
-    }
-
-    return JSON_NO_MATCH;
-}
-
-static json_result_t decode_x32(
-    json_parser_t* parser,
-    json_type_t type,
-    const json_union_t* value,
-    char* path,
-    size_t* index,
-    uint32_t* to)
-{
-    if (!to)
-        return JSON_BAD_PARAMETER;
-
-    if (json_match(parser, path, index) == JSON_OK)
-    {
-        if (type != JSON_TYPE_STRING)
-            FAIL(
-                "invalid value type for '%s'\n",
-                parser->path[parser->depth - 1]);
-        size_t num_digits = strlen(value->string);
-        if (num_digits > 8)
-            FAIL(
-                "value for '%s' has excessive length",
-                parser->path[parser->depth - 1]);
-        *to = (uint32_t)hex2int(value->string, num_digits);
-        return JSON_OK;
-    }
-
-    return JSON_NO_MATCH;
-}
-
 #define JINTDECLU(T, B)                                      \
     static json_result_t decode_##T(                         \
         json_parser_t* parser,                               \
@@ -483,6 +425,7 @@ static json_result_t json_read_app_config_callback(
             }
             JSTRING("app_config.disks.key_id", APPDISK()->key_id);
             JU64("app_config.disks.key_len", &APPDISK()->key_len);
+            JBOOL("app_config.disks.fresh_key", &APPDISK()->fresh_key);
             JSTRING("app_config.disks.roothash", APPDISK()->roothash);
             JU64(
                 "app_config.disks.roothash_offset",
@@ -610,7 +553,6 @@ static json_result_t json_read_callback(
 
             JBOOL("disks.create", &HOSTDISK()->create);
             JU64("disks.size", &HOSTDISK()->size);
-            // JBOOL("disks.enc", &HOSTDISK()->enc);
             JPATHT("disks.mnt", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string);
                 if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)

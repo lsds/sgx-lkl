@@ -152,6 +152,10 @@ static int parse_enclave_disk_config_entry(
             disk->key_len = key_len;
         }
     }
+    else if (!strcmp("fresh_key", key))
+    {
+        disk->fresh_key = json_object_get_boolean(value);
+    }
     else if (!strcmp("roothash", key))
     {
         disk->roothash = strdup(json_object_get_string(value));

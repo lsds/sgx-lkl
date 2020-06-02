@@ -172,21 +172,23 @@ static json_obj_t* mk_json_app_disks(
     for (size_t i = 0; i < num_disks; i++)
     {
         _Static_assert(
-            sizeof(sgxlkl_app_disk_config_t) == 312,
+            sizeof(sgxlkl_app_disk_config_t) == 320,
             "sgxlkl_app_disk_config_t size has changed");
 
-        r->array[i] = mk_json_objects(NULL, 9);
+        r->array[i] = mk_json_objects(NULL, 10);
         r->array[i]->objects[0] = mk_json_string("mnt", disks[i].mnt);
         r->array[i]->objects[1] = mk_json_string("key", disks[i].key);
         r->array[i]->objects[2] = mk_json_string("key_id", disks[i].key_id);
         r->array[i]->objects[3] = mk_json_u64("key_len", disks[i].key_len);
-        r->array[i]->objects[4] = mk_json_string("roothash", disks[i].roothash);
-        r->array[i]->objects[5] =
-            mk_json_u64("roothash_offset", disks[i].roothash_offset);
+        r->array[i]->objects[4] =
+            mk_json_boolean("fresh_key", disks[i].fresh_key);
+        r->array[i]->objects[5] = mk_json_string("roothash", disks[i].roothash);
         r->array[i]->objects[6] =
+            mk_json_u64("roothash_offset", disks[i].roothash_offset);
+        r->array[i]->objects[7] =
             mk_json_boolean("readonly", disks[i].readonly);
-        r->array[i]->objects[7] = mk_json_boolean("create", disks[i].create);
-        r->array[i]->objects[8] = mk_json_u64("size", disks[i].size);
+        r->array[i]->objects[8] = mk_json_boolean("create", disks[i].create);
+        r->array[i]->objects[9] = mk_json_u64("size", disks[i].size);
     }
     return r;
 }
