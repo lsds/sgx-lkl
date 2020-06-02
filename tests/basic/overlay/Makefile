@@ -1,16 +1,22 @@
 include ../../common.mk
 
+# This test verifies that if the overlay is enabled on a read-only rootfs the following works:
+# - Writing a file.
+# - Mounting an extra disk without existing mount point folder.
+
 PROG=/bin/touch /foo.txt
 IMAGE_SIZE=5M
 
 EXECUTION_TIMEOUT=60
 
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
+
 SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 \
-	SGXLKL_HD_RO=1 SGXLKL_HD_OVERLAY=1
+	SGXLKL_HD_RO=1 SGXLKL_HD_OVERLAY=1 \
+	SGXLKL_HDS=${SGXLKL_ROOTFS}:/data:1
 SGXLKL_HW_PARAMS=--hw-debug
 SGXLKL_SW_PARAMS=--sw-debug
 
-SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 
 .DELETE_ON_ERROR:
 .PHONY: all clean
