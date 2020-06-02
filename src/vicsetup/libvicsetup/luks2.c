@@ -3959,7 +3959,7 @@ vic_result_t luks2_open_by_passphrase(
     if (!_is_valid_device(dev) || !name || !pwd || !pwd_size)
         RAISE(VIC_BAD_PARAMETER);
 
-    if (!ext && luks2_read_hdr(dev, (luks2_hdr_t**)&ext) != 0)
+    if (!hdr && luks2_read_hdr(dev, (luks2_hdr_t**)&ext) != 0)
         RAISE(VIC_HEADER_READ_FAILED);
 
     CHECK(_find_key_by_pwd(
