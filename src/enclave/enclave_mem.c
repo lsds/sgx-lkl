@@ -6,7 +6,6 @@
 #define _GNU_SOURCE
 
 #include <sys/mman.h>
-#include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -19,6 +18,8 @@
 #include "enclave/enclave_util.h"
 #include "enclave/ticketlock.h"
 #include "enclave/sgxlkl_config.h"
+
+static struct sysinfo;
 
 static struct ticketlock mmaplock;
 
@@ -191,7 +192,7 @@ int syscall_SYS_msync(void* addr, size_t length, int flags)
     return 0;
 }
 
-int syscall_SYS_sysinfo(struct sysinfo* info)
+long syscall_SYS_sysinfo(struct sysinfo* info)
 {
     size_t total = mmap_num_pages * PAGESIZE;
     size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
