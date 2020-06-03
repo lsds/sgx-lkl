@@ -467,15 +467,4 @@ _To be added_
 G. Debugging SGX-LKL-OE and applications
 -----------------------------------------
 
-SGX-LKL provides a wrapper around gdb.
-
-1. Before running it, first run `. <OE_PREFIX>/share/openenclave/openenclaverc`.
-sgx-lkl-gdb automatically loads the SGX-LKL gdb plugin which ensures that debug symbols (if available) are loaded correctly. 
-
-When running in HW mode, `sgx-lkl-gdb` uses the corresponding SGX debug 
-instructions to read from and write to enclave memory.
-
-2. To debug an application, invoke `sgx-lkl-gdb` as follows:
-```
-SGXLKL_TAP=sgxlkl_tap0 ../../gdb/sgx-lkl-gdb --args sgx-lkl-run-oe --hw-debug ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
-```
+See the [Debugging](docs/Debugging.md) page for details.
