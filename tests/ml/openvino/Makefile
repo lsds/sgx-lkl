@@ -6,7 +6,7 @@ PROG=/home/user/dldt/bin/intel64/Debug/hello_nv12_input_classification
 DISK_IMAGE=sgxlkl-openvino.img
 IMAGE_SIZE=4096M
 
-EXECUTION_TIMEOUT=3600
+EXECUTION_TIMEOUT=7200
 
 ENCLAVE_CMD=${PROG} /app/public_models/squeezenet1.1.xml /app/public_models/car.yuv 640x480 CPU
 
