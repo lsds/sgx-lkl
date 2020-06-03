@@ -37,7 +37,7 @@ typedef struct enclave_disk_config
     char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1]; // "/" for root disk
     /* Provided by user at runtime (after remote attestation). */
     int ro;                 // Read-only?
-    int overlay;            // overlayfs?
+    int overlay;            // overlayfs? only for rootfs
     char* key;              // Encryption key
     size_t key_len;         // Key length
     char* roothash;         // Root hash (for dm-verity)
