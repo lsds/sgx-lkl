@@ -5,6 +5,7 @@
 #include "vic.h"
 
 vic_result_t vic_dm_create_crypt(
+    const char* prefix,         /* prefix for the uuid (e.g., "CRYPT-LUKS2") */
     const char* name,           /* /dev/mapper name */
     const char* device,         /* device name: example: /dev/loop0  */
     const char* uuid,           /* LUKS UUID */

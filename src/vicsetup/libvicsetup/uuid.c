@@ -41,6 +41,9 @@ bool vic_uuid_valid(const char* uuid)
     uint64_t x5;
     int n;
 
+    if (!uuid)
+        return false;
+
     if (strlen(uuid) != 36)
         return false;
 

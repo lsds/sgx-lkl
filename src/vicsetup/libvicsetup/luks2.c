@@ -3134,6 +3134,7 @@ static vic_result_t _open_integrity_luks2_device(
     size /= VIC_SECTOR_SIZE;
 
     CHECK(vic_dm_create_crypt(
+        "CRYPT-LUKS2",
         name,
         path,
         ext->phdr.uuid,
@@ -3917,6 +3918,7 @@ vic_result_t luks2_open(
     else
     {
         CHECK(vic_dm_create_crypt(
+            "CRYPT-LUKS2",
             name,
             path,
             ext->phdr.uuid,
@@ -3996,6 +3998,7 @@ vic_result_t luks2_open_by_passphrase(
     else
     {
         CHECK(vic_dm_create_crypt(
+            "CRYPT-LUKS2",
             name,
             path,
             ext->phdr.uuid,
@@ -4015,25 +4018,4 @@ done:
         vic_free(ext);
 
     return result;
-}
-
-void luks2_open_hardcoded(void)
-{
-    vic_key_t mk =
-    {
-        .buf = { 0x90, 0x3e, 0x1e, 0xe2, 0x43, 0x8b, 0x87, 0xa4, 0xd8, 0x73, 0xc1, 0x5d, 0xf2, 0xf9, 0x28, 0x75, 0xb2, 0x6b, 0xae, 0xf1, 0xf2, 0x40, 0xa8, 0x91, 0xbf, 0x5a, 0x79, 0x1b, 0xa8, 0xc2, 0x4c, 0x4b }
-    };
-
-    vic_dm_create_crypt(
-        "crypta",
-        "/dev/vda",
-        "9cc87365-356e-4425-931b-ca245ad2073e",
-        0,
-        1315968,
-        "",
-        "aes-xts-plain64",
-        mk.buf,
-        32,
-        0,
-        8192);
 }

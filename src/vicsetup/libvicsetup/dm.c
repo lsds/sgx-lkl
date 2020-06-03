@@ -15,10 +15,46 @@
 #include "hexdump.h"
 #include "malloc.h"
 #include "trace.h"
+#include "uuid.h"
 
-#define TRACE_TARGET
+// #define TRACE_TARGET
+
+#define DM_UUID_LEN 129
+
+// #define USE_UDEV
+
+static vic_result_t _format_dev_uuid(
+    char dev_uuid[DM_UUID_LEN],
+    const char* prefix,
+    const char* uuid,
+    const char* dm_name)
+{
+    vic_result_t result = VIC_OK;
+    uint32_t x1;
+    uint32_t x2;
+    uint32_t x3;
+    uint32_t x4;
+    uint64_t x5;
+    int n;
+
+    if (!dev_uuid || !vic_uuid_valid(uuid) || !dm_name)
+        RAISE(VIC_BAD_PARAMETER);
+
+    n = sscanf(uuid, "%08x-%04x-%04x-%04x-%012lx", &x1, &x2, &x3, &x4, &x5);
+    if (n != 5)
+        RAISE(VIC_BAD_UUID);
+
+    n = snprintf(dev_uuid, DM_UUID_LEN, "%s-%08x%04x%04x%04x%012lx-%s",
+        prefix, x1, x2, x3, x4, x5, dm_name);
+    if (n >= DM_UUID_LEN)
+        RAISE(VIC_BUFFER_TOO_SMALL);
+
+done:
+    return result;
+}
 
 vic_result_t vic_dm_create_crypt(
+    const char* prefix,
     const char* name,
     const char* path,
     const char* uuid,
@@ -36,6 +72,10 @@ vic_result_t vic_dm_create_crypt(
     struct dm_task* dmt = NULL;
     char* hexkey = NULL;
     char dev[PATH_MAX];
+#ifdef USE_UDEV
+    int sync;
+    uint32_t cookie = 0;
+#endif
 
     /* Reject invalid parameters */
     if (!name || !path || !uuid || !integrity || !cipher || !key || !key_bytes)
@@ -121,8 +161,14 @@ vic_result_t vic_dm_create_crypt(
         RAISE(VIC_FAILED);
 
     /* Set the UUID */
-    if (!dm_task_set_uuid(dmt, uuid))
-        RAISE(VIC_FAILED);
+    {
+        char dev_uuid[DM_UUID_LEN] = {0};
+
+        CHECK(_format_dev_uuid(dev_uuid, prefix, uuid, name));
+
+        if (!dm_task_set_uuid(dmt, dev_uuid))
+            RAISE(VIC_FAILED);
+    }
 
 #ifdef TRACE_TARGET
     printf("DM-NAME: %s\n", name);
@@ -133,6 +179,15 @@ vic_result_t vic_dm_create_crypt(
     /* Set the target */
     if (!dm_task_add_target(dmt, start, size, "crypt", params))
         RAISE(VIC_FAILED);
+
+#ifdef USE_UDEV
+    /* Determine whether sync support is available */
+    if ((sync = dm_udev_get_sync_support()))
+    {
+        uint16_t udev_flags = DM_UDEV_DISABLE_LIBRARY_FALLBACK;
+        dm_task_set_cookie(dmt, &cookie, udev_flags);
+    }
+#endif
 
     /* Run the task to create the new target type */
     if (!dm_task_run(dmt))
@@ -146,6 +201,11 @@ vic_result_t vic_dm_create_crypt(
             RAISE(VIC_FAILED);
     }
 
+#ifdef USE_UDEV
+    if (sync)
+        dm_udev_wait(cookie);
+#endif
+
 done:
 
     if (hexkey)
@@ -156,6 +216,8 @@ done:
         dm_task_destroy(dmt);
         dm_task_update_nodes();
     }
+
+    dm_lib_release();
 
     return result;
 }
@@ -262,6 +324,8 @@ done:
         dm_task_destroy(dmt);
         dm_task_update_nodes();
     }
+
+    dm_lib_release();
 
     return result;
 }
@@ -396,6 +460,8 @@ done:
         dm_task_update_nodes();
     }
 
+    dm_lib_release();
+
     return result;
 }
 
@@ -437,6 +503,8 @@ done:
         dm_task_destroy(dmt);
         dm_task_update_nodes();
     }
+
+    dm_lib_release();
 
     return result;
 }

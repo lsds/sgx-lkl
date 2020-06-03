@@ -1511,6 +1511,7 @@ vic_result_t luks1_open(
     }
 
     CHECK(vic_dm_create_crypt(
+        "CRYPT-LUKS1",
         name,
         path,
         hdr->uuid,
