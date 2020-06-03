@@ -369,6 +369,10 @@ static int parse_sgxlkl_app_config_entry(
     {
         err = parse_network(config, value);
     }
+    else if (!strcmp("$schema", key))
+    {
+        // ignore
+    }
     else
     {
         sgxlkl_fail("Unknown configuration entry: %s\n", key);

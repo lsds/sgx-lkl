@@ -56,7 +56,6 @@ int __init_utp(void*, int);
 void* __copy_utls(struct lthread*, uint8_t*, size_t);
 static void _exec(void* lt);
 static void _lthread_init(struct lthread* lt);
-static void _lthread_resume_expired(struct timespec* ts);
 static void _lthread_lock(struct lthread* lt);
 static void lthread_rundestructors(struct lthread* lt);
 
@@ -299,52 +298,6 @@ void _lthread_desched_sleep(struct lthread* lt)
         "tid=%d\n",
         (lthread_self() ? lthread_self()->tid : 0),
         lt->tid);
-}
-
-/*
- * Resumes expired lthread and cancels its events whether it was waiting
- * on one or not, and deschedules it from sleeping rbtree in case it was
- * sleeping.
- */
-static void _lthread_resume_expired(struct timespec* now)
-{
-    struct lthread* lt = NULL;
-    uint64_t curr_usec = 0;
-
-    if (nsleepers == 0)
-    {
-        return;
-    }
-
-    ticket_lock(&sleeplock);
-
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_resume_expired() TICKET_LOCK lock=SLEEPLOCK "
-        "tid=NULL\n",
-        (lthread_self() ? lthread_self()->tid : 0));
-
-    curr_usec = _lthread_timespec_to_usec(now);
-    while ((lt = RB_MIN(lthread_rb_sleep, &_lthread_sleeping)) != NULL)
-    {
-        if (lt->sleep_usecs <= curr_usec)
-        {
-            _lthread_desched_sleep(lt);
-            lthread_set_expired(lt);
-
-            /* don't clear expired if lthread exited/cancelled */
-            if (_lthread_resume(lt) != -1)
-                lt->attr.state &= CLEARBIT(LT_ST_EXPIRED);
-
-            continue;
-        }
-        break;
-    }
-    ticket_unlock(&sleeplock);
-
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_resume_expired() TICKET_UNLOCK lock=SLEEPLOCK "
-        "tid=NULL\n",
-        (lthread_self() ? lthread_self()->tid : 0));
 }
 
 static void _lthread_lock(struct lthread* lt)
