@@ -69,6 +69,11 @@
                         "description": "Whether to mount the disk read-only",
                         "default": false
                     },
+                    "overlay": {
+                        "type": "boolean",
+                        "description": "Whether to create an in-memory writable overlay for a read-only root disk",
+                        "default": false
+                    },
                     "roothash": {
                         "type": "string",
                         "description": "dm-verity hash."
