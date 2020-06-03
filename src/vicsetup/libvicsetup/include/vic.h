@@ -355,4 +355,6 @@ vic_result_t vic_verity_open(
     const void* root_hash,
     size_t root_hash_size);
 
+vic_result_t vic_verity_close(const char* name);
+
 #endif /* _VIC_H */

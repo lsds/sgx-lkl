@@ -337,7 +337,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     }
 
     char* key_outside = lkl_cd->disk_config->key;
-#if 0
+#ifdef USE_KERNEL_MEMORY
     lkl_cd->disk_config->key = (char*)lkl_sys_mmap(
         NULL,
         lkl_cd->disk_config->key_len,
@@ -381,15 +381,13 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
             strerror(-err));
     }
 
-#if 0
     crypt_free(cd);
-#endif
 
     // The key is only needed during activation, so don't keep it around
     // afterwards and free up space.
     memset(lkl_cd->disk_config->key, 0, lkl_cd->disk_config->key_len);
 
-#if 0
+#ifdef USE_KERNEL_MEMORY
     unsigned long munmap_ret;
     if ((munmap_ret = lkl_sys_munmap(
              (unsigned long)lkl_cd->disk_config->key,
@@ -411,6 +409,11 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
     int err;
+#if 0
+    static const size_t SECTOR_SIZE = 4096;
+#else
+    static const size_t SECTOR_SIZE = 512;
+#endif
 
     char* disk_path = lkl_cd->disk_path;
 
@@ -429,7 +432,7 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         .flags = CRYPT_PBKDF_NO_BENCHMARK};
 
     struct crypt_params_luks2 params = {
-        .sector_size = 4096, .pbkdf = &pbkdf,
+        .sector_size = SECTOR_SIZE, .pbkdf = &pbkdf,
         // Temporarily disabled, see comment below.
         //.integrity = "hmac(sha512)"
     };
@@ -582,6 +585,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
 
 static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
 {
+#ifdef USE_KERNEL_MEMORY
     int err;
 
     /*
@@ -591,6 +595,8 @@ static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
      *
      * Buffers passed to the kernel via the crypto API need to be allocated
      * on this stack, or on heap pages allocated via lkl_sys_mmap.
+     *
+     * ATTN: the crypto API works over user memory. Revisit this assumption.
      */
     const int stack_size = 32 * 1024;
 
@@ -621,6 +627,9 @@ static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
     {
         sgxlkl_fail("pthread_join()=%s (%d)\n", strerror(err), err);
     }
+#else
+    (*start_routine)(arg);
+#endif
 }
 
 static void lkl_mount_virtual()

@@ -3,6 +3,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <vic.h>
 
 typedef enum vic_trace_level

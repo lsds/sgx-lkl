@@ -514,3 +514,8 @@ done:
 
     return result;
 }
+
+vic_result_t vic_verity_close(const char* name)
+{
+    return vic_dm_remove(name);
+}

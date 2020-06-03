@@ -23,6 +23,7 @@
     "    luksChangeKey\n" \
     "    luksRemoveKey\n" \
     "    luksOpen\n" \
+    "    luksOpenByKey\n" \
     "    luksClose\n" \
     "    verityDump\n" \
     "    verityFormat\n" \
@@ -859,6 +860,36 @@ static int luksOpen(int argc, const char* argv[])
     return 0;
 }
 
+static int luksOpenByKey(int argc, const char* argv[])
+{
+    vic_result_t r;
+    vic_key_t key;
+    size_t key_size;
+
+    /* Check usage */
+    if (argc != 5)
+    {
+        fprintf(stderr,
+            "Usage: %s %s <luksfile> <keyfile> <dev-mapper-name>\n"
+            "\n",
+            argv[0],
+            argv[1]);
+        exit(1);
+    }
+
+    const char* luksfile = argv[2];
+    const char* keyfile = argv[3];
+    const char* name = argv[4];
+
+    if (vic_luks_load_key(keyfile, &key, &key_size) != VIC_OK)
+        err("failed to load keyfile: %s", keyfile);
+
+    if ((r = vic_luks_open(luksfile, name, &key, key_size)) != VIC_OK)
+        err("%s() failed: %s\n", argv[1], vic_result_string(r));
+
+    return 0;
+}
+
 static int luksClose(int argc, const char* argv[])
 {
     vic_result_t r;
@@ -1172,6 +1203,10 @@ int main(int argc, const char* argv[])
     else if (strcmp(argv[1], "luksOpen") == 0)
     {
         return luksOpen(argc, argv);
+    }
+    else if (strcmp(argv[1], "luksOpenByKey") == 0)
+    {
+        return luksOpenByKey(argc, argv);
     }
     else if (strcmp(argv[1], "luksClose") == 0)
     {

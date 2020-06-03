@@ -52,11 +52,9 @@ struct crypt_device
     struct
     {
         char cipher[LUKS2_ENCRYPTION_SIZE];
-
         struct crypt_pbkdf_type pbkdf;
         char pbkdf_type_buf[32];
         char pbkdf_hash_buf[VIC_MAX_HASH_SIZE];
-
         luks2_hdr_t* hdr;
     }
     luks2;
@@ -221,28 +219,84 @@ void __crypt_free(struct crypt_device* cd)
         if (cd->hbd)
             vic_blockdev_close(cd->hbd);
 
-        if (_is_luks1(cd->type))
-        {
-            if (*cd->dm_name)
-                vic_luks_close(cd->dm_name);
-
-            if (cd->luks1.hdr)
-                vic_free(cd->luks1.hdr);
-        }
-        else if (_is_luks2(cd->type))
-        {
-            if (*cd->dm_name)
-                vic_luks_close(cd->dm_name);
-
-            if (cd->luks2.hdr)
-                vic_free(cd->luks2.hdr);
-        }
-
         memset(cd, 0, sizeof(struct crypt_device));
         vic_free(cd);
     }
 
     LEAVE;
+}
+
+int __crypt_deactivate_by_name(
+    struct crypt_device* cd,
+    const char* name,
+    uint32_t flags)
+{
+    int ret = 0;
+    ENTER;
+
+    if (!name)
+        ERAISE(EINVAL);
+
+    /* Flags not supported */
+    if (flags)
+        ERAISE(ENOTSUP);
+
+    if (cd)
+    {
+        if (_is_luks1(cd->type))
+        {
+            if (*cd->dm_name)
+            {
+                if (vic_luks_close(cd->dm_name) != VIC_OK)
+                    ERAISE(ENOSYS);
+
+                *cd->dm_name = '\0';
+            }
+
+            if (cd->luks1.hdr)
+                vic_free(cd->luks1.hdr);
+
+            memset(&cd->luks1, 0, sizeof(cd->luks1));
+        }
+        else if (_is_luks2(cd->type))
+        {
+            if (*cd->dm_name)
+            {
+                if (vic_luks_close(cd->dm_name) != VIC_OK)
+                    ERAISE(ENOSYS);
+
+                *cd->dm_name = '\0';
+            }
+
+            if (cd->luks2.hdr)
+                vic_free(cd->luks2.hdr);
+
+            memset(&cd->luks2, 0, sizeof(cd->luks2));
+        }
+        else if (_is_verity(cd->type))
+        {
+            if (*cd->dm_name)
+            {
+                vic_verity_close(cd->dm_name);
+                *cd->dm_name = '\0';
+            }
+
+            memset(&cd->verity, 0, sizeof(cd->verity));
+        }
+        else
+        {
+            ERAISE(EINVAL);
+        }
+    }
+    else if (name)
+    {
+        if (vic_luks_close(name) != VIC_OK)
+            ERAISE(ENOSYS);
+    }
+
+done:
+    LEAVE;
+    return ret;
 }
 
 int __crypt_format(
@@ -327,14 +381,17 @@ int __crypt_format(
 
         if (p)
         {
-            /* ATTN: sector_size not supported */
-            if (p->integrity_params ||
-                p->data_alignment ||
-                p->data_device ||
-                (p->sector_size && p->sector_size != VIC_SECTOR_SIZE))
-            {
+            if (p->integrity_params)
                 ERAISE(ENOTSUP);
-            }
+
+            if (p->data_alignment)
+                ERAISE(ENOTSUP);
+
+            if (p->data_device)
+                ERAISE(ENOTSUP);
+
+            if (p->sector_size && p->sector_size != VIC_SECTOR_SIZE)
+                ERAISE(ENOTSUP);
 
             label = p->label;
             subsystem = p->subsystem;

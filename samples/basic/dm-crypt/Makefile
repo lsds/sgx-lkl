@@ -48,6 +48,7 @@ SGXLKL_DISK_OPTIONS += --size=${IMAGE_SIZE}
 SGXLKL_DISK_OPTIONS += --copy=./${APP_ROOT}/
 SGXLKL_DISK_OPTIONS += --encrypt
 SGXLKL_DISK_OPTIONS += --passphrase=pass
+SGXLKL_DISK_OPTIONS += --integrity=hmac-sha256
 #SGXLKL_DISK_OPTIONS += --pbkdf=pbkdf2
 
 image: $(DISK_IMAGE)

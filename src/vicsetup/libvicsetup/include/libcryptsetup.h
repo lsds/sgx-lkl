@@ -175,6 +175,11 @@ int __crypt_get_volume_key_size(struct crypt_device* cd);
 
 void __crypt_set_debug_level(int level);
 
+int __crypt_deactivate_by_name(
+    struct crypt_device* cd,
+    const char* name,
+    uint32_t flags);
+
 /*
 **==============================================================================
 **
@@ -263,6 +268,21 @@ static __inline__ int crypt_get_volume_key_size(struct crypt_device* cd)
 static __inline__ void crypt_set_debug_level(int level)
 {
     return __crypt_set_debug_level(level);
+}
+
+static __inline__ int crypt_deactivate_by_name(
+    struct crypt_device* cd,
+    const char* name,
+    uint32_t flags)
+{
+    return __crypt_deactivate_by_name(cd, name, flags);
+}
+
+static __inline__ int crypt_deactivate(
+    struct crypt_device* cd,
+    const char* name)
+{
+    return __crypt_deactivate_by_name(cd, name, 0);
 }
 
 #endif /* _VIC_LIBCRYPTSETUP_H */
