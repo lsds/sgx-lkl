@@ -22,7 +22,7 @@ struct ticketlock
 #endif                  /* DEBUG */
 };
 
-static void ticket_lock(struct ticketlock* t)
+static inline void ticket_lock(struct ticketlock* t)
 {
     uint32_t me = a_fetch_add_uint(&t->s.users, 1);
     while (t->s.ticket != me)
@@ -33,7 +33,7 @@ static void ticket_lock(struct ticketlock* t)
 #endif /* DEBUG */
 }
 
-static void ticket_unlock(struct ticketlock* t)
+static inline void ticket_unlock(struct ticketlock* t)
 {
     a_barrier();
     t->s.ticket++;
@@ -42,7 +42,7 @@ static void ticket_unlock(struct ticketlock* t)
 #endif /* DEBUG */
 }
 
-static int ticket_trylock(struct ticketlock* t)
+static inline int ticket_trylock(struct ticketlock* t)
 {
     uint32_t me = t->s.users;
     uint32_t menew = me + 1;

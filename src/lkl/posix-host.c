@@ -479,7 +479,6 @@ static void* timer_callback(void* _timer)
 {
     sgxlkl_timer* timer = (sgxlkl_timer*)_timer;
     struct timespec timeout;
-    struct timespec now;
 
     if (timer == NULL || timer->callback_fn == NULL)
     {
@@ -496,7 +495,6 @@ static void* timer_callback(void* _timer)
             break;
         }
 
-        int ret = 0;
         timeout.tv_sec = timer->delay_ns / NSEC_PER_SEC;
         timeout.tv_nsec = timer->delay_ns % NSEC_PER_SEC;
 
@@ -535,6 +533,7 @@ static void* timer_callback(void* _timer)
     mutex_unlock(&timer->mtx);
 
     lthread_exit(NULL);
+    return NULL;
 }
 
 static void* timer_alloc(void (*fn)(void*), void* arg)

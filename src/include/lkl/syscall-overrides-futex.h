@@ -1,6 +1,8 @@
 #ifndef _LKL_SYSCALL_OVERRIDES_FUTEX_H
 #define _LKL_SYSCALL_OVERRIDES_FUTEX_H
 
+#include <time.h>
+
 long syscall_SYS_futex_override(
     int* uaddr,
     int op,

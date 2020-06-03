@@ -99,7 +99,7 @@ description. If the provided callback returns a non-zero return value, -1 will
 be returned, and *err will be set to NULL (if err provided).
 */
 int parse_json_from_str(
-    char* str,
+    const char* str,
     parse_json_callback cb,
     void* userarg,
     char** err)

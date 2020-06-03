@@ -44,8 +44,6 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 
-#define BIT(x) (1ULL << x)
-
 #define UMOUNT_DISK_TIMEOUT 2000
 
 // Block size in bytes of the ext4 filesystem for newly created empty disks.
@@ -134,7 +132,6 @@ static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
     if (dstbuf[dstdir_len - 1] != '/')
         dstbuf[dstdir_len++] = '/';
     struct lkl_linux_dirent64* dev = NULL;
-    int disknum = 0;
     while ((dev = lkl_readdir(dir)) != NULL)
     {
         strncpy(srcbuf + srcdir_len, dev->d_name, sizeof(srcbuf) - srcdir_len);
@@ -867,8 +864,6 @@ void lkl_mount_disks(
 
     lkl_mount_root_disk(root_disk);
 
-    char dev_path[] = {"/dev/vdXX"};
-    size_t dev_path_len = strlen(dev_path);
     for (size_t i = 0; i < num_disks; ++i)
     {
         if (root_disk == &disks[i] || disks[i].fd == -1)
@@ -1109,7 +1104,7 @@ static struct lkl_sem* termination_sem;
 static _Atomic(bool) is_lkl_terminating = false;
 
 /* Function to carry out the shutdown sequence */
-static int lkl_termination_thread(void* args)
+static void* lkl_termination_thread(void* args)
 {
     SGXLKL_VERBOSE("enter\n");
 
@@ -1232,6 +1227,7 @@ static int lkl_termination_thread(void* args)
     lthread_exit(NULL);
 
     SGXLKL_VERBOSE("done\n");
+    return NULL;
 }
 
 /* Create the LKL termination thread */
@@ -1268,8 +1264,6 @@ void lkl_terminate(int exit_status)
 
 static void init_enclave_clock()
 {
-    struct timespec ts;
-
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
     if (oe_is_within_enclave(

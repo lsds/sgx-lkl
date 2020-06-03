@@ -278,12 +278,12 @@ extern "C"
      */
     int lthread_setspecific_remote(struct lthread* lt, long key, const void* value);
 
-    static void* lthread_getspecific(long key)
+    static inline void* lthread_getspecific(long key)
     {
         return lthread_getspecific_remote(lthread_current(), key);
     }
 
-    static int lthread_setspecific(long key, const void* value)
+    static inline int lthread_setspecific(long key, const void* value)
     {
         return lthread_setspecific_remote(lthread_current(), key, value);
     }
