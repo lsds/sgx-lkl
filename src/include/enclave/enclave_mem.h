@@ -29,7 +29,7 @@ void* enclave_mremap(
 
 int enclave_mmap_flags_supported(int flags, int fd);
 
-long syscall_SYS_sysinfo(struct sysinfo* info);
+void enclave_mem_info(size_t* total, size_t* free);
 
 int syscall_SYS_munmap(void* addr, size_t length);
 

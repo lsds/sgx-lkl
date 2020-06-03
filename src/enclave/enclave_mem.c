@@ -192,21 +192,10 @@ int syscall_SYS_msync(void* addr, size_t length, int flags)
     return 0;
 }
 
-long syscall_SYS_sysinfo(struct sysinfo* info)
+void enclave_mem_info(size_t* total, size_t* free)
 {
-    size_t total = mmap_num_pages * PAGESIZE;
-    size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
-
-    info->totalram = total;
-    info->freeram = free;
-    info->totalswap = 0;
-    info->freeswap = 0;
-    info->procs = 1;
-    info->totalhigh = 0;
-    info->freehigh = 0;
-    info->mem_unit = 1;
-
-    return 0;
+    *total = mmap_num_pages * PAGESIZE;
+    *free = (mmap_num_pages - used_pages) * PAGESIZE;
 }
 
 /*
