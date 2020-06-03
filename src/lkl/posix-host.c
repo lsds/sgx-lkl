@@ -571,9 +571,15 @@ static int timer_set_oneshot(void* _timer, unsigned long ns)
 
         if (timer->next_delay_ns)
         {
-            sgxlkl_fail("Bug: next_delay_ns already set for timer\n");
+            if (ns < timer->next_delay_ns)
+            {
+                timer->next_delay_ns = ns;
+            }
         }
-        timer->next_delay_ns = ns;
+        else
+        {
+            timer->next_delay_ns = ns;
+        }
     }
     else
     {
