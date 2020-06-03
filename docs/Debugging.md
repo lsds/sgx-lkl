@@ -22,10 +22,6 @@ If you used a different directory, run `. <OE_PREFIX>/share/openenclave/openencl
 
 Note that debugging enclave code (SGX-LKL as well as application code) is not possible in RELEASE builds of SGX-LKL.
 
-### Application type
-
-Debugging of non-native applications like Python, Java or .NET applications is currently not possible.
-
 ### Docker deployment container
 
 The instructions below assume that disk images and the host/app configurations are available outside of a Docker deployment container. Debugging of deployment containers directly is not supported yet as they do not contain the necessary debugging tools.
