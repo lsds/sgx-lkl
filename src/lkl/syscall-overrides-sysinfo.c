@@ -8,7 +8,7 @@ long syscall_sysinfo_override(struct sysinfo* info)
     info->freeram = free;
     info->totalswap = 0;
     info->freeswap = 0;
-    info->procs = 1;
+    info->procs = 1;     // TODO: report # of ethreads
     info->totalhigh = 0;
     info->freehigh = 0;
     info->mem_unit = 1;
