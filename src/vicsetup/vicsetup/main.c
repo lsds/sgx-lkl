@@ -571,12 +571,20 @@ static int veritysetupOpen(int argc, const char* argv[])
     size_t root_hash_size;
     size_t data_size = 0;
     size_t hash_area_offset = 0;
+    size_t data_block_size = 4096;
+    size_t hash_block_size = 4096;
 
     /* Get --data-size option */
     get_opt_u64(&argc, argv, "--data-size", &data_size);
 
     /* Get --hash-area-offset */
     get_opt_u64(&argc, argv, "--hash-area-offset", &hash_area_offset);
+
+    /* Get --data-block-size option */
+    get_opt_u64(&argc, argv, "--data-block-size", &data_block_size);
+
+    /* Get --hash-block-size option */
+    get_opt_u64(&argc, argv, "--hash-block-size", &hash_block_size);
 
     /* Check usage */
     if (argc != 6)
@@ -601,10 +609,10 @@ static int veritysetupOpen(int argc, const char* argv[])
     {
         .data_device = datafile_opt,
         .hash_device = hashfile_opt,
-        .data_size = data_size / 4096,
+        .data_size = data_size / data_block_size,
         .hash_area_offset = hash_area_offset,
-        .data_block_size = 4096,
-        .hash_block_size = 4096,
+        .data_block_size = data_block_size,
+        .hash_block_size = hash_block_size,
     };
 
     if (crypt_load(cd, CRYPT_VERITY, &params) != 0)

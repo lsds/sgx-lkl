@@ -469,6 +469,7 @@ vic_result_t vic_verity_dump(vic_blockdev_t* hash_dev)
     vic_result_t result = VIC_OK;
     vic_verity_sb_t sb;
     uint8_t hash_block[MAX_BLKSZ];
+    size_t blksz;
 
     if (!hash_dev)
         RAISE(VIC_BAD_PARAMETER);
@@ -479,6 +480,17 @@ vic_result_t vic_verity_dump(vic_blockdev_t* hash_dev)
 
     if (sb.hash_block_size > sizeof(hash_block))
         RAISE(VIC_UNEXPECTED);
+
+    CHECK(vic_blockdev_get_block_size(hash_dev, &blksz));
+
+    if (blksz != sb.hash_block_size)
+    {
+        CHECK(vic_blockdev_set_block_size(hash_dev, sb.hash_block_size));
+        CHECK(vic_blockdev_get_block_size(hash_dev, &blksz));
+
+        if (blksz != sb.hash_block_size)
+            RAISE(VIC_BAD_BLOCK_SIZE);
+    }
 
     CHECK(vic_blockdev_get(hash_dev, 1, hash_block, 1));
 

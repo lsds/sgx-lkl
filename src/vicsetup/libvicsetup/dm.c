@@ -17,7 +17,7 @@
 #include "trace.h"
 #include "uuid.h"
 
-// #define TRACE_TARGET
+#define TRACE_TARGET
 
 #define DM_UUID_LEN 129
 

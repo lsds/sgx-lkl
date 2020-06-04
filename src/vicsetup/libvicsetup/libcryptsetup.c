@@ -150,28 +150,6 @@ int __crypt_init(struct crypt_device** cd_out, const char* device)
         goto done;
     }
 
-#if 0
-    {
-        size_t size;
-        size_t blksz;
-
-        if (vic_blockdev_get_size(cd->bd, &size) != VIC_OK)
-        {
-            ret = -ENOENT;
-            goto done;
-        }
-
-        if (vic_blockdev_get_block_size(cd->bd, &blksz) != VIC_OK)
-        {
-            ret = -ENOENT;
-            goto done;
-        }
-
-        printf("BLKDEV.SIZE=%zu\n", size);
-        printf("BLKDEV.BLKSZ=%zu\n", blksz);
-    }
-#endif
-
     cd->readonly = true;
     cd->magic = MAGIC;
     *cd_out = cd;
@@ -542,8 +520,6 @@ static int _crypt_load_verity(
     struct crypt_params_verity* p)
 {
     int ret = 0;
-    /* ATTN: block size hardcoded for 4096 for now */
-    const size_t BLOCK_SIZE = 4096;
     vic_blockdev_t* hbd = NULL;
     vic_verity_sb_t sb;
 
@@ -555,23 +531,17 @@ static int _crypt_load_verity(
     if (p->fec_device)
         ERAISE(ENOTSUP);
 
-    if (p->data_block_size && p->data_block_size != BLOCK_SIZE)
-        ERAISE(EINVAL);
-
-    if (p->hash_block_size && p->hash_block_size != BLOCK_SIZE)
-        ERAISE(EINVAL);
-
     /* Handle the data device */
     {
         if (strcmp(p->data_device, cd->path) != 0)
             ERAISE(EINVAL);
 
-        if (vic_blockdev_set_block_size(cd->bd, BLOCK_SIZE) != VIC_OK)
+        if (vic_blockdev_set_block_size(cd->bd, p->data_block_size) != VIC_OK)
             ERAISE(EINVAL);
 
         if (p->data_size)
         {
-            const size_t size = p->data_size * BLOCK_SIZE;
+            const size_t size = p->data_size * p->data_block_size;
 
             if (vic_blockdev_set_size(cd->bd, size) != VIC_OK)
                 ERAISE(EIO);
@@ -583,7 +553,7 @@ static int _crypt_load_verity(
         if (vic_blockdev_open(p->hash_device, VIC_RDONLY, 0, &hbd) != VIC_OK)
             ERAISE(ENOENT);
 
-        if (vic_blockdev_set_block_size(hbd, BLOCK_SIZE) != VIC_OK)
+        if (vic_blockdev_set_block_size(hbd, p->hash_block_size) != VIC_OK)
             ERAISE(EINVAL);
 
         if (p->hash_area_offset)
@@ -595,10 +565,7 @@ static int _crypt_load_verity(
         if (vic_verity_read_superblock(hbd, &sb) != VIC_OK)
             ERAISE(EIO);
 
-        if (sb.data_block_size != BLOCK_SIZE)
-            ERAISE(ENOTSUP);
-
-        if (sb.hash_block_size != BLOCK_SIZE)
+        if (sb.data_block_size != p->hash_block_size)
             ERAISE(ENOTSUP);
 
         if (p->hash_block_size && p->hash_block_size != sb.hash_block_size)
@@ -625,8 +592,6 @@ int __crypt_load(
     void* params)
 {
     int ret = 0;
-
-    (void)params;
 
     ENTER;
 
