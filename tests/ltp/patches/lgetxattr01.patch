@@ -1,7 +1,7 @@
 + Currently xattr is not enabled while mounting root file system. Patch is
 + to mount root file system with xattr enabled and then use it for the test.
 diff --git a/testcases/kernel/syscalls/lgetxattr/lgetxattr01.c b/testcases/kernel/syscalls/lgetxattr/lgetxattr01.c
-index b9669b214..3307edd3d 100644
+index b9669b214..78252719c 100644
 --- a/testcases/kernel/syscalls/lgetxattr/lgetxattr01.c
 +++ b/testcases/kernel/syscalls/lgetxattr/lgetxattr01.c
 @@ -14,6 +14,7 @@
@@ -12,21 +12,21 @@ index b9669b214..3307edd3d 100644
  #include "config.h"
  #include <errno.h>
  #include <sys/types.h>
-@@ -31,7 +32,12 @@
+@@ -31,6 +32,13 @@
  #define SECURITY_KEY2   "security.ltptest2"
  #define VALUE1   "test1"
  #define VALUE2   "test2"
--
 +#define MNTPOINT  "mntpoint"
 +#define FILENAME  "mntpoint/lgetxattr01testfile"
 +#define SYMLINK  "mntpoint/lgetxattr01symlink"
 +#define DIR_MODE  (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
++
 +const char *device = "/dev/vda";
 +static const char *fs_type = "ext4";
+ 
  static void set_xattr(char *path, char *key, void *value, size_t size)
  {
- 	int res;
-@@ -50,19 +56,29 @@ static void set_xattr(char *path, char *key, void *value, size_t size)
+@@ -50,19 +58,29 @@ static void set_xattr(char *path, char *key, void *value, size_t size)
  
  static void setup(void)
  {
@@ -62,7 +62,7 @@ index b9669b214..3307edd3d 100644
  	if (TST_RET == -1) {
  		tst_res(TFAIL | TTERRNO, "lgetxattr() failed");
  		goto next;
-@@ -79,7 +95,7 @@ static void verify_lgetxattr(void)
+@@ -79,7 +97,7 @@ static void verify_lgetxattr(void)
  		tst_res(TFAIL, "lgetxattr() got unexpected value");
  
  next:
@@ -71,7 +71,7 @@ index b9669b214..3307edd3d 100644
  
  	if (TST_RET != -1) {
  		tst_res(TFAIL, "lgetxattr() succeeded unexpectedly");
-@@ -95,9 +111,9 @@ next:
+@@ -95,9 +113,9 @@ next:
  }
  
  static struct tst_test test = {

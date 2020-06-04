@@ -1,6 +1,8 @@
 + Currently xattr is not enabled while mounting root file system. Patch is
 + to mount root file system with xattr enabled and then use it for the test.
-+ A test related to block device is disabled due to issue 254
++ A test related to block device is disabled due to issue 254.Block
++ device open fails with ENXIO as block device support is needed.
++ url:https://github.com/lsds/sgx-lkl/issues/254
 diff --git a/testcases/kernel/syscalls/fgetxattr/fgetxattr02.c b/testcases/kernel/syscalls/fgetxattr/fgetxattr02.c
 index 02e81810a..0a1308939 100644
 --- a/testcases/kernel/syscalls/fgetxattr/fgetxattr02.c
