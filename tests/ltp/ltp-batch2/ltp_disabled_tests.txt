@@ -107,7 +107,7 @@
 /ltp/testcases/kernel/syscalls/dup2/dup205
 /ltp/testcases/kernel/syscalls/dup3/dup3_01
 /ltp/testcases/kernel/syscalls/dup3/dup3_02
-/ltp/testcases/kernel/syscalls/epoll/epoll-ltp
+#/ltp/testcases/kernel/syscalls/epoll/epoll-ltp
 /ltp/testcases/kernel/syscalls/epoll_create1/epoll_create1_01
 /ltp/testcases/kernel/syscalls/epoll_ctl/epoll_ctl01
 /ltp/testcases/kernel/syscalls/epoll_ctl/epoll_ctl02
