@@ -211,7 +211,7 @@ static void sem_up(struct lkl_sem* sem)
     // there may be waiters.  Wake one up.
     if (atomic_fetch_add(&sem->count, 1) == 0)
     {
-        futex_wake(&sem->count, 1);
+        futex_wake(&sem->count, INT_MAX);
     }
 }
 
