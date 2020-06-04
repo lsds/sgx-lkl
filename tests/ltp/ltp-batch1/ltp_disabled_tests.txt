@@ -175,14 +175,14 @@
 #/ltp/testcases/kernel/syscalls/fchdir/fchdir03
 #/ltp/testcases/kernel/syscalls/fchmod/fchmod01
 #/ltp/testcases/kernel/syscalls/fchmod/fchmod02
-/ltp/testcases/kernel/syscalls/fchmod/fchmod03
-/ltp/testcases/kernel/syscalls/fchmod/fchmod04
+#/ltp/testcases/kernel/syscalls/fchmod/fchmod03
+#/ltp/testcases/kernel/syscalls/fchmod/fchmod04
 #/ltp/testcases/kernel/syscalls/fchmod/fchmod05
 #/ltp/testcases/kernel/syscalls/fchmod/fchmod06
 #/ltp/testcases/kernel/syscalls/fchmodat/fchmodat01
 #/ltp/testcases/kernel/syscalls/fchown/fchown01
 #/ltp/testcases/kernel/syscalls/fchown/fchown02
-/ltp/testcases/kernel/syscalls/fchown/fchown03
+#/ltp/testcases/kernel/syscalls/fchown/fchown03
 /ltp/testcases/kernel/syscalls/fchown/fchown04
 #/ltp/testcases/kernel/syscalls/fchown/fchown05
 #/ltp/testcases/kernel/syscalls/fchownat/fchownat01
