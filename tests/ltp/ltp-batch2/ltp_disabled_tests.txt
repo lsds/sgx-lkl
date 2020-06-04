@@ -723,7 +723,7 @@
 /ltp/testcases/kernel/syscalls/recvmsg/recvmsg03
 /ltp/testcases/kernel/syscalls/remap_file_pages/remap_file_pages01
 /ltp/testcases/kernel/syscalls/remap_file_pages/remap_file_pages02
-/ltp/testcases/kernel/syscalls/removexattr/removexattr01
+#/ltp/testcases/kernel/syscalls/removexattr/removexattr01
 /ltp/testcases/kernel/syscalls/removexattr/removexattr02
 #/ltp/testcases/kernel/syscalls/rename/rename01
 #/ltp/testcases/kernel/syscalls/rename/rename02
