@@ -227,7 +227,7 @@
 /ltp/testcases/kernel/syscalls/fdatasync/fdatasync02
 /ltp/testcases/kernel/syscalls/fdatasync/fdatasync03
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr01
-/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr02
+#/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr02
 #/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr03
 #/ltp/testcases/kernel/syscalls/flistxattr/flistxattr01
 /ltp/testcases/kernel/syscalls/flistxattr/flistxattr02
@@ -457,7 +457,7 @@
 /ltp/testcases/kernel/syscalls/lchown/lchown01
 /ltp/testcases/kernel/syscalls/lchown/lchown02
 /ltp/testcases/kernel/syscalls/lchown/lchown03
-/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr01
+#/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr01
 /ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
 /ltp/testcases/kernel/syscalls/link/link02
 /ltp/testcases/kernel/syscalls/link/link03
