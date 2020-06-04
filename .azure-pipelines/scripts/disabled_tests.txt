@@ -1,0 +1,5 @@
+tests/containers/encrypted/verify-verity/Makefile
+tests/containers/encrypted/app-config-verity/Makefile
+tests/languages/java/network/Makefile
+tests/basic/network/Makefile
+tests/containers/unencrypted/env/Makefile
