@@ -21,7 +21,7 @@ index ddbcba698..f5b077ad6 100644
  	char buf[size];
  
 -	n = setxattr("testfile", USER_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
-+	n = setxattr( FILENAME, USER_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
++	n = setxattr(FILENAME, USER_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
  	if (n == -1) {
  		if (errno == ENOTSUP) {
  			tst_brkm(TCONF, cleanup, "no xattr support in fs or "
@@ -30,14 +30,14 @@ index ddbcba698..f5b077ad6 100644
  	}
  
 -	TEST(removexattr("testfile", USER_KEY));
-+	TEST(removexattr( FILENAME, USER_KEY));
++	TEST(removexattr(FILENAME, USER_KEY));
  	if (TEST_RETURN != 0) {
  		tst_resm(TFAIL | TTERRNO, "removexattr() failed");
  		return;
  	}
  
 -	n = getxattr("testfile", USER_KEY, buf, size);
-+	n = getxattr( FILENAME, USER_KEY, buf, size);
++	n = getxattr(FILENAME, USER_KEY, buf, size);
  	if (n != -1) {
  		tst_resm(TFAIL, "getxattr() succeeded for deleted key");
  		return;
