@@ -1,15 +1,14 @@
 #ifndef _LKL_SYSCALL_OVERRIDES_FSTAT_H
 #define _LKL_SYSCALL_OVERRIDES_FSTAT_H
 
-typedef long (*syscall_handler_t)(long arg1, ...);
+typedef long (*syscall_fstat_handler)(int, void*);
+typedef long (*syscall_newfstatat_handler)(
+    int, const char*, void*, int);
 
-syscall_handler_t orig_fstat;
+// long syscall_fstat_override(int fd, struct stat* stat);
 
-syscall_handler_t orig_newfstatat;
-
-long syscall_fstat_override(int fd, struct stat* stat);
-
-long syscall_newfstatat_override(int dfd, const char *fn,
-      struct stat *statbuf, int flag);
+// long syscall_newfstatat_override(int dfd, const char *fn,
+      // struct stat *statbuf, int flag);
+void syscall_register_fstat_overrides();
 
 #endif

@@ -4,7 +4,5 @@
 
 void register_lkl_syscall_overrides()
 {
-    orig_fstat = lkl_replace_syscall(__lkl__NR_fstat, syscall_fstat_override);
-    orig_newfstatat = lkl_replace_syscall(__lkl__NR_newfstatat,
-                                          syscall_newfstatat_override);
+    syscall_register_fstat_overrides();
 }

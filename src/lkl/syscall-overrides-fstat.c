@@ -7,6 +7,16 @@
 #include "lkl/syscall-overrides-fstat.h"
 #include "enclave/enclave_util.h"
 
+// The original LKL handler for fstat sycall.
+// The output is a 'lkl_stat' structure, which we will convet to 'stat'
+// structure before returning to user space in the new handler.
+static syscall_fstat_handler orig_fstat;
+
+// The original LKL handler for newfstatat sycall.
+// The output is a 'lkl_stat' structure, which we will convet to 'stat'
+// structure before returning to user space in the new handler.
+static syscall_newfstatat_handler orig_newfstatat;
+
 static void copy_lkl_stat_to_user(struct lkl_stat *lkl_stat, struct stat *stat) {
 	stat->st_dev = lkl_stat->st_dev;
 	stat->st_ino = lkl_stat->st_ino;
@@ -26,7 +36,7 @@ static void copy_lkl_stat_to_user(struct lkl_stat *lkl_stat, struct stat *stat) 
 	stat->st_ctim.tv_nsec = lkl_stat->st_ctime_nsec;
 }
 
-long syscall_fstat_override(int fd, struct stat* stat) {
+static long syscall_fstat_override(int fd, struct stat* stat) {
     struct lkl_stat lkl_stat = {0};
     long ret;
 
@@ -40,7 +50,8 @@ long syscall_fstat_override(int fd, struct stat* stat) {
     return ret;
 }
 
-long syscall_newfstatat_override(int dfd, const char *fn, struct stat *stat, int flag) {
+static long syscall_newfstatat_override(
+    int dfd, const char *fn, struct stat *stat, int flag) {
     struct lkl_stat lkl_stat = {0};
     long ret;
 
@@ -53,4 +64,14 @@ long syscall_newfstatat_override(int dfd, const char *fn, struct stat *stat, int
         copy_lkl_stat_to_user(&lkl_stat, stat);
 
     return ret;
+}
+
+void syscall_register_fstat_overrides()
+{
+    orig_fstat = (syscall_fstat_handler)lkl_replace_syscall(
+        __lkl__NR_fstat,
+        (syscall_fstat_handler)syscall_fstat_override);
+    orig_newfstatat = (syscall_newfstatat_handler)lkl_replace_syscall(
+        __lkl__NR_newfstatat,
+        (syscall_fstat_handler)syscall_newfstatat_override);
 }
