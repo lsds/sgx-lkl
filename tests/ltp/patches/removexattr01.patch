@@ -9,8 +9,8 @@ index ddbcba698..f5b077ad6 100644
  #define VALUE	"test"
  #define VALUE_SIZE	(sizeof(VALUE) - 1)
 +#define MNTPOINT       "mntpoint"
-+#define FILENAME "mntpoint/removexattr01testfile"
-+#define DIR_MODE        (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
++#define FILENAME       "mntpoint/removexattr01testfile"
++#define DIR_MODE       (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
 +const char *device = "/dev/vda";
 +static const char *fs_type = "ext4";
  
@@ -49,8 +49,8 @@ index ddbcba698..f5b077ad6 100644
 -
 -	SAFE_TOUCH(cleanup, "testfile", 0644, NULL);
 +	rmdir(MNTPOINT);
-+	SAFE_MKDIR(cleanup,MNTPOINT, DIR_MODE);
-+	SAFE_MOUNT(cleanup,device, MNTPOINT, fs_type, 0, "user_xattr");
++	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, "user_xattr");
 +	SAFE_TOUCH(cleanup, FILENAME, 0644, NULL);
  }
  
@@ -58,8 +58,8 @@ index ddbcba698..f5b077ad6 100644
  {
 -	tst_rmdir();
 +	remove(FILENAME);
-+	SAFE_UMOUNT(NULL,MNTPOINT);
-+	SAFE_RMDIR(NULL,MNTPOINT);
++	SAFE_UMOUNT(NULL, MNTPOINT);
++	SAFE_RMDIR(NULL, MNTPOINT);
 +
  }
  
