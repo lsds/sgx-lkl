@@ -1,9 +1,9 @@
 #include <enclave/enclave_mem.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <host/sgxlkl_util.h>
 #include <host/vio_host_event_channel.h>
 #include <shared/vio_event_channel.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 
 #define SWIOTLB_BUFFER_SIZE (64UL << 20)
@@ -132,15 +132,16 @@ static void host_dev_cfg_init(
  * Function to initialize the device configuration and event channels.
  */
 int initialize_host_device_configuration(
-    sgxlkl_config_t* cfg,
+    bool swiotlb,
+    sgxlkl_shared_memory_t* shm,
     host_dev_config_t** host_dev_cfg,
     enc_dev_config_t** enc_dev_config,
     uint8_t evt_chn_number)
 {
-    if (cfg->shared_memory.enable_swiotlb)
+    if (swiotlb)
     {
-        cfg->shared_memory.virtio_swiotlb = configure_software_io_tlb(SWIOTLB_SIZE);
-        cfg->shared_memory.virtio_swiotlb_size = SWIOTLB_SIZE;
+        shm->virtio_swiotlb = configure_software_io_tlb(SWIOTLB_SIZE);
+        shm->virtio_swiotlb_size = SWIOTLB_SIZE;
     }
 
     host_dev_cfg_init(host_dev_cfg, enc_dev_config, evt_chn_number);

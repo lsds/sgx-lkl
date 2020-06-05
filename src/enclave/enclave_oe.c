@@ -5,18 +5,19 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
 #include "shared/env.h"
-#include "shared/sgxlkl_app_config.h"
 #include "shared/sgxlkl_config_json.h"
 
 int sgxlkl_verbose = 1;
 
-extern _Atomic(enum sgxlkl_libc_state) __libc_state;
-
 sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
 
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
+
+bool sgxlkl_in_sw_debug_mode()
+{
+    return sgxlkl_enclave_state.enclave_config->mode == SW_DEBUG_MODE;
+}
 
 // We need to have a separate function here
 int __sgx_init_enclave()
@@ -24,8 +25,8 @@ int __sgx_init_enclave()
     _register_enclave_signal_handlers(sgxlkl_enclave->mode);
 
     return __libc_init_enclave(
-        sgxlkl_enclave_state.enclave_config->argc,
-        sgxlkl_enclave_state.enclave_config->argv);
+        sgxlkl_enclave_state.enclave_config->app_config.argc,
+        sgxlkl_enclave_state.enclave_config->app_config.argv);
 }
 
 #ifdef DEBUG
@@ -91,7 +92,7 @@ void sgxlkl_ethread_init(void)
     sched_tcb->schedctx = (struct schedctx*)((char*)tls_page + tls_offset);
 
     /* Wait until libc has been initialized */
-    while (__libc_state != libc_initialized)
+    while (sgxlkl_enclave_state.libc_state != libc_initialized)
     {
         a_spin();
     }
@@ -106,35 +107,21 @@ void sgxlkl_ethread_init(void)
     return;
 }
 
-static void _copy_shared_memory(const sgxlkl_config_t* config_on_host)
-{
-    sgxlkl_enclave_config_shared_memory_t* shm =
-        &sgxlkl_enclave_state.enclave_config->shared_memory;
-    shm->num_virtio_blk_dev = config_on_host->num_disks;
-    shm->virtio_blk_dev_mem =
-        oe_calloc(config_on_host->num_disks, sizeof(void*));
-    for (size_t i = 0; i < config_on_host->num_disks; i++)
-        shm->virtio_blk_dev_mem[i] =
-            config_on_host->disks[i].virtio_blk_dev_mem;
-
-    memcpy(
-        &sgxlkl_enclave_state.enclave_config->shared_memory,
-        &config_on_host->shared_memory,
-        sizeof(sgxlkl_shared_memory_t)); // CHECK: wrong type
-}
-
-static int _read_eeid_config(const sgxlkl_config_t* config_on_host)
+static int _read_eeid_config(const sgxlkl_shared_memory_t* shm)
 {
     const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
     const char* app_config_json = (const char*)eeid->data;
+    sgxlkl_enclave_state.libc_state = libc_not_started;
 
     if (sgxlkl_read_config_json(
-            app_config_json,
-            &sgxlkl_enclave_state.enclave_config,
-            &sgxlkl_enclave_state.app_config))
+            app_config_json, &sgxlkl_enclave_state.enclave_config))
         return 1;
 
-    _copy_shared_memory(config_on_host);
+    // Copy shared memory. Deep copy so the host can't change it?
+    memcpy(
+        &sgxlkl_enclave_state.shared_memory,
+        shm,
+        sizeof(sgxlkl_shared_memory_t));
 
     // This will be removed once shared memory and config have been
     // separated fully.
@@ -143,24 +130,16 @@ static int _read_eeid_config(const sgxlkl_config_t* config_on_host)
     return 0;
 }
 
-int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
+int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 {
-    SGXLKL_ASSERT(config_on_host);
+    SGXLKL_ASSERT(shared_memory);
 
-    sgxlkl_enclave_state.disk_state = NULL;
+    memset(&sgxlkl_enclave_state, 0, sizeof(sgxlkl_enclave_state));
+    sgxlkl_enclave_state.libc_state = libc_not_started;
 
     sgxlkl_verbose = 0;
 
-#ifndef OE_WITH_EXPERIMENTAL_EEID
-    if (!config_on_host->app_config_str)
-    {
-        // Make sure all configuration and state is held in enclave memory.
-        if (sgxlkl_copy_config(config_on_host, &sgxlkl_enclave))
-            return 1;
-    }
-    else
-#endif
-        if (_read_eeid_config(config_on_host))
+    if (_read_eeid_config(shared_memory))
         return 1;
 
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
@@ -168,14 +147,6 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
     sgxlkl_verbose = sgxlkl_enclave_state.enclave_config->verbose;
 
     SGXLKL_VERBOSE("enter\n");
-
-    // Sanity checks
-    SGXLKL_ASSERT(oe_is_within_enclave(&sgxlkl_enclave->mode, sizeof(int)));
-    if (sgxlkl_enclave->num_disks > 0)
-    {
-        SGXLKL_ASSERT(oe_is_within_enclave(
-            &sgxlkl_enclave->disks[0], sizeof(enclave_disk_config_t)));
-    }
 
     void* tls_page;
     __asm__ __volatile__("mov %%fs:0,%0" : "=r"(tls_page));
@@ -193,7 +164,7 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
 #endif
 
     /* Indicate ongoing libc initialisation */
-    __libc_state = libc_initializing;
+    sgxlkl_enclave_state.libc_state = libc_initializing;
 
     SGXLKL_VERBOSE("calling _dlstart_c()\n");
     _dlstart_c((size_t)sgxlkl_enclave_base);

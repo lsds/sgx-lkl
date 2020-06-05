@@ -3,8 +3,8 @@
 #include <errno.h>
 #include <linux/virtio_mmio.h>
 #include <string.h>
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "lkl/virtio.h"
@@ -83,7 +83,8 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev)
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
 
     if (!_netdev_base_id)
-        _netdev_base_id = sgxlkl_enclave->num_disks;
+        _netdev_base_id =
+            sgxlkl_enclave_state.enclave_config->app_config.num_disks;
 
     registered_devs[registered_dev_idx] = netdev;
     lkl_virtio_dev_setup(netdev, mmio_size, &lkl_deliver_irq);

@@ -8,7 +8,7 @@
 #include <host/virtio_console.h>
 #include <poll.h>
 #include <shared/env.h>
-#include <shared/sgxlkl_config.h>
+#include <shared/host_state.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -224,7 +224,7 @@ static struct virtio_dev_ops host_console_ops = {
  * This function allocates the memory for virtio device & virtio ring buffer.
  * The shared memory is shared between host & enclave
  */
-int virtio_console_init(sgxlkl_config_t* config, host_dev_config_t* cfg)
+int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
 {
     void* console_vq_mem = NULL;
 
@@ -284,7 +284,7 @@ int virtio_console_init(sgxlkl_config_t* config, host_dev_config_t* cfg)
 
     dev->device_features |= BIT(VIRTIO_CONSOLE_F_SIZE);
 
-    if (config->mode != SW_DEBUG_MODE)
+    if (host_state->enclave_config.mode != SW_DEBUG_MODE)
         dev->device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);
 
     dev->ops = &host_console_ops;
@@ -299,7 +299,7 @@ int virtio_console_init(sgxlkl_config_t* config, host_dev_config_t* cfg)
     if (_console_dev->monitor_tid == 0)
         sgxlkl_host_fail("Failed to start the host console poll task\n");
 
-    config->shared_memory.virtio_console_mem = &_console_dev->dev;
+    host_state->shared_memory.virtio_console_mem = &_console_dev->dev;
 
     return 0;
 }

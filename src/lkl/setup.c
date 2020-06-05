@@ -39,10 +39,10 @@
 #include "libdevmapper.h"
 
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
+#include "shared/enclave_config.h"
 #include "shared/env.h"
 
 #include "openenclave/corelibc/oestring.h"
@@ -80,8 +80,6 @@ int sgxlkl_trace_thread = 0;
 int sgxlkl_trace_disk = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_mtu = 0;
-
-extern _Atomic(int) sgxlkl_exit_status;
 
 extern struct timespec sgxlkl_app_starttime;
 
@@ -306,8 +304,7 @@ fail:
     return err;
 }
 
-static void lkl_mount_overlay_tmpfs(
-    const char* mnt_point)
+static void lkl_mount_overlay_tmpfs(const char* mnt_point)
 {
     int err = lkl_sys_mount("tmpfs", (char*)mnt_point, "tmpfs", 0, "mode=0777");
     if (err != 0)
@@ -323,11 +320,12 @@ static void lkl_mount_overlayfs(
     const char* mnt_point)
 {
     char opts[200];
+
     oe_snprintf(
-            opts,
-            sizeof(opts),
-            "lowerdir=%s,upperdir=%s,workdir=%s",
-            lower_dir, upper_dir, work_dir);
+        opts,
+        sizeof(opts),
+        "lowerdir=%s,upperdir=%s,workdir=%s",
+        lower_dir, upper_dir, work_dir);
     int err = lkl_sys_mount("overlay", (char*)mnt_point, "overlay", 0, opts);
     if (err != 0)
     {
@@ -831,10 +829,7 @@ static void lkl_mount_root_disk(
         lkl_prepare_rootfs(overlay_work_dir, 0700);
         lkl_prepare_rootfs(mnt_point_overlay, 0700);
         lkl_mount_overlayfs(
-            mnt_point,
-            overlay_upper_dir,
-            overlay_work_dir,
-            mnt_point_overlay);
+            mnt_point, overlay_upper_dir, overlay_work_dir, mnt_point_overlay);
         strcpy(mnt_point, mnt_point_overlay);
         strcpy(new_dev_str, "/mnt/oda/dev/");
     }
@@ -890,9 +885,6 @@ void lkl_mount_disks(
 
     if (num_disks <= 0)
         sgxlkl_fail("No root disk provided. Aborting...\n");
-
-    if (num_disks != sgxlkl_enclave_state.enclave_config->num_disks)
-        sgxlkl_fail("Bug: inconsistent numbers of disks. Aborting...\n");
 
     lkl_add_disks(disks, num_disks);
 
@@ -1205,16 +1197,17 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("termination thread unblocked\n");
 
     /* Expose exit status based on app_config */
-    switch (sgxlkl_enclave->exit_status)
+    sgxlkl_app_config_t* app_config = &sgxlkl_enclave->app_config;
+    switch (app_config->exit_status)
     {
         case EXIT_STATUS_FULL:
             /* do nothing */
             break;
         case EXIT_STATUS_BINARY:
-            sgxlkl_exit_status = sgxlkl_exit_status == 0 ? 0 : 1;
+            app_config->exit_status = app_config->exit_status == 0 ? 0 : 1;
             break;
         case EXIT_STATUS_NONE:
-            sgxlkl_exit_status = 0;
+            app_config->exit_status = 0;
             break;
         default:
             SGXLKL_ASSERT(false);
@@ -1248,8 +1241,7 @@ static void* lkl_termination_thread(void* args)
 
     // Unmount disks (assumes i==0 is the root disk)
     long res;
-    for (int i = sgxlkl_enclave_state.enclave_config->num_disks - 1; i >= 0;
-         --i)
+    for (int i = sgxlkl_enclave_state.num_disk_state - 1; i >= 0; --i)
     {
         if (!sgxlkl_enclave_state.disk_state[i].mounted)
             continue;
@@ -1315,7 +1307,7 @@ static void* lkl_termination_thread(void* args)
     /* Free the shutdown semaphore late in the shutdown sequence */
     sgxlkl_host_ops.sem_free(termination_sem);
 
-    sgxlkl_free_config(sgxlkl_enclave);
+    sgxlkl_free_enclave_config(sgxlkl_enclave);
 
     lthread_exit(NULL);
 }
@@ -1335,7 +1327,7 @@ static void create_lkl_termination_thread()
     }
 }
 
-/* Termiante LKL with a given exit status */
+/* Terminate LKL with a given exit status */
 void lkl_terminate(int exit_status)
 {
     /*
@@ -1346,7 +1338,7 @@ void lkl_terminate(int exit_status)
     {
         SGXLKL_VERBOSE("terminating LKL (exit_status=%i)\n", exit_status);
         _is_lkl_terminating = true;
-        sgxlkl_exit_status = exit_status;
+        sgxlkl_enclave_state.exit_status = exit_status;
         /* Wake up LKL termination thread to carry out the work. */
         sgxlkl_host_ops.sem_up(termination_sem);
     }
@@ -1360,17 +1352,18 @@ bool is_lkl_terminating()
 
 static void init_enclave_clock()
 {
+    struct timespec ts;
+    sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
+
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
-    if (oe_is_within_enclave(
-            sgxlkl_enclave->shared_memory.timer_dev_mem,
-            sizeof(struct timer_dev)))
+    if (oe_is_within_enclave(shm->timer_dev_mem, sizeof(struct timer_dev)))
     {
         sgxlkl_fail(
             "timer_dev memory isn't outside of the enclave. Aborting.\n");
     }
 
-    struct timer_dev* t = sgxlkl_enclave->shared_memory.timer_dev_mem;
+    struct timer_dev* t = shm->timer_dev_mem;
     struct lkl_timespec start_time;
     start_time.tv_sec = t->init_walltime_sec;
     start_time.tv_nsec = t->init_walltime_nsec;
@@ -1390,6 +1383,10 @@ void lkl_start_init()
 
     SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
     register_lkl_syscall_overrides();
+
+    sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
+    const sgxlkl_app_config_t* app_config =
+        &sgxlkl_enclave_state.enclave_config->app_config;
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
@@ -1436,19 +1433,15 @@ void lkl_start_init()
     sgxlkl_mtu = sgxlkl_enclave->tap_mtu;
 
     SGXLKL_VERBOSE("calling initialize_enclave_event_channel()\n");
-    initialize_enclave_event_channel(
-        sgxlkl_enclave->shared_memory.enc_dev_config,
-        sgxlkl_enclave->shared_memory.evt_channel_num);
+    initialize_enclave_event_channel(shm->enc_dev_config, shm->evt_channel_num);
 
     // Register console device
-    SGXLKL_VERBOSE("calling lkl_virtio_console_add()\n");
-    lkl_virtio_console_add(sgxlkl_enclave->shared_memory.virtio_console_mem);
+    lkl_virtio_console_add(shm->virtio_console_mem);
 
     // Register network tap if given one
     int net_dev_id = -1;
     if (sgxlkl_enclave->net_fd != 0)
-        net_dev_id = lkl_virtio_netdev_add(
-            sgxlkl_enclave->shared_memory.virtio_net_dev_mem);
+        net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
 
     /* Prepare bootargs to boot lkl kernel */
     char bootargs[BOOTARGS_LEN] = {0};
@@ -1489,11 +1482,10 @@ void lkl_start_init()
     const char* lkl_cmdline = bootargs;
     SGXLKL_VERBOSE("kernel command line: \'%s\'\n", lkl_cmdline);
 
-    size_t num_disks = sgxlkl_enclave_state.enclave_config->num_disks;
+    size_t num_disks = app_config->num_disks;
     for (i = 0; i < num_disks; ++i)
     {
-        const sgxlkl_enclave_disk_config_t* disk_i =
-            &sgxlkl_enclave_state.enclave_config->disks[i];
+        const sgxlkl_enclave_disk_config_t* disk_i = &app_config->disks[i];
         SGXLKL_VERBOSE(
             "Disk %zu: Disk encryption: %s\n", i, (disk_i->key ? "ON" : "off"));
         SGXLKL_VERBOSE(
@@ -1503,16 +1495,14 @@ void lkl_start_init()
     }
 
     /* Setup bounce buffer for virtio */
-    if (sgxlkl_enclave->shared_memory.enable_swiotlb)
+    if (sgxlkl_enclave_state.enclave_config->swiotlb)
     {
         /* validate bounce buffer memory before setting it up */
         if (!oe_is_within_enclave(
-                sgxlkl_enclave->shared_memory.virtio_swiotlb,
-                sgxlkl_enclave->shared_memory.virtio_swiotlb_size))
+                shm->virtio_swiotlb, shm->virtio_swiotlb_size))
         {
             lkl_initialize_swiotlb(
-                sgxlkl_enclave->shared_memory.virtio_swiotlb,
-                sgxlkl_enclave->shared_memory.virtio_swiotlb_size);
+                shm->virtio_swiotlb, shm->virtio_swiotlb_size);
         }
         else
         {
@@ -1554,17 +1544,17 @@ void lkl_start_init()
         shm_common,
         64,
         "SGXLKL_SHMEM_COMMON=%p",
-        sgxlkl_enclave->shared_memory.shm_common);
+        shm->shm_common);
     oe_snprintf(
         shm_enc_to_out_addr,
         64,
         "SGXLKL_SHMEM_ENC_TO_OUT=%p",
-        sgxlkl_enclave->shared_memory.shm_enc_to_out);
+        shm->shm_enc_to_out);
     oe_snprintf(
         shm_out_to_enc_addr,
         64,
         "SGXLKL_SHMEM_OUT_TO_ENC=%p",
-        sgxlkl_enclave->shared_memory.shm_out_to_enc);
+        shm->shm_out_to_enc);
     putenv(shm_common);
     putenv(shm_enc_to_out_addr);
     putenv(shm_out_to_enc_addr);

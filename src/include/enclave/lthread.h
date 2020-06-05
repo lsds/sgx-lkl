@@ -34,6 +34,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>
 #include <time.h>
@@ -41,8 +42,8 @@
 #include "atomic.h"
 #include "locale_impl.h"
 
+#include "shared/mpmc_queue.h"
 #include "shared/queue.h"
-#include "shared/sgxlkl_config.h"
 #include "shared/tree.h"
 
 #define DEFINE_LTHREAD (lthread_set_funcname(__func__))
@@ -265,7 +266,7 @@ extern "C"
      * explicitly descheduling it.
      */
     void* lthread_getspecific_remote(struct lthread* lt, long key);
-    
+
     /**
      * Sets a thread-local variable corresponding to the key given by `key` to
      * `value`, in the thread specified by `lt`.  This function is not safe to
@@ -276,7 +277,10 @@ extern "C"
      * `__scheduler_enqueue`, to initialise a thread-local variable before a
      * thread starts.
      */
-    int lthread_setspecific_remote(struct lthread* lt, long key, const void* value);
+    int lthread_setspecific_remote(
+        struct lthread* lt,
+        long key,
+        const void* value);
 
     static inline void* lthread_getspecific(long key)
     {
@@ -293,7 +297,7 @@ extern "C"
 #ifndef NDEBUG
         // Abort if we try to schedule an exited lthread.  We cannot rely on
         // our normal assert machinery working if this invariant is violated.
-        if (lt->attr.state & (1<<(LT_ST_EXITED)))
+        if (lt->attr.state & (1 << (LT_ST_EXITED)))
             __builtin_trap();
 #endif
         if (!lt)
@@ -307,7 +311,7 @@ extern "C"
     /**
      * Remove a thread from the list blocking on a futex.
      */
-    void futex_dequeue(struct lthread *lt);
+    void futex_dequeue(struct lthread* lt);
 
 #ifdef DEBUG
     /**

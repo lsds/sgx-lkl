@@ -20,9 +20,9 @@
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_timer.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
@@ -332,7 +332,12 @@ static lkl_thread_t thread_create(void (*fn)(void*), void* arg)
  * Create an lthread to back a Linux task, created with a clone-family call
  * into the kernel.
  */
-static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl_tls_key* task_key, void* task_value)
+static lkl_thread_t thread_create_host(
+    void* pc,
+    void* sp,
+    void* tls,
+    struct lkl_tls_key* task_key,
+    void* task_value)
 {
     struct lthread* thread;
     // Create the thread.  The lthread layer will set up the threading data
@@ -369,7 +374,7 @@ static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
     // enough that `host_thread_exit` can run and call any remaining TLS
     // destructors.  This can be removed once there is a clean mechanism for
     // destroying a not-running lthread without scheduling it.
-    struct lthread *thr = (struct lthread*)tid;
+    struct lthread* thr = (struct lthread*)tid;
     SGXLKL_ASSERT(thr->lt_join == NULL);
     // The thread is currently blocking on the LKL scheduler semaphore, remove
     // it from the sleeping list.
@@ -386,7 +391,6 @@ static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
     // Delete the thread.
     _lthread_free(thr);
 }
-
 
 static void thread_detach(void)
 {
@@ -653,7 +657,7 @@ static long _gettid(void)
 /**
  * The allocation for kernel memory.
  */
-static void *kernel_mem;
+static void* kernel_mem;
 /**
  * The size of kernel heap area.
  */
@@ -669,33 +673,33 @@ static size_t kernel_mem_size;
  * We allocate the former from the `enclave_mmap` space, but smaller buffers
  * from the OE heap.
  */
-static void *host_malloc(size_t size)
+static void* host_malloc(size_t size)
 {
-	// If we're allocating over 1MB, we're probably allocating the kernel heap.
-	// Pull this out of the enclave mmap area: there isn't enough space in the
-	// OE heap for it.
-	if (size > 1024*1024)
-	{
-		SGXLKL_ASSERT(kernel_mem == NULL);
-		kernel_mem = enclave_mmap(0, size, 0, PROT_READ | PROT_WRITE, 0);
-		kernel_mem_size = size;
-		return kernel_mem;
-	}
-	return oe_malloc(size);
+    // If we're allocating over 1MB, we're probably allocating the kernel heap.
+    // Pull this out of the enclave mmap area: there isn't enough space in the
+    // OE heap for it.
+    if (size > 1024 * 1024)
+    {
+        SGXLKL_ASSERT(kernel_mem == NULL);
+        kernel_mem = enclave_mmap(0, size, 0, PROT_READ | PROT_WRITE, 0);
+        kernel_mem_size = size;
+        return kernel_mem;
+    }
+    return oe_malloc(size);
 }
 
 /**
  * Free memory allocated with `host_malloc`.
  */
-static void host_free(void *ptr)
+static void host_free(void* ptr)
 {
-	if (ptr == kernel_mem)
-	{
-		enclave_munmap(kernel_mem, kernel_mem_size);
-		kernel_mem = 0;
-		kernel_mem_size = 0;
-	}
-	oe_free(ptr);
+    if (ptr == kernel_mem)
+    {
+        enclave_munmap(kernel_mem, kernel_mem_size);
+        kernel_mem = 0;
+        kernel_mem_size = 0;
+    }
+    oe_free(ptr);
 }
 
 struct lkl_host_operations sgxlkl_host_ops = {

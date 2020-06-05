@@ -3,7 +3,6 @@
 #include <string.h>
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "enclave/vio_enclave_event_channel.h"
@@ -19,7 +18,7 @@ static void lkl_deliver_irq(uint8_t dev_id)
     ticket_lock(&__vio_event_notifier_lock);
 
     struct virtio_dev* dev =
-        sgxlkl_enclave->shared_memory.virtio_blk_dev_mem[dev_id];
+        sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem[dev_id];
 
     __sync_synchronize();
     dev->int_status |= VIRTIO_MMIO_INT_VRING;
@@ -38,7 +37,7 @@ void lkl_add_disks(sgxlkl_enclave_disk_config_t* disks, size_t num_disks)
     for (size_t i = 0; i < num_disks; ++i)
     {
         struct virtio_dev* dev =
-            sgxlkl_enclave->shared_memory.virtio_blk_dev_mem
+            sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem
                 [sgxlkl_enclave_state.disk_state[i].host_disk_index];
         int mmio_size = VIRTIO_MMIO_CONFIG + dev->config_len;
         lkl_virtio_dev_setup(dev, mmio_size, lkl_deliver_irq);

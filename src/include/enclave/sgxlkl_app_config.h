@@ -1,1 +1,0 @@
-#include <shared/sgxlkl_app_config.h>

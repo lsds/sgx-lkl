@@ -28,11 +28,13 @@
 #include <netinet/ip.h>
 
 #include "enclave/enclave_mem.h"
+#include "host/compose_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "host/vio_host_event_channel.h"
+#include "shared/enclave_config.h"
 #include "shared/env.h"
-#include "shared/sgxlkl_config.h"
+#include "shared/host_state.h"
 
 #include "lkl/linux/virtio_net.h"
 
@@ -66,12 +68,6 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
-extern void compose_enclave_config(
-    const sgxlkl_config_t* config,
-    char** buffer,
-    size_t* buffer_size,
-    const char* filename);
-
 extern char __sgxlklrun_text_segment_start;
 
 /* Function to initialize the host interface */
@@ -80,16 +76,15 @@ extern void sgxlkl_host_interface_initialization(void);
 typedef uint64_t (*sgxlkl_sw_signal_handler)(oe_exception_record_t*);
 static sgxlkl_sw_signal_handler _sgxlkl_sw_signal_handler;
 
-// Keep track of enclave disk image files so we can flush changes on exit.
-static struct enclave_disk_config* _encl_disks = 0;
-static size_t _encl_disk_cnt = 0;
-
 static int rdfsbase_caused_sigill = 0;
+
+sgxlkl_host_state_t host_state;
 
 typedef struct ethread_args
 {
     int ethread_id;
-    sgxlkl_config_t* encl;
+    sgxlkl_enclave_config_t* econf;
+    sgxlkl_shared_memory_t* shm;
     oe_enclave_t* oe_enclave;
 } ethread_args_t;
 
@@ -133,7 +128,7 @@ static void usage()
 #ifdef RELEASE
     printf(
         "%s <--hw-release> [--enclave-image={libsgxlkl.so}] "
-        "[--host-config={host_config_file}] <--app-config={app_config_file}> "
+        "[--host-config={host_state_file}] <--app-config={app_config_file}> "
         "<enclave_root_image> [executable] [args]>\n",
         SGXLKL_LAUNCHER_NAME);
     printf("\n");
@@ -255,7 +250,7 @@ static void help_config()
         "%-35s %s (default: %d)\n",
         "  SGXLKL_ENABLE_SWIOTLB",
         "Enable DMA bounce buffer support, even in sw mode.",
-        DEFAULT_SGXLKL_ENABLE_SWIOTLB);
+        DEFAULT_SGXLKL_SWIOTLB);
     printf("## Scheduling ##\n");
     printf("%-35s %s", "  SGXLKL_ETHREADS", "Number of enclave threads.\n");
     printf(
@@ -513,7 +508,19 @@ static void sgxlkl_loader_signal_handler(int signo)
 }
 #endif // DEBUG && VIRTIO_TEST_HOOK
 
-void set_app_config(sgxlkl_config_t* conf, char* app_config_path)
+void app_config_from_str(char* app_config_str, sgxlkl_app_config_t* app_config)
+{
+    if (!app_config)
+        sgxlkl_host_fail("missing app config object\n");
+
+    char* err = NULL;
+    if (parse_sgxlkl_app_config_from_str(app_config_str, app_config, &err))
+        sgxlkl_host_fail("Invalid app config: %s\n", err);
+}
+
+void app_config_from_file(
+    char* app_config_path,
+    sgxlkl_app_config_t* app_config)
 {
     int fd;
     if ((fd = open(app_config_path, O_RDONLY)) < 0)
@@ -536,7 +543,31 @@ void set_app_config(sgxlkl_config_t* conf, char* app_config_path)
         sgxlkl_host_fail(
             "Failed to read %s: %s.\n", app_config_path, strerror(errno));
 
-    conf->app_config_str = buf;
+    app_config_from_str(buf, app_config);
+}
+
+void app_config_from_cmdline(
+    int argc,
+    char** argv,
+    sgxlkl_app_config_t* app_config)
+{
+    if (argc <= 0)
+    {
+        sgxlkl_host_err(
+            "Insufficient arguments: no application path provided.\n");
+        usage(SGXLKL_LAUNCHER_NAME);
+        exit(EXIT_FAILURE);
+    }
+
+    app_config->run = argv[0];
+    app_config->argc = argc - 1;
+    app_config->argv = argv + 1;
+
+    app_config->cwd = sgxlkl_config_str(SGXLKL_CWD);
+    app_config->auxv = NULL;
+    app_config->num_disks = 1;
+    app_config->disks = calloc(1, sizeof(sgxlkl_enclave_disk_config_t));
+    strcpy(app_config->disks[0].mnt, "/");
 }
 
 void check_envs(const char** pres, char** envp, const char* warn_msg)
@@ -709,22 +740,24 @@ void get_signed_libsgxlkl_path(char* path_buf, size_t len)
     sgxlkl_host_fail("Unable to locate libsgxlkl.so.signed\n");
 }
 
-void set_sysconf_params(sgxlkl_config_t* conf, long ethreads_num)
+void set_sysconf_params(long ethreads_num)
 {
-    conf->sysconf_nproc_conf = ethreads_num;
-    conf->sysconf_nproc_onln = ethreads_num;
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    econf->sysconf_nproc_conf = ethreads_num;
+    econf->sysconf_nproc_onln = ethreads_num;
 }
 
-void set_clock_res(sgxlkl_config_t* conf)
+void set_clock_res()
 {
-    clock_getres(CLOCK_REALTIME, &conf->clock_res[CLOCK_REALTIME]);
-    clock_getres(CLOCK_MONOTONIC, &conf->clock_res[CLOCK_MONOTONIC]);
-    clock_getres(CLOCK_MONOTONIC_RAW, &conf->clock_res[CLOCK_MONOTONIC_RAW]);
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    clock_getres(CLOCK_REALTIME, &econf->clock_res[CLOCK_REALTIME]);
+    clock_getres(CLOCK_MONOTONIC, &econf->clock_res[CLOCK_MONOTONIC]);
+    clock_getres(CLOCK_MONOTONIC_RAW, &econf->clock_res[CLOCK_MONOTONIC_RAW]);
     clock_getres(
-        CLOCK_REALTIME_COARSE, &conf->clock_res[CLOCK_REALTIME_COARSE]);
+        CLOCK_REALTIME_COARSE, &econf->clock_res[CLOCK_REALTIME_COARSE]);
     clock_getres(
-        CLOCK_MONOTONIC_COARSE, &conf->clock_res[CLOCK_MONOTONIC_COARSE]);
-    clock_getres(CLOCK_BOOTTIME, &conf->clock_res[CLOCK_BOOTTIME]);
+        CLOCK_MONOTONIC_COARSE, &econf->clock_res[CLOCK_MONOTONIC_COARSE]);
+    clock_getres(CLOCK_BOOTTIME, &econf->clock_res[CLOCK_BOOTTIME]);
 }
 
 static void* register_shm(char* path, size_t len)
@@ -765,8 +798,9 @@ static void* register_shm(char* path, size_t len)
 }
 
 /* Sets up shared memory with the outside */
-void set_shared_mem(sgxlkl_config_t* conf)
+void set_shared_mem()
 {
+    sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
     char* shm_file = sgxlkl_config_str(SGXLKL_SHMEM_FILE);
     size_t shm_len = sgxlkl_config_uint64(SGXLKL_SHMEM_SIZE);
     if (shm_file == 0 || strlen(shm_file) <= 0 || shm_len <= 0)
@@ -778,11 +812,9 @@ void set_shared_mem(sgxlkl_config_t* conf)
     snprintf(shm_file_enc_to_out, strlen(shm_file) + 4, "%s-eo", shm_file);
     snprintf(shm_file_out_to_enc, strlen(shm_file) + 4, "%s-oe", shm_file);
 
-    conf->shared_memory.shm_common = register_shm(shm_file, shm_len);
-    conf->shared_memory.shm_enc_to_out =
-        register_shm(shm_file_enc_to_out, shm_len);
-    conf->shared_memory.shm_out_to_enc =
-        register_shm(shm_file_out_to_enc, shm_len);
+    shm->shm_common = register_shm(shm_file, shm_len);
+    shm->shm_enc_to_out = register_shm(shm_file_enc_to_out, shm_len);
+    shm->shm_out_to_enc = register_shm(shm_file_out_to_enc, shm_len);
 }
 
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
@@ -796,9 +828,11 @@ static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
 
 /* Checks whether we can us FSGSBASE instructions within the enclave
    NOTE: This overrides previously set SIGILL handlers! */
-void set_tls(sgxlkl_config_t* conf)
+void set_tls()
 {
-    if (conf->mode != SW_DEBUG_MODE)
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+
+    if (econf->mode != SW_DEBUG_MODE)
     {
         // We need to check whether we can support TLS in hardware mode or not
         // This is only possible if control register bit CR4.FSGSBASE is set
@@ -825,7 +859,7 @@ void set_tls(sgxlkl_config_t* conf)
         // WRFSBASE instruction can always be used inside the enclave. It will
         // either be a legal instruction, or it will be emulated by handling
         // the SIGILL in `oecore` first-pass exception handler.
-        conf->fsgsbase = 1;
+        econf->fsgsbase = 1;
 
         // If the following instruction causes a segfault, WRFSBASE will be
         // emulated inside the enclave. This can be a performance penalty.
@@ -834,10 +868,11 @@ void set_tls(sgxlkl_config_t* conf)
     }
     else
     {
-        conf->fsgsbase = 0;
+        econf->fsgsbase = 0;
     }
 
-    sgxlkl_host_verbose("HW TLS support: conf->fsgsbase=%i\n", conf->fsgsbase);
+    sgxlkl_host_verbose(
+        "HW TLS support: econf->fsgsbase=%i\n", econf->fsgsbase);
     if (rdfsbase_caused_sigill)
     {
         sgxlkl_host_warn("WRFSBASE instruction raises SIGILL and will be "
@@ -848,9 +883,10 @@ void set_tls(sgxlkl_config_t* conf)
 }
 
 /* Set up wireguard configuration */
-void set_wg(sgxlkl_config_t* conf)
+void set_wg()
 {
-    struct enclave_wg_config* wg = &conf->wg;
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_enclave_wg_config_t* wg = &econf->wg;
 
     char* wg_ip_str = sgxlkl_config_str(SGXLKL_WG_IP);
     if (inet_pton(AF_INET, wg_ip_str, &wg->ip) != 1)
@@ -878,8 +914,8 @@ void set_wg(sgxlkl_config_t* conf)
         return;
 
     // Allocate space for wg peer configuration
-    wg->peers = (struct enclave_wg_peer_config*)malloc(
-        sizeof(struct enclave_wg_peer_config) * num_peers);
+    wg->peers = (sgxlkl_enclave_wg_peer_config_t*)malloc(
+        sizeof(sgxlkl_enclave_wg_peer_config_t) * num_peers);
     while (*peers_str)
     {
         char* key = peers_str;
@@ -913,7 +949,7 @@ void set_wg(sgxlkl_config_t* conf)
 }
 
 static void prepare_verity(
-    struct enclave_disk_config* disk,
+    sgxlkl_host_disk_state_t* disk,
     char* disk_path,
     char* verity_file_or_roothash,
     char* verity_file_or_hashoffset)
@@ -1027,16 +1063,16 @@ static int is_disk_encrypted(int fd)
 }
 
 static void register_hd(
-    sgxlkl_config_t* encl,
     char* path,
     char* mnt,
     int readonly,
+    size_t idx,
     char* keyfile_or_passphrase,
     char* verity_file_or_roothash,
     char* verity_file_or_hashoffset,
     int overlay)
 {
-    size_t idx = encl->num_disks;
+    const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
     sgxlkl_host_verbose(
         "Registering disk %lu (path='%s', mnt='%s', [%s %s %s %s %s])\n",
@@ -1093,77 +1129,72 @@ static void register_hd(
     if (res == -1)
         sgxlkl_host_fail("fcntl(disk_fd, F_SETFL)");
 
-    struct enclave_disk_config* disk = &encl->disks[idx];
+    sgxlkl_host_disk_state_t* disk = &host_state.disks[idx];
     disk->fd = fd;
-    disk->ro = readonly;
-    disk->capacity = size;
+    disk->size = size;
     disk->mmap = disk_mmap;
+    disk->is_encrypted = is_disk_encrypted(fd);
     strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
-    disk->enc = is_disk_encrypted(fd);
-    disk->create = 0; // set by app config
     disk->overlay = overlay;
     disk->size = size;
+    disk->ro = readonly;
 
-    blk_device_init(disk, encl->shared_memory.enable_swiotlb);
+    blk_device_init(disk, idx, host_state.enclave_config.swiotlb);
 
-    // If key/root hash is provided remotely or is set via app config, don't set
-    // it here.
-    if (disk->enc && !encl->app_config_str && encl->mode != HW_RELEASE_MODE)
+    if (econf->mode != HW_RELEASE_MODE)
     {
-        if (!keyfile_or_passphrase)
-            sgxlkl_host_fail(
-                "No passphrase or key file provided via SGXLKL_HD_KEY for "
-                "encrypted disk %s.\n",
-                path);
-
-        // Currently we have a single parameter for passphrases and keyfiles.
-        // Determine which one it is.
-        if (access(keyfile_or_passphrase, R_OK) != -1)
+        // If key and root hash are provided remotely or is set via enclave
+        // config, don't set it here.
+        if (disk->is_encrypted && keyfile_or_passphrase)
         {
-            FILE* kf;
-
-            if (!(kf = fopen(keyfile_or_passphrase, "rb")))
-                sgxlkl_host_fail(
-                    "Failed to open keyfile %s.\n", keyfile_or_passphrase);
-
-            fseek(kf, 0, SEEK_END);
-            disk->key_len = ftell(kf);
-            if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024)
+            // Currently we have a single parameter for passphrases and
+            // keyfiles. Determine which one it is.
+            if (access(keyfile_or_passphrase, R_OK) != -1)
             {
-                sgxlkl_host_warn(
-                    "Provided key file is larger than maximum supported key "
-                    "file size (%dkB). Only the first %dkB will be used.\n",
-                    MAX_KEY_FILE_SIZE_KB,
-                    MAX_KEY_FILE_SIZE_KB);
-                disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
+                FILE* kf;
+
+                if (!(kf = fopen(keyfile_or_passphrase, "rb")))
+                    sgxlkl_host_fail(
+                        "Failed to open keyfile %s.\n", keyfile_or_passphrase);
+
+                fseek(kf, 0, SEEK_END);
+                disk->key_len = ftell(kf);
+                if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024)
+                {
+                    sgxlkl_host_warn(
+                        "Provided key file is larger than maximum supported "
+                        "key "
+                        "file size (%dkB). Only the first %dkB will be used.\n",
+                        MAX_KEY_FILE_SIZE_KB,
+                        MAX_KEY_FILE_SIZE_KB);
+                    disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
+                }
+                rewind(kf);
+
+                disk->key = (char*)malloc((disk->key_len));
+                if (!fread(disk->key, disk->key_len, 1, kf))
+                    sgxlkl_host_fail(
+                        "Failed to read keyfile %s.\n", keyfile_or_passphrase);
+
+                fclose(kf);
             }
-            rewind(kf);
-
-            disk->key = (char*)malloc((disk->key_len));
-            if (!fread(disk->key, disk->key_len, 1, kf))
-                sgxlkl_host_fail(
-                    "Failed to read keyfile %s.\n", keyfile_or_passphrase);
-
-            fclose(kf);
+            else
+            {
+                disk->key_len = strlen(keyfile_or_passphrase);
+                disk->key = (char*)malloc(disk->key_len);
+                memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
+            }
         }
-        else
-        {
-            disk->key_len = strlen(keyfile_or_passphrase);
-            disk->key = (char*)malloc(disk->key_len);
-            memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
-        }
-    }
 
-    if (encl->mode != HW_RELEASE_MODE)
-    {
         prepare_verity(
             disk, path, verity_file_or_roothash, verity_file_or_hashoffset);
     }
-    ++encl->num_disks;
+
+    host_state.num_disks++;
 }
 
-static void register_hds(sgxlkl_config_t* encl, char* root_hd)
+static void register_hds(char* root_hd)
 {
     // Count disks to register
     size_t num_disks = 1; // Root disk
@@ -1178,21 +1209,26 @@ static void register_hds(sgxlkl_config_t* encl, char* root_hd)
         }
     }
 
-    // Allocate space for encave disk configurations
-    encl->disks = (struct enclave_disk_config*)malloc(
-        sizeof(struct enclave_disk_config) * num_disks);
-    // Initialize encl->num_disks, will be adjusted by register_hd
-    encl->num_disks = 0;
+    sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
+    shm->num_virtio_blk_dev = num_disks;
+    shm->virtio_blk_dev_mem = calloc(num_disks, sizeof(void*));
+    shm->virtio_blk_dev_names = calloc(num_disks, sizeof(char*));
+
+    if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
+        sgxlkl_host_fail("out of memory\n");
+
+    size_t idx = 0;
     // Register root disk
     register_hd(
-        encl,
         root_hd,
         "/",
+        idx,
         sgxlkl_config_bool(SGXLKL_HD_RO),
         sgxlkl_config_str(SGXLKL_HD_KEY),
         sgxlkl_config_str(SGXLKL_HD_VERITY),
         sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET),
         sgxlkl_config_bool(SGXLKL_HD_OVERLAY));
+
     // Register secondary disks
     while (*hds_str)
     {
@@ -1203,31 +1239,28 @@ static void register_hds(sgxlkl_config_t* encl, char* root_hd)
         char* hd_mnt_end = strchrnul(hd_mnt, ':');
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL, false);
+        register_hd(hd_path, hd_mnt, hd_ro, idx, NULL, NULL, NULL, false);
 
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while (*hds_str == ' ' || *hds_str == ',')
             hds_str++;
     }
-
-    // Keep track of disks in order to close fds properly at exit
-    _encl_disks = encl->disks;
-    _encl_disk_cnt = encl->num_disks;
 }
 
 static void register_net(
-    sgxlkl_config_t* encl,
     const char* tapstr,
     const char* ip4str,
     int mask4,
     const char* gw4str,
     const char* hostname)
 {
-    // Set hostname
-    strncpy(encl->hostname, hostname, sizeof(encl->hostname));
-    encl->hostname[sizeof(encl->hostname) - 1] = '\0';
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
-    if (encl->net_fd != 0)
+    // Set hostname
+    strncpy(econf->hostname, hostname, sizeof(econf->hostname));
+    econf->hostname[sizeof(econf->hostname) - 1] = '\0';
+
+    if (econf->net_fd != 0)
         sgxlkl_host_fail("Multiple network interfaces not supported yet\n");
 
     // Open tap device FD
@@ -1274,10 +1307,10 @@ static void register_net(
         sgxlkl_host_fail(
             "Failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
 
-    encl->tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
-    encl->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
+    econf->tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
+    econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
 
-    encl->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
+    econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
 
     struct in_addr ip4 = {0};
     if (inet_pton(AF_INET, ip4str, &ip4) != 1)
@@ -1293,19 +1326,21 @@ static void register_net(
     if (mask4 < 1 || mask4 > 32)
         sgxlkl_host_fail("Invalid IPv4 mask %d\n", mask4);
 
-    encl->net_fd = fd;
-    encl->net_ip4 = ip4.s_addr;
-    encl->net_gw4 = gw4.s_addr;
-    encl->net_mask4 = mask4;
+    econf->net_fd = fd;
+    econf->net_ip4 = ip4.s_addr;
+    econf->net_gw4 = gw4.s_addr;
+    econf->net_mask4 = mask4;
 }
 
 static void sgxlkl_cleanup(void)
 {
     // Close disk image fds
-    while (_encl_disk_cnt)
+    while (host_state.num_disks)
     {
-        close(_encl_disks[--_encl_disk_cnt].fd);
+        close(host_state.disks[--host_state.num_disks].fd);
     }
+    free(host_state.shared_memory.virtio_blk_dev_mem);
+    free(host_state.shared_memory.virtio_blk_dev_names);
 }
 
 static void serialize_ucontext(
@@ -1533,7 +1568,7 @@ void* enclave_init(ethread_args_t* args)
         "sgxlkl_enclave_init(ethread_id=%i)\n", args->ethread_id);
     int exit_status;
     oe_result_t result =
-        sgxlkl_enclave_init(args->oe_enclave, &exit_status, args->encl);
+        sgxlkl_enclave_init(args->oe_enclave, &exit_status, args->shm);
     bool current_value = true;
     if (sgxlkl_config_bool(SGXLKL_VERBOSE) &&
         atomic_compare_exchange_strong(&first_thread, &current_value, false))
@@ -1555,11 +1590,75 @@ void* enclave_init(ethread_args_t* args)
     return (void*)(long)exit_status;
 }
 
+void _create_enclave(
+    char* libsgxlkl,
+    uint32_t oe_flags,
+    const sgxlkl_app_config_t* app_config,
+    oe_enclave_t** oe_enclave)
+{
+    oe_result_t result = OE_UNEXPECTED;
+    oe_enclave_setting_t setting;
+    setting.setting_type = OE_EXTENDED_ENCLAVE_INITIALIZATION_DATA;
+
+    char* buffer = NULL;
+    size_t buffer_size = 0;
+    compose_enclave_config(
+        &host_state, app_config, &buffer, &buffer_size, "enclave-config.json");
+
+    oe_eeid_t* eeid = NULL;
+    oe_create_eeid_sgx(buffer_size, &eeid);
+    // TODO: get memory settings from app config
+    eeid->size_settings.num_heap_pages = 40000; // 262144;
+    eeid->size_settings.num_stack_pages = 1024;
+    eeid->size_settings.num_tcs = 8;
+    memcpy(eeid->data, buffer, buffer_size);
+
+    setting.u.eeid = eeid;
+
+    result = oe_create_sgxlkl_enclave(
+        libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, oe_enclave);
+
+    free(eeid);
+    setting.u.eeid = NULL;
+
+    sgxlkl_host_verbose_raw("result=%u (%s)\n", result, oe_result_str(result));
+
+    if (result != OE_OK)
+        sgxlkl_host_fail("Could not initialise enclave\n");
+}
+
+void find_root_disk_file(int* argc, char*** argv, char** root_hd)
+{
+    // Determine path to root disk. Either configured via env/json config or
+    // as first command line argument.
+    if (sgxlkl_configured(SGXLKL_HD))
+    {
+        if (root_hd)
+            *root_hd = sgxlkl_config_str(SGXLKL_HD);
+    }
+    else if (argc > 0)
+    {
+        if (root_hd)
+            *root_hd = (*argv)[0];
+        (*argc)--;
+        (*argv)++;
+    }
+    else
+    {
+        sgxlkl_host_err(
+            "Insufficient arguments: no root disk image path provided.\n");
+        printf("\n");
+        usage(SGXLKL_LAUNCHER_NAME);
+        exit(EXIT_FAILURE);
+    }
+}
+
 int main(int argc, char* argv[], char* envp[])
 {
-    char* app_config = NULL;
+    char* app_config_path = NULL;
     char libsgxlkl[PATH_MAX];
-    sgxlkl_config_t encl = {0};
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_app_config_t* app_config = &econf->app_config;
     char* root_hd = NULL;
     long nproc;
     size_t num_ethreads = 1;
@@ -1576,7 +1675,6 @@ int main(int argc, char* argv[], char* envp[])
     void* return_value;
     bool enclave_image_provided = false;
 
-    oe_result_t result;
     oe_enclave_t* oe_enclave = NULL;
     uint32_t oe_flags = 0;
 
@@ -1602,22 +1700,22 @@ int main(int argc, char* argv[], char* envp[])
         {"app-config", required_argument, 0, 'a'},
         {0, 0, 0, 0}};
 
-    encl.mode = UNKNOWN_MODE;
+    econf->mode = UNKNOWN_MODE;
 
     while ((c = getopt_sgxlkl(argc, argv, long_options)) != -1)
     {
         switch (c)
         {
             case SW_DEBUG_MODE:
-                encl.mode = SW_DEBUG_MODE;
+                econf->mode = SW_DEBUG_MODE;
                 oe_flags = OE_ENCLAVE_FLAG_SIMULATE | OE_ENCLAVE_FLAG_DEBUG;
                 break;
             case HW_DEBUG_MODE:
-                encl.mode = HW_DEBUG_MODE;
+                econf->mode = HW_DEBUG_MODE;
                 oe_flags = OE_ENCLAVE_FLAG_DEBUG;
                 break;
             case HW_RELEASE_MODE:
-                encl.mode = HW_RELEASE_MODE;
+                econf->mode = HW_RELEASE_MODE;
                 break;
             case 'e':
                 enclave_image_provided = true;
@@ -1643,7 +1741,7 @@ int main(int argc, char* argv[], char* envp[])
                         err);
                 break;
             case 'a':
-                app_config = optarg;
+                app_config_path = optarg;
                 break;
             default:
                 sgxlkl_host_fail(
@@ -1651,7 +1749,7 @@ int main(int argc, char* argv[], char* envp[])
         }
     }
 
-    if (encl.mode == UNKNOWN_MODE)
+    if (econf->mode == UNKNOWN_MODE)
     {
         sgxlkl_host_err(
             "Insufficient arguments: must specific SGX-LKL execution mode.\n");
@@ -1667,54 +1765,24 @@ int main(int argc, char* argv[], char* envp[])
         LKL_VERSION,
         BUILD_INFO);
     sgxlkl_host_verbose_raw(
-        encl.mode == SW_DEBUG_MODE
+        econf->mode == SW_DEBUG_MODE
             ? " [SOFTWARE DEBUG]\n"
-            : encl.mode == HW_DEBUG_MODE
+            : econf->mode == HW_DEBUG_MODE
                   ? " [HARDWARE DEBUG]\n"
-                  : encl.mode == HW_RELEASE_MODE ? " [HARDWARE RELEASE]\n"
-                                                 : "(Unknown)\n");
-
-    encl.argc = argc - optind;
-    encl.argv = argv + optind;
-
-    // Determine path to root disk. Either configured via env/json config or
-    // as first command line argument.
-    if (sgxlkl_configured(SGXLKL_HD))
-    {
-        root_hd = sgxlkl_config_str(SGXLKL_HD);
-    }
-    else if (encl.argc)
-    {
-        root_hd = encl.argv[0];
-        encl.argc -= 1;
-        encl.argv += 1;
-    }
-    else
-    {
-        sgxlkl_host_err(
-            "Insufficient arguments: no root disk image path provided.\n");
-        printf("\n");
-        usage(SGXLKL_LAUNCHER_NAME);
-        exit(EXIT_FAILURE);
-    }
+                  : econf->mode == HW_RELEASE_MODE ? " [HARDWARE RELEASE]\n"
+                                                   : "(Unknown)\n");
+    argc -= optind;
+    argv += optind;
+    find_root_disk_file(&argc, &argv, &root_hd);
 
     // Check if app_config has been provided via a file or an environment
     // variable
-    if (app_config)
-    {
-        set_app_config(&encl, app_config);
-    }
+    if (app_config_path)
+        app_config_from_file(app_config_path, app_config);
     else if (sgxlkl_configured(SGXLKL_APP_CONFIG))
-    {
-        encl.app_config_str = sgxlkl_config_str(SGXLKL_APP_CONFIG);
-    }
-    else if (!encl.argc)
-    {
-        sgxlkl_host_err(
-            "Insufficient arguments: no application path provided.\n");
-        usage(SGXLKL_LAUNCHER_NAME);
-        exit(EXIT_FAILURE);
-    }
+        app_config_from_str(sgxlkl_config_str(SGXLKL_APP_CONFIG), app_config);
+    else
+        app_config_from_cmdline(argc, argv, app_config);
 
     /* Print warnings for ignored options, e.g. for debug options in non-debug
      * mode. */
@@ -1727,21 +1795,19 @@ int main(int argc, char* argv[], char* envp[])
                        : nproc;
 
     // Ethread config
-    encl.oe_heap_pagecount = sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
-    encl.stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
-    encl.max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
-    encl.espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
-    encl.esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
-    encl.verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
-    encl.kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
-    encl.kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
-    encl.sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
-    encl.cwd = sgxlkl_config_str(SGXLKL_CWD);
-    encl.shared_memory.enable_swiotlb =
-        sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
+    econf->oe_heap_pagecount = sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
+    econf->stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
+    econf->max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
+    econf->espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
+    econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
+    econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
+    econf->kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
+    econf->kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    econf->sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
+    econf->swiotlb = sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
 
     char* mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
-    encl.mmap_files =
+    econf->mmap_files =
         !strcmp(mmap_files, "Shared")
             ? ENCLAVE_MMAP_FILES_SHARED
             : (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE
@@ -1750,7 +1816,7 @@ int main(int argc, char* argv[], char* envp[])
     /* Host and guest cannot use virtio in HW mode without bounce buffer,so in
      * hardware mode SWIOTLB is always enabled.
      * SGXLKL_ENABLE_SWIOTLB allows to enable/disable SWIOTLB only in SW mode */
-    if (encl.mode != SW_DEBUG_MODE && !encl.shared_memory.enable_swiotlb)
+    if (econf->mode != SW_DEBUG_MODE && !econf->swiotlb)
     {
         sgxlkl_host_fail("SWIOTLB cannot be disabled in hardware mode. Set "
                          "SGXLKL_ENABLE_SWIOTLB=1 to run\n");
@@ -1760,16 +1826,15 @@ int main(int argc, char* argv[], char* envp[])
         "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\"\n",
         nproc,
         num_ethreads,
-        encl.kernel_cmd);
+        econf->kernel_cmd);
 
-    set_sysconf_params(&encl, num_ethreads);
-    set_clock_res(&encl);
-    set_shared_mem(&encl);
-    set_tls(&encl);
-    set_wg(&encl);
-    register_hds(&encl, root_hd);
+    set_sysconf_params(num_ethreads);
+    set_clock_res();
+    set_shared_mem(&host_state.shared_memory);
+    set_tls();
+    set_wg();
+    register_hds(root_hd);
     register_net(
-        &encl,
         sgxlkl_config_str(SGXLKL_TAP),
         sgxlkl_config_str(SGXLKL_IP4),
         (int)sgxlkl_config_uint64(SGXLKL_MASK4),
@@ -1778,7 +1843,7 @@ int main(int argc, char* argv[], char* envp[])
 
     /* SW mode requires special signal handling, since
      * OE does not support exception handling in SW mode. */
-    if (encl.mode == SW_DEBUG_MODE)
+    if (econf->mode == SW_DEBUG_MODE)
     {
         setup_sw_mode_signal_handlers();
     }
@@ -1812,7 +1877,7 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     /* Number of Virtio disk task should be the number of disks enabled */
-    host_vdisk_task = calloc(sizeof(*host_vdisk_task), _encl_disk_cnt);
+    host_vdisk_task = calloc(sizeof(*host_vdisk_task), host_state.num_disks);
     if (host_vdisk_task == 0)
     {
         sgxlkl_host_fail("Failed to allocate block_dev task mem: %d\n", errno);
@@ -1830,39 +1895,7 @@ int main(int argc, char* argv[], char* envp[])
 
     /* Enclave creation */
     sgxlkl_host_verbose("oe_create_enclave... ");
-#ifdef OE_WITH_EXPERIMENTAL_EEID
-    /* app_config goes into EEID */
-    oe_enclave_setting_t setting;
-    setting.setting_type = OE_EXTENDED_ENCLAVE_INITIALIZATION_DATA;
-
-    char* buffer = NULL;
-    size_t buffer_size = 0;
-    compose_enclave_config(&encl, &buffer, &buffer_size, "enclave-config.json");
-
-    oe_eeid_t* eeid = NULL;
-    oe_create_eeid_sgx(buffer_size, &eeid);
-    eeid->size_settings.num_heap_pages = 40000; // 262144;
-    eeid->size_settings.num_stack_pages = 1024;
-    eeid->size_settings.num_tcs = 8;
-    memcpy(eeid->data, buffer, buffer_size);
-
-    setting.u.eeid = eeid;
-    encl.app_config_str = NULL;
-
-    result = oe_create_sgxlkl_enclave(
-        libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, &oe_enclave);
-
-    free(setting.u.eeid);
-    setting.u.eeid = NULL;
-#else
-    result = oe_create_sgxlkl_enclave(
-        libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, NULL, 0, &oe_enclave);
-#endif
-    sgxlkl_host_verbose_raw("result=%u (%s)\n", result, oe_result_str(result));
-    if (result != OE_OK)
-    {
-        sgxlkl_host_fail("Could not initialise enclave\n");
-    }
+    _create_enclave(libsgxlkl, oe_flags, app_config, &oe_enclave);
 
     /* Perform host interface initialization */
     sgxlkl_host_interface_initialization();
@@ -1872,27 +1905,28 @@ int main(int argc, char* argv[], char* envp[])
      * block disk is treated as a seperate block device and have an event
      * channel associated with it.
      */
-    encl.shared_memory.evt_channel_num =
-        _encl_disk_cnt + HOST_NETWORK_DEV_COUNT + HOST_CONSOLE_DEV_COUNT;
+    host_state.shared_memory.evt_channel_num =
+        host_state.num_disks + HOST_NETWORK_DEV_COUNT + HOST_CONSOLE_DEV_COUNT;
 
     /* Host & guest device configurations */
     host_dev_config_t* host_dev_cfg = NULL;
     enc_dev_config_t* enc_dev_config = NULL;
 
     initialize_host_device_configuration(
-        &encl,
+        econf->swiotlb,
+        &host_state.shared_memory,
         &host_dev_cfg,
         &enc_dev_config,
-        encl.shared_memory.evt_channel_num);
+        host_state.shared_memory.evt_channel_num);
 
     /* Initialize the host dev configuration in host event handler */
     vio_host_initialize_device_cfg(
-        host_dev_cfg, encl.shared_memory.evt_channel_num);
+        host_dev_cfg, host_state.shared_memory.evt_channel_num);
 
     int dev_index = 0;
 
     /* Launch block device host tasks */
-    for (; dev_index < _encl_disk_cnt; dev_index++)
+    for (; dev_index < host_state.num_disks; dev_index++)
     {
         pthread_create(
             &host_vdisk_task[dev_index],
@@ -1903,12 +1937,12 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     /* Pass the enclave dev configuration in enclave event handler */
-    encl.shared_memory.enc_dev_config = enc_dev_config;
+    host_state.shared_memory.enc_dev_config = enc_dev_config;
 
     /* Launch network device host task */
-    if (encl.net_fd != 0)
+    if (econf->net_fd != 0)
     {
-        int ret = netdev_init(&encl);
+        int ret = netdev_init(&host_state);
         if (ret < 0)
         {
             sgxlkl_host_fail("Network device initialization failed\n");
@@ -1925,13 +1959,13 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     /* Initialize the virtio console backend driver configuration */
-    virtio_console_init(&encl, &host_dev_cfg[dev_index++]);
+    virtio_console_init(&host_state, &host_dev_cfg[dev_index++]);
 
     /* Create host console device task */
     pthread_create(host_console_task, NULL, console_task, NULL);
     pthread_setname_np(*host_console_task, "HOST_CONSOLE_DEVICE");
 
-    int ret = timerdev_init(&encl);
+    int ret = timerdev_init(&host_state.shared_memory);
     if (ret < 0)
         sgxlkl_host_fail("Timer device initialization failed\n");
     else
@@ -1940,7 +1974,7 @@ int main(int argc, char* argv[], char* envp[])
             host_timerdev_task,
             NULL,
             timerdev_task,
-            encl.shared_memory.timer_dev_mem);
+            host_state.shared_memory.timer_dev_mem);
         pthread_setname_np(*host_timerdev_task, "HOST_TIMER_DEVICE");
     }
 
@@ -1948,13 +1982,8 @@ int main(int argc, char* argv[], char* envp[])
     /* Need base address for GDB to work */
     _oe_enclave_partial* oe_enclave_content = (_oe_enclave_partial*)oe_enclave;
     void* base_addr = (void*)oe_enclave_content->addr;
-    __gdb_hook_starter_ready(base_addr, encl.mode, libsgxlkl);
+    __gdb_hook_starter_ready(base_addr, econf->mode, libsgxlkl);
 #endif
-
-    // Find aux vector (after envp vector)
-    for (auxvp = envp; *auxvp; auxvp++)
-        ;
-    encl.auxv = (Elf64_auxv_t*)(++auxvp);
 
     ethread_args_t ethreads_args[num_ethreads];
 
@@ -1969,7 +1998,8 @@ int main(int argc, char* argv[], char* envp[])
         }
 
         ethreads_args[i].ethread_id = i;
-        ethreads_args[i].encl = &encl;
+        ethreads_args[i].econf = &host_state.enclave_config;
+        ethreads_args[i].shm = &host_state.shared_memory;
         ethreads_args[i].oe_enclave = oe_enclave;
 
         /* First ethread will pass the enclave configuration and settings */

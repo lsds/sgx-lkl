@@ -1,7 +1,28 @@
 #ifndef SGXLKL_ENCLAVE_CONFIG_T_H
 #define SGXLKL_ENCLAVE_CONFIG_T_H
 
-#include "shared/sgxlkl_config.h"
+#include <elf.h>
+#include <shared/shared_memory.h>
+#include <shared/vio_event_channel.h>
+#include "host/timer_dev.h"
+#include "mpmc_queue.h"
+#include "time.h"
+
+#define UNKNOWN_MODE 0
+#define SW_DEBUG_MODE 1
+#define HW_DEBUG_MODE 2
+#define HW_RELEASE_MODE 3
+
+/* Maximum path length of mount points for secondary disks */
+#define SGXLKL_DISK_MNT_MAX_PATH_LEN 255
+#define SGXLKL_REPORT_NONCE_SIZE 32
+
+typedef enum exit_status_mode
+{
+    EXIT_STATUS_FULL = 0, /* return true_exit_status */
+    EXIT_STATUS_BINARY,   /* return true_exit_status ==  0 ? 0 : 1 */
+    EXIT_STATUS_NONE      /* return 0 */
+} exit_status_mode_t;
 
 typedef struct sgxlkl_enclave_disk_config
 {
@@ -22,7 +43,6 @@ typedef struct sgxlkl_enclave_wg_peer_config
     char* key;
     char* allowed_ips;
     char* endpoint;
-
 } sgxlkl_enclave_wg_peer_config_t;
 
 typedef struct sgxlkl_enclave_wg_config
@@ -34,30 +54,25 @@ typedef struct sgxlkl_enclave_wg_config
     sgxlkl_enclave_wg_peer_config_t* peers;
 } sgxlkl_enclave_wg_config_t;
 
-typedef struct sgxlkl_enclave_config_shared_memory
+typedef struct sgxlkl_app_config
 {
-    void* shm_common;
-    void* shm_enc_to_out;
-    void* shm_out_to_enc;
-
-    void* vvar;
-
-    /* shared memory between host & guest for virtio implementation */
-    void* virtio_net_dev_mem; /* shared memory for virtio network device */
-    void* virtio_console_mem; /* shared memory for virtio console device */
-    size_t evt_channel_num;   /* number of event channels */
-    enc_dev_config_t* enc_dev_config; /* Device configuration for guest */
-    void* virtio_swiotlb;             /* memory for setting up bounce buffer */
-    size_t virtio_swiotlb_size;       /* bounce buffer size */
-    int enable_swiotlb;               /* Option to toggle swiotlb in SW mode */
-
-    /* shared memory for getting time from the host  */
-    struct timer_dev* timer_dev_mem;
-
-    /* Shared memory between guest & host for virtio block device */
-    size_t num_virtio_blk_dev;
-    void** virtio_blk_dev_mem;
-} sgxlkl_enclave_config_shared_memory_t;
+    char* run; /* Will ultimately point at the same location as argv[0] */
+    char* cwd; /* Working directory */
+    int argc;
+    char** argv; /* Array of application arguments of length argc */
+    int envc;
+    char** envp; /* Array of environment variables of length envc */
+    int auxc;
+    Elf64_auxv_t** auxv; /* Array of auxiliary ELF variables */
+    exit_status_mode_t
+        exit_status; /* Report exit status of process from inside enclave? */
+    size_t num_disks;
+    sgxlkl_enclave_disk_config_t*
+        disks; /* Array of disk configurations of length num_disks */
+    size_t num_peers;
+    sgxlkl_enclave_wg_peer_config_t*
+        peers; /* Array of wireguard peer configurations of length num_peers */
+} sgxlkl_app_config_t;
 
 typedef struct sgxlkl_enclave_config
 {
@@ -87,22 +102,19 @@ typedef struct sgxlkl_enclave_config
     char* kernel_cmd;
     char* sysctl;
 
-    char* cwd;
-    int argc;
-    char** argv;
-    int envc;
-    char** envp;
-    int auxc;
-    Elf64_auxv_t** auxv;
+    bool swiotlb; /* Option to toggle swiotlb in SW mode */
 
-    exit_status_mode_t exit_status;
-
-    size_t num_disks;
-    sgxlkl_enclave_disk_config_t* disks;
-
-    enclave_wg_config_t wg;
-
-    sgxlkl_enclave_config_shared_memory_t shared_memory;
+    sgxlkl_app_config_t app_config;
+    sgxlkl_enclave_wg_config_t wg;
 } sgxlkl_enclave_config_t;
+
+int parse_sgxlkl_app_config_from_str(
+    const char* str,
+    sgxlkl_app_config_t* conf,
+    char** err);
+
+void sgxlkl_default_enclave_config(sgxlkl_enclave_config_t* enclave_config);
+
+void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config);
 
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

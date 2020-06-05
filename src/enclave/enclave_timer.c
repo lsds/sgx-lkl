@@ -1,8 +1,8 @@
 #include <host/sgxlkl_util.h>
 #include <stdatomic.h>
 #include <time.h>
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/sgxlkl_t.h"
 
 _Atomic(uint64_t) internal_counter = 0;
@@ -27,7 +27,7 @@ _Atomic(uint64_t) internal_counter = 0;
  */
 uint64_t enclave_nanos()
 {
-    uint64_t e = sgxlkl_enclave->shared_memory.timer_dev_mem->nanos;
+    uint64_t e = sgxlkl_enclave_state.shared_memory.timer_dev_mem->nanos;
     uint64_t i = internal_counter;
     if (e > i)
     {

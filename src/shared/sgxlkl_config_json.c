@@ -18,9 +18,8 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <errno.h>
 
 #include <enclave/enclave_mem.h>
+#include <shared/enclave_config.h>
 #include <shared/json.h>
-#include <shared/sgxlkl_app_config.h>
-#include <shared/sgxlkl_config.h>
 #include <shared/string_list.h>
 
 #include <shared/enclave_config.h>
@@ -253,6 +252,16 @@ JINTDECLU(uint32_t, tmp <= UINT32_MAX);
 JINTDECLS(int32_t, INT32_MIN <= tmp && tmp <= INT32_MAX);
 JINTDECLU(uint16_t, tmp <= UINT16_MAX);
 
+#define JNULL(P)                                  \
+    do                                            \
+    {                                             \
+        if (json_match(parser, P, &i) == JSON_OK) \
+        {                                         \
+            if (type == JSON_TYPE_NULL)           \
+                return JSON_OK;                   \
+        }                                         \
+    } while (0);
+
 #define JBOOL(P, D)                               \
     do                                            \
     {                                             \
@@ -301,13 +310,14 @@ static json_result_t json_read_app_config_callback(
             {
                 size_t new_count = data->array_count + 1;
                 data->array = realloc(
-                    data->array, new_count * sizeof(sgxlkl_app_disk_config_t));
+                    data->array,
+                    new_count * sizeof(sgxlkl_enclave_disk_config_t));
                 if (!data->array)
                     FAIL("out of memory\n");
-                sgxlkl_app_disk_config_t* disks =
-                    (sgxlkl_app_disk_config_t*)data->array;
+                sgxlkl_enclave_disk_config_t* disks =
+                    (sgxlkl_enclave_disk_config_t*)data->array;
                 for (size_t i = data->array_count; i < new_count; i++)
-                    memset(&disks[i], 0, sizeof(sgxlkl_app_disk_config_t));
+                    memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
                 data->array_count = new_count;
             }
             break;
@@ -330,17 +340,22 @@ static json_result_t json_read_app_config_callback(
                 data->app_config->envc = data->array_count;
                 data->app_config->envp = (char**)data->array;
             }
+            else if (json_match(parser, "app_config.auxv", &i) == JSON_OK)
+            {
+                data->app_config->auxc = data->array_count;
+                data->app_config->auxv = (Elf64_auxv_t**)data->array;
+            }
             else if (json_match(parser, "app_config.disks", &i) == JSON_OK)
             {
                 data->app_config->num_disks = data->array_count;
                 data->app_config->disks =
-                    (sgxlkl_app_disk_config_t*)data->array;
+                    (sgxlkl_enclave_disk_config_t*)data->array;
             }
             else if (json_match(parser, "app_config.peers", &i) == JSON_OK)
             {
                 data->app_config->num_peers = data->array_count;
                 data->app_config->peers =
-                    (enclave_wg_peer_config_t*)data->array;
+                    (sgxlkl_enclave_wg_peer_config_t*)data->array;
             }
             else
                 FAIL("unknown json array '%s'\n", make_path(parser));
@@ -376,6 +391,11 @@ static json_result_t json_read_app_config_callback(
                 data->array_count = new_count;
             });
 
+#define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
+            JNULL("app_config.auxv");
+            JU64("app_config.auxv.a_type", &AUXV()->a_type);
+            JU64("app_config.auxv.a_val", &AUXV()->a_un.a_val);
+
             JPATHT("app_config.exit_status", JSON_TYPE_STRING, {
                 if (strcmp(un->string, "full"))
                     data->app_config->exit_status = EXIT_STATUS_FULL;
@@ -388,7 +408,7 @@ static json_result_t json_read_app_config_callback(
             });
 
 #define APPDISK() \
-    (&((sgxlkl_app_disk_config_t*)data->array)[data->array_count - 1])
+    (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
 
             JBOOL("app_config.disks.create", &APPDISK()->create);
             JU64("app_config.disks.size", &APPDISK()->size);
@@ -398,7 +418,7 @@ static json_result_t json_read_app_config_callback(
                 size_t len = strlen(un->string);
                 if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
                     FAIL("invalid length of 'mnt' for disk %d\n", i);
-                sgxlkl_app_disk_config_t* disk = APPDISK();
+                sgxlkl_enclave_disk_config_t* disk = APPDISK();
                 memcpy(disk->mnt, un->string, len + 1);
                 return JSON_OK;
             }
@@ -407,7 +427,7 @@ static json_result_t json_read_app_config_callback(
             {
                 SEEN(parser);
                 CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
-                sgxlkl_app_disk_config_t* disk = APPDISK();
+                sgxlkl_enclave_disk_config_t* disk = APPDISK();
                 if (type == JSON_TYPE_NULL)
                     disk->key = NULL;
                 else
@@ -491,31 +511,11 @@ static json_result_t json_read_callback(
             data->array_count = 0;
             break;
         case JSON_REASON_END_ARRAY:
-            if (json_match(parser, "argv", &i) == JSON_OK)
-            {
-                data->config->argc = data->array_count;
-                data->config->argv = (char**)data->array;
-            }
-            else if (json_match(parser, "envp", &i) == JSON_OK)
-            {
-                data->envc = data->array_count;
-                data->envp = (char**)data->array;
-            }
-            else if (json_match(parser, "disks", &i) == JSON_OK)
-            {
-                data->config->num_disks = data->array_count;
-                data->config->disks =
-                    (sgxlkl_enclave_disk_config_t*)data->array;
-            }
-            else if (json_match(parser, "wg.peers", &i) == JSON_OK)
+            if (json_match(parser, "wg.peers", &i) == JSON_OK)
             {
                 data->config->wg.num_peers = data->array_count;
-                data->config->wg.peers = (enclave_wg_peer_config_t*)data->array;
-            }
-            else if (json_match(parser, "auxv", &i) == JSON_OK)
-            {
-                data->auxc = data->array_count;
-                data->config->auxv = (Elf64_auxv_t**)data->array;
+                data->config->wg.peers =
+                    (sgxlkl_enclave_wg_peer_config_t*)data->array;
             }
             else if (json_match(parser, "clock_res", &i) == JSON_OK)
             {
@@ -591,7 +591,7 @@ static json_result_t json_read_callback(
             JSTRING("wg.key", data->config->wg.key);
 
 #define WGPEER() \
-    (&((enclave_wg_peer_config_t*)data->array)[data->array_count - 1])
+    (&((sgxlkl_enclave_wg_peer_config_t*)data->array)[data->array_count - 1])
 
             JSTRING("wg.peers.key", WGPEER()->key);
             JSTRING("wg.peers.allowed_ips", WGPEER()->allowed_ips);
@@ -612,23 +612,6 @@ static json_result_t json_read_callback(
                     ((char**)data->array)[i] = NULL;
                 strdupz((char**)data->array + data->array_count, un->string);
                 data->array_count = new_count;
-            });
-
-#define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
-            JU64("auxv.a_type", &AUXV()->a_type);
-            JU64("auxv.a_val", &AUXV()->a_un.a_val);
-
-            JSTRING("cwd", data->config->cwd);
-
-            JPATHT("exit_status", JSON_TYPE_STRING, {
-                if (strcmp(un->string, "full"))
-                    data->config->exit_status = EXIT_STATUS_FULL;
-                else if (strcmp(un->string, "binary"))
-                    data->config->exit_status = EXIT_STATUS_BINARY;
-                else if (strcmp(un->string, "none"))
-                    data->config->exit_status = EXIT_STATUS_NONE;
-                else
-                    FAIL("Invalid exit_status value.\n");
             });
 
             JU64("espins", &data->config->espins);
@@ -653,6 +636,7 @@ static json_result_t json_read_callback(
             JBOOL("kernel_verbose", &data->config->kernel_verbose);
             JSTRING("kernel_cmd", data->config->kernel_cmd);
             JSTRING("sysctl", data->config->sysctl);
+            JBOOL("swiotlb", &data->config->swiotlb);
 
             if (json_read_app_config_callback(parser, reason, type, un, data) ==
                 JSON_OK)
@@ -674,7 +658,6 @@ done:
 
 static void flatten_stack_strings(
     const json_callback_data_t* callback_data,
-    sgxlkl_enclave_config_t* cfg,
     sgxlkl_app_config_t* app_cfg)
 {
     int have_run = app_cfg->run != NULL;
@@ -685,18 +668,9 @@ static void flatten_stack_strings(
         total_size += strlen(app_cfg->run) + 1;
         total_count++;
     }
-    if (app_cfg->argv)
-    {
-        for (size_t i = 0; i < app_cfg->argc; i++)
-            total_size += strlen(app_cfg->argv[i]) + 1;
-        total_count += app_cfg->argc + 1;
-    }
-    else
-    {
-        for (size_t i = 0; i < cfg->argc; i++)
-            total_size += strlen(cfg->argv[i]) + 1;
-        total_count += cfg->argc + 1;
-    }
+    for (size_t i = 0; i < app_cfg->argc; i++)
+        total_size += strlen(app_cfg->argv[i]) + 1;
+    total_count += app_cfg->argc + 1;
     for (size_t i = 0; i < app_cfg->envc; i++)
     {
         total_size += strlen(app_cfg->envp[i]) + 1;
@@ -726,66 +700,55 @@ static void flatten_stack_strings(
     {
         ADD_STRING(app_cfg->run);
     }
-    if (app_cfg->argv)
-    {
-        for (size_t i = 0; i < app_cfg->argc; i++)
-            ADD_STRING(app_cfg->argv[i]);
-    }
-    else
-    {
-        for (size_t i = 0; i < cfg->argc; i++)
-            ADD_STRING(cfg->argv[i]);
-    }
-    cfg->argc = j;
+    for (size_t i = 0; i < app_cfg->argc; i++)
+        ADD_STRING(app_cfg->argv[i]);
+    app_cfg->argc = j;
     out[j++] = NULL;
     // envp
     for (size_t i = 0; i < app_cfg->envc; i++)
         ADD_STRING(app_cfg->envp[i]);
     out[j++] = NULL;
-    // TODO: auxv
+    for (size_t i = 0; i < app_cfg->auxc; i++)
+    {
+        out[j++] = (char*)app_cfg->auxv[i]->a_type;
+        out[j++] = (char*)app_cfg->auxv[i]->a_un.a_val;
+    }
     out[j++] = NULL;
     // TODO: platform independent things?
     out[j++] = NULL;
 
-    app_cfg->argv = NULL;
-    app_cfg->argc = 0;
-
-    cfg->argv = out;
-    cfg->envp = out + cfg->argc + 1;
+    app_cfg->argv = out;
+    app_cfg->envp = out + app_cfg->argc + 1;
 }
 
-void check_config(
-    const sgxlkl_enclave_config_t* cfg,
-    const sgxlkl_app_config_t* app_cfg)
+void check_config(const sgxlkl_enclave_config_t* cfg)
 {
 #define CONFCHECK(C, M) \
     if (C)              \
         FAIL("rejecting enclave configuration: " M "\n");
 
-    CONFCHECK(cfg->argv == NULL && app_cfg->argv == NULL, "missing argv");
-    CONFCHECK(cfg->argc < 0 || app_cfg->argc < 0, "invalid argc");
-    CONFCHECK(cfg->argc == 0 && app_cfg->argc == 0, "argc == 0");
+    const sgxlkl_app_config_t* app_cfg = &cfg->app_config;
+    CONFCHECK(app_cfg->argv == NULL, "missing argv");
+    CONFCHECK(app_cfg->argc < 0, "invalid argc");
+    CONFCHECK(app_cfg->argc == 0, "argc == 0");
     CONFCHECK(app_cfg->envc < 0, "invalid envc");
 }
 
-int sgxlkl_read_config_json(
-    const char* from,
-    sgxlkl_enclave_config_t** to,
-    sgxlkl_app_config_t** app_to)
+int sgxlkl_read_config_json(const char* from, sgxlkl_enclave_config_t** to)
 {
-    if (!from || !to || !app_to)
+    if (!from || !to)
         return 1;
 
     *to = calloc(1, sizeof(sgxlkl_enclave_config_t));
-    *app_to = calloc(1, sizeof(sgxlkl_app_config_t));
 
-    if (!*to || !*app_to)
+    if (!*to)
         FAIL("out of memory\n");
 
+    sgxlkl_app_config_t* app_config = &(*to)->app_config;
     json_parser_t parser;
     json_result_t r = JSON_UNEXPECTED;
     json_callback_data_t callback_data = {.config = *to,
-                                          .app_config = *app_to,
+                                          .app_config = app_config,
                                           .buffer_sz = 0,
                                           .index = 0,
                                           .seen = NULL,
@@ -823,66 +786,84 @@ int sgxlkl_read_config_json(
     string_list_free(callback_data.seen);
     free(json_copy);
 
-    flatten_stack_strings(&callback_data, *to, *app_to);
-    strdupz(&(*to)->cwd, (*app_to)->cwd);
-    (*to)->exit_status = (*app_to)->exit_status;
-    check_config(*to, *app_to);
+    flatten_stack_strings(&callback_data, app_config);
+    check_config(*to);
 
     return 0;
 }
 
-int sgxlkl_read_app_config_json(const char* from, sgxlkl_app_config_t** app_to)
+// int sgxlkl_read_app_config_json(const char* from, sgxlkl_app_config_t**
+// app_to)
+// {
+//     if (!from || !app_to)
+//         return 1;
+
+//     *app_to = calloc(1, sizeof(sgxlkl_app_config_t));
+
+//     if (!*app_to)
+//         FAIL("out of memory\n");
+
+//     json_parser_t parser;
+//     json_result_t r = JSON_UNEXPECTED;
+//     json_callback_data_t callback_data = {.config = NULL,
+//                                           .app_config = *app_to,
+//                                           .buffer_sz = 0,
+//                                           .index = 0,
+//                                           .seen = NULL,
+//                                           .array = NULL,
+//                                           .array_count = 0,
+//                                           .envp = NULL,
+//                                           .envc = 0,
+//                                           .auxc = 0};
+
+//     INFO("ENCLAVE APP CONFIG: %s\n", from);
+
+//     // parser destroys `from`, so we copy it first.
+//     size_t json_len = strlen(from);
+//     char* json_copy = malloc(sizeof(char) * (json_len + 1));
+//     memcpy(json_copy, from, json_len);
+
+//     if ((r = json_parser_init(
+//              &parser,
+//              json_copy,
+//              strlen(from),
+//              json_read_app_config_callback,
+//              &callback_data)) != JSON_OK)
+//     {
+//         FAIL("json_parser_init() failed: %d\n", r);
+//     }
+
+//     if ((r = json_parser_parse(&parser)) != JSON_OK)
+//     {
+//         FAIL("json_parser_parse() failed: %d\n", r);
+//     }
+
+//     if (parser.depth != 0)
+//     {
+//         FAIL("unterminated json objects\n");
+//     }
+
+//     string_list_free(callback_data.seen);
+//     free(json_copy);
+
+//     return 0;
+// }
+
+void sgxlkl_default_enclave_config(sgxlkl_enclave_config_t* enclave_config)
 {
-    if (!from || !app_to)
-        return 1;
+    _Static_assert(
+        sizeof(sgxlkl_enclave_config_t) == 416,
+        "unexpected size of sgxlkl_enclave_config_t");
+}
 
-    *app_to = calloc(1, sizeof(sgxlkl_app_config_t));
-
-    if (!*app_to)
-        FAIL("out of memory\n");
-
-    json_parser_t parser;
-    json_result_t r = JSON_UNEXPECTED;
-    json_callback_data_t callback_data = {.config = NULL,
-                                          .app_config = *app_to,
-                                          .buffer_sz = 0,
-                                          .index = 0,
-                                          .seen = NULL,
-                                          .array = NULL,
-                                          .array_count = 0,
-                                          .envp = NULL,
-                                          .envc = 0,
-                                          .auxc = 0};
-
-    INFO("ENCLAVE APP CONFIG: %s\n", from);
-
-    // parser destroys `from`, so we copy it first.
-    size_t json_len = strlen(from);
-    char* json_copy = malloc(sizeof(char) * (json_len + 1));
-    memcpy(json_copy, from, json_len);
-
-    if ((r = json_parser_init(
-             &parser,
-             json_copy,
-             strlen(from),
-             json_read_app_config_callback,
-             &callback_data)) != JSON_OK)
+void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config)
+{
+    for (size_t i = 0; i < enclave_config->app_config.num_disks; i++)
     {
-        FAIL("json_parser_init() failed: %d\n", r);
+        free(enclave_config->app_config.disks[i].key);
+        free(enclave_config->app_config.disks[i].key_id);
+        free(enclave_config->app_config.disks[i].roothash);
     }
-
-    if ((r = json_parser_parse(&parser)) != JSON_OK)
-    {
-        FAIL("json_parser_parse() failed: %d\n", r);
-    }
-
-    if (parser.depth != 0)
-    {
-        FAIL("unterminated json objects\n");
-    }
-
-    string_list_free(callback_data.seen);
-    free(json_copy);
-
-    return 0;
+    free(enclave_config->app_config.disks);
+    free(enclave_config);
 }

@@ -4,12 +4,15 @@
 #include "enclave/enclave_util.h"
 
 #include <signal.h>
+
 #include <asm/sigcontext.h>
+
 #include <asm-generic/ucontext.h>
 
 #include <lkl_host.h>
 #include <lkl/setup.h>
 #include <string.h>
+#include "enclave/enclave_oe.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/lthread.h"
 #include "shared/env.h"
@@ -116,7 +119,7 @@ static uint64_t sgxlkl_enclave_signal_handler(
     struct ucontext uctx;
     struct oe_hw_exception_map trap_info;
     oe_context_t* oe_ctx = exception_record->context;
-    uint16_t *instr_addr = ((uint16_t*)exception_record->context->rip);
+    uint16_t* instr_addr = ((uint16_t*)exception_record->context->rip);
     uint16_t opcode = instr_addr ? *instr_addr : 0;
 
     /* Emulate illegal instructions in SGX hardware mode */
@@ -267,7 +270,7 @@ void _register_enclave_signal_handlers(int mode)
 
     SGXLKL_VERBOSE("Registering OE exception handler...\n");
 
-    if (mode == SW_DEBUG_MODE)
+    if (sgxlkl_in_sw_debug_mode())
     {
         sgxlkl_host_sw_register_signal_handler(
             (void*)sgxlkl_enclave_signal_handler);

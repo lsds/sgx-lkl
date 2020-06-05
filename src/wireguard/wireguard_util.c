@@ -15,7 +15,7 @@
 
 #include "enclave/enclave_util.h"
 #include "enclave/wireguard.h"
-#include "shared/sgxlkl_config.h"
+#include "shared/enclave_config.h"
 
 bool wgu_parse_ip(wg_allowedip* allowedip, const char* value)
 {
@@ -250,7 +250,7 @@ int wgu_add_peer(wg_device* dev, wg_peer* new_peer, bool set_device)
 
 int wgu_add_peers(
     wg_device* dev,
-    enclave_wg_peer_config_t* peers,
+    sgxlkl_enclave_wg_peer_config_t* peers,
     size_t num_peers,
     bool set_device)
 {
@@ -258,7 +258,7 @@ int wgu_add_peers(
     wg_peer* new_peers = malloc(sizeof(*new_peers) * num_peers);
     for (int i = 0; i < num_peers; i++)
     {
-        enclave_wg_peer_config_t peer_cfg = peers[i];
+        sgxlkl_enclave_wg_peer_config_t peer_cfg = peers[i];
 
         if (!peers[i].key || !strlen(peers[i].key))
         {

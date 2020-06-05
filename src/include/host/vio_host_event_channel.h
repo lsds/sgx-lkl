@@ -1,7 +1,7 @@
 #ifndef _VIO_HOST_EVENT_CHANNEL_H
 #define _VIO_HOST_EVENT_CHANNEL_H
 
-#include <shared/sgxlkl_config.h>
+#include <shared/shared_memory.h>
 #include <shared/vio_event_channel.h>
 
 #define HOST_NETWORK_DEV_COUNT 1
@@ -13,7 +13,8 @@
  * bounce buffer for virtio
  */
 int initialize_host_device_configuration(
-    sgxlkl_config_t* cfg,
+    bool swiotlb,
+    sgxlkl_shared_memory_t* cfg,
     host_dev_config_t** host_dev_cfg,
     enc_dev_config_t** enc_dev_config,
     uint8_t evt_chn_number);

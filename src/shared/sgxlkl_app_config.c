@@ -20,11 +20,9 @@
 #include <string.h>
 
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
+#include "shared/enclave_config.h"
 #include "shared/env.h"
 #include "shared/json_util.h"
-
-#include "shared/sgxlkl_app_config.h"
 
 static const char* STRING_KEYS[] = {"run",
                                     "cwd",
@@ -125,7 +123,7 @@ static int parse_enclave_disk_config_entry(
     void* arg)
 {
     int err = 0;
-    sgxlkl_app_disk_config_t* disk = (sgxlkl_app_disk_config_t*)arg;
+    sgxlkl_enclave_disk_config_t* disk = (sgxlkl_enclave_disk_config_t*)arg;
 
     if (assert_entry_type(key, value))
         return 1;
@@ -197,9 +195,9 @@ static int parse_disks(
         return 1;
 
     int num_disks = json_object_array_length(disks_val);
-    sgxlkl_app_disk_config_t* disks =
-        malloc(sizeof(sgxlkl_app_disk_config_t) * num_disks);
-    memset(disks, 0, sizeof(sgxlkl_app_disk_config_t) * num_disks);
+    sgxlkl_enclave_disk_config_t* disks =
+        malloc(sizeof(sgxlkl_enclave_disk_config_t) * num_disks);
+    memset(disks, 0, sizeof(sgxlkl_enclave_disk_config_t) * num_disks);
 
     int i, j, ret;
     for (i = 0; i < num_disks; i++)
@@ -210,10 +208,9 @@ static int parse_disks(
         {
             for (j = 0; j <= i; j++)
             {
-                if (disks[j].key)
-                    free(disks[j].key);
-                if (disks[j].roothash)
-                    free(disks[j].roothash);
+                free(disks[j].key);
+                free(disks[j].key_id);
+                free(disks[j].roothash);
             }
             free(disks);
             return ret;
@@ -232,7 +229,8 @@ static int parse_enclave_wg_peer_config_entry(
     void* arg)
 {
     int err = 0;
-    enclave_wg_peer_config_t* peer = (enclave_wg_peer_config_t*)arg;
+    sgxlkl_enclave_wg_peer_config_t* peer =
+        (sgxlkl_enclave_wg_peer_config_t*)arg;
 
     if (assert_entry_type(key, value))
         return 1;
@@ -278,9 +276,9 @@ static int parse_network(
             return 1;
 
         int num_peers = json_object_array_length(value);
-        enclave_wg_peer_config_t* peers =
-            malloc(sizeof(enclave_wg_peer_config_t) * num_peers);
-        memset(peers, 0, sizeof(enclave_wg_peer_config_t) * num_peers);
+        sgxlkl_enclave_wg_peer_config_t* peers =
+            malloc(sizeof(sgxlkl_enclave_wg_peer_config_t) * num_peers);
+        memset(peers, 0, sizeof(sgxlkl_enclave_wg_peer_config_t) * num_peers);
 
         int i, j, ret;
         for (i = 0; i < num_peers; i++)

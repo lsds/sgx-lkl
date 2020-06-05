@@ -6,7 +6,6 @@
 #include "host/sgxlkl_util.h"
 #include "shared/env.h"
 #include "shared/json_util.h"
-#include "shared/sgxlkl_config.h"
 
 #define TYPE_CHAR 0
 #define TYPE_UINT 1
@@ -310,9 +309,9 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
     {}, /* 64 */
 
     {"SGXLKL_ENABLE_SWIOTLB",
-     "enable_swiotlb",
+     "swiotlb",
      TYPE_BOOL,
-     {.def_bool = DEFAULT_SGXLKL_ENABLE_SWIOTLB},
+     {.def_bool = DEFAULT_SGXLKL_SWIOTLB},
      0}, /* 65 */
 
     {"SGXLKL_HD_OVERLAY",

@@ -6,6 +6,7 @@
 #include <host/virtio_blkdev.h>
 #include <host/virtio_debug.h>
 #include <shared/env.h>
+#include <shared/host_state.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -14,10 +15,8 @@
 
 #define HOST_BLK_DEV_NUM_QUEUES 1
 #define HOST_BLK_DEV_QUEUE_DEPTH 32
-#define HOST_MAX_DISKS 32
 
-static struct enclave_disk_config* encl_disk[HOST_MAX_DISKS];
-static uint32_t disk_index = 0;
+extern sgxlkl_host_state_t host_state;
 
 #if DEBUG && VIRTIO_TEST_HOOK
 static uint64_t virtio_blk_req_cnt;
@@ -27,9 +26,9 @@ static uint64_t virtio_blk_req_cnt;
  * Function to return the disk configuration associated to dev_id. Disk
  * configuration is used to perform the disk read and write.
  */
-static inline struct enclave_disk_config* get_disk_config(uint8_t blkdev_id)
+static inline sgxlkl_host_disk_state_t* get_disk_config(uint8_t blkdev_id)
 {
-    struct enclave_disk_config* disk = encl_disk[blkdev_id];
+    sgxlkl_host_disk_state_t* disk = &host_state.disks[blkdev_id];
     assert(disk != NULL);
     return disk;
 }
@@ -44,7 +43,7 @@ static int blk_enqueue(struct virtio_dev* dev, int q, struct virtio_req* req)
     size_t offset;
     int ret;
 
-    struct enclave_disk_config* disk = get_disk_config(dev->vendor_id);
+    sgxlkl_host_disk_state_t* disk = get_disk_config(dev->vendor_id);
     int fd = disk->fd;
 
     if (req->buf_count < 3)
@@ -105,13 +104,15 @@ static struct virtio_dev_ops _host_blk_ops = {
  * blk_device_init: initialize block device
  * disk-- input disk structure to initialize block device
  */
-int blk_device_init(struct enclave_disk_config* disk, int enable_swiotlb)
+int blk_device_init(
+    sgxlkl_host_disk_state_t* disk,
+    size_t disk_index,
+    int enable_swiotlb)
 {
     void* vq_mem = NULL;
     struct virtio_blk_dev* host_blk_device = NULL;
     size_t bdev_size = sizeof(struct virtio_blk_dev);
     size_t vq_size = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq);
-    unsigned long long capacity;
 
     /*Allocate memory for block device*/
     bdev_size = next_pow2(bdev_size);
@@ -144,8 +145,7 @@ int blk_device_init(struct enclave_disk_config* disk, int enable_swiotlb)
     for (int i = 0; i < HOST_BLK_DEV_NUM_QUEUES; i++)
         host_blk_device->dev.queue[i].num_max = HOST_BLK_DEV_QUEUE_DEPTH;
 
-    capacity = disk->capacity;
-    host_blk_device->config.capacity = capacity / 512;
+    host_blk_device->config.capacity = disk->size / 512;
 
     /* Initialize virtio dev */
     host_blk_device->dev.device_id = VIRTIO_ID_BLOCK;
@@ -161,8 +161,10 @@ int blk_device_init(struct enclave_disk_config* disk, int enable_swiotlb)
     if (enable_swiotlb)
         host_blk_device->dev.device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);
 
-    disk->virtio_blk_dev_mem = &host_blk_device->dev;
-    encl_disk[disk_index++] = disk;
+    host_state.shared_memory.virtio_blk_dev_mem[disk_index] =
+        &host_blk_device->dev;
+    host_state.shared_memory.virtio_blk_dev_names[disk_index] =
+        strdup(disk->mnt);
 
     return 0;
 }
@@ -186,8 +188,9 @@ void* blkdevice_thread(void* arg)
         if (vio_host_check_guest_shutdown_evt())
             continue;
 
-        struct enclave_disk_config* disk = get_disk_config(cfg->dev_id);
-        struct virtio_dev* dev = disk->virtio_blk_dev_mem;
+        sgxlkl_host_disk_state_t* disk = get_disk_config(cfg->dev_id);
+        struct virtio_dev* dev =
+            host_state.shared_memory.virtio_blk_dev_mem[cfg->dev_id];
         virtio_process_queue(dev, 0);
 #if DEBUG && VIRTIO_TEST_HOOK
         uint64_t vio_req_cnt = virtio_debug_blk_get_ring_count();
