@@ -7,14 +7,18 @@
 #include "lkl/syscall-overrides-fstat.h"
 #include "enclave/enclave_util.h"
 
-// The original LKL handler for fstat sycall.
-// The output is a 'lkl_stat' structure, which we will convet to 'stat'
-// structure before returning to user space in the new handler.
+/**
+ * The original LKL handler for fstat sycall.
+ * The output is a 'lkl_stat' structure, which we will convet to 'stat'
+ * structure before returning to user space in the new handler.
+ */
 static syscall_fstat_handler orig_fstat;
 
-// The original LKL handler for newfstatat sycall.
-// The output is a 'lkl_stat' structure, which we will convet to 'stat'
-// structure before returning to user space in the new handler.
+/**
+ * The original LKL handler for fstat sycall.
+ * The output is a 'lkl_stat' structure, which we will convet to 'stat'
+ * structure before returning to user space in the new handler.
+ */
 static syscall_newfstatat_handler orig_newfstatat;
 
 static void copy_lkl_stat_to_user(struct lkl_stat *lkl_stat, struct stat *stat) {

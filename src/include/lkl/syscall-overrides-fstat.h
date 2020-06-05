@@ -5,10 +5,11 @@ typedef long (*syscall_fstat_handler)(int, void*);
 typedef long (*syscall_newfstatat_handler)(
     int, const char*, void*, int);
 
-// long syscall_fstat_override(int fd, struct stat* stat);
-
-// long syscall_newfstatat_override(int dfd, const char *fn,
-      // struct stat *statbuf, int flag);
+/**
+ * Register override functions that maintain compatibility
+ * between LKL's handling of syscall fstat and newfstatat
+ * and MUSL's expectation.
+ */
 void syscall_register_fstat_overrides();
 
 #endif
