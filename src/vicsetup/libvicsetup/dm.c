@@ -17,10 +17,9 @@
 #include "trace.h"
 #include "uuid.h"
 
-#define TRACE_TARGET
-
 #define DM_UUID_LEN 129
 
+// #define TRACE_TARGET
 // #define USE_UDEV
 
 static vic_result_t _format_dev_uuid(
