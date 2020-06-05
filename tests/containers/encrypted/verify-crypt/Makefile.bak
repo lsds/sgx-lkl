@@ -1,13 +1,13 @@
-APP_ROOT=app
-PROG=${APP_ROOT}/dm-crypt
-PROG_NONPIE=${APP_ROOT}/dm-crypt-nonpie
-PROG_C=dm-crypt.c
+SGXLKL_ROOT=../../../..
 
-DISK_IMAGE=sgxlkl-dm-crypt.img
+APP_ROOT=test
+PROG=${APP_ROOT}/verify-crypt
+PROG_NONPIE=${APP_ROOT}/verify-crypt-nonpie
+PROG_C=verify-crypt.c
+
+DISK_IMAGE=sgxlkl-verify-crypt.img
 KEY_FILE=key-file
 IMAGE_SIZE=64MB
-
-SGXLKL_ROOT=../../..
 
 MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
 
@@ -69,3 +69,24 @@ run-sw: $(DISK_IMAGE)
 
 run-sw-gdb: $(DISK_IMAGE)
 	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(PROG)
+
+DISK_IMG_SIZE=32M
+FORMAT_OPTS += --type luks2
+FORMAT_OPTS += --key-file=-
+#FORMAT_OPTS += --master-key-file $(KEY_FILE)
+FORMAT_OPTS += --iter-time 8
+FORMAT_OPTS += --pbkdf-memory 1024
+FORMAT_OPTS += --pbkdf-parallel 2
+#FORMAT_OPTS += --integrity "hmac-sha256"
+
+PASS=pass
+
+disk.img:
+	@ head -c $(DISK_IMG_SIZE) /dev/zero > disk.img
+	@ ( echo -n $(PASS) | cryptsetup luksFormat $(FORMAT_OPTS) disk.img )
+	@ $(eval TMPNAME=$(shell basename $(shell tempfile)))
+	@ ( echo -n $(PASS) | cryptsetup luksOpen disk.img --key-file=- $(TMPNAME) )
+	@ mkfs.ext2 /dev/mapper/$(TMPNAME)
+	@ rm -rf /tmp/$(TMPNAME)
+	@ mkdir /tmp/$(TMPNAME)
+	@ mount /dev/mapper/$(TMPNAME) /tmp/$(TMPNAME)
