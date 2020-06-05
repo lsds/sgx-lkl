@@ -288,7 +288,7 @@
 /ltp/testcases/kernel/syscalls/getcwd/getcwd01
 /ltp/testcases/kernel/syscalls/getcwd/getcwd02
 /ltp/testcases/kernel/syscalls/getcwd/getcwd03
-/ltp/testcases/kernel/syscalls/getcwd/getcwd04
+#/ltp/testcases/kernel/syscalls/getcwd/getcwd04
 /ltp/testcases/kernel/syscalls/getdents/getdents01
 /ltp/testcases/kernel/syscalls/getdents/getdents02
 /ltp/testcases/kernel/syscalls/getdomainname/getdomainname01
