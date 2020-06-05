@@ -37,289 +37,77 @@ struct sgxlkl_config_elem
     };
 };
 
+// clang-format off
 static struct sgxlkl_config_elem sgxlkl_config[] = {
-    {"SGXLKL_APP_CONFIG",
-     "app_config",
-     TYPE_JSON,
-     {.def_char = NULL},
-     0}, /* 0 */
-
-    {"SGXLKL_CMDLINE",
-     "cmdline",
-     TYPE_CHAR,
-     {.def_char = DEFAULT_SGXLKL_KERNEL_CMD},
-     0},
-    /* 1 */ /* set LKL mem to 32MB (default is 64MB) */
-
-    {"SGXLKL_CWD",
-     "cwd",
-     TYPE_CHAR,
-     {.def_char = DEFAULT_SGXLKL_CWD},
-     0}, /* 2 */
-
-    {"SGXLKL_DEBUGMOUNT",
-     "debugmount",
-     TYPE_CHAR,
-     {.def_char = NULL},
-     0}, /* 3 */
-
-    {"SGXLKL_ESPINS",
-     "espins",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_ESPINS, ULONG_MAX}},
-     0}, /* 4 */
-
-    {"SGXLKL_ESLEEP",
-     "esleep",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_ESLEEP, ULONG_MAX}},
-     0}, /* 5 */
-
-    {"SGXLKL_ETHREADS",
-     "ethreads",
-     TYPE_UINT,
-     {.def_uint = {1, MAX_SGXLKL_ETHREADS}},
-     0}, /* 6 */
-
-    {"SGXLKL_ETHREADS_AFFINITY",
-     "ethreads_affinity",
-     TYPE_CHAR,
-     {.def_char = NULL},
-     0}, /* 7 */
-
+    {"SGXLKL_APP_CONFIG", "app_config", TYPE_JSON, {.def_char = NULL}, 0}, /* 0 */
+    {"SGXLKL_CMDLINE", "cmdline", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_KERNEL_CMD}, 0}, /* 1 */ /* set LKL mem to 32MB (default is 64MB) */
+    {"SGXLKL_CWD", "cwd", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_CWD}, 0}, /* 2 */
+    {"SGXLKL_DEBUGMOUNT", "debugmount", TYPE_CHAR, {.def_char = NULL}, 0}, /* 3 */
+    {"SGXLKL_ESPINS", "espins", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_ESPINS, ULONG_MAX}}, 0}, /* 4 */
+    {"SGXLKL_ESLEEP", "esleep", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_ESLEEP, ULONG_MAX}}, 0}, /* 5 */
+    {"SGXLKL_ETHREADS", "ethreads", TYPE_UINT, {.def_uint = {1, MAX_SGXLKL_ETHREADS}}, 0}, /* 6 */
+    {"SGXLKL_ETHREADS_AFFINITY", "ethreads_affinity", TYPE_CHAR, {.def_char = NULL}, 0}, /* 7 */
     {}, /* 8 */
-
     {}, /* 9 */
-
-    {"SGXLKL_GW4",
-     "gw4",
-     TYPE_CHAR,
-     {.def_char = DEFAULT_SGXLKL_GW4},
-     0}, /* 10 */
-
+    {"SGXLKL_GW4", "gw4", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_GW4}, 0}, /* 10 */
     {"SGXLKL_HD", "hd", TYPE_CHAR, {.def_char = NULL}, 0}, /* 11 */
-
     {"SGXLKL_HD_KEY", "hd_key", TYPE_CHAR, {.def_char = NULL}, 0}, /* 12 */
-
     {"SGXLKL_HD_RO", "hd_readonly", TYPE_BOOL, {.def_bool = 0}, 0}, /* 13 */
-
     {"SGXLKL_HDS", "hds", TYPE_CHAR, {.def_char = ""}, 0}, /* 14 */
-
-    {"SGXLKL_HD_VERITY",
-     "hd_verity",
-     TYPE_CHAR,
-     {.def_char = NULL},
-     0}, /* 15 */
-
-    {"SGXLKL_HD_VERITY_OFFSET",
-     "hd_verity_offset",
-     TYPE_CHAR,
-     {.def_char = NULL},
-     0},
-    /* 16 */ /* TODO: Change to uint64 */
-
+    {"SGXLKL_HD_VERITY", "hd_verity", TYPE_CHAR, {.def_char = NULL}, 0}, /* 15 */
+    {"SGXLKL_HD_VERITY_OFFSET", "hd_verity_offset", TYPE_CHAR, {.def_char = NULL}, 0}, /* 16 */ /* TODO: Change to uint64 */
     {}, /* 17 */
-
-    {"SGXLKL_HOSTNAME",
-     "hostname",
-     TYPE_CHAR,
-     {.def_char = DEFAULT_SGXLKL_HOSTNAME},
-     0}, /* 18 */
-
+    {"SGXLKL_HOSTNAME", "hostname", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_HOSTNAME}, 0}, /* 18 */
     {"SGXLKL_HOSTNET", "hostnet", TYPE_BOOL, {.def_bool = 0}, 0}, /* 19 */
-
-    {"SGXLKL_IP4",
-     "ip4",
-     TYPE_CHAR,
-     {.def_char = DEFAULT_SGXLKL_IP4},
-     0}, /* 20 */
-
-    {"SGXLKL_KERNEL_VERBOSE",
-     "kernel_verbose",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 21 */
-
+    {"SGXLKL_IP4", "ip4", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_IP4}, 0}, /* 20 */
+    {"SGXLKL_KERNEL_VERBOSE", "kernel_verbose", TYPE_BOOL, {.def_bool = 0}, 0}, /* 21 */
     {}, /* 22 */
-
-    {"SGXLKL_MASK4",
-     "mask4",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_MASK4, 32}},
-     0}, /* 23 */
-
-    {"SGXLKL_MAX_USER_THREADS",
-     "max_user_threads",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_MAX_USER_THREADS,
-                   MAX_SGXLKL_MAX_USER_THREADS}},
-     0}, /* 24 */
-
-    {"SGXLKL_MMAP_FILES",
-     "mmap_files",
-     TYPE_CHAR,
-     {.def_char = "None"},
-     0}, /* 25 */
-
+    {"SGXLKL_MASK4", "mask4", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_MASK4, 32}}, 0}, /* 23 */
+    {"SGXLKL_MAX_USER_THREADS", "max_user_threads", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_MAX_USER_THREADS, MAX_SGXLKL_MAX_USER_THREADS}}, 0}, /* 24 */
+    {"SGXLKL_MMAP_FILES", "mmap_files", TYPE_CHAR, {.def_char = "None"}, 0}, /* 25 */
     {}, /* 26 */
-
-    {"SGXLKL_PRINT_APP_RUNTIME",
-     "print_app_runtime",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 27 */
-
+    {"SGXLKL_PRINT_APP_RUNTIME", "print_app_runtime", TYPE_BOOL, {.def_bool = 0}, 0}, /* 27 */
     {}, /* 28 */
-
     {}, /* 29 */
-
     {}, /* 30 */
-
     {}, /* 31 */
-
-    {"SGXLKL_SHMEM_FILE",
-     "shmem_file",
-     TYPE_CHAR,
-     {.def_char = NULL},
-     0}, /* 32 */
-
-    /* 33 */
-    {"SGXLKL_SHMEM_SIZE",
-     "shmem_size",
-     TYPE_UINT,
-     {.def_uint = {0, 1024 * 1024 * 1024}},
-     0}, /* 33 */
-
+    {"SGXLKL_SHMEM_FILE", "shmem_file", TYPE_CHAR, {.def_char = NULL}, 0}, /* 32 */
+    {"SGXLKL_SHMEM_SIZE", "shmem_size", TYPE_UINT, {.def_uint = {0, 1024 * 1024 * 1024}}, 0}, /* 33 */
     {}, /* 34 */
-
     {}, /* 35 */
-
     {}, /* 36 */
-
-    {"SGXLKL_STACK_SIZE",
-     "stack_size",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_STACK_SIZE, ULONG_MAX}},
-     0}, /* 37 */
-
+    {"SGXLKL_STACK_SIZE", "stack_size", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_STACK_SIZE, ULONG_MAX}}, 0}, /* 37 */
     {}, /* 38 */
-
     {}, /* 39 */
-
     {"SGXLKL_SYSCTL", "sysctl", TYPE_CHAR, {.def_char = NULL}, 0}, /* 40 */
-
     {"SGXLKL_TAP", "tap", TYPE_CHAR, {.def_char = NULL}, 0}, /* 41 */
-
-    {"SGXLKL_TAP_MTU",
-     "tap_mtu",
-     TYPE_UINT,
-     {.def_uint = {0, INT_MAX}},
-     0}, /* 42 */
-
-    {"SGXLKL_TAP_OFFLOAD",
-     "tap_offload",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 43 */
-
-    {"SGXLKL_TRACE_HOST_SYSCALL",
-     "trace_host_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 44 */
-
-    {"SGXLKL_TRACE_INTERNAL_SYSCALL",
-     "trace_internal_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 45 */
-
-    {"SGXLKL_TRACE_LKL_SYSCALL",
-     "trace_lkl_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 46 */
-
-    {"SGXLKL_TRACE_IGNORED_SYSCALL",
-     "trace_ignored_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 47 */
-
-    {"SGXLKL_TRACE_UNSUPPORTED_SYSCALL",
-     "trace_unsupported_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 48 */
-
-    {"SGXLKL_TRACE_REDIRECT_SYSCALL",
-     "trace_redirect_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 49 */
-
+    {"SGXLKL_TAP_MTU", "tap_mtu", TYPE_UINT, {.def_uint = {0, INT_MAX}}, 0}, /* 42 */
+    {"SGXLKL_TAP_OFFLOAD", "tap_offload", TYPE_BOOL, {.def_bool = 0}, 0}, /* 43 */
+    {"SGXLKL_TRACE_HOST_SYSCALL", "trace_host_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 44 */
+    {"SGXLKL_TRACE_INTERNAL_SYSCALL", "trace_internal_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 45 */
+    {"SGXLKL_TRACE_LKL_SYSCALL", "trace_lkl_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 46 */
+    {"SGXLKL_TRACE_IGNORED_SYSCALL", "trace_ignored_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 47 */
+    {"SGXLKL_TRACE_UNSUPPORTED_SYSCALL", "trace_unsupported_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 48 */
+    {"SGXLKL_TRACE_REDIRECT_SYSCALL", "trace_redirect_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 49 */
     {"SGXLKL_TRACE_MMAP", "trace_mmap", TYPE_BOOL, {.def_bool = 0}, 0}, /* 50 */
-
-    {"SGXLKL_TRACE_SYSCALL",
-     "trace_syscall",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 51 */
-
-    {"SGXLKL_TRACE_THREAD",
-     "trace_thread",
-     TYPE_BOOL,
-     {.def_bool = 0},
-     0}, /* 52 */
-
+    {"SGXLKL_TRACE_SYSCALL", "trace_syscall", TYPE_BOOL, {.def_bool = 0}, 0}, /* 51 */
+    {"SGXLKL_TRACE_THREAD", "trace_thread", TYPE_BOOL, {.def_bool = 0}, 0}, /* 52 */
     {"SGXLKL_VERBOSE", "verbose", TYPE_BOOL, {.def_bool = 0}, 0}, /* 53 */
-
     {}, /* 54 */
-
     {}, /* 55 */
-
-    {"SGXLKL_WG_IP",
-     "wg_ip",
-     TYPE_CHAR,
-     {.def_char = DEFAULT_SGXLKL_WG_IP},
-     0}, /* 56 */
-
-    {"SGXLKL_WG_PORT",
-     "wg_port",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_WG_PORT, USHRT_MAX}},
-     0}, /* 57 */
-
+    {"SGXLKL_WG_IP", "wg_ip", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_WG_IP}, 0}, /* 56 */
+    {"SGXLKL_WG_PORT", "wg_port", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_WG_PORT, USHRT_MAX}}, 0}, /* 57 */
     {"SGXLKL_WG_KEY", "wg_key", TYPE_CHAR, {.def_char = NULL}, 0}, /* 58 */
-
     {"SGXLKL_WG_PEERS", "wg_peers", TYPE_CHAR, {.def_char = ""}, 0}, /* 59 */
-
-    {"SGXLKL_OE_HEAP_PAGE_COUNT",
-     "oe_heap_page_count",
-     TYPE_UINT,
-     {.def_uint = {DEFAULT_SGXLKL_OE_HEAP_PAGE_COUNT, ULONG_MAX}},
-     0}, /* 60 */
-
+    {"SGXLKL_OE_HEAP_PAGE_COUNT", "oe_heap_page_count", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_OE_HEAP_PAGE_COUNT, ULONG_MAX}}, 0}, /* 60 */
     {}, /* 61 */
-
     {}, /* 62 */
-
     {}, /* 63 */
-
     {}, /* 64 */
-
-    {"SGXLKL_ENABLE_SWIOTLB",
-     "swiotlb",
-     TYPE_BOOL,
-     {.def_bool = DEFAULT_SGXLKL_SWIOTLB},
-     0}, /* 65 */
-
-    {"SGXLKL_HD_OVERLAY",
-     "hd_overlay",
-     TYPE_BOOL,
-     {.def_bool = false},
-     0}, /* 66 */
+    {"SGXLKL_ENABLE_SWIOTLB", "swiotlb", TYPE_BOOL, {.def_bool = DEFAULT_SGXLKL_SWIOTLB}, 0}, /* 65 */
+    {"SGXLKL_HD_OVERLAY", "hd_overlay", TYPE_BOOL, {.def_bool = false}, 0}, /* 66 */
 };
+// clang-format off
 
 static inline struct sgxlkl_config_elem* config_elem_by_key(const char* key)
 {

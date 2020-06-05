@@ -132,7 +132,9 @@ static void usage()
 #ifdef RELEASE
     printf(
         "%s <--hw-release> [--enclave-image={libsgxlkl.so}] "
-        "[--host-config={host_state_file}] <--app-config={app_config_file}> "
+        "[--host-config={host_state_file}] "
+        "[--enclave-config={enclave config file}] "
+        "<--app-config={app_config_file}> "
         "<enclave_root_image> [executable] [args]>\n",
         SGXLKL_LAUNCHER_NAME);
     printf("\n");
@@ -144,7 +146,9 @@ static void usage()
 #else
     printf(
         "%s <--sw-debug|--hw-debug> [--enclave-image={libsgxlkl file}] "
-        "[--host-config={host config file}] [--app-config={app config file}] "
+        "[--host-config={host config file}] "
+        "[--enclave-config={enclave config file}] "
+        "[--app-config={app config file}] "
         "<enclave root image> <executable> [args]>\n",
         SGXLKL_LAUNCHER_NAME);
     printf("\n");
@@ -170,6 +174,10 @@ static void usage()
         "%-35s %s",
         "  --host-config={host config file}",
         "JSON configuration file with host configuration\n");
+    printf(
+        "%-35s %s",
+        "  --enclave-config={enclave config file}",
+        "JSON configuration file with enclave configuration\n");
     printf(
         "%-35s %s",
         "  --app-config={app config file}",
@@ -517,6 +525,8 @@ void app_config_from_str(char* app_config_str, sgxlkl_app_config_t* app_config)
     if (!app_config)
         sgxlkl_host_fail("missing app config object\n");
 
+    *app_config = sgxlkl_default_enclave_config.app_config;
+
     char* err = NULL;
     if (parse_sgxlkl_app_config_from_str(app_config_str, app_config, &err))
         sgxlkl_host_fail("Invalid app config: %s\n", err);
@@ -572,6 +582,11 @@ void app_config_from_cmdline(
     app_config->num_disks = 1;
     app_config->disks = calloc(1, sizeof(sgxlkl_enclave_disk_config_t));
     strcpy(app_config->disks[0].mnt, "/");
+
+    // Temporary defaults
+    app_config->sizes.num_heap_pages = 40000; // 262144,
+    app_config->sizes.num_stack_pages = 1024;
+    app_config->sizes.num_tcs = 8;
 }
 
 void check_envs(const char** pres, char** envp, const char* warn_msg)
@@ -805,8 +820,8 @@ static void* register_shm(char* path, size_t len)
 void set_shared_mem()
 {
     sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
-    char* shm_file = sgxlkl_config_str(SGXLKL_SHMEM_FILE);
-    size_t shm_len = sgxlkl_config_uint64(SGXLKL_SHMEM_SIZE);
+    char* shm_file = host_state.config.shm_file;
+    size_t shm_len = host_state.config.shm_len;
     if (shm_file == 0 || strlen(shm_file) <= 0 || shm_len <= 0)
         return;
 
@@ -887,11 +902,8 @@ void set_tls()
 }
 
 /* Set up wireguard configuration */
-void set_wg()
+void set_wg_config_from_cmdline(sgxlkl_enclave_wg_config_t* wg)
 {
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-    sgxlkl_enclave_wg_config_t* wg = &econf->wg;
-
     char* wg_ip_str = sgxlkl_config_str(SGXLKL_WG_IP);
     if (inet_pton(AF_INET, wg_ip_str, &wg->ip) != 1)
     {
@@ -1577,13 +1589,14 @@ void _create_enclave(
     char* buffer = NULL;
     size_t buffer_size = 0;
     compose_enclave_config(&host_state, app_config, &buffer, &buffer_size);
-
     oe_eeid_t* eeid = NULL;
     oe_create_eeid_sgx(buffer_size, &eeid);
-    // TODO: get memory settings from app config
-    eeid->size_settings.num_heap_pages = 40000; // 262144;
-    eeid->size_settings.num_stack_pages = 1024;
-    eeid->size_settings.num_tcs = 8;
+    oe_enclave_size_settings_t oe_sizes = {
+        .num_heap_pages = app_config->sizes.num_heap_pages,
+        .num_stack_pages = app_config->sizes.num_stack_pages,
+        .num_tcs = app_config->sizes.num_tcs,
+    };
+    eeid->size_settings = oe_sizes;
     memcpy(eeid->data, buffer, buffer_size);
 
     setting.u.eeid = eeid;
@@ -1681,6 +1694,13 @@ void enclave_config_from_cmdline(long nproc, int mode)
     econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
     econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
 
+    set_wg_config_from_cmdline(&host_state.enclave_config.wg);
+}
+
+void host_config_from_cmdline()
+{
+    host_state.config.shm_file = sgxlkl_config_str(SGXLKL_SHMEM_FILE);
+    host_state.config.shm_len = sgxlkl_config_uint64(SGXLKL_SHMEM_SIZE);
     host_state.config.tap_device = sgxlkl_config_str(SGXLKL_TAP);
     host_state.config.thread_affinity =
         sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY);
@@ -1691,6 +1711,7 @@ int main(int argc, char* argv[], char* envp[])
 {
     char* app_config_path = NULL;
     char* host_config_path = NULL;
+    char* enclave_config_path = NULL;
     char libsgxlkl[PATH_MAX];
     const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
     sgxlkl_app_config_t* app_config = &host_state.enclave_config.app_config;
@@ -1729,7 +1750,8 @@ int main(int argc, char* argv[], char* envp[])
         {"help-tls", no_argument, 0, 't'},
         {"help", no_argument, 0, 'h'},
         {"enclave-image", required_argument, 0, 'e'},
-        {"host-config", required_argument, 0, 'c'},
+        {"host-config", required_argument, 0, 'H'},
+        {"enclave-config", required_argument, 0, 'c'},
         {"app-config", required_argument, 0, 'a'},
         {0, 0, 0, 0}};
 
@@ -1766,8 +1788,11 @@ int main(int argc, char* argv[], char* envp[])
             case 't':
                 help_tls();
                 exit(EXIT_SUCCESS);
-            case 'c':
+            case 'H':
                 host_config_path = optarg;
+                break;
+            case 'c':
+                enclave_config_path = optarg;
                 break;
             case 'a':
                 app_config_path = optarg;
@@ -1817,14 +1842,15 @@ int main(int argc, char* argv[], char* envp[])
      * mode. */
     check_envs_all(envp);
 
-    if (host_config_path)
-    {
-        enclave_config_from_file(host_config_path);
-    }
+    if (enclave_config_path)
+        enclave_config_from_file(enclave_config_path);
     else
-    {
         enclave_config_from_cmdline(nproc, enclave_mode);
-    }
+
+    if (host_config_path)
+        sgxlkl_host_fail("host config files not supported yet\n");
+    else
+        host_config_from_cmdline();
 
     /* Host and guest cannot use virtio in HW mode without bounce buffer,so in
      * hardware mode SWIOTLB is always enabled.
@@ -1844,7 +1870,6 @@ int main(int argc, char* argv[], char* envp[])
     set_clock_res();
     set_shared_mem(&host_state.shared_memory);
     set_tls();
-    set_wg();
     register_hds(root_hd);
     register_net();
 

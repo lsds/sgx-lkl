@@ -243,7 +243,7 @@ static json_obj_t* mk_json_app_config(const sgxlkl_app_config_t* app_config)
         return mk_json_obj("app_config", JSON_TYPE_NULL, NULL, NULL, 0);
     else
     {
-        json_obj_t* r = mk_json_objects("app_config", 8);
+        json_obj_t* r = mk_json_objects("app_config", 9);
         r->objects[0] = mk_json_string("run", app_config->run);
         r->objects[1] = mk_json_string("cwd", app_config->cwd);
         r->objects[2] =
@@ -265,6 +265,13 @@ static json_obj_t* mk_json_app_config(const sgxlkl_app_config_t* app_config)
                       : app_config->exit_status == EXIT_STATUS_NONE
                             ? "none"
                             : "unknown");
+        r->objects[8] = mk_json_objects("sizes", 3);
+        r->objects[8]->objects[0] =
+            mk_json_u64("num_heap_pages", app_config->sizes.num_heap_pages);
+        r->objects[8]->objects[1] =
+            mk_json_u64("num_stack_pages", app_config->sizes.num_stack_pages);
+        r->objects[8]->objects[2] =
+            mk_json_u64("num_tcs", app_config->sizes.num_tcs);
         return r;
     }
 }
@@ -448,9 +455,10 @@ void compose_enclave_config(
     if (!buffer || !buffer_size)
         FAIL("no buffer for config");
 
-    // Catch modifications to sgxlkl_enclave_config_t early.
+    // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
+    // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 416,
+        sizeof(sgxlkl_enclave_config_t) == 448,
         "sgxlkl_enclave_config_t size has changed");
 
     const sgxlkl_enclave_config_t* config = &host_state->enclave_config;
@@ -479,7 +487,7 @@ void compose_enclave_config(
                   : config->mmap_files == ENCLAVE_MMAP_FILES_PRIVATE
                         ? "private"
                         : "unknown");
-    FPFU32(oe_heap_pagecount);
+    FPFU64(oe_heap_pagecount);
 
     FPFU32(net_ip4);
     FPFU32(net_gw4);

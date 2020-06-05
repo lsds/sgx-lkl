@@ -448,6 +448,13 @@ static json_result_t json_read_app_config_callback(
             JU64(
                 "app_config.disks.roothash_offset",
                 &APPDISK()->roothash_offset);
+            JU64(
+                "app_config.sizes.num_heap_pages",
+                &data->app_config->sizes.num_heap_pages);
+            JU64(
+                "app_config.sizes.num_stack_pages",
+                &data->app_config->sizes.num_stack_pages);
+            JU64("app_config.sizes.num_tcs", &data->app_config->sizes.num_tcs);
 
             // else
             FAIL(
@@ -569,7 +576,7 @@ static json_result_t json_read_callback(
                 else
                     FAIL("invalid setting for mmap_files: %s\n", un->string);
             });
-            JU32("oe_heap_pagecount", &data->config->oe_heap_pagecount);
+            JU64("oe_heap_pagecount", &data->config->oe_heap_pagecount);
             JU32("net_ip4", &data->config->net_ip4);
             JU32("net_gw4", &data->config->net_gw4);
             JS32("net_mask4", &data->config->net_mask4);
@@ -732,6 +739,12 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
 
 int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
 {
+    // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
+    // the code above/below needs adjusting for the added/removed settings.
+    _Static_assert(
+        sizeof(sgxlkl_enclave_config_t) == 448,
+        "sgxlkl_enclave_config_t size has changed");
+
     if (!from || !to)
         return 1;
 
@@ -739,6 +752,8 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
 
     if (!*to)
         FAIL("out of memory\n");
+
+    **to = sgxlkl_default_enclave_config;
 
     sgxlkl_app_config_t* app_config = &(*to)->app_config;
     json_parser_t parser;
@@ -786,15 +801,6 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     check_config(*to);
 
     return 0;
-}
-
-void sgxlkl_default_enclave_config(sgxlkl_enclave_config_t* enclave_config)
-{
-    _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 416,
-        "unexpected size of sgxlkl_enclave_config_t");
-
-    // TODO
 }
 
 void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config)

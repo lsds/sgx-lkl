@@ -29,7 +29,8 @@ typedef struct sgxlkl_host_config
     char* thread_affinity;
     char* tap_device;
     bool tap_offload;
-    int tap_mtu;
+    char* shm_file;
+    size_t shm_len;
 } sgxlkl_host_config_t;
 
 typedef struct sgxlkl_host_state

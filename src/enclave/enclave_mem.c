@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "shared/bitops.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 #include <enclave/lthread.h>
 

@@ -311,6 +311,55 @@ static int parse_network(
     return 0;
 }
 
+static uint64_t parse_uint64(const char* key, struct json_object* value)
+{
+    if (json_object_get_type(value) == json_type_string)
+    {
+        const char* vstr = json_object_get_string(value);
+        uint64_t r = strtoul(vstr, NULL, 10);
+        if (r == UINT64_MAX && errno == ERANGE)
+            FAIL("Invalid configuration entry for %s: %s\n", key, vstr);
+        return r;
+    }
+    else if (json_object_get_type(value) == json_type_int)
+    {
+        int64_t r = json_object_get_int64(value);
+        if (r < 0)
+            FAIL("Invalid uint64 value for '%s'\n", key);
+        return r;
+    }
+    else
+        FAIL("Invalid uint64 value for '%s'\n", key);
+}
+
+static int parse_sizes(
+    sgxlkl_app_config_t* config,
+    struct json_object* sizes_val)
+{
+    if (json_object_get_type(sizes_val) != json_type_object)
+        return 1;
+
+    struct json_object_iterator it;
+    const char* key;
+    struct json_object* value;
+    JSON_OBJECT_FOREACH(it, sizes_val, key, value)
+    {
+        if (!strcmp("num_heap_pages", key))
+            config->sizes.num_heap_pages = parse_uint64(key, value);
+        else if (!strcmp("num_stack_pages", key))
+            config->sizes.num_stack_pages = parse_uint64(key, value);
+        else if (!strcmp("num_tcs", key))
+            config->sizes.num_tcs = parse_uint64(key, value);
+        else
+        {
+            FAIL("Unknown configuration entry: %s\n", key);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 static int parse_sgxlkl_app_config_entry(
     const char* key,
     struct json_object* value,
@@ -381,6 +430,10 @@ static int parse_sgxlkl_app_config_entry(
     else if (!strcmp("$schema", key))
     {
         // ignore
+    }
+    else if (!strcmp("sizes", key))
+    {
+        err = parse_sizes(config, value);
     }
     else
     {
