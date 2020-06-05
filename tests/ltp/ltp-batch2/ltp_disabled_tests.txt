@@ -869,7 +869,7 @@
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit04
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit05
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit06
-/ltp/testcases/kernel/syscalls/setsid/setsid01
+#/ltp/testcases/kernel/syscalls/setsid/setsid01
 /ltp/testcases/kernel/syscalls/setsockopt/setsockopt01
 /ltp/testcases/kernel/syscalls/setsockopt/setsockopt02
 #/ltp/testcases/kernel/syscalls/setsockopt/setsockopt03
