@@ -797,7 +797,7 @@
 /ltp/testcases/kernel/syscalls/sendfile/sendfile05
 /ltp/testcases/kernel/syscalls/sendfile/sendfile06
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile07
-/ltp/testcases/kernel/syscalls/sendfile/sendfile08
+#/ltp/testcases/kernel/syscalls/sendfile/sendfile08
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile09
 #/ltp/testcases/kernel/syscalls/sendmmsg/sendmmsg01
 /ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
