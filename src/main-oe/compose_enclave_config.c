@@ -6,10 +6,10 @@
 #include "enclave/enclave_mem.h"
 #include "host/sgxlkl_util.h"
 #include "shared/host_state.h"
-#include "shared/sgxlkl_config_json.h"
-
-#include "shared/enclave_config.h"
 #include "shared/json.h"
+#include "shared/sgxlkl_enclave_config.h"
+
+#include "host/compose_enclave_config.h"
 
 #define FAIL sgxlkl_host_fail
 #define INFO sgxlkl_host_info
@@ -443,8 +443,7 @@ void compose_enclave_config(
     const sgxlkl_host_state_t* host_state,
     const sgxlkl_app_config_t* app_config,
     char** buffer,
-    size_t* buffer_size,
-    const char* filename)
+    size_t* buffer_size)
 {
     if (!buffer || !buffer_size)
         FAIL("no buffer for config");
@@ -512,14 +511,7 @@ void compose_enclave_config(
     char* position = *buffer;
     print_json(buffer, buffer_size, &position, root);
 
-    if (filename)
-    {
-        FILE* f = fopen(filename, "w");
-        if (!f)
-            FAIL("error opening '%s'\n", filename);
-        fwrite(*buffer, 1, position - *buffer, f);
-        fclose(f);
-    }
+    INFO("Enclave config: %s\n", *buffer);
 
     free_json(root);
 }

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 #include "enclave/wireguard.h"
-#include "shared/enclave_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 bool wgu_parse_ip(wg_allowedip* allowedip, const char* value);
 

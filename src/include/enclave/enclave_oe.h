@@ -4,7 +4,7 @@
 #include "pthread_impl.h"
 #include "sgxlkl_t.h"
 
-#include "shared/enclave_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 #include "shared/shared_memory.h"
 
 // OE uses the page pointed to by %fs:0 to store thread-specific information

@@ -28,13 +28,13 @@
 #include <netinet/ip.h>
 
 #include "enclave/enclave_mem.h"
-#include "host/compose_config.h"
+#include "host/compose_enclave_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "host/vio_host_event_channel.h"
-#include "shared/enclave_config.h"
 #include "shared/env.h"
 #include "shared/host_state.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 #include "lkl/linux/virtio_net.h"
 
@@ -87,6 +87,11 @@ typedef struct ethread_args
     sgxlkl_shared_memory_t* shm;
     oe_enclave_t* oe_enclave;
 } ethread_args_t;
+
+int parse_sgxlkl_app_config_from_str(
+    const char* str,
+    sgxlkl_app_config_t* conf,
+    char** err);
 
 /**************************************************************************************************************************/
 
@@ -1602,8 +1607,7 @@ void _create_enclave(
 
     char* buffer = NULL;
     size_t buffer_size = 0;
-    compose_enclave_config(
-        &host_state, app_config, &buffer, &buffer_size, "enclave-config.json");
+    compose_enclave_config(&host_state, app_config, &buffer, &buffer_size);
 
     oe_eeid_t* eeid = NULL;
     oe_create_eeid_sgx(buffer_size, &eeid);

@@ -6,7 +6,7 @@
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
 #include "shared/env.h"
-#include "shared/sgxlkl_config_json.h"
+#include "shared/read_enclave_config.h"
 
 int sgxlkl_verbose = 1;
 
@@ -110,11 +110,11 @@ void sgxlkl_ethread_init(void)
 static int _read_eeid_config(const sgxlkl_shared_memory_t* shm)
 {
     const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
-    const char* app_config_json = (const char*)eeid->data;
+    const char* config_json = (const char*)eeid->data;
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
-    if (sgxlkl_read_config_json(
-            app_config_json, &sgxlkl_enclave_state.enclave_config))
+    if (sgxlkl_read_enclave_config(
+            config_json, &sgxlkl_enclave_state.enclave_config))
         return 1;
 
     // Copy shared memory. Deep copy so the host can't change it?

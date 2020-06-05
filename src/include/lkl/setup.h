@@ -1,7 +1,7 @@
 #ifndef SETUP_H
 #define SETUP_H
 
-#include "shared/enclave_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 #define DEFAULT_LKL_CMDLINE ""
 

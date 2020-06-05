@@ -18,12 +18,10 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <errno.h>
 
 #include <enclave/enclave_mem.h>
-#include <shared/enclave_config.h>
 #include <shared/json.h>
+#include <shared/read_enclave_config.h>
+#include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
-
-#include <shared/enclave_config.h>
-#include <shared/sgxlkl_config_json.h>
 
 // Duplicate a string
 static int strdupz(char** to, const char* from)
@@ -734,7 +732,7 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     CONFCHECK(app_cfg->envc < 0, "invalid envc");
 }
 
-int sgxlkl_read_config_json(const char* from, sgxlkl_enclave_config_t** to)
+int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
 {
     if (!from || !to)
         return 1;
@@ -755,8 +753,6 @@ int sgxlkl_read_config_json(const char* from, sgxlkl_enclave_config_t** to)
                                           .array = NULL,
                                           .array_count = 0,
                                           .auxc = 0};
-
-    INFO("ENCLAVE CONFIG: %s\n", from);
 
     // parser destroys `from`, so we copy it first.
     size_t json_len = strlen(from);
@@ -792,72 +788,19 @@ int sgxlkl_read_config_json(const char* from, sgxlkl_enclave_config_t** to)
     return 0;
 }
 
-// int sgxlkl_read_app_config_json(const char* from, sgxlkl_app_config_t**
-// app_to)
-// {
-//     if (!from || !app_to)
-//         return 1;
-
-//     *app_to = calloc(1, sizeof(sgxlkl_app_config_t));
-
-//     if (!*app_to)
-//         FAIL("out of memory\n");
-
-//     json_parser_t parser;
-//     json_result_t r = JSON_UNEXPECTED;
-//     json_callback_data_t callback_data = {.config = NULL,
-//                                           .app_config = *app_to,
-//                                           .buffer_sz = 0,
-//                                           .index = 0,
-//                                           .seen = NULL,
-//                                           .array = NULL,
-//                                           .array_count = 0,
-//                                           .envp = NULL,
-//                                           .envc = 0,
-//                                           .auxc = 0};
-
-//     INFO("ENCLAVE APP CONFIG: %s\n", from);
-
-//     // parser destroys `from`, so we copy it first.
-//     size_t json_len = strlen(from);
-//     char* json_copy = malloc(sizeof(char) * (json_len + 1));
-//     memcpy(json_copy, from, json_len);
-
-//     if ((r = json_parser_init(
-//              &parser,
-//              json_copy,
-//              strlen(from),
-//              json_read_app_config_callback,
-//              &callback_data)) != JSON_OK)
-//     {
-//         FAIL("json_parser_init() failed: %d\n", r);
-//     }
-
-//     if ((r = json_parser_parse(&parser)) != JSON_OK)
-//     {
-//         FAIL("json_parser_parse() failed: %d\n", r);
-//     }
-
-//     if (parser.depth != 0)
-//     {
-//         FAIL("unterminated json objects\n");
-//     }
-
-//     string_list_free(callback_data.seen);
-//     free(json_copy);
-
-//     return 0;
-// }
-
 void sgxlkl_default_enclave_config(sgxlkl_enclave_config_t* enclave_config)
 {
     _Static_assert(
         sizeof(sgxlkl_enclave_config_t) == 416,
         "unexpected size of sgxlkl_enclave_config_t");
+
+    // TODO
 }
 
 void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config)
 {
+    // TODO: free more
+
     for (size_t i = 0; i < enclave_config->app_config.num_disks; i++)
     {
         free(enclave_config->app_config.disks[i].key);

@@ -42,8 +42,8 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "shared/enclave_config.h"
 #include "shared/env.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 #include "openenclave/corelibc/oestring.h"
 

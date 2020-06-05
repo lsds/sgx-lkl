@@ -20,9 +20,9 @@
 #include <string.h>
 
 #include "enclave/enclave_util.h"
-#include "shared/enclave_config.h"
 #include "shared/env.h"
 #include "shared/json_util.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 static const char* STRING_KEYS[] = {"run",
                                     "cwd",

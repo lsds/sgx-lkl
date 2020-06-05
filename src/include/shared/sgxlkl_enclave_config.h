@@ -1,5 +1,5 @@
-#ifndef SGXLKL_ENCLAVE_CONFIG_T_H
-#define SGXLKL_ENCLAVE_CONFIG_T_H
+#ifndef SGXLKL_ENCLAVE_CONFIG_H
+#define SGXLKL_ENCLAVE_CONFIG_H
 
 #include <elf.h>
 #include <shared/shared_memory.h>
@@ -56,20 +56,19 @@ typedef struct sgxlkl_enclave_wg_config
 
 typedef struct sgxlkl_app_config
 {
-    char* run; /* Will ultimately point at the same location as argv[0] */
-    char* cwd; /* Working directory */
-    int argc;
-    char** argv; /* Array of application arguments of length argc */
-    int envc;
-    char** envp; /* Array of environment variables of length envc */
-    int auxc;
-    Elf64_auxv_t** auxv; /* Array of auxiliary ELF variables */
-    exit_status_mode_t
-        exit_status; /* Report exit status of process from inside enclave? */
-    size_t num_disks;
+    char* run;           /* Command to run (argv[0]) */
+    char* cwd;           /* Working directory */
+    int argc;            /* length of argv */
+    char** argv;         /* Array of application arguments of length argc */
+    int envc;            /* length of envp */
+    char** envp;         /* Array of environment variables of length envc */
+    int auxc;            /* length of auxv */
+    Elf64_auxv_t** auxv; /* Array of auxiliary ELF variables of length auxc */
+    exit_status_mode_t exit_status; /* Enclave exit status behaviour */
+    size_t num_disks;               /* length of disks */
     sgxlkl_enclave_disk_config_t*
-        disks; /* Array of disk configurations of length num_disks */
-    size_t num_peers;
+        disks;        /* Array of disk configurations of length num_disks */
+    size_t num_peers; /* length of peers */
     sgxlkl_enclave_wg_peer_config_t*
         peers; /* Array of wireguard peer configurations of length num_peers */
 } sgxlkl_app_config_t;
@@ -107,11 +106,6 @@ typedef struct sgxlkl_enclave_config
     sgxlkl_app_config_t app_config;
     sgxlkl_enclave_wg_config_t wg;
 } sgxlkl_enclave_config_t;
-
-int parse_sgxlkl_app_config_from_str(
-    const char* str,
-    sgxlkl_app_config_t* conf,
-    char** err);
 
 void sgxlkl_default_enclave_config(sgxlkl_enclave_config_t* enclave_config);
 

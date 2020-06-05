@@ -1,7 +1,7 @@
 #ifndef SGXLKL_HOST_CONFIG_H
 #define SGXLKL_HOST_CONFIG_H
 
-#include <shared/enclave_config.h>
+#include <shared/sgxlkl_enclave_config.h>
 #include <shared/shared_memory.h>
 
 #define HOST_MAX_DISKS 32
