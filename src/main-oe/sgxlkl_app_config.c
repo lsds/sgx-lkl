@@ -68,15 +68,14 @@ static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
     if (json_object_get_type(args_val) != json_type_array)
         return 1;
 
-    config->argc = json_object_array_length(args_val) + 1; // Reserve argv[0]
-    config->argv = malloc(
-        sizeof(char*) *
-        (config->argc +
-         1)); // Allocate space for argv[] + NULL element at argv[argc]
-    int i;
-    for (i = 1; i < config->argc; i++)
+    config->argc = json_object_array_length(args_val);
+
+    // Allocate space for argv[] + NULL element at argv[argc]
+    config->argv = malloc(sizeof(char*) * (config->argc + 1));
+
+    for (size_t i = 0; i < config->argc; i++)
     {
-        json_object* val = json_object_array_get_idx(args_val, i - 1);
+        json_object* val = json_object_array_get_idx(args_val, i);
         if (json_object_get_type(val) != json_type_string)
             return 1;
         config->argv[i] = strdup(json_object_get_string(val));

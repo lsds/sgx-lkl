@@ -1197,17 +1197,18 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("termination thread unblocked\n");
 
     /* Expose exit status based on app_config */
-    sgxlkl_app_config_t* app_config = &sgxlkl_enclave->app_config;
+    const sgxlkl_app_config_t* app_config = &sgxlkl_enclave->app_config;
     switch (app_config->exit_status)
     {
         case EXIT_STATUS_FULL:
             /* do nothing */
             break;
         case EXIT_STATUS_BINARY:
-            app_config->exit_status = app_config->exit_status == 0 ? 0 : 1;
+            sgxlkl_enclave_state.exit_status =
+                sgxlkl_enclave_state.exit_status == 0 ? 0 : 1;
             break;
         case EXIT_STATUS_NONE:
-            app_config->exit_status = 0;
+            sgxlkl_enclave_state.exit_status = 0;
             break;
         default:
             SGXLKL_ASSERT(false);

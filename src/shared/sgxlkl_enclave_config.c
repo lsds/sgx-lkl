@@ -117,7 +117,7 @@ static void show_path(json_parser_t* parser)
             "Expected type %d for '%s' (is %d).\n", \
             (int)T,                                 \
             (int)type,                              \
-            parser->path[parser->depth - 1]);       \
+            make_path(parser));                     \
         return JSON_BAD_PARAMETER;                  \
     }
 
@@ -128,7 +128,7 @@ static void show_path(json_parser_t* parser)
             "Expected type %d or %d for '%s'.\n", \
             (int)T1,                              \
             (int)T2,                              \
-            parser->path[parser->depth - 1]);     \
+            make_path(parser));                   \
         return JSON_BAD_PARAMETER;                \
     }
 
@@ -395,11 +395,11 @@ static json_result_t json_read_app_config_callback(
             JU64("app_config.auxv.a_val", &AUXV()->a_un.a_val);
 
             JPATHT("app_config.exit_status", JSON_TYPE_STRING, {
-                if (strcmp(un->string, "full"))
+                if (strcmp(un->string, "full") == 0)
                     data->app_config->exit_status = EXIT_STATUS_FULL;
-                else if (strcmp(un->string, "binary"))
+                else if (strcmp(un->string, "binary") == 0)
                     data->app_config->exit_status = EXIT_STATUS_BINARY;
-                else if (strcmp(un->string, "none"))
+                else if (strcmp(un->string, "none") == 0)
                     data->app_config->exit_status = EXIT_STATUS_NONE;
                 else
                     FAIL("Invalid app_config.exit_status value.\n");
