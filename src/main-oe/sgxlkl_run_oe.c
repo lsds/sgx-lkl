@@ -1898,7 +1898,7 @@ int main(int argc, char* argv[], char* envp[])
         sgxlkl_host_fail("Failed to allocate timerdev_task mem : %d\n", errno);
 
     /* Enclave creation */
-    sgxlkl_host_verbose("oe_create_enclave... ");
+    sgxlkl_host_verbose("oe_create_enclave...\n");
     _create_enclave(libsgxlkl, oe_flags, app_config, &oe_enclave);
 
     /* Perform host interface initialization */
