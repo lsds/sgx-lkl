@@ -11,7 +11,7 @@ schedules:
 extends:
   template: template.yml
   parameters:
-    skip_publish: true
+    publish: false
     test_timeout_minutes: 120 # ethread==1 takes longer to run
     ethreads:
     - 1

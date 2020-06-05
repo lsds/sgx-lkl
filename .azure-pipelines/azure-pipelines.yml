@@ -1,20 +1,14 @@
-trigger:
-  branches:
-    include:
-    - 'oe_port'
-  paths:
-    exclude:
-    - 'README.md'
-    - 'docs/'
-
+trigger: none
 pr:
   branches:
     include:
     - '*'  # must quote since "*" is a YAML reserved character; we want a string
   paths:
     exclude:
-    - 'README.md'
+    - '*.md'
     - 'docs/'
 
 extends:
   template: template.yml
+  parameters:
+    publish: false

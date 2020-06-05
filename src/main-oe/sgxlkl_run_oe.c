@@ -51,7 +51,7 @@
 #define BUILD_INFO "[NON-RELEASE build (-O3)]"
 #endif
 
-#define SGXLKL_INFO_STRING "SGX-LKL (OE) Git version %s LKL version %s %s"
+#define SGXLKL_INFO_STRING "SGX-LKL (OE) %s (%s) LKL %s %s"
 #define SGXLKL_LAUNCHER_NAME "sgx-lkl-run-oe"
 
 // One first empty block for bootloaders, and offset in second block
@@ -108,7 +108,7 @@ __gdb_hook_starter_ready(void* base_addr, int mode, char* libsgxlkl_path)
 
 static void version()
 {
-    printf(SGXLKL_INFO_STRING, GIT_VERSION, LKL_VERSION, BUILD_INFO);
+    printf(SGXLKL_INFO_STRING, SGXLKL_VERSION, SGXLKL_GIT_COMMIT, LKL_VERSION, BUILD_INFO);
     printf("\n");
 }
 
@@ -1695,7 +1695,7 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     sgxlkl_host_verbose(
-        SGXLKL_INFO_STRING, GIT_VERSION, LKL_VERSION, BUILD_INFO);
+        SGXLKL_INFO_STRING, SGXLKL_VERSION, SGXLKL_GIT_COMMIT, LKL_VERSION, BUILD_INFO);
     sgxlkl_host_verbose_raw(
         encl.mode == SW_DEBUG_MODE
             ? " [SOFTWARE DEBUG]\n"
