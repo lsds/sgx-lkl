@@ -468,7 +468,7 @@ void compose_enclave_config(
     json_obj_t* root = mk_json_objects(NULL, root_size);
 
     size_t cnt = 0;
-    FPFU64(max_user_threads);
+    FPFS32(mode);
     FPFU64(stacksize);
     FPFSS(
         mmap_files,
@@ -479,23 +479,24 @@ void compose_enclave_config(
                   : config->mmap_files == ENCLAVE_MMAP_FILES_PRIVATE
                         ? "private"
                         : "unknown");
-    FPFS32(net_fd);
     FPFU32(oe_heap_pagecount);
+
     FPFU32(net_ip4);
     FPFU32(net_gw4);
     FPFU32(net_mask4);
     FPFS(hostname);
-    FPFS32(hostnet);
-    FPFS32(tap_offload);
     FPFS32(tap_mtu);
+    FPFBOOL(hostnet);
     root->objects[cnt++] = mk_json_wg("wg", &config->wg);
+
+    FPFU64(max_user_threads);
     FPFU64(espins);
     FPFU64(esleep);
     FPFS64(sysconf_nproc_conf);
     FPFS64(sysconf_nproc_onln);
     root->objects[cnt++] =
         mk_json_string_clock_res("clock_res", config->clock_res);
-    FPFS32(mode);
+
     FPFBOOL(fsgsbase);
     FPFBOOL(verbose);
     FPFBOOL(kernel_verbose);

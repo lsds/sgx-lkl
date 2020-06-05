@@ -80,7 +80,7 @@
 #define MAX_SGXLKL_ETHREADS 1024
 #define MAX_SGXLKL_MAX_USER_THREADS 65536
 
-int parse_sgxlkl_config(char* path, char** err);
+int parse_sgxlkl_config(const char* path, char** err);
 
 int parse_sgxlkl_config_from_str(char* str, char** err);
 

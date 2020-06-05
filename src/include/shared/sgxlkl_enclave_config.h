@@ -75,26 +75,28 @@ typedef struct sgxlkl_app_config
 
 typedef struct sgxlkl_enclave_config
 {
-    size_t max_user_threads;
+    int mode;
     size_t stacksize;
     int mmap_files;
-    int net_fd;
     unsigned int oe_heap_pagecount;
+
+    /* Network */
     uint32_t net_ip4;
     uint32_t net_gw4;
     int net_mask4;
     char hostname[32];
-    int hostnet;
-    int tap_offload;
+    bool hostnet;
     int tap_mtu;
+    sgxlkl_enclave_wg_config_t wg;
 
+    /* Threading */
+    size_t max_user_threads;
     size_t espins;
     size_t esleep;
     long sysconf_nproc_conf;
     long sysconf_nproc_onln;
     struct timespec clock_res[8];
 
-    int mode;
     bool fsgsbase;
     bool verbose;
     bool kernel_verbose;
@@ -104,7 +106,6 @@ typedef struct sgxlkl_enclave_config
     bool swiotlb; /* Option to toggle swiotlb in SW mode */
 
     sgxlkl_app_config_t app_config;
-    sgxlkl_enclave_wg_config_t wg;
 } sgxlkl_enclave_config_t;
 
 void sgxlkl_default_enclave_config(sgxlkl_enclave_config_t* enclave_config);

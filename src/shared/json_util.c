@@ -184,7 +184,7 @@ int get_string_value_from_json_str(
 
 // TODO Return error description in err.
 int parse_json_from_file(
-    char* path,
+    const char* path,
     parse_json_callback cb,
     void* userarg,
     char** err)

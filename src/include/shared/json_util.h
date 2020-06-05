@@ -25,7 +25,7 @@ int parse_json_from_str(
     char** err);
 
 int parse_json_from_file(
-    char* path,
+    const char* path,
     parse_json_callback cb,
     void* userarg,
     char** err);

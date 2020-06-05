@@ -430,7 +430,7 @@ end:
     return 0;
 }
 
-int parse_sgxlkl_config(char* path, char** err)
+int parse_sgxlkl_config(const char* path, char** err)
 {
     return parse_json_from_file(path, parse_sgxlkl_config_entry, NULL, err);
 }

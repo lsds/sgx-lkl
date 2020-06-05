@@ -154,7 +154,7 @@ int __libc_init_enclave(int argc, char** argv)
 
     libc.vvar_base = sgxlkl_enclave_state.shared_memory.vvar;
     libc.user_tls_enabled =
-        sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
+        sgxlkl_in_sw_debug_mode() ? 1 : sgxlkl_enclave->fsgsbase;
 
     init_sysconf(
         sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);

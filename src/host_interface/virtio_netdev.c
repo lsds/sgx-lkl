@@ -604,7 +604,7 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     if (host_state->enclave_config.swiotlb)
         net_dev->dev.device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);
 
-    if (host_state->enclave_config.tap_offload)
+    if (host_state->config.tap_offload)
     {
         has_vnet_hdr = 1;
         net_dev->dev.device_features |=
@@ -630,7 +630,7 @@ int netdev_init(sgxlkl_host_state_t* host_state)
         virtio_set_queue_max_merge_len(&net_dev->dev, RX_QUEUE_IDX, 65536);
 
     /* Register the netdev fd */
-    register_net_device(net_dev, host_state->enclave_config.net_fd);
+    register_net_device(net_dev, host_state->net_fd);
 
     int* netdev_id = (int*)malloc(sizeof(int));
     assert(netdev_id != NULL);

@@ -83,7 +83,6 @@ sgxlkl_host_state_t host_state;
 typedef struct ethread_args
 {
     int ethread_id;
-    sgxlkl_enclave_config_t* econf;
     sgxlkl_shared_memory_t* shm;
     oe_enclave_t* oe_enclave;
 } ethread_args_t;
@@ -1252,23 +1251,15 @@ static void register_hds(char* root_hd)
     }
 }
 
-static void register_net(
-    const char* tapstr,
-    const char* ip4str,
-    int mask4,
-    const char* gw4str,
-    const char* hostname)
+static void register_net()
 {
     sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
-    // Set hostname
-    strncpy(econf->hostname, hostname, sizeof(econf->hostname));
-    econf->hostname[sizeof(econf->hostname) - 1] = '\0';
-
-    if (econf->net_fd != 0)
+    if (host_state.net_fd != 0)
         sgxlkl_host_fail("Multiple network interfaces not supported yet\n");
 
     // Open tap device FD
+    const char* tapstr = host_state.config.tap_device;
     if (tapstr == NULL || strlen(tapstr) == 0)
     {
         sgxlkl_host_verbose(
@@ -1280,61 +1271,39 @@ static void register_net(
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
     int vnet_hdr_sz = 0;
-    if (sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD))
+    if (host_state.config.tap_offload)
     {
         ifr.ifr_flags |= IFF_VNET_HDR;
         vnet_hdr_sz = sizeof(struct lkl_virtio_net_hdr_v1);
     }
 
-    int fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
-    if (fd == -1)
+    host_state.net_fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
+    if (host_state.net_fd == -1)
         sgxlkl_host_fail(
             "TUN network device unavailable, open(\"/dev/net/tun\") failed");
 
-    if (ioctl(fd, TUNSETIFF, &ifr) == -1)
+    if (ioctl(host_state.net_fd, TUNSETIFF, &ifr) == -1)
         sgxlkl_host_fail(
             "Tap device %s unavailable, ioctl(\"/dev/net/tun\"), TUNSETIFF) "
             "failed: %s\n",
             tapstr,
             strerror(errno));
 
-    if (vnet_hdr_sz && ioctl(fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0)
+    if (vnet_hdr_sz &&
+        ioctl(host_state.net_fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0)
         sgxlkl_host_fail(
             "Failed to TUNSETVNETHDRSZ: /dev/net/tun: %s\n", strerror(errno));
 
     int offload_flags = 0;
-    if (sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD))
-    {
+    if (host_state.config.tap_offload)
         offload_flags = TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_CSUM;
-    }
 
-    if (ioctl(fd, TUNSETOFFLOAD, offload_flags) != 0)
+    if (ioctl(host_state.net_fd, TUNSETOFFLOAD, offload_flags) != 0)
         sgxlkl_host_fail(
             "Failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
 
-    econf->tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
-    econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
-
-    econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
-
-    struct in_addr ip4 = {0};
-    if (inet_pton(AF_INET, ip4str, &ip4) != 1)
-        sgxlkl_host_fail("Invalid IPv4 address %s\n", ip4str);
-
-    struct in_addr gw4 = {0};
-    if (gw4str != NULL && strlen(gw4str) > 0 &&
-        inet_pton(AF_INET, gw4str, &gw4) != 1)
-    {
-        sgxlkl_host_fail("Invalid IPv4 gateway %s\n", ip4str);
-    }
-
-    if (mask4 < 1 || mask4 > 32)
-        sgxlkl_host_fail("Invalid IPv4 mask %d\n", mask4);
-
-    econf->net_fd = fd;
-    econf->net_ip4 = ip4.s_addr;
-    econf->net_gw4 = gw4.s_addr;
-    econf->net_mask4 = mask4;
+    if (econf->net_mask4 < 1 || econf->net_mask4 > 32)
+        sgxlkl_host_fail("Invalid IPv4 mask %d\n", econf->net_mask4);
 }
 
 static void sgxlkl_cleanup(void)
@@ -1657,14 +1626,76 @@ void find_root_disk_file(int* argc, char*** argv, char** root_hd)
     }
 }
 
+void enclave_config_from_file(const char* filename)
+{
+    char* err;
+    if (parse_sgxlkl_config(filename, &err))
+        sgxlkl_host_fail(
+            "Failed to parse configuration file %s: %s\n", filename, err);
+}
+
+void enclave_config_from_cmdline(long nproc, int mode)
+{
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+
+    econf->mode = mode;
+
+    econf->oe_heap_pagecount = sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
+    econf->stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
+    econf->max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
+    econf->espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
+    econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
+    econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
+    econf->kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
+    econf->kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+    econf->sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
+    econf->swiotlb = sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
+
+    char* mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
+    econf->mmap_files =
+        !strcmp(mmap_files, "Shared")
+            ? ENCLAVE_MMAP_FILES_SHARED
+            : (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE
+                                              : ENCLAVE_MMAP_FILES_NONE);
+
+    size_t num_ethreads = sgxlkl_configured(SGXLKL_ETHREADS)
+                              ? sgxlkl_config_uint64(SGXLKL_ETHREADS)
+                              : nproc;
+
+    set_sysconf_params(num_ethreads);
+
+    struct in_addr ia_tmp = {0};
+    const char* ip4str = sgxlkl_config_str(SGXLKL_IP4);
+    if (inet_pton(AF_INET, ip4str, &ia_tmp) != 1)
+        sgxlkl_host_fail("Invalid IPv4 address %s\n", ip4str);
+    econf->net_ip4 = ia_tmp.s_addr;
+
+    const char* gw4str = sgxlkl_config_str(SGXLKL_GW4);
+    if (gw4str != NULL && strlen(gw4str) > 0 &&
+        inet_pton(AF_INET, gw4str, &ia_tmp) != 1)
+        sgxlkl_host_fail("Invalid IPv4 gateway %s\n", ip4str);
+    econf->net_gw4 = ia_tmp.s_addr;
+
+    econf->net_mask4 = sgxlkl_config_uint64(SGXLKL_MASK4);
+    strcpy(econf->hostname, sgxlkl_config_str(SGXLKL_HOSTNAME));
+    econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
+    econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
+
+    host_state.config.tap_device = sgxlkl_config_str(SGXLKL_TAP);
+    host_state.config.thread_affinity =
+        sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY);
+    host_state.config.tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
+}
+
 int main(int argc, char* argv[], char* envp[])
 {
     char* app_config_path = NULL;
+    char* host_config_path = NULL;
     char libsgxlkl[PATH_MAX];
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-    sgxlkl_app_config_t* app_config = &econf->app_config;
+    const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_app_config_t* app_config = &host_state.enclave_config.app_config;
     char* root_hd = NULL;
-    long nproc;
+    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
     size_t num_ethreads = 1;
     pthread_t* sgxlkl_threads;
     pthread_t* host_vdisk_task;
@@ -1675,7 +1706,6 @@ int main(int argc, char* argv[], char* envp[])
     size_t ethreads_cores_len;
     pthread_attr_t eattr;
     cpu_set_t set;
-    char** auxvp;
     void* return_value;
     bool enclave_image_provided = false;
 
@@ -1683,7 +1713,6 @@ int main(int argc, char* argv[], char* envp[])
     uint32_t oe_flags = 0;
 
     int c;
-    char* err;
 
 #if DEBUG && VIRTIO_TEST_HOOK
     signal(SIGUSR2, sgxlkl_loader_signal_handler);
@@ -1704,22 +1733,22 @@ int main(int argc, char* argv[], char* envp[])
         {"app-config", required_argument, 0, 'a'},
         {0, 0, 0, 0}};
 
-    econf->mode = UNKNOWN_MODE;
+    int enclave_mode = UNKNOWN_MODE;
 
     while ((c = getopt_sgxlkl(argc, argv, long_options)) != -1)
     {
         switch (c)
         {
             case SW_DEBUG_MODE:
-                econf->mode = SW_DEBUG_MODE;
+                enclave_mode = SW_DEBUG_MODE;
                 oe_flags = OE_ENCLAVE_FLAG_SIMULATE | OE_ENCLAVE_FLAG_DEBUG;
                 break;
             case HW_DEBUG_MODE:
-                econf->mode = HW_DEBUG_MODE;
+                enclave_mode = HW_DEBUG_MODE;
                 oe_flags = OE_ENCLAVE_FLAG_DEBUG;
                 break;
             case HW_RELEASE_MODE:
-                econf->mode = HW_RELEASE_MODE;
+                enclave_mode = HW_RELEASE_MODE;
                 break;
             case 'e':
                 enclave_image_provided = true;
@@ -1738,11 +1767,7 @@ int main(int argc, char* argv[], char* envp[])
                 help_tls();
                 exit(EXIT_SUCCESS);
             case 'c':
-                if (parse_sgxlkl_config(optarg, &err))
-                    sgxlkl_host_fail(
-                        "Failed to parse configuration file %s: %s\n",
-                        optarg,
-                        err);
+                host_config_path = optarg;
                 break;
             case 'a':
                 app_config_path = optarg;
@@ -1753,7 +1778,7 @@ int main(int argc, char* argv[], char* envp[])
         }
     }
 
-    if (econf->mode == UNKNOWN_MODE)
+    if (enclave_mode == UNKNOWN_MODE)
     {
         sgxlkl_host_err(
             "Insufficient arguments: must specific SGX-LKL execution mode.\n");
@@ -1769,12 +1794,12 @@ int main(int argc, char* argv[], char* envp[])
         LKL_VERSION,
         BUILD_INFO);
     sgxlkl_host_verbose_raw(
-        econf->mode == SW_DEBUG_MODE
+        enclave_mode == SW_DEBUG_MODE
             ? " [SOFTWARE DEBUG]\n"
-            : econf->mode == HW_DEBUG_MODE
+            : enclave_mode == HW_DEBUG_MODE
                   ? " [HARDWARE DEBUG]\n"
-                  : econf->mode == HW_RELEASE_MODE ? " [HARDWARE RELEASE]\n"
-                                                   : "(Unknown)\n");
+                  : enclave_mode == HW_RELEASE_MODE ? " [HARDWARE RELEASE]\n"
+                                                    : "(Unknown)\n");
     argc -= optind;
     argv += optind;
     find_root_disk_file(&argc, &argv, &root_hd);
@@ -1792,35 +1817,19 @@ int main(int argc, char* argv[], char* envp[])
      * mode. */
     check_envs_all(envp);
 
-    // Use numbers of cores as default.
-    nproc = sysconf(_SC_NPROCESSORS_ONLN);
-    num_ethreads = sgxlkl_configured(SGXLKL_ETHREADS)
-                       ? sgxlkl_config_uint64(SGXLKL_ETHREADS)
-                       : nproc;
-
-    // Ethread config
-    econf->oe_heap_pagecount = sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
-    econf->stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
-    econf->max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
-    econf->espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
-    econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
-    econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
-    econf->kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
-    econf->kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
-    econf->sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
-    econf->swiotlb = sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
-
-    char* mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
-    econf->mmap_files =
-        !strcmp(mmap_files, "Shared")
-            ? ENCLAVE_MMAP_FILES_SHARED
-            : (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE
-                                              : ENCLAVE_MMAP_FILES_NONE);
+    if (host_config_path)
+    {
+        enclave_config_from_file(host_config_path);
+    }
+    else
+    {
+        enclave_config_from_cmdline(nproc, enclave_mode);
+    }
 
     /* Host and guest cannot use virtio in HW mode without bounce buffer,so in
      * hardware mode SWIOTLB is always enabled.
      * SGXLKL_ENABLE_SWIOTLB allows to enable/disable SWIOTLB only in SW mode */
-    if (econf->mode != SW_DEBUG_MODE && !econf->swiotlb)
+    if (enclave_mode != SW_DEBUG_MODE && !econf->swiotlb)
     {
         sgxlkl_host_fail("SWIOTLB cannot be disabled in hardware mode. Set "
                          "SGXLKL_ENABLE_SWIOTLB=1 to run\n");
@@ -1829,21 +1838,15 @@ int main(int argc, char* argv[], char* envp[])
     sgxlkl_host_verbose(
         "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\"\n",
         nproc,
-        num_ethreads,
+        econf->sysconf_nproc_conf,
         econf->kernel_cmd);
 
-    set_sysconf_params(num_ethreads);
     set_clock_res();
     set_shared_mem(&host_state.shared_memory);
     set_tls();
     set_wg();
     register_hds(root_hd);
-    register_net(
-        sgxlkl_config_str(SGXLKL_TAP),
-        sgxlkl_config_str(SGXLKL_IP4),
-        (int)sgxlkl_config_uint64(SGXLKL_MASK4),
-        sgxlkl_config_str(SGXLKL_GW4),
-        sgxlkl_config_str(SGXLKL_HOSTNAME));
+    register_net();
 
     /* SW mode requires special signal handling, since
      * OE does not support exception handling in SW mode. */
@@ -1862,7 +1865,7 @@ int main(int argc, char* argv[], char* envp[])
     sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl);
 
     parse_cpu_affinity_params(
-        sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY),
+        host_state.config.thread_affinity,
         &ethreads_cores,
         &ethreads_cores_len);
 
@@ -1944,7 +1947,7 @@ int main(int argc, char* argv[], char* envp[])
     host_state.shared_memory.enc_dev_config = enc_dev_config;
 
     /* Launch network device host task */
-    if (econf->net_fd != 0)
+    if (host_state.net_fd != 0)
     {
         int ret = netdev_init(&host_state);
         if (ret < 0)
@@ -2002,7 +2005,6 @@ int main(int argc, char* argv[], char* envp[])
         }
 
         ethreads_args[i].ethread_id = i;
-        ethreads_args[i].econf = &host_state.enclave_config;
         ethreads_args[i].shm = &host_state.shared_memory;
         ethreads_args[i].oe_enclave = oe_enclave;
 

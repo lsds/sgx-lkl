@@ -1440,7 +1440,8 @@ void lkl_start_init()
 
     // Register network tap if given one
     int net_dev_id = -1;
-    if (sgxlkl_enclave->net_fd != 0)
+    if (shm->virtio_net_dev_mem)
+        // TODO: Add flag in enclave config to disable this?
         net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
 
     /* Prepare bootargs to boot lkl kernel */

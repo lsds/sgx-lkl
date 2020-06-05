@@ -24,8 +24,20 @@ typedef struct sgxlkl_host_disk_state
     int is_mounted; // Has been mounted
 } sgxlkl_host_disk_state_t;
 
+typedef struct sgxlkl_host_config
+{
+    char* thread_affinity;
+    char* tap_device;
+    bool tap_offload;
+    int tap_mtu;
+} sgxlkl_host_config_t;
+
 typedef struct sgxlkl_host_state
 {
+    sgxlkl_host_config_t config;
+
+    int net_fd;
+
     size_t num_disks;
     sgxlkl_host_disk_state_t disks[HOST_MAX_DISKS];
 

@@ -569,7 +569,6 @@ static json_result_t json_read_callback(
                 else
                     FAIL("invalid setting for mmap_files: %s\n", un->string);
             });
-            JS32("net_fd", &data->config->net_fd);
             JU32("oe_heap_pagecount", &data->config->oe_heap_pagecount);
             JU32("net_ip4", &data->config->net_ip4);
             JU32("net_gw4", &data->config->net_gw4);
@@ -580,9 +579,8 @@ static json_result_t json_read_callback(
                     FAIL("hostname too long");
                 memcpy(data->config->hostname, un->string, len);
             });
-            JS32("hostnet", &data->config->hostnet);
-            JS32("tap_offload", &data->config->tap_offload);
             JS32("tap_mtu", &data->config->tap_mtu);
+            JBOOL("hostnet", &data->config->hostnet);
 
             JU32("wg.ip", &data->config->wg.ip);
             JU16("wg.listen_port", &data->config->wg.listen_port);
@@ -778,6 +776,8 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     {
         FAIL("unterminated json objects\n");
     }
+
+    // TODO: Add option to import (some of) host envp
 
     string_list_free(callback_data.seen);
     free(json_copy);
