@@ -11,6 +11,7 @@
 #include <mbedtls/base64.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>
+#include <pthread.h>
 
 #include "argon2/include/argon2.h"
 #include "crypto.h"
@@ -21,6 +22,7 @@
 
 static mbedtls_ctr_drbg_context _drbg;
 static mbedtls_entropy_context _entropy;
+static pthread_once_t _once = PTHREAD_ONCE_INIT;
 
 static void _seed_entropy_source(void)
 {
@@ -37,16 +39,11 @@ static void _seed_entropy_source(void)
 
 void vic_random(void* data, size_t size)
 {
-    static bool _initialized;
     uint8_t* p = (uint8_t*)data;
     size_t r = size;
-    size_t N = 8;
+    size_t N = 256;
 
-    if (!_initialized)
-    {
-        _seed_entropy_source();
-        _initialized = true;
-    }
+    pthread_once(&_once, _seed_entropy_source);
 
     while (r > 0)
     {
