@@ -20,9 +20,11 @@ test1:
 
 __test1:
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh )
+ifeq ("$(shell cryptsetup --version)","cryptsetup 2.3.2-rc0")
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh 2 )
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh 4 )
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh 7 )
+endif
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh 13 )
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh 112 )
 	( BLKSZ=${TEST1_BLOCKSIZE} ./test-verity.sh 4096 )
