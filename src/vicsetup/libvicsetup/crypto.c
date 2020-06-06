@@ -9,56 +9,51 @@
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
 #include <mbedtls/base64.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
 
 #include "argon2/include/argon2.h"
 #include "crypto.h"
 #include "hash.h"
 #include "byteorder.h"
 #include "goto.h"
+#include "hexdump.h"
 
-/* Disable this to use Valgrind where RDRAND is an illegal instruction */
-//#define USE_RDRAND
+static mbedtls_ctr_drbg_context _drbg;
+static mbedtls_entropy_context _entropy;
 
-#ifdef USE_RDRAND
-static uint64_t _rand(void)
+static void _seed_entropy_source(void)
 {
-    uint64_t r;
-    __asm__ volatile("rdrand %%rax\n\t" "mov %%rax, %0\n\t" : "=m"(r));
-    return r;
-}
-#else
-static uint64_t _rand(void)
-{
-    static uint64_t _seed1 = 0x22a96be5cd554564;
-    static uint64_t _seed2 = 0xf0a54f1c1f194d2d;
+    int r;
 
-    struct timeval tv;
-    int rc = gettimeofday(&tv, NULL);
-    assert(rc == 0);
+    mbedtls_ctr_drbg_init(&_drbg);
+    mbedtls_entropy_init(&_entropy);
 
-    return (_seed1++ ^ _seed2--) + (tv.tv_usec + tv.tv_sec);
+    r = mbedtls_ctr_drbg_seed(&_drbg, mbedtls_entropy_func, &_entropy, NULL, 0);
+
+    if (r != 0)
+        assert(0);
 }
-#endif
 
 void vic_random(void* data, size_t size)
 {
-    size_t r = size;
+    static bool _initialized;
     uint8_t* p = (uint8_t*)data;
+    size_t r = size;
+    size_t N = 8;
 
-    /* ATTN: Consider using rdseed when supported? */
-
-    while (r >= sizeof(uint64_t))
+    if (!_initialized)
     {
-        uint64_t x = _rand();
-        memcpy(p, &x, sizeof(uint64_t));
-        r -= sizeof(uint64_t);
-        p += sizeof(uint64_t);
+        _seed_entropy_source();
+        _initialized = true;
     }
 
-    if (r)
+    while (r > 0)
     {
-        uint64_t x = _rand();
-        memcpy(p, &x, r);
+        size_t n = (r < N) ? r : N;
+        mbedtls_ctr_drbg_random(&_drbg, p, n);
+        p += n;
+        r -= n;
     }
 }
 

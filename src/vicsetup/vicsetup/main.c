@@ -10,6 +10,7 @@
 #include "../libvicsetup/lukscommon.h"
 #include "../libvicsetup/include/libcryptsetup.h"
 #include "../libvicsetup/trace.h"
+#include "../libvicsetup/crypto.h"
 
 #define USAGE \
     "\n" \
@@ -1150,6 +1151,41 @@ static int verityOpen(int argc, const char* argv[])
     return 0;
 }
 
+static int randomAction(int argc, const char* argv[])
+{
+    char* end;
+    void* p;
+    unsigned long n;
+
+    /* Check usage */
+    if (argc != 3)
+    {
+        fprintf(stderr,
+            "Usage: %s %s count\n"
+            "\n",
+            argv[0],
+            argv[1]);
+        exit(1);
+    }
+
+    n = strtoul(argv[2], &end, 10);
+
+    if (!end || *end)
+        err("bad count argument: %s\n", argv[2]);
+
+    if (!(p = calloc(n, 1)))
+        err("malloc failed\n");
+
+    vic_random(p, n);
+
+    vic_hexdump_flat(p, n);
+    printf("\n");
+
+    free(p);
+
+    return 0;
+}
+
 int main(int argc, const char* argv[])
 {
     arg0 = argv[0];
@@ -1243,6 +1279,10 @@ int main(int argc, const char* argv[])
     else if (strcmp(argv[1], "veritysetupOpen") == 0)
     {
         return veritysetupOpen(argc, argv);
+    }
+    else if (strcmp(argv[1], "random") == 0)
+    {
+        return randomAction(argc, argv);
     }
     else
     {

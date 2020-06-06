@@ -23,8 +23,6 @@ LUKSFORMAT_OPTS += --uuid $(UUID)
 LUKSFORMAT_OPTS += --keyfile keyfile
 LUKSFORMAT_OPTS += --cipher $(CIPHER)
 
-VG=valgrind --tool=memcheck
-
 luksFormat:
 	head -c $(KEYSIZE) /dev/urandom > keyfile
 	head -c $(SIZE) /dev/zero > luksfile
