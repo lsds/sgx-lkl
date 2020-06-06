@@ -1,6 +1,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <mbedtls/pkcs5.h>
 #include <mbedtls/aes.h>
@@ -34,7 +35,10 @@ static void _seed_entropy_source(void)
     r = mbedtls_ctr_drbg_seed(&_drbg, mbedtls_entropy_func, &_entropy, NULL, 0);
 
     if (r != 0)
-        assert(0);
+    {
+        assert("mbedtls_ctr_drbg_seed() panic" == NULL);
+        abort();
+    }
 }
 
 void vic_random(void* data, size_t size)
@@ -48,7 +52,13 @@ void vic_random(void* data, size_t size)
     while (r > 0)
     {
         size_t n = (r < N) ? r : N;
-        mbedtls_ctr_drbg_random(&_drbg, p, n);
+
+        if (mbedtls_ctr_drbg_random(&_drbg, p, n) != 0)
+        {
+            assert("mbedtls_ctr_drbg_random() panic" == NULL);
+            abort();
+        }
+
         p += n;
         r -= n;
     }
