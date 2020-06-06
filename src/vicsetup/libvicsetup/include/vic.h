@@ -6,13 +6,6 @@
 #include <stdbool.h>
 #include <limits.h>
 
-#define VIC_SECTOR_SIZE 512
-
-#define VIC_INLINE static __inline__
-
-#define VIC_PACK_BEGIN _Pragma("pack(push, 1)")
-#define VIC_PACK_END _Pragma("pack(pop)")
-
 /*
 **==============================================================================
 **

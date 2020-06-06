@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <vic.h>
+#include "defs.h"
 
 typedef enum vic_trace_level
 {

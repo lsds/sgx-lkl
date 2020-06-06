@@ -1,6 +1,11 @@
 #ifndef _VIC_DEFS_H
 #define _VIC_DEFS_H
 
+#define VIC_INLINE static __inline__
+
+#define VIC_PACK_BEGIN _Pragma("pack(push, 1)")
+#define VIC_PACK_END _Pragma("pack(pop)")
+
 #define VIC_COUNTOF(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 
 #define VIC_OFFSETOF(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
@@ -26,5 +31,7 @@
 #define VIC_PACK_END _Pragma("pack(pop)")
 
 #define VIC_WEAK(NAME) __attribute__((__weak__, alias(#NAME)))
+
+#define VIC_SECTOR_SIZE 512
 
 #endif /* _VIC_DEFS_H */
