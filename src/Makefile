@@ -60,7 +60,8 @@ endif
 SGXLKL_OBJS=$(addprefix $(LIB_SGXLKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
 ${OE_ENCLAVE_CALLS}: sgxlkl.edl
-	${OE_OESIGN_TOOL_PATH}/oeedger8r --trusted $< --trusted-dir enclave/
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
+		--trusted $< --trusted-dir enclave/
 	mv enclave/sgxlkl_t.h include/enclave/; mv enclave/sgxlkl_args.h include/shared/
 	sed -i '/#include "sgxlkl_t.h"/c\#include "enclave/sgxlkl_t.h"' enclave/sgxlkl_t.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' enclave/sgxlkl_t.c
@@ -94,7 +95,8 @@ ifeq ($(findstring sgx_dcap_ql,$(OE_PKGCONFIG_OUTPUT)),sgx_dcap_ql)
 endif
 
 ${OE_HOST_CALLS}: sgxlkl.edl
-	${OE_OESIGN_TOOL_PATH}/oeedger8r --untrusted $< --untrusted-dir main-oe/
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
+		--untrusted $< --untrusted-dir main-oe/
 	mv main-oe/sgxlkl_u.h include/host/; mv main-oe/sgxlkl_args.h include/shared/
 	sed -i '/#include "sgxlkl_u.h"/c\#include "host/sgxlkl_u.h"' main-oe/sgxlkl_u.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' main-oe/sgxlkl_u.c
