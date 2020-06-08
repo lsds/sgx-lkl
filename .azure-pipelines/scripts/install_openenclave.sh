@@ -7,7 +7,7 @@ sudo rm -rf openenclave/
 openenclave_status_file_path="$home/.openenclave_last_successful_build_commit_id"
 openenclave_install_dir="/opt/openenclave/"
 openenclave_source_file="$openenclave_install_dir/share/openenclave/openenclaverc"
-git clone -b feature/sgx-lkl-support https://github.com/openenclave/openenclave.git
+git clone --recursive -b feature/sgx-lkl-support https://github.com/openenclave/openenclave.git
 cd openenclave
 current_head_commit=$(git log --pretty=%H | head -1)
 if [ -f "$openenclave_status_file_path" ]; then 
