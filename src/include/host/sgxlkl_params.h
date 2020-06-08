@@ -54,32 +54,6 @@
 #define SGXLKL_ENABLE_SWIOTLB 65
 #define SGXLKL_HD_OVERLAY 66
 
-#define DEFAULT_SGXLKL_VERBOSE 0
-#define DEFAULT_SGXLKL_CWD "/"
-
-#define DEFAULT_SGXLKL_GW4 "10.0.1.254"
-/* The default heap size will only be used if no heap size is specified and
- * either we are in simulation mode, or we are in HW mode and a key is provided
- * via SGXLKL_KEY.
- */
-#define DEFAULT_SGXLKL_OE_HEAP_PAGE_COUNT 8192 /* 8192 * 4K = 32MB */
-#define DEFAULT_SGXLKL_HEAP_SIZE 200 * 1024 * 1024
-#define DEFAULT_SGXLKL_HOSTNAME "lkl"
-#define DEFAULT_SGXLKL_IP4 "10.0.1.1"
-#define DEFAULT_SGXLKL_MASK4 24
-#define DEFAULT_SGXLKL_MAX_USER_THREADS 256
-#define DEFAULT_SGXLKL_ESLEEP 16000
-#define DEFAULT_SGXLKL_ETHREADS 1
-#define DEFAULT_SGXLKL_ESPINS 500
-#define DEFAULT_SGXLKL_STACK_SIZE 512 * 1024
-#define DEFAULT_SGXLKL_SWIOTLB 1
-#define DEFAULT_SGXLKL_TAP "sgxlkl_tap0"
-#define DEFAULT_SGXLKL_WG_IP "10.0.2.1"
-#define DEFAULT_SGXLKL_WG_PORT 56002
-#define DEFAULT_SGXLKL_KERNEL_CMD "mem=32M"
-#define MAX_SGXLKL_ETHREADS 1024
-#define MAX_SGXLKL_MAX_USER_THREADS 65536
-
 int parse_sgxlkl_config(const char* path, char** err);
 
 int parse_sgxlkl_config_from_str(char* str, char** err);

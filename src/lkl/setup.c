@@ -502,7 +502,7 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail(
             "Unable to allocate memory for disk encryption key inside the "
             "enclave: %s\n",
-            lkl_strerror((int)lkl_cd->disk_config->key));
+            lkl_strerror((intptr_t)key_kernel));
     memcpy(key_kernel, key_outside, lkl_cd->disk_config->key_len);
 
     err = crypt_keyslot_add_by_key(
@@ -688,7 +688,7 @@ static void lkl_mount_disk(
     int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
     if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) &&
-        (disk->roothash || disk->key))
+        (disk->roothash || is_encrypted(disk)))
     {
         sgxlkl_trace_lkl_syscall = 0;
         sgxlkl_trace_internal_syscall = 0;
@@ -712,7 +712,7 @@ static void lkl_mount_disk(
         disk->readonly = 1;
         lkl_cd.readonly = 1;
     }
-    if (disk->key)
+    if (is_encrypted(disk))
     {
         dev_str_enc[sizeof dev_str_enc - 2] = device;
         lkl_cd.crypt_name = dev_str_enc + offset_dev_str_crypt_name;
@@ -746,7 +746,7 @@ static void lkl_mount_disk(
     {
         size_t fs_size = disk->size;
 
-        if (disk->key)
+        if (is_encrypted(disk))
         {
             SGXLKL_VERBOSE(
                 "Assuming a disk encryption/integrity overhead of %d %%\n",
@@ -944,14 +944,22 @@ void lkl_mount_disks(
     }
 }
 
+static uint32_t _parse_ip4(const char* str)
+{
+    struct in_addr ia_tmp = {0};
+    if (inet_pton(AF_INET, str, &ia_tmp) != 1)
+        sgxlkl_fail("Error: Invalid IPv4 address: %s\n", str);
+    return ia_tmp.s_addr;
+}
+
 void lkl_poststart_net(int net_dev_id)
 {
     int res = 0;
     if (net_dev_id >= 0)
     {
         int ifidx = lkl_netdev_get_ifindex(net_dev_id);
-        res = lkl_if_set_ipv4(
-            ifidx, sgxlkl_enclave->net_ip4, sgxlkl_enclave->net_mask4);
+        uint32_t ip4 = _parse_ip4(sgxlkl_enclave->net_ip4);
+        res = lkl_if_set_ipv4(ifidx, ip4, sgxlkl_enclave->net_mask4);
         if (res < 0)
         {
             sgxlkl_fail("Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
@@ -963,7 +971,8 @@ void lkl_poststart_net(int net_dev_id)
         }
         if (sgxlkl_enclave->net_gw4 > 0)
         {
-            res = lkl_set_ipv4_gateway(sgxlkl_enclave->net_gw4);
+            uint32_t gw4 = _parse_ip4(sgxlkl_enclave->net_gw4);
+            res = lkl_set_ipv4_gateway(gw4);
             if (res < 0)
             {
                 sgxlkl_fail(
@@ -1062,7 +1071,7 @@ static void init_wireguard()
     }
 
     int wgifindex = lkl_ifname_to_ifindex(new_device.name);
-    lkl_if_set_ipv4(wgifindex, sgxlkl_enclave->wg.ip, 24);
+    lkl_if_set_ipv4(wgifindex, _parse_ip4(sgxlkl_enclave->wg.ip), 24);
     lkl_if_up(wgifindex);
 }
 
@@ -1489,7 +1498,9 @@ void lkl_start_init()
     {
         const sgxlkl_enclave_disk_config_t* disk_i = &app_config->disks[i];
         SGXLKL_VERBOSE(
-            "Disk %zu: Disk encryption: %s\n", i, (disk_i->key ? "ON" : "off"));
+            "Disk %zu: Disk encryption: %s\n",
+            i,
+            (is_encrypted(disk_i) ? "ON" : "off"));
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
             i,

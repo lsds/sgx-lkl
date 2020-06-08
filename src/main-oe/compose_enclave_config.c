@@ -119,6 +119,8 @@ static json_obj_t* mk_json_string_array(
     size_t num_strings)
 {
     json_obj_t* res = mk_json_array(key, num_strings);
+    if (num_strings == 0)
+        res->array = malloc(1);
     for (size_t i = 0; i < num_strings; i++)
         res->array[i] = mk_json_string(NULL, strings[i]);
     return res;
@@ -201,11 +203,11 @@ static json_obj_t* mk_json_wg(
     const sgxlkl_enclave_wg_config_t* wg)
 {
     _Static_assert(
-        sizeof(sgxlkl_enclave_wg_config_t) == 32,
+        sizeof(sgxlkl_enclave_wg_config_t) == 40,
         "sgxlkl_enclave_wg_config_t size has changed");
 
     json_obj_t* r = mk_json_objects(key, 4);
-    r->objects[0] = mk_json_u32("ip", wg->ip);
+    r->objects[0] = mk_json_string("ip", wg->ip);
     r->objects[1] = mk_json_u16("listen_port", wg->listen_port);
     r->objects[2] = mk_json_string("key", wg->key);
     r->objects[3] = mk_json_wg_peers("peers", wg->peers, wg->num_peers);
@@ -220,21 +222,16 @@ static json_obj_t* mk_json_auxv(
 {
     _Static_assert(sizeof(Elf64_auxv_t) == 16, "Elf64_auxv_t size has changed");
 
-    if (!auxv)
-        return mk_json_string(key, NULL);
-    else
+    json_obj_t* r = mk_json_array(key, auxc);
+    if (auxc == 0)
+        r->array = malloc(1);
+    for (size_t i = 0; i < auxc; i++)
     {
-        json_obj_t* r = mk_json_array(key, auxc);
-        for (size_t i = 0; i < auxc; i++)
-        {
-            r->objects[i] = mk_json_objects(NULL, 2);
-            r->objects[i]->objects[0] =
-                mk_json_u64("a_type", (*auxv)[i].a_type);
-            r->objects[i]->objects[1] =
-                mk_json_u64("a_val", (*auxv)[i].a_un.a_val);
-        }
-        return r;
+        r->objects[i] = mk_json_objects(NULL, 2);
+        r->objects[i]->objects[0] = mk_json_u64("a_type", (*auxv)[i].a_type);
+        r->objects[i]->objects[1] = mk_json_u64("a_val", (*auxv)[i].a_un.a_val);
     }
+    return r;
 }
 
 static json_obj_t* mk_json_app_config(const sgxlkl_app_config_t* app_config)
@@ -458,7 +455,7 @@ void compose_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 448,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
 
     const sgxlkl_enclave_config_t* config = &host_state->enclave_config;
@@ -489,8 +486,8 @@ void compose_enclave_config(
                         : "unknown");
     FPFU64(oe_heap_pagecount);
 
-    FPFU32(net_ip4);
-    FPFU32(net_gw4);
+    FPFS(net_ip4);
+    FPFS(net_gw4);
     FPFU32(net_mask4);
     FPFS(hostname);
     FPFS32(tap_mtu);
@@ -500,8 +497,7 @@ void compose_enclave_config(
     FPFU64(max_user_threads);
     FPFU64(espins);
     FPFU64(esleep);
-    FPFS64(sysconf_nproc_conf);
-    FPFS64(sysconf_nproc_onln);
+    FPFS64(ethreads);
     root->objects[cnt++] =
         mk_json_string_clock_res("clock_res", config->clock_res);
 

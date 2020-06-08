@@ -6,6 +6,7 @@
 #include "host/sgxlkl_util.h"
 #include "shared/env.h"
 #include "shared/json_util.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 #define TYPE_CHAR 0
 #define TYPE_UINT 1

@@ -54,7 +54,7 @@ typedef struct sgxlkl_enclave_wg_peer_config
 
 typedef struct sgxlkl_enclave_wg_config
 {
-    uint32_t ip;
+    char* ip;
     uint16_t listen_port;
     char* key;
     size_t num_peers;
@@ -91,37 +91,67 @@ typedef struct sgxlkl_app_config
 typedef struct sgxlkl_enclave_config
 {
     int mode;
-    size_t stacksize;
-    enclave_mmap_files_t mmap_files;
-    size_t oe_heap_pagecount;
 
     /* Network */
-    uint32_t net_ip4;
-    uint32_t net_gw4;
+    char* net_ip4;
+    char* net_gw4;
     int net_mask4;
     char hostname[32];
     bool hostnet;
     int tap_mtu;
     sgxlkl_enclave_wg_config_t wg;
 
-    /* Threading */
+    /* Scheduling */
+    size_t ethreads;
     size_t max_user_threads;
     size_t espins;
     size_t esleep;
-    long sysconf_nproc_conf;
-    long sysconf_nproc_onln;
     struct timespec clock_res[8];
 
+    /* Various */
+    size_t stacksize;
+    enclave_mmap_files_t mmap_files;
+    size_t oe_heap_pagecount;
     bool fsgsbase;
     bool verbose;
     bool kernel_verbose;
     char* kernel_cmd;
     char* sysctl;
-
     bool swiotlb; /* Option to toggle swiotlb in SW mode */
 
+    /* Application */
     sgxlkl_app_config_t app_config;
 } sgxlkl_enclave_config_t;
+
+#define DEFAULT_SGXLKL_VERBOSE 0
+#define DEFAULT_SGXLKL_CWD "/"
+#define DEFAULT_SGXLKL_GW4 "10.0.1.254"
+/* The default heap size will only be used if no heap size is specified and
+ * either we are in simulation mode, or we are in HW mode and a key is provided
+ * via SGXLKL_KEY.
+ */
+#define DEFAULT_SGXLKL_OE_HEAP_PAGE_COUNT 8192 /* 8192 * 4K = 32MB */
+#define DEFAULT_SGXLKL_HEAP_SIZE 200 * 1024 * 1024
+#define DEFAULT_SGXLKL_HOSTNAME "lkl"
+#define DEFAULT_SGXLKL_IP4 "10.0.1.1"
+#define DEFAULT_SGXLKL_MASK4 24
+#define DEFAULT_SGXLKL_MAX_USER_THREADS 256
+#define DEFAULT_SGXLKL_ESLEEP 16000
+#define DEFAULT_SGXLKL_ETHREADS 1
+#define DEFAULT_SGXLKL_ESPINS 500
+#define DEFAULT_SGXLKL_STACK_SIZE 512 * 1024
+#define DEFAULT_SGXLKL_SWIOTLB 1
+#define DEFAULT_SGXLKL_TAP "sgxlkl_tap0"
+#define DEFAULT_SGXLKL_WG_IP "10.0.2.1"
+#define DEFAULT_SGXLKL_WG_PORT 56002
+#define DEFAULT_SGXLKL_KERNEL_CMD "mem=32M"
+#define DEFAULT_SGXLKL_HOSTNET false
+#define DEFAULT_SGXLKL_TAP_MTU 0
+
+#define MAX_SGXLKL_ETHREADS 1024
+#define MAX_SGXLKL_MAX_USER_THREADS 65536
+
+bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk);
 
 extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;
 

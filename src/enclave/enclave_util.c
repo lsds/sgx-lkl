@@ -3,13 +3,17 @@
 
 #include <stdarg.h>
 
-#include "openenclave/internal/print.h"
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/internal/print.h"
 #ifdef DEBUG
 #include "openenclave/internal/backtrace.h"
 #endif
 
 #define OE_STDERR_FILENO 1
+
+// sgxlkl_verbose is used only by the tracing macros.
+// Should move into sgxlkl_enclave_state?
+int sgxlkl_verbose = 1;
 
 void sgxlkl_fail(const char* msg, ...)
 {
@@ -77,8 +81,9 @@ void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...)
 
 #ifdef DEBUG
 /**
- * Provide access to an internal OE function. We cannot use the public oe_backtrace
- * function because we need to pass in custom frame pointers of other lthreads.
+ * Provide access to an internal OE function. We cannot use the public
+ * oe_backtrace function because we need to pass in custom frame pointers of
+ * other lthreads.
  */
 extern int oe_backtrace_impl(void** start_frame, void** buffer, int size);
 

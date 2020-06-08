@@ -286,6 +286,18 @@ JINTDECLU(uint16_t, tmp <= UINT16_MAX);
     if (decode_uint16_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
         return JSON_OK;
 
+void parse_exit_status(exit_status_mode_t* dest, const char* value)
+{
+    if (strcmp(value, "full") == 0)
+        *dest = EXIT_STATUS_FULL;
+    else if (strcmp(value, "binary") == 0)
+        *dest = EXIT_STATUS_BINARY;
+    else if (strcmp(value, "none") == 0)
+        *dest = EXIT_STATUS_NONE;
+    else
+        FAIL("Invalid exit_status value.\n");
+}
+
 static json_result_t json_read_app_config_callback(
     json_parser_t* parser,
     json_reason_t reason,
@@ -390,19 +402,11 @@ static json_result_t json_read_app_config_callback(
             });
 
 #define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
-            JNULL("app_config.auxv");
             JU64("app_config.auxv.a_type", &AUXV()->a_type);
             JU64("app_config.auxv.a_val", &AUXV()->a_un.a_val);
 
             JPATHT("app_config.exit_status", JSON_TYPE_STRING, {
-                if (strcmp(un->string, "full") == 0)
-                    data->app_config->exit_status = EXIT_STATUS_FULL;
-                else if (strcmp(un->string, "binary") == 0)
-                    data->app_config->exit_status = EXIT_STATUS_BINARY;
-                else if (strcmp(un->string, "none") == 0)
-                    data->app_config->exit_status = EXIT_STATUS_NONE;
-                else
-                    FAIL("Invalid app_config.exit_status value.\n");
+                parse_exit_status(&data->app_config->exit_status, un->string);
             });
 
 #define APPDISK() \
@@ -550,7 +554,6 @@ static json_result_t json_read_callback(
             }
             last_path = cur_path;
 
-            JU64("max_user_threads", &data->config->max_user_threads);
             JU64("stacksize", &data->config->stacksize);
 
 #define HOSTDISK() \
@@ -577,8 +580,8 @@ static json_result_t json_read_callback(
                     FAIL("invalid setting for mmap_files: %s\n", un->string);
             });
             JU64("oe_heap_pagecount", &data->config->oe_heap_pagecount);
-            JU32("net_ip4", &data->config->net_ip4);
-            JU32("net_gw4", &data->config->net_gw4);
+            JSTRING("net_ip4", data->config->net_ip4);
+            JSTRING("net_gw4", data->config->net_gw4);
             JS32("net_mask4", &data->config->net_mask4);
             JPATHT("hostname", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string) + 1;
@@ -589,7 +592,7 @@ static json_result_t json_read_callback(
             JS32("tap_mtu", &data->config->tap_mtu);
             JBOOL("hostnet", &data->config->hostnet);
 
-            JU32("wg.ip", &data->config->wg.ip);
+            JSTRING("wg.ip", data->config->wg.ip);
             JU16("wg.listen_port", &data->config->wg.listen_port);
             JSTRING("wg.key", data->config->wg.key);
 
@@ -617,10 +620,10 @@ static json_result_t json_read_callback(
                 data->array_count = new_count;
             });
 
+            JU64("max_user_threads", &data->config->max_user_threads);
+            JU64("ethreads", &data->config->ethreads);
             JU64("espins", &data->config->espins);
             JU64("esleep", &data->config->esleep);
-            JS64("sysconf_nproc_conf", &data->config->sysconf_nproc_conf);
-            JS64("sysconf_nproc_onln", &data->config->sysconf_nproc_onln);
 
             JPATHT("clock_res", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string);
@@ -735,6 +738,7 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     CONFCHECK(app_cfg->argc < 0, "invalid argc");
     CONFCHECK(app_cfg->argc == 0, "argc == 0");
     CONFCHECK(app_cfg->envc < 0, "invalid envc");
+    CONFCHECK(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "invalid net_mask4")
 }
 
 int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
@@ -742,16 +746,18 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 448,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from || !to)
         return 1;
 
-    *to = calloc(1, sizeof(sgxlkl_enclave_config_t));
-
     if (!*to)
-        FAIL("out of memory\n");
+    {
+        *to = calloc(1, sizeof(sgxlkl_enclave_config_t));
+        if (!*to)
+            FAIL("out of memory\n");
+    }
 
     **to = sgxlkl_default_enclave_config;
 
@@ -815,4 +821,9 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config)
     }
     free(enclave_config->app_config.disks);
     free(enclave_config);
+}
+
+bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk)
+{
+    return disk->key || disk->key_id || disk->fresh_key;
 }

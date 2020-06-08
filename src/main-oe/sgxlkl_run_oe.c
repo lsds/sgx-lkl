@@ -217,7 +217,7 @@ static void help_config()
         "%-35s %s (default: %d)\n",
         "  SGXLKL_VERBOSE",
         "Set to 1 to enable verbose SGX-LKL output.",
-        DEFAULT_SGXLKL_VERBOSE);
+        sgxlkl_default_enclave_config.verbose);
     printf(
         "%-35s %s",
         "  SGXLKL_ETHREADS_AFFINITY",
@@ -759,13 +759,6 @@ void get_signed_libsgxlkl_path(char* path_buf, size_t len)
     sgxlkl_host_fail("Unable to locate libsgxlkl.so.signed\n");
 }
 
-void set_sysconf_params(long ethreads_num)
-{
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-    econf->sysconf_nproc_conf = ethreads_num;
-    econf->sysconf_nproc_onln = ethreads_num;
-}
-
 void set_clock_res()
 {
     sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
@@ -904,12 +897,7 @@ void set_tls()
 /* Set up wireguard configuration */
 void set_wg_config_from_cmdline(sgxlkl_enclave_wg_config_t* wg)
 {
-    char* wg_ip_str = sgxlkl_config_str(SGXLKL_WG_IP);
-    if (inet_pton(AF_INET, wg_ip_str, &wg->ip) != 1)
-    {
-        sgxlkl_host_fail("Invalid Wireguard IPv4 address %s\n", wg_ip_str);
-    }
-
+    wg->ip = sgxlkl_config_str(SGXLKL_WG_IP);
     wg->listen_port = (uint16_t)sgxlkl_config_uint64(SGXLKL_WG_PORT);
     wg->key = sgxlkl_config_str(SGXLKL_WG_KEY);
 
@@ -1675,19 +1663,10 @@ void enclave_config_from_cmdline(long nproc, int mode)
                               ? sgxlkl_config_uint64(SGXLKL_ETHREADS)
                               : nproc;
 
-    set_sysconf_params(num_ethreads);
+    econf->ethreads = num_ethreads;
 
-    struct in_addr ia_tmp = {0};
-    const char* ip4str = sgxlkl_config_str(SGXLKL_IP4);
-    if (inet_pton(AF_INET, ip4str, &ia_tmp) != 1)
-        sgxlkl_host_fail("Invalid IPv4 address %s\n", ip4str);
-    econf->net_ip4 = ia_tmp.s_addr;
-
-    const char* gw4str = sgxlkl_config_str(SGXLKL_GW4);
-    if (gw4str != NULL && strlen(gw4str) > 0 &&
-        inet_pton(AF_INET, gw4str, &ia_tmp) != 1)
-        sgxlkl_host_fail("Invalid IPv4 gateway %s\n", ip4str);
-    econf->net_gw4 = ia_tmp.s_addr;
+    econf->net_ip4 = sgxlkl_config_str(SGXLKL_IP4);
+    econf->net_gw4 = sgxlkl_config_str(SGXLKL_GW4);
 
     econf->net_mask4 = sgxlkl_config_uint64(SGXLKL_MASK4);
     strcpy(econf->hostname, sgxlkl_config_str(SGXLKL_HOSTNAME));
@@ -1864,7 +1843,7 @@ int main(int argc, char* argv[], char* envp[])
     sgxlkl_host_verbose(
         "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\"\n",
         nproc,
-        econf->sysconf_nproc_conf,
+        econf->ethreads,
         econf->kernel_cmd);
 
     set_clock_res();

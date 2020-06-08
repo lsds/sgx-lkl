@@ -156,9 +156,7 @@ int __libc_init_enclave(int argc, char** argv)
     libc.user_tls_enabled =
         sgxlkl_in_sw_debug_mode() ? 1 : sgxlkl_enclave->fsgsbase;
 
-    init_sysconf(
-        sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);
-
+    init_sysconf(sgxlkl_enclave->ethreads, sgxlkl_enclave->ethreads);
     init_clock_res(sgxlkl_enclave->clock_res);
 
     size_t max_lthreads =

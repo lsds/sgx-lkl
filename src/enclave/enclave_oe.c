@@ -8,10 +8,7 @@
 #include "shared/env.h"
 #include "shared/read_enclave_config.h"
 
-int sgxlkl_verbose = 1;
-
 sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
-
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
@@ -22,11 +19,13 @@ bool sgxlkl_in_sw_debug_mode()
 // We need to have a separate function here
 int __sgx_init_enclave()
 {
-    _register_enclave_signal_handlers(sgxlkl_enclave->mode);
+    sgxlkl_enclave_config_t* enclave_config =
+        sgxlkl_enclave_state.enclave_config;
+
+    _register_enclave_signal_handlers(enclave_config->mode);
 
     return __libc_init_enclave(
-        sgxlkl_enclave_state.enclave_config->app_config.argc,
-        sgxlkl_enclave_state.enclave_config->app_config.argv);
+        enclave_config->app_config.argc, enclave_config->app_config.argv);
 }
 
 #ifdef DEBUG
@@ -100,8 +99,7 @@ void sgxlkl_ethread_init(void)
     /* Initialization completed, now run the scheduler */
     __init_tls();
 
-    SGXLKL_ASSERT(sgxlkl_enclave);
-    _lthread_sched_init(sgxlkl_enclave->stacksize);
+    _lthread_sched_init(sgxlkl_enclave_state.enclave_config->stacksize);
     lthread_run();
 
     return;
