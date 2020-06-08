@@ -1395,8 +1395,8 @@ void lkl_start_init()
     register_lkl_syscall_overrides();
 
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
-    const sgxlkl_app_config_t* app_config =
-        &sgxlkl_enclave_state.enclave_config->app_config;
+    const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
+    const sgxlkl_app_config_t* app_config = &config->app_config;
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
@@ -1508,7 +1508,7 @@ void lkl_start_init()
     }
 
     /* Setup bounce buffer for virtio */
-    if (sgxlkl_enclave_state.enclave_config->swiotlb)
+    if (sgxlkl_enclave_state.config->swiotlb)
     {
         /* validate bounce buffer memory before setting it up */
         if (!oe_is_within_enclave(

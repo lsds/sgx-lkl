@@ -13,19 +13,94 @@ sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
 {
-    return sgxlkl_enclave_state.enclave_config->mode == SW_DEBUG_MODE;
+    return sgxlkl_enclave_state.config->mode == SW_DEBUG_MODE;
+}
+
+static void prepare_elf_stack()
+{
+    sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
+    sgxlkl_app_config_t* app_cfg = &config->app_config;
+
+    int have_run = app_cfg->run != NULL;
+    size_t total_size = 0;
+    size_t total_count = 1;
+    if (have_run)
+    {
+        total_size += strlen(app_cfg->run) + 1;
+        total_count++;
+    }
+    for (size_t i = 0; i < app_cfg->argc; i++)
+        total_size += strlen(app_cfg->argv[i]) + 1;
+    total_count += app_cfg->argc + 1;
+    for (size_t i = 0; i < app_cfg->envc; i++)
+    {
+        total_size += strlen(app_cfg->envp[i]) + 1;
+        total_count += app_cfg->envc + 1;
+    }
+    total_count += 1; // auxv terminator
+    total_count += 1; // platform-independent stuff terminator
+
+    char* buf = calloc(total_size, sizeof(char));
+    char** out = calloc(total_count, sizeof(char*));
+
+    size_t j = 0;
+    char* buf_ptr = buf;
+
+#define ADD_STRING(S)               \
+    {                               \
+        size_t len = strlen(S) + 1; \
+        memcpy(buf_ptr, (S), len);  \
+        out[j++] = buf_ptr;         \
+        buf_ptr += len;             \
+        free((void*)S);             \
+        S = NULL;                   \
+    }
+
+    elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
+
+    // argv
+    stack->argv = out;
+    if (have_run)
+    {
+        ADD_STRING(app_cfg->run);
+    }
+    for (size_t i = 0; i < app_cfg->argc; i++)
+        ADD_STRING(app_cfg->argv[i]);
+    stack->argc = j;
+    out[j++] = NULL;
+
+    // envp
+    stack->envp = out + j;
+    for (size_t i = 0; i < app_cfg->envc; i++)
+        ADD_STRING(app_cfg->envp[i]);
+    out[j++] = NULL;
+
+    // auxv
+    stack->auxv = (Elf64_auxv_t**)(out + j);
+    for (size_t i = 0; i < app_cfg->auxc; i++)
+    {
+        out[j++] = (char*)app_cfg->auxv[i]->a_type;
+        out[j++] = (char*)app_cfg->auxv[i]->a_un.a_val;
+    }
+    out[j++] = NULL;
+
+    // TODO: platform independent things?
+    out[j++] = NULL;
+
+    // CHECK: should the memory holding the strings also be on the stack?
 }
 
 // We need to have a separate function here
 int __sgx_init_enclave()
 {
-    sgxlkl_enclave_config_t* enclave_config =
-        sgxlkl_enclave_state.enclave_config;
+    sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
+    _register_enclave_signal_handlers(config->mode);
 
-    _register_enclave_signal_handlers(enclave_config->mode);
+    prepare_elf_stack();
 
     return __libc_init_enclave(
-        enclave_config->app_config.argc, enclave_config->app_config.argv);
+        sgxlkl_enclave_state.elf64_stack.argc,
+        sgxlkl_enclave_state.elf64_stack.argv);
 }
 
 #ifdef DEBUG
@@ -98,8 +173,7 @@ void sgxlkl_ethread_init(void)
 
     /* Initialization completed, now run the scheduler */
     __init_tls();
-
-    _lthread_sched_init(sgxlkl_enclave_state.enclave_config->stacksize);
+    _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
     lthread_run();
 
     return;
@@ -111,8 +185,7 @@ static int _read_eeid_config(const sgxlkl_shared_memory_t* shm)
     const char* config_json = (const char*)eeid->data;
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
-    if (sgxlkl_read_enclave_config(
-            config_json, &sgxlkl_enclave_state.enclave_config))
+    if (sgxlkl_read_enclave_config(config_json, &sgxlkl_enclave_state.config))
         return 1;
 
     // Copy shared memory. Deep copy so the host can't change it?
@@ -123,7 +196,7 @@ static int _read_eeid_config(const sgxlkl_shared_memory_t* shm)
 
     // This will be removed once shared memory and config have been
     // separated fully.
-    sgxlkl_enclave = sgxlkl_enclave_state.enclave_config;
+    sgxlkl_enclave = sgxlkl_enclave_state.config;
 
     return 0;
 }
@@ -142,7 +215,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
-    sgxlkl_verbose = sgxlkl_enclave_state.enclave_config->verbose;
+    sgxlkl_verbose = sgxlkl_enclave_state.config->verbose;
 
     SGXLKL_VERBOSE("enter\n");
 

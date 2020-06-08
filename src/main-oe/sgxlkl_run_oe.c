@@ -262,7 +262,7 @@ static void help_config()
         "%-35s %s (default: %d)\n",
         "  SGXLKL_ENABLE_SWIOTLB",
         "Enable DMA bounce buffer support, even in sw mode.",
-        DEFAULT_SGXLKL_SWIOTLB);
+        sgxlkl_default_enclave_config.swiotlb);
     printf("## Scheduling ##\n");
     printf("%-35s %s", "  SGXLKL_ETHREADS", "Number of enclave threads.\n");
     printf(
@@ -292,32 +292,32 @@ static void help_config()
         "%-35s %s (default: %s)\n",
         "  SGXLKL_IP4",
         "IPv4 address to assign to LKL.",
-        DEFAULT_SGXLKL_IP4);
+        sgxlkl_default_enclave_config.net_ip4);
     printf(
         "%-35s %s (default: %s)\n",
         "  SGXLKL_GW4",
         "IPv4 gateway to assign to LKL.",
-        DEFAULT_SGXLKL_GW4);
+        sgxlkl_default_enclave_config.net_gw4);
     printf(
         "%-35s %s (default: %d)\n",
         "  SGXLKL_MASK4",
         "CIDR mask for LKL to use.",
-        DEFAULT_SGXLKL_MASK4);
+        sgxlkl_default_enclave_config.net_mask4);
     printf(
         "%-35s %s (default: %s)\n",
         "  SGXLKL_HOSTNAME",
         "Host name for LKL to use.",
-        DEFAULT_SGXLKL_HOSTNAME);
+        sgxlkl_default_enclave_config.hostname);
     printf(
         "%-35s %s (default: %s)\n",
         "  SGXLKL_WG_IP",
         "IPv4 address to assign to Wireguard interface.",
-        DEFAULT_SGXLKL_WG_IP);
+        sgxlkl_default_enclave_config.wg.ip);
     printf(
         "%-35s %s (default: %d)\n",
         "  SGXLKL_WG_PORT",
         "Port to use on eth0 interface for the Wireguard endpoint.",
-        DEFAULT_SGXLKL_WG_PORT);
+        sgxlkl_default_enclave_config.wg.listen_port);
     printf(
         "%-35s %s",
         "  SGXLKL_WG_KEY",

@@ -18,6 +18,7 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <errno.h>
 
 #include <enclave/enclave_mem.h>
+#include <enclave/enclave_state.h>
 #include <shared/json.h>
 #include <shared/read_enclave_config.h>
 #include <shared/sgxlkl_enclave_config.h>
@@ -526,13 +527,10 @@ static json_result_t json_read_callback(
                 data->config->wg.peers =
                     (sgxlkl_enclave_wg_peer_config_t*)data->array;
             }
-            else if (json_match(parser, "clock_res", &i) == JSON_OK)
-            {
-                /* Nothing */
-            }
             else if (
+                json_match(parser, "clock_res", &i) == JSON_OK ||
                 json_read_app_config_callback(parser, reason, type, un, data) ==
-                JSON_OK)
+                    JSON_OK)
             {
                 /* OK */
             }
@@ -662,71 +660,6 @@ done:
     return result;
 }
 
-static void flatten_stack_strings(
-    const json_callback_data_t* callback_data,
-    sgxlkl_app_config_t* app_cfg)
-{
-    int have_run = app_cfg->run != NULL;
-    size_t total_size = 0;
-    size_t total_count = 1;
-    if (have_run)
-    {
-        total_size += strlen(app_cfg->run) + 1;
-        total_count++;
-    }
-    for (size_t i = 0; i < app_cfg->argc; i++)
-        total_size += strlen(app_cfg->argv[i]) + 1;
-    total_count += app_cfg->argc + 1;
-    for (size_t i = 0; i < app_cfg->envc; i++)
-    {
-        total_size += strlen(app_cfg->envp[i]) + 1;
-        total_count += app_cfg->envc + 1;
-    }
-    total_count += 1; // auxv terminator
-    total_count += 1; // platform-tdependent stuff terminator
-
-    char* buf = calloc(total_size, sizeof(char));
-    char** out = calloc(total_count, sizeof(char*));
-
-    size_t j = 0;
-    char* buf_ptr = buf;
-
-#define ADD_STRING(S)               \
-    {                               \
-        size_t len = strlen(S) + 1; \
-        memcpy(buf_ptr, (S), len);  \
-        out[j++] = buf_ptr;         \
-        buf_ptr += len;             \
-        free((void*)S);             \
-        S = NULL;                   \
-    }
-
-    // argv
-    if (have_run)
-    {
-        ADD_STRING(app_cfg->run);
-    }
-    for (size_t i = 0; i < app_cfg->argc; i++)
-        ADD_STRING(app_cfg->argv[i]);
-    app_cfg->argc = j;
-    out[j++] = NULL;
-    // envp
-    for (size_t i = 0; i < app_cfg->envc; i++)
-        ADD_STRING(app_cfg->envp[i]);
-    out[j++] = NULL;
-    for (size_t i = 0; i < app_cfg->auxc; i++)
-    {
-        out[j++] = (char*)app_cfg->auxv[i]->a_type;
-        out[j++] = (char*)app_cfg->auxv[i]->a_un.a_val;
-    }
-    out[j++] = NULL;
-    // TODO: platform independent things?
-    out[j++] = NULL;
-
-    app_cfg->argv = out;
-    app_cfg->envp = out + app_cfg->argc + 1;
-}
-
 void check_config(const sgxlkl_enclave_config_t* cfg)
 {
 #define CONFCHECK(C, M) \
@@ -734,11 +667,11 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
         FAIL("rejecting enclave configuration: " M "\n");
 
     const sgxlkl_app_config_t* app_cfg = &cfg->app_config;
-    CONFCHECK(app_cfg->argv == NULL, "missing argv");
-    CONFCHECK(app_cfg->argc < 0, "invalid argc");
-    CONFCHECK(app_cfg->argc == 0, "argc == 0");
+    CONFCHECK(
+        app_cfg->run == NULL && app_cfg->argv == NULL, "missing run/argv");
+    CONFCHECK(app_cfg->run == NULL && app_cfg->argc == 0, "argc == 0");
     CONFCHECK(app_cfg->envc < 0, "invalid envc");
-    CONFCHECK(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "invalid net_mask4")
+    CONFCHECK(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "invalid net_mask4");
 }
 
 int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
@@ -803,24 +736,43 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     string_list_free(callback_data.seen);
     free(json_copy);
 
-    flatten_stack_strings(&callback_data, app_config);
     check_config(*to);
 
     return 0;
 }
 
-void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config)
-{
-    // TODO: free more
+#define NONDEFAULT_FREE(X)              \
+    if (config->X != default_config->X) \
+        free(config->X);
 
-    for (size_t i = 0; i < enclave_config->app_config.num_disks; i++)
+void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
+{
+    const sgxlkl_enclave_config_t* default_config =
+        &sgxlkl_default_enclave_config;
+
+    NONDEFAULT_FREE(net_ip4);
+    NONDEFAULT_FREE(net_gw4);
+
+    NONDEFAULT_FREE(wg.ip);
+    for (size_t i = 0; i < config->wg.num_peers; i++)
     {
-        free(enclave_config->app_config.disks[i].key);
-        free(enclave_config->app_config.disks[i].key_id);
-        free(enclave_config->app_config.disks[i].roothash);
+        free(config->wg.peers[i].key);
+        free(config->wg.peers[i].allowed_ips);
+        free(config->wg.peers[i].endpoint);
     }
-    free(enclave_config->app_config.disks);
-    free(enclave_config);
+    NONDEFAULT_FREE(wg.peers);
+
+    NONDEFAULT_FREE(kernel_cmd);
+    NONDEFAULT_FREE(sysctl);
+
+    for (size_t i = 0; i < config->app_config.num_disks; i++)
+    {
+        free(config->app_config.disks[i].key);
+        free(config->app_config.disks[i].key_id);
+        free(config->app_config.disks[i].roothash);
+    }
+    NONDEFAULT_FREE(app_config.disks);
+    free(config);
 }
 
 bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk)

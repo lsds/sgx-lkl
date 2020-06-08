@@ -15,13 +15,13 @@
 
 extern struct mpmcq __scheduler_queue;
 
-_Noreturn void __dls3(sgxlkl_enclave_config_t* conf, void* tos);
+_Noreturn void __dls3(elf64_stack_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
-int find_and_mount_disks(const sgxlkl_app_config_t* app_config)
+static int find_and_mount_disks()
 {
-    if (!app_config)
-        sgxlkl_fail("bug: no app config\n");
+    const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
+    const sgxlkl_app_config_t* app_config = &config->app_config;
 
     if (app_config->num_disks == 0)
         sgxlkl_fail("bug: no disks\n");
@@ -81,6 +81,43 @@ static void test_attestation()
     }
 }
 
+static void init_wireguard()
+{
+    const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
+    const sgxlkl_app_config_t* app_config = &config->app_config;
+
+    /* Get WG public key */
+    wg_device* wg_dev;
+    if (wg_get_device(&wg_dev, "wg0"))
+        sgxlkl_fail("Failed to locate Wireguard interface 'wg0'.\n");
+
+    if (config->verbose)
+    {
+        wg_key_b64_string key;
+        wg_key_to_base64(key, wg_dev->public_key);
+        sgxlkl_info("wg0 has public key %s\n", key);
+    }
+
+    if (false)
+        test_attestation();
+
+    sgxlkl_app_config_t* app_config =
+        &sgxlkl_enclave_state.enclave_config->app_config;
+    find_and_mount_disks(app_config);
+
+    /* Add peers */
+    if (wg_dev)
+    {
+        wgu_add_peers(wg_dev, app_config->peers, app_config->num_peers, 1);
+    }
+    else if (app_config->num_peers)
+    {
+        sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
+    }
+    if (app_config->num_peers && config->verbose)
+        wgu_list_devices();
+}
+
 static int startmain(void* args)
 {
     __libc_start_init();
@@ -97,40 +134,12 @@ static int startmain(void* args)
     lkl_start_init();
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
 
-    /* Get WG public key */
-    wg_device* wg_dev;
-    if (wg_get_device(&wg_dev, "wg0"))
-        sgxlkl_fail("Failed to locate Wireguard interface 'wg0'.\n");
-
-    if (sgxlkl_enclave->verbose)
-    {
-        wg_key_b64_string key;
-        wg_key_to_base64(key, wg_dev->public_key);
-        sgxlkl_info("wg0 has public key %s\n", key);
-    }
-
-    if (false)
-        test_attestation();
-
-    sgxlkl_app_config_t* app_config =
-        &sgxlkl_enclave_state.enclave_config->app_config;
-    find_and_mount_disks(app_config);
-
-    // Add Wireguard peers
-    if (wg_dev)
-    {
-        wgu_add_peers(wg_dev, app_config->peers, app_config->num_peers, 1);
-    }
-    else if (app_config->num_peers)
-    {
-        sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
-    }
-    if (app_config->num_peers && sgxlkl_enclave->verbose)
-        wgu_list_devices();
+    init_wireguard();
+    find_and_mount_disks();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
-    __dls3(sgxlkl_enclave_state.enclave_config, __builtin_frame_address(0));
+    __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
 }
 
 int __libc_init_enclave(int argc, char** argv)
