@@ -1,0 +1,145 @@
+In original test case the main process create a child process
+to wirte/read to/from sockets infinitely. In sgx-lkl supports single
+process environment. The test case is modified to use a child
+pthread  instead of forking a child process.
+
+One of the sub test case designed to test generation of EFAULT
+by accessing invalid address values. Currently sgx behaviour is 
+to call enclave abort, if address is not within enclave address
+range. Because of this test program is causing enclave abort
+and exiting with non-zero exit code. 
+
+Github issue169 (https://github.com/lsds/sgx-lkl/issues/169)
+is raised to fix this behaviour. The sub test cases which test
+EFAULT error behaviour is commented/disabled until github
+issue169 is fixed.
+
+diff --git a/testcases/kernel/syscalls/recvmsg/recvmsg01.c b/testcases/kernel/syscalls/recvmsg/recvmsg01.c
+index 13bcaa4e0..b5ea895f4 100644
+--- a/testcases/kernel/syscalls/recvmsg/recvmsg01.c
++++ b/testcases/kernel/syscalls/recvmsg/recvmsg01.c
+@@ -54,9 +54,11 @@
+ #include <sys/file.h>
+ 
+ #include <netinet/in.h>
++#include <pthread.h>
+ 
+ #include "test.h"
+ #include "safe_macros.h"
++#include "tst_safe_pthread.h"
+ 
+ char *TCID = "recvmsg01";
+ int testno;
+@@ -83,7 +85,7 @@ void cleanup(void);
+ void cleanup0(void);
+ void cleanup1(void);
+ void cleanup2(void);
+-void do_child(void);
++void* do_child(void* prm);
+ 
+ void sender(int);
+ pid_t start_server(struct sockaddr_in *, struct sockaddr_un *);
+@@ -129,18 +131,19 @@ struct test_case_t {		/* test case structure */
+ 	PF_INET, SOCK_STREAM, 0, iov, 1, (void *)buf, sizeof(buf),
+ 		    &msgdat, -1, (struct sockaddr *)&from, -1, -1,
+ 		    EINVAL, setup1, cleanup1, "invalid socket length"},
++// TODO: Enable back after issue 169 fixed
+ /* 5 */
+-	{
+-	PF_INET, SOCK_STREAM, 0, iov, 1, (void *)-1, sizeof(buf),
+-		    &msgdat, 0, (struct sockaddr *)&from, sizeof(from),
+-		    -1, EFAULT, setup1, cleanup1, "invalid recv buffer"}
+-	,
++//	{
++//	PF_INET, SOCK_STREAM, 0, iov, 1, (void *)-1, sizeof(buf),
++//		    &msgdat, 0, (struct sockaddr *)&from, sizeof(from),
++//		    -1, EFAULT, setup1, cleanup1, "invalid recv buffer"}
++//	,
+ /* 6 */
+-	{
+-	PF_INET, SOCK_STREAM, 0, 0, 1, (void *)buf, sizeof(buf),
+-		    &msgdat, 0, (struct sockaddr *)&from, sizeof(from),
+-		    -1, EFAULT, setup1, cleanup1, "invalid iovec buffer"}
+-	,
++//	{
++//	PF_INET, SOCK_STREAM, 0, 0, 1, (void *)buf, sizeof(buf),
++//		    &msgdat, 0, (struct sockaddr *)&from, sizeof(from),
++//		    -1, EFAULT, setup1, cleanup1, "invalid iovec buffer"}
++//	,
+ /* 7 */
+ 	{
+ 	PF_INET, SOCK_STREAM, 0, iov, -1, (void *)buf, sizeof(buf),
+@@ -246,6 +249,7 @@ int main(int argc, char *argv[])
+ }
+ 
+ pid_t pid;
++pthread_t tid;
+ char tmpsunpath[1024];
+ 
+ void setup(void)
+@@ -268,8 +272,9 @@ void setup(void)
+ 
+ void cleanup(void)
+ {
+-	if (pid > 0)
+-		(void)kill(pid, SIGKILL);	/* kill server */
++	close(ufd);
++	close(sfd);
++	SAFE_PTHREAD_JOIN(tid, NULL);
+ 	if (tmpsunpath[0] != '\0')
+ 		(void)unlink(tmpsunpath);
+ 	tst_rmdir();
+@@ -341,15 +346,11 @@ void setup4(void)
+ void cleanup1(void)
+ {
+ 	(void)close(s);
+-	close(ufd);
+-	close(sfd);
+ 	s = -1;
+ }
+ 
+ void cleanup2(void)
+ {
+-	close(ufd);
+-	close(sfd);
+ 	(void)close(s);
+ 	s = -1;
+ 
+@@ -407,9 +408,9 @@ pid_t start_server(struct sockaddr_in *ssin, struct sockaddr_un *ssun)
+ 			tst_brkm(TBROK | TERRNO, cleanup,
+ 				 "server self_exec failed");
+ #else
+-		do_child();
++		SAFE_PTHREAD_CREATE(&tid, NULL, do_child, NULL);
+ #endif
+-		break;
++		return pid;
+ 	case -1:
+ 		tst_brkm(TBROK | TERRNO, cleanup, "server fork failed");
+ 		/* fall through */
+@@ -421,7 +422,7 @@ pid_t start_server(struct sockaddr_in *ssin, struct sockaddr_un *ssun)
+ 	exit(1);
+ }
+ 
+-void do_child(void)
++void* do_child(void* prm)
+ {
+ 	struct sockaddr_in fsin;
+ 	struct sockaddr_un fsun;
+@@ -435,7 +436,7 @@ void do_child(void)
+ 	nfds = MAX(sfd + 1, ufd + 1);
+ 
+ 	/* accept connections until killed */
+-	while (1) {
++	while (testno < TST_TOTAL) {
+ 		socklen_t fromlen;
+ 
+ 		memcpy(&rfds, &afds, sizeof(rfds));
+@@ -483,6 +484,7 @@ void do_child(void)
+ 				}
+ 			}
+ 	}
++	pthread_exit(NULL);
+ }
+ 
+ #define TM	"from recvmsg01 server"

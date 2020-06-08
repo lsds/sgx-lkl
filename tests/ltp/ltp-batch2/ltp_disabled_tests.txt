@@ -716,9 +716,9 @@
 #/ltp/testcases/kernel/syscalls/realpath/realpath01
 #/ltp/testcases/kernel/syscalls/reboot/reboot01
 #/ltp/testcases/kernel/syscalls/reboot/reboot02
-/ltp/testcases/kernel/syscalls/recv/recv01
+#/ltp/testcases/kernel/syscalls/recv/recv01
 /ltp/testcases/kernel/syscalls/recvfrom/recvfrom01
-/ltp/testcases/kernel/syscalls/recvmsg/recvmsg01
+#/ltp/testcases/kernel/syscalls/recvmsg/recvmsg01
 #/ltp/testcases/kernel/syscalls/recvmsg/recvmsg02
 /ltp/testcases/kernel/syscalls/recvmsg/recvmsg03
 /ltp/testcases/kernel/syscalls/remap_file_pages/remap_file_pages01
