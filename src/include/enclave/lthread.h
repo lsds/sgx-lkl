@@ -233,7 +233,7 @@ extern "C"
 
     void lthread_detach2(struct lthread* lt);
 
-    void lthread_exit(void* ptr);
+    void lthread_exit(void* ptr) __attribute__((noreturn));
 
     void lthread_wakeup(struct lthread* lt);
 

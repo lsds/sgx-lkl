@@ -1225,9 +1225,6 @@ static void* lkl_termination_thread(void* args)
     sgxlkl_free_config(sgxlkl_enclave);
 
     lthread_exit(NULL);
-
-    SGXLKL_VERBOSE("done\n");
-    return NULL;
 }
 
 /* Create the LKL termination thread */

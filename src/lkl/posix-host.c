@@ -533,7 +533,6 @@ static void* timer_callback(void* _timer)
     mutex_unlock(&timer->mtx);
 
     lthread_exit(NULL);
-    return NULL;
 }
 
 static void* timer_alloc(void (*fn)(void*), void* arg)

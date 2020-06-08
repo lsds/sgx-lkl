@@ -23,7 +23,7 @@ static struct enclave_disk_config* get_disk_config(int fd)
 static int fd_get_capacity(struct lkl_disk disk, unsigned long long* res)
 {
     struct enclave_disk_config* disk_config;
-    if ( (disk_config = get_disk_config(disk.fd)) != NULL)
+    if ( (disk_config = get_disk_config(disk.fd)) )
     {
         *res = disk_config->capacity;
         return 0;
