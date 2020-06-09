@@ -6,11 +6,6 @@ extends:
   parameters:
     publish: true
     apt_repo_blob_container: apt
-    # Use hosted agent for building to ensure releases are always built on a fresh VM.
-    # Our own pools currently re-use VMs to decrease queueing and execution time and
-    # this makes it easier to mess with them, e.g. via external pull requests.
-    build_pool:
-      vmImage: ubuntu-latest
     test_timeout_minutes: 120 # ethread==1 takes longer to run
     ethreads:
     - 1
