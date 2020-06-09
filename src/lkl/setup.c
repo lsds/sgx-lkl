@@ -30,7 +30,6 @@
 #include "lkl/ext4_create.h"
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
-#include "lkl/syscall-overrides.h"
 #include "lkl/virtio_device.h"
 #include "lkl/virtio_net.h"
 
@@ -1288,8 +1287,6 @@ static void init_enclave_clock()
 void lkl_start_init()
 {
     size_t i;
-
-    register_lkl_syscall_overrides();
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
