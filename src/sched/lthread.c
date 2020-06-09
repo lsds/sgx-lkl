@@ -462,7 +462,7 @@ int __init_utp(void *p, int set_tp)
 		}
 		else
 		{
-			__asm__ volatile("wrgsbase %0" ::"r"(p));
+			__asm__ volatile("wrfsbase %0" ::"r"(p));
 		}
 	}
 	return 0;
