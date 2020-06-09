@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include <enclave/lthread.h>
+#include <enclave/lthread_int.h>
 #include <enclave/ticketlock.h>
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
