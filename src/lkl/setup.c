@@ -305,17 +305,17 @@ fail:
     return err;
 }
 
-static int lkl_mount_overlay_tmpfs(
+static void lkl_mount_overlay_tmpfs(
     const char* mnt_point)
 {
-    int err = lkl_sys_mount("tmpfs", mnt_point, "tmpfs", 0, "mode=0777");
+    int err = lkl_sys_mount("tmpfs", (char*)mnt_point, "tmpfs", 0, "mode=0777");
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_mount(tmpfs): %s\n", lkl_strerror(err));
     }
 }
 
-static int lkl_mount_overlayfs(
+static void lkl_mount_overlayfs(
     const char* lower_dir,
     const char* upper_dir,
     const char* work_dir,
@@ -327,7 +327,7 @@ static int lkl_mount_overlayfs(
             sizeof(opts),
             "lowerdir=%s,upperdir=%s,workdir=%s",
             lower_dir, upper_dir, work_dir);
-    int err = lkl_sys_mount("overlay", mnt_point, "overlay", 0, opts);
+    int err = lkl_sys_mount("overlay", (char*)mnt_point, "overlay", 0, opts);
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_mount(overlayfs): %s\n", lkl_strerror(err));

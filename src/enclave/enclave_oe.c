@@ -38,12 +38,15 @@ void sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 
     memset(enclave_size_str, 0, sizeof(enclave_size_str));
     size_uint64_to_str(sgxlkl_enclave_heap_size, enclave_size_str, 10);
+#ifdef DEBUG
+    const void* sgxlkl_enclave_heap_base = __oe_get_heap_base();
+    const void* sgxlkl_enclave_heap_end = __oe_get_heap_end();
     SGXLKL_VERBOSE(
         "enclave heap base=0x%p size=%s end=0x%p\n",
         sgxlkl_enclave_heap_base,
         enclave_size_str,
         sgxlkl_enclave_heap_end);
-    return;
+#endif
 }
 
 void sgxlkl_ethread_init(void)
