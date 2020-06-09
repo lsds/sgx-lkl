@@ -181,74 +181,70 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
     return r;
 }
 
-#define JINTDECLU(T, B)                                      \
-    static json_result_t decode_##T(                         \
-        json_parser_t* parser,                               \
-        json_type_t type,                                    \
-        const json_union_t* value,                           \
-        char* path,                                          \
-        size_t* index,                                       \
-        T* to)                                               \
-    {                                                        \
-        if (!to)                                             \
-            return JSON_BAD_PARAMETER;                       \
-                                                             \
-        size_t i;                                            \
-        if (MATCH(path))                                     \
-        {                                                    \
-            *index = i;                                      \
-            if (type != JSON_TYPE_STRING)                    \
-                FAIL(                                        \
-                    "invalid value type for '%s'\n",         \
-                    parser->path[parser->depth - 1]);        \
-            _Static_assert(                                  \
-                sizeof(unsigned long) == 8,                  \
-                "unexpected size of unsigned long");         \
-            uint64_t tmp = strtoul(value->string, NULL, 10); \
-            if (!(B))                                        \
-                return JSON_UNKNOWN_VALUE;                   \
-            else                                             \
-            {                                                \
-                *to = tmp;                                   \
-                return JSON_OK;                              \
-            }                                                \
-        }                                                    \
-        return JSON_NO_MATCH;                                \
+#define JINTDECLU(T, B)                                                   \
+    static json_result_t decode_##T(                                      \
+        json_parser_t* parser,                                            \
+        json_type_t type,                                                 \
+        const json_union_t* value,                                        \
+        char* path,                                                       \
+        size_t* index,                                                    \
+        T* to)                                                            \
+    {                                                                     \
+        if (!to)                                                          \
+            return JSON_BAD_PARAMETER;                                    \
+                                                                          \
+        size_t i;                                                         \
+        if (MATCH(path))                                                  \
+        {                                                                 \
+            *index = i;                                                   \
+            if (type != JSON_TYPE_STRING)                                 \
+                FAIL("invalid value type for '%s'\n", make_path(parser)); \
+            _Static_assert(                                               \
+                sizeof(unsigned long) == 8,                               \
+                "unexpected size of unsigned long");                      \
+            uint64_t tmp = strtoul(value->string, NULL, 10);              \
+            if (!(B))                                                     \
+                return JSON_UNKNOWN_VALUE;                                \
+            else                                                          \
+            {                                                             \
+                *to = tmp;                                                \
+                return JSON_OK;                                           \
+            }                                                             \
+        }                                                                 \
+        return JSON_NO_MATCH;                                             \
     }
 
-#define JINTDECLS(T, B)                                    \
-    static json_result_t decode_##T(                       \
-        json_parser_t* parser,                             \
-        json_type_t type,                                  \
-        const json_union_t* value,                         \
-        char* path,                                        \
-        size_t* index,                                     \
-        T* to)                                             \
-    {                                                      \
-        if (!to)                                           \
-            return JSON_BAD_PARAMETER;                     \
-                                                           \
-        size_t i;                                          \
-        if (MATCH(path))                                   \
-        {                                                  \
-            *index = i;                                    \
-            if (type != JSON_TYPE_STRING)                  \
-                FAIL(                                      \
-                    "invalid value type for '%s'\n",       \
-                    parser->path[parser->depth - 1]);      \
-            _Static_assert(                                \
-                sizeof(unsigned long) == 8,                \
-                "unexpected size of unsigned long");       \
-            int64_t tmp = strtol(value->string, NULL, 10); \
-            if (!(B))                                      \
-                return JSON_UNKNOWN_VALUE;                 \
-            else                                           \
-            {                                              \
-                *to = tmp;                                 \
-                return JSON_OK;                            \
-            }                                              \
-        }                                                  \
-        return JSON_NO_MATCH;                              \
+#define JINTDECLS(T, B)                                                   \
+    static json_result_t decode_##T(                                      \
+        json_parser_t* parser,                                            \
+        json_type_t type,                                                 \
+        const json_union_t* value,                                        \
+        char* path,                                                       \
+        size_t* index,                                                    \
+        T* to)                                                            \
+    {                                                                     \
+        if (!to)                                                          \
+            return JSON_BAD_PARAMETER;                                    \
+                                                                          \
+        size_t i;                                                         \
+        if (MATCH(path))                                                  \
+        {                                                                 \
+            *index = i;                                                   \
+            if (type != JSON_TYPE_STRING)                                 \
+                FAIL("invalid value type for '%s'\n", make_path(parser)); \
+            _Static_assert(                                               \
+                sizeof(unsigned long) == 8,                               \
+                "unexpected size of unsigned long");                      \
+            int64_t tmp = strtol(value->string, NULL, 10);                \
+            if (!(B))                                                     \
+                return JSON_UNKNOWN_VALUE;                                \
+            else                                                          \
+            {                                                             \
+                *to = tmp;                                                \
+                return JSON_OK;                                           \
+            }                                                             \
+        }                                                                 \
+        return JSON_NO_MATCH;                                             \
     }
 
 JINTDECLU(uint64_t, tmp <= UINT64_MAX);
@@ -454,18 +450,16 @@ static json_result_t json_read_app_config_callback(
                 else
                 {
                     size_t l = strlen(un->string);
-                    if (disk->key_len != 0 && disk->key_len != l / 2)
-                        FAIL("contradictory key lengths for disk %d\n", i);
-                    disk->key = calloc(1, l / 2);
+                    disk->key_len = l / 2;
+                    disk->key = calloc(1, disk->key_len);
                     if (!disk->key)
                         FAIL("out of memory\n");
-                    for (size_t i = 0; i < l / 2; i++)
+                    for (size_t i = 0; i < disk->key_len; i++)
                         disk->key[i] = hex2int(un->string + 2 * i, 2);
                 }
                 return JSON_OK;
             }
             JSTRING("app_config.disks.key_id", APPDISK()->key_id);
-            JU64("app_config.disks.key_len", &APPDISK()->key_len);
             JBOOL("app_config.disks.fresh_key", &APPDISK()->fresh_key);
             JSTRING("app_config.disks.roothash", APPDISK()->roothash);
             JU64(
@@ -531,6 +525,12 @@ static json_result_t json_read_callback(
                     parser, reason, type, un, data);
             break;
         case JSON_REASON_END_OBJECT:
+            // Reset last_path for sortedness check of objects in arrays.
+            if (data->array)
+            {
+                free(last_path);
+                last_path = NULL;
+            }
             break;
         case JSON_REASON_BEGIN_ARRAY:
             if (data->array || data->array_count != 0)

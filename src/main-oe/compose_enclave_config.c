@@ -4,7 +4,9 @@
 #include <string.h>
 
 #include "enclave/enclave_mem.h"
+#include "enclave/wireguard.h"
 #include "host/sgxlkl_util.h"
+#include "shared/env.h"
 #include "shared/host_state.h"
 #include "shared/json.h"
 #include "shared/sgxlkl_enclave_config.h"
@@ -50,7 +52,29 @@ static json_obj_t* mk_json_obj(
 static json_obj_t* mk_json_string(const char* key, const char* value)
 {
     json_obj_t* obj = mk_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
-    obj->value.string = value ? strdup(value) : NULL;
+    if (value)
+    {
+        obj->value.string = strdup(value);
+        if (!obj->value.string)
+            FAIL("out of memory\n");
+    }
+    return obj;
+}
+
+static json_obj_t* mk_json_hex_string(
+    const char* key,
+    const uint8_t* buf,
+    size_t buf_sz)
+{
+    json_obj_t* obj = mk_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
+    if (buf && buf_sz > 0)
+    {
+        size_t len = 2 * buf_sz + 1;
+        obj->value.string = malloc(len);
+        if (!obj->value.string)
+            FAIL("out of memory\n");
+        bytes_to_hex(obj->value.string, len, buf, buf_sz);
+    }
     return obj;
 }
 
@@ -157,20 +181,20 @@ static json_obj_t* mk_json_disks(
             sizeof(sgxlkl_enclave_disk_config_t) == 320,
             "sgxlkl_enclave_disk_config_t size has changed");
 
-        r->array[i] = mk_json_objects(NULL, 10);
+        r->array[i] = mk_json_objects(NULL, 9);
         r->array[i]->objects[0] = mk_json_string("mnt", disks[i].mnt);
-        r->array[i]->objects[1] = mk_json_string("key", disks[i].key);
+        r->array[i]->objects[1] =
+            mk_json_hex_string("key", disks[i].key, disks[i].key_len);
         r->array[i]->objects[2] = mk_json_string("key_id", disks[i].key_id);
-        r->array[i]->objects[3] = mk_json_u64("key_len", disks[i].key_len);
-        r->array[i]->objects[4] =
+        r->array[i]->objects[3] =
             mk_json_boolean("fresh_key", disks[i].fresh_key);
-        r->array[i]->objects[5] = mk_json_string("roothash", disks[i].roothash);
-        r->array[i]->objects[6] =
+        r->array[i]->objects[4] = mk_json_string("roothash", disks[i].roothash);
+        r->array[i]->objects[5] =
             mk_json_u64("roothash_offset", disks[i].roothash_offset);
-        r->array[i]->objects[7] =
+        r->array[i]->objects[6] =
             mk_json_boolean("readonly", disks[i].readonly);
-        r->array[i]->objects[8] = mk_json_boolean("create", disks[i].create);
-        r->array[i]->objects[9] = mk_json_u64("size", disks[i].size);
+        r->array[i]->objects[7] = mk_json_boolean("create", disks[i].create);
+        r->array[i]->objects[8] = mk_json_u64("size", disks[i].size);
     }
     return r;
 }
@@ -189,7 +213,8 @@ static json_obj_t* mk_json_wg_peers(
     {
         mk_json_objects(key, 4);
         r->objects[i] = mk_json_objects(NULL, 3);
-        r->objects[i]->objects[0] = mk_json_string("key", peers[i].key);
+        r->objects[i]->objects[0] =
+            mk_json_hex_string("key", peers[i].key, sizeof(wg_key));
         r->objects[i]->objects[1] =
             mk_json_string("allowed_ips", peers[i].allowed_ips);
         r->objects[i]->objects[2] =
@@ -209,7 +234,7 @@ static json_obj_t* mk_json_wg(
     json_obj_t* r = mk_json_objects(key, 4);
     r->objects[0] = mk_json_string("ip", wg->ip);
     r->objects[1] = mk_json_u16("listen_port", wg->listen_port);
-    r->objects[2] = mk_json_string("key", wg->key);
+    r->objects[2] = mk_json_hex_string("key", wg->key, sizeof(wg_key));
     r->objects[3] = mk_json_wg_peers("peers", wg->peers, wg->num_peers);
 
     return r;
