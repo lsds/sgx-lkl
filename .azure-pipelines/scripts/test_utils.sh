@@ -30,7 +30,7 @@ function CheckNotRunning()
         echo "SGX-LKL still running:"
         ps -aux | grep $process
         echo "Trying to kill hanging $process process"
-        pkill -9 $process
+        sudo pkill -9 $process
         pkill_exit=$?
         if [[ $pkill_exit -ne 0 ]]; then
             echo "Failed to kill hanging $process process. Exit code: $pkill_exit"
