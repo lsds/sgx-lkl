@@ -263,6 +263,11 @@ static void help_config()
         "  SGXLKL_ENABLE_SWIOTLB",
         "Enable DMA bounce buffer support, even in sw mode.",
         sgxlkl_default_enclave_config.swiotlb);
+    printf(
+        "%-35s %s\n",
+        "  SGXLKL_HOST_IMPORT_ENV",
+        "Comma-separated list of environment variables to import from the "
+        "host.");
     printf("## Scheduling ##\n");
     printf("%-35s %s", "  SGXLKL_ETHREADS", "Number of enclave threads.\n");
     printf(
@@ -565,6 +570,8 @@ void app_config_from_cmdline(
     char** argv,
     sgxlkl_app_config_t* app_config)
 {
+    *app_config = sgxlkl_default_enclave_config.app_config;
+
     if (argc <= 0)
     {
         sgxlkl_host_err(
@@ -583,10 +590,25 @@ void app_config_from_cmdline(
     app_config->disks = calloc(1, sizeof(sgxlkl_enclave_disk_config_t));
     strcpy(app_config->disks[0].mnt, "/");
 
-    // Temporary defaults
-    app_config->sizes.num_heap_pages = 40000; // 262144,
-    app_config->sizes.num_stack_pages = 1024;
-    app_config->sizes.num_tcs = 8;
+    app_config->host_import_envc = 0;
+    app_config->host_import_envp = NULL;
+
+    char* hostenv = sgxlkl_config_str(SGXLKL_HOST_IMPORT_ENV);
+    while (hostenv)
+    {
+        char* comma = strchr(hostenv, ',');
+        app_config->host_import_envp = realloc(
+            app_config->host_import_envp, app_config->host_import_envc + 1);
+        if (!app_config->host_import_envp)
+            sgxlkl_host_fail("out of memory\n");
+
+        app_config->host_import_envp[app_config->host_import_envc++] =
+            comma ? strndup(hostenv, comma - hostenv) : strdup(hostenv);
+
+        hostenv = comma ? comma + 1 : NULL;
+    }
+
+    app_config->sizes = sgxlkl_default_enclave_config.app_config.sizes;
 }
 
 void check_envs(const char** pres, char** envp, const char* warn_msg)

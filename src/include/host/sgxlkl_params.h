@@ -53,6 +53,7 @@
 #define SGXLKL_OE_HEAP_PAGE_COUNT 60
 #define SGXLKL_ENABLE_SWIOTLB 65
 #define SGXLKL_HD_OVERLAY 66
+#define SGXLKL_HOST_IMPORT_ENV 67
 
 int parse_sgxlkl_config(const char* path, char** err);
 
