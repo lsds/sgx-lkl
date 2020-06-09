@@ -78,7 +78,7 @@
 /ltp/testcases/kernel/syscalls/cma/process_vm_readv02
 /ltp/testcases/kernel/syscalls/cma/process_vm_readv03
 /ltp/testcases/kernel/syscalls/cma/process_vm_writev02
-/ltp/testcases/kernel/syscalls/connect/connect01
+#/ltp/testcases/kernel/syscalls/connect/connect01
 /ltp/testcases/kernel/syscalls/copy_file_range/copy_file_range01
 /ltp/testcases/kernel/syscalls/copy_file_range/copy_file_range02
 /ltp/testcases/kernel/syscalls/copy_file_range/copy_file_range03
