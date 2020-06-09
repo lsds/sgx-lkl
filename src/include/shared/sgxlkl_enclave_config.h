@@ -70,19 +70,22 @@ typedef struct sgxlkl_app_size_config
 
 typedef struct sgxlkl_app_config
 {
-    char* run;           /* Command to run (argv[0]) */
-    char* cwd;           /* Working directory */
-    int argc;            /* length of argv */
-    char** argv;         /* Array of application arguments of length argc */
-    int envc;            /* length of envp */
-    char** envp;         /* Array of environment variables of length envc */
-    int auxc;            /* length of auxv */
-    Elf64_auxv_t** auxv; /* Array of auxiliary ELF variables of length auxc */
+    char* run;            /* Command to run (argv[0]) */
+    char* cwd;            /* Working directory */
+    int argc;             /* Length of argv */
+    char** argv;          /* Array of application arguments of length argc */
+    int envc;             /* Length of envp */
+    char** envp;          /* Array of environment variables of length envc */
+    int auxc;             /* Length of auxv */
+    Elf64_auxv_t** auxv;  /* Array of auxiliary ELF variables of length auxc */
+    int host_import_envc; /* Length of host_import_envp */
+    char** host_import_envp; /* Names of environment variables to import from
+                                the host */
     exit_status_mode_t exit_status; /* Enclave exit status behaviour */
-    size_t num_disks;               /* length of disks */
+    size_t num_disks;               /* Length of disks */
     sgxlkl_enclave_disk_config_t*
         disks;        /* Array of disk configurations of length num_disks */
-    size_t num_peers; /* length of peers */
+    size_t num_peers; /* Length of peers */
     sgxlkl_enclave_wg_peer_config_t*
         peers; /* Array of wireguard peer configurations of length num_peers */
     sgxlkl_app_size_config_t sizes;

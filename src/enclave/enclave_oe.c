@@ -21,6 +21,37 @@ static void prepare_elf_stack()
     sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
     sgxlkl_app_config_t* app_cfg = &config->app_config;
 
+    // import host envp
+    if (sgxlkl_enclave_state.shared_memory.envp &&
+        app_cfg->host_import_envc > 0)
+    {
+        app_cfg->envp = realloc(
+            app_cfg->envp,
+            sizeof(char*) * (app_cfg->envc + app_cfg->host_import_envc + 1));
+        if (!app_cfg->envp)
+            sgxlkl_fail("out of memory\n");
+
+        for (size_t i = 0; i < app_cfg->host_import_envc; i++)
+        {
+            const char* name = app_cfg->host_import_envp[i];
+            for (char* const* p = sgxlkl_enclave_state.shared_memory.envp;
+                 p && *p != NULL;
+                 p++)
+            {
+                size_t n = strlen(name);
+                if (strncmp(name, *p, n) == 0 && (*p)[n] == '=')
+                {
+                    const char* str = *p;
+                    size_t len = strlen(str);
+                    char* cpy = malloc(len + 1);
+                    memcpy(cpy, str, len + 1);
+                    app_cfg->envp[app_cfg->envc++] = cpy;
+                    app_cfg->envp[app_cfg->envc] = NULL;
+                }
+            }
+        }
+    }
+
     int have_run = app_cfg->run != NULL;
     size_t total_size = 0;
     size_t total_count = 1;

@@ -240,20 +240,24 @@ static json_obj_t* mk_json_app_config(const sgxlkl_app_config_t* app_config)
         return mk_json_obj("app_config", JSON_TYPE_NULL, NULL, NULL, 0);
     else
     {
-        json_obj_t* r = mk_json_objects("app_config", 9);
+        json_obj_t* r = mk_json_objects("app_config", 10);
         r->objects[0] = mk_json_string("run", app_config->run);
         r->objects[1] = mk_json_string("cwd", app_config->cwd);
         r->objects[2] =
             mk_json_string_array("argv", app_config->argv, app_config->argc);
         r->objects[3] =
             mk_json_string_array("envp", app_config->envp, app_config->envc);
-        r->objects[4] =
-            mk_json_auxv("auxv", app_config->auxv, app_config->auxc);
+        r->objects[4] = mk_json_string_array(
+            "host_import_envp",
+            app_config->host_import_envp,
+            app_config->host_import_envc);
         r->objects[5] =
-            mk_json_disks("disks", app_config->disks, app_config->num_disks);
+            mk_json_auxv("auxv", app_config->auxv, app_config->auxc);
         r->objects[6] =
+            mk_json_disks("disks", app_config->disks, app_config->num_disks);
+        r->objects[7] =
             mk_json_wg_peers("peers", app_config->peers, app_config->num_peers);
-        r->objects[7] = mk_json_string(
+        r->objects[8] = mk_json_string(
             "exit_status",
             app_config->exit_status == EXIT_STATUS_FULL
                 ? "full"
@@ -262,12 +266,13 @@ static json_obj_t* mk_json_app_config(const sgxlkl_app_config_t* app_config)
                       : app_config->exit_status == EXIT_STATUS_NONE
                             ? "none"
                             : "unknown");
-        r->objects[8] = mk_json_objects("sizes", 3);
-        r->objects[8]->objects[0] =
+
+        r->objects[9] = mk_json_objects("sizes", 3);
+        r->objects[9]->objects[0] =
             mk_json_u64("num_heap_pages", app_config->sizes.num_heap_pages);
-        r->objects[8]->objects[1] =
+        r->objects[9]->objects[1] =
             mk_json_u64("num_stack_pages", app_config->sizes.num_stack_pages);
-        r->objects[8]->objects[2] =
+        r->objects[9]->objects[2] =
             mk_json_u64("num_tcs", app_config->sizes.num_tcs);
         return r;
     }
@@ -455,7 +460,7 @@ void compose_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
     const sgxlkl_enclave_config_t* config = &host_state->enclave_config;

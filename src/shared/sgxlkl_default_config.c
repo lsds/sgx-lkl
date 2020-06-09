@@ -3,7 +3,7 @@
 #pragma GCC diagnostic error "-Wmissing-field-initializers"
 
 _Static_assert(
-    sizeof(sgxlkl_enclave_config_t) == 456,
+    sizeof(sgxlkl_enclave_config_t) == 472,
     "size of sgxlkl_enclave_config_t changed");
 
 const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
@@ -50,6 +50,8 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
         .envp = NULL,
         .auxc = 0,
         .auxv = NULL,
+        .host_import_envc = 0,
+        .host_import_envp = NULL,
         .exit_status = EXIT_STATUS_FULL,
         .num_disks = 0,
         .disks = NULL,

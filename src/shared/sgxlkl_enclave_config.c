@@ -133,25 +133,27 @@ static void show_path(json_parser_t* parser)
         return JSON_BAD_PARAMETER;                \
     }
 
-#define JPATH(PATH, CODE)                        \
-    if (json_match(parser, PATH, &i) == JSON_OK) \
-    {                                            \
-        SEEN(parser);                            \
-        CODE;                                    \
-        return JSON_OK;                          \
+#define MATCH(PATH) json_match(parser, PATH, &i) == JSON_OK
+
+#define JPATH(PATH, CODE) \
+    if (MATCH(PATH))      \
+    {                     \
+        SEEN(parser);     \
+        CODE;             \
+        return JSON_OK;   \
     }
 
-#define JPATHT(PATH, TYPE, CODE)                 \
-    if (json_match(parser, PATH, &i) == JSON_OK) \
-    {                                            \
-        SEEN(parser);                            \
-        CHECK(TYPE);                             \
-        CODE;                                    \
-        return JSON_OK;                          \
+#define JPATHT(PATH, TYPE, CODE) \
+    if (MATCH(PATH))             \
+    {                            \
+        SEEN(parser);            \
+        CHECK(TYPE);             \
+        CODE;                    \
+        return JSON_OK;          \
     }
 
 #define JSTRING(PATH, DEST)                       \
-    if (json_match(parser, PATH, &i) == JSON_OK)  \
+    if (MATCH(PATH))                              \
     {                                             \
         SEEN(parser);                             \
         CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL); \
@@ -191,8 +193,10 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
         if (!to)                                             \
             return JSON_BAD_PARAMETER;                       \
                                                              \
-        if (json_match(parser, path, index) == JSON_OK)      \
+        size_t i;                                            \
+        if (MATCH(path))                                     \
         {                                                    \
+            *index = i;                                      \
             if (type != JSON_TYPE_STRING)                    \
                 FAIL(                                        \
                     "invalid value type for '%s'\n",         \
@@ -224,8 +228,10 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
         if (!to)                                           \
             return JSON_BAD_PARAMETER;                     \
                                                            \
-        if (json_match(parser, path, index) == JSON_OK)    \
+        size_t i;                                          \
+        if (MATCH(path))                                   \
         {                                                  \
+            *index = i;                                    \
             if (type != JSON_TYPE_STRING)                  \
                 FAIL(                                      \
                     "invalid value type for '%s'\n",       \
@@ -251,24 +257,24 @@ JINTDECLU(uint32_t, tmp <= UINT32_MAX);
 JINTDECLS(int32_t, INT32_MIN <= tmp && tmp <= INT32_MAX);
 JINTDECLU(uint16_t, tmp <= UINT16_MAX);
 
-#define JNULL(P)                                  \
-    do                                            \
-    {                                             \
-        if (json_match(parser, P, &i) == JSON_OK) \
-        {                                         \
-            if (type == JSON_TYPE_NULL)           \
-                return JSON_OK;                   \
-        }                                         \
+#define JNULL(PATH)                     \
+    do                                  \
+    {                                   \
+        if (MATCH(PATH))                \
+        {                               \
+            if (type == JSON_TYPE_NULL) \
+                return JSON_OK;         \
+        }                               \
     } while (0);
 
-#define JBOOL(P, D)                               \
-    do                                            \
-    {                                             \
-        if (json_match(parser, P, &i) == JSON_OK) \
-        {                                         \
-            *(D) = un->boolean;                   \
-            return JSON_OK;                       \
-        }                                         \
+#define JBOOL(PATH, DEST)          \
+    do                             \
+    {                              \
+        if (MATCH(PATH))           \
+        {                          \
+            *(DEST) = un->boolean; \
+            return JSON_OK;        \
+        }                          \
     } while (0);
 
 #define JU64(P, D)                                                          \
@@ -317,7 +323,7 @@ static json_result_t json_read_app_config_callback(
         case JSON_REASON_NAME:
             break;
         case JSON_REASON_BEGIN_OBJECT:
-            if (json_match(parser, "app_config.disks", &i) == JSON_OK)
+            if (MATCH("app_config.disks"))
             {
                 size_t new_count = data->array_count + 1;
                 data->array = realloc(
@@ -341,32 +347,37 @@ static json_result_t json_read_app_config_callback(
             data->array_count = 0;
             break;
         case JSON_REASON_END_ARRAY:
-            if (json_match(parser, "app_config.argv", &i) == JSON_OK)
+            if (MATCH("app_config.argv"))
             {
                 data->app_config->argc = data->array_count;
                 data->app_config->argv = (char**)data->array;
             }
-            else if (json_match(parser, "app_config.envp", &i) == JSON_OK)
+            else if (MATCH("app_config.envp"))
             {
                 data->app_config->envc = data->array_count;
                 data->app_config->envp = (char**)data->array;
             }
-            else if (json_match(parser, "app_config.auxv", &i) == JSON_OK)
+            else if (MATCH("app_config.auxv"))
             {
                 data->app_config->auxc = data->array_count;
                 data->app_config->auxv = (Elf64_auxv_t**)data->array;
             }
-            else if (json_match(parser, "app_config.disks", &i) == JSON_OK)
+            else if (MATCH("app_config.disks"))
             {
                 data->app_config->num_disks = data->array_count;
                 data->app_config->disks =
                     (sgxlkl_enclave_disk_config_t*)data->array;
             }
-            else if (json_match(parser, "app_config.peers", &i) == JSON_OK)
+            else if (MATCH("app_config.peers"))
             {
                 data->app_config->num_peers = data->array_count;
                 data->app_config->peers =
                     (sgxlkl_enclave_wg_peer_config_t*)data->array;
+            }
+            else if (MATCH("app_config.host_import_envp"))
+            {
+                data->app_config->host_import_envc = data->array_count;
+                data->app_config->host_import_envp = (char**)data->array;
             }
             else
                 FAIL("unknown json array '%s'\n", make_path(parser));
@@ -377,8 +388,7 @@ static json_result_t json_read_app_config_callback(
         {
             // show_path(parser);
 
-            if (json_match(parser, "app_config", &i) == JSON_OK &&
-                type == JSON_TYPE_NULL)
+            if (MATCH("app_config") && type == JSON_TYPE_NULL)
             {
                 memset(data->app_config, 0, sizeof(sgxlkl_app_config_t));
                 return JSON_OK;
@@ -401,6 +411,14 @@ static json_result_t json_read_app_config_callback(
                 strdupz((char**)data->array + data->array_count, un->string);
                 data->array_count = new_count;
             });
+            JPATHT("app_config.host_import_envp", JSON_TYPE_STRING, {
+                size_t new_count = data->array_count + 1;
+                data->array = realloc(data->array, new_count * sizeof(char*));
+                for (size_t i = data->array_count; i < new_count; i++)
+                    ((char**)data->array)[i] = NULL;
+                strdupz((char**)data->array + data->array_count, un->string);
+                data->array_count = new_count;
+            });
 
 #define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
             JU64("app_config.auxv.a_type", &AUXV()->a_type);
@@ -415,7 +433,7 @@ static json_result_t json_read_app_config_callback(
 
             JBOOL("app_config.disks.create", &APPDISK()->create);
             JU64("app_config.disks.size", &APPDISK()->size);
-            if (json_match(parser, "app_config.disks.mnt", &i) == JSON_OK)
+            if (MATCH("app_config.disks.mnt"))
             {
                 SEEN(parser);
                 size_t len = strlen(un->string);
@@ -494,7 +512,7 @@ static json_result_t json_read_callback(
         case JSON_REASON_NAME:
             break;
         case JSON_REASON_BEGIN_OBJECT:
-            if (json_match(parser, "disks", &i) == JSON_OK)
+            if (MATCH("disks"))
             {
                 size_t new_count = data->array_count + 1;
                 data->array = realloc(
@@ -521,14 +539,14 @@ static json_result_t json_read_callback(
             data->array_count = 0;
             break;
         case JSON_REASON_END_ARRAY:
-            if (json_match(parser, "wg.peers", &i) == JSON_OK)
+            if (MATCH("wg.peers"))
             {
                 data->config->wg.num_peers = data->array_count;
                 data->config->wg.peers =
                     (sgxlkl_enclave_wg_peer_config_t*)data->array;
             }
             else if (
-                json_match(parser, "clock_res", &i) == JSON_OK ||
+                MATCH("clock_res") ||
                 json_read_app_config_callback(parser, reason, type, un, data) ==
                     JSON_OK)
             {
@@ -679,7 +697,7 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from || !to)
@@ -731,12 +749,10 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
         FAIL("unterminated json objects\n");
     }
 
-    // TODO: Add option to import (some of) host envp
-
-    string_list_free(callback_data.seen);
     free(json_copy);
 
     check_config(*to);
+    string_list_free(callback_data.seen);
 
     return 0;
 }
@@ -764,6 +780,8 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
 
     NONDEFAULT_FREE(kernel_cmd);
     NONDEFAULT_FREE(sysctl);
+
+    NONDEFAULT_FREE(app_config.host_import_envp);
 
     for (size_t i = 0; i < config->app_config.num_disks; i++)
     {

@@ -6,6 +6,9 @@
   "environment": {
     "ABC": "DEF"
   },
+  "host_import_envp": [
+    "PATH"
+  ],
   "disk_config": [
     {
       "disk": "/",

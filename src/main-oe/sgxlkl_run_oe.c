@@ -810,23 +810,26 @@ static void* register_shm(char* path, size_t len)
 }
 
 /* Sets up shared memory with the outside */
-void set_shared_mem()
+void set_shared_mem(char* const* envp)
 {
     sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
+
     char* shm_file = host_state.config.shm_file;
     size_t shm_len = host_state.config.shm_len;
-    if (shm_file == 0 || strlen(shm_file) <= 0 || shm_len <= 0)
-        return;
+    if (!(shm_file == 0 || strlen(shm_file) <= 0 || shm_len <= 0))
+    {
+        char shm_file_enc_to_out[strlen(shm_file) + 4];
+        char shm_file_out_to_enc[strlen(shm_file) + 4];
 
-    char shm_file_enc_to_out[strlen(shm_file) + 4];
-    char shm_file_out_to_enc[strlen(shm_file) + 4];
+        snprintf(shm_file_enc_to_out, strlen(shm_file) + 4, "%s-eo", shm_file);
+        snprintf(shm_file_out_to_enc, strlen(shm_file) + 4, "%s-oe", shm_file);
 
-    snprintf(shm_file_enc_to_out, strlen(shm_file) + 4, "%s-eo", shm_file);
-    snprintf(shm_file_out_to_enc, strlen(shm_file) + 4, "%s-oe", shm_file);
+        shm->shm_common = register_shm(shm_file, shm_len);
+        shm->shm_enc_to_out = register_shm(shm_file_enc_to_out, shm_len);
+        shm->shm_out_to_enc = register_shm(shm_file_out_to_enc, shm_len);
+    }
 
-    shm->shm_common = register_shm(shm_file, shm_len);
-    shm->shm_enc_to_out = register_shm(shm_file_enc_to_out, shm_len);
-    shm->shm_out_to_enc = register_shm(shm_file_out_to_enc, shm_len);
+    shm->envp = envp;
 }
 
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
@@ -1808,8 +1811,8 @@ int main(int argc, char* argv[], char* envp[])
     argv += optind;
     find_root_disk_file(&argc, &argv, &root_hd);
 
-    // Check if app_config has been provided via a file or an environment
-    // variable
+    /* Check if app_config has been provided via a file or an environment
+     * variable */
     if (app_config_path)
         app_config_from_file(app_config_path, app_config);
     else if (sgxlkl_configured(SGXLKL_APP_CONFIG))
@@ -1847,7 +1850,7 @@ int main(int argc, char* argv[], char* envp[])
         econf->kernel_cmd);
 
     set_clock_res();
-    set_shared_mem(&host_state.shared_memory);
+    set_shared_mem(envp);
     set_tls();
     register_hds(root_hd);
     register_net();

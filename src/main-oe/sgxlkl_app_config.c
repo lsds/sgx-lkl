@@ -116,6 +116,31 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
     return 0;
 }
 
+static int parse_host_import_envp(
+    sgxlkl_app_config_t* config,
+    struct json_object* env_val)
+{
+    if (json_object_get_type(env_val) != json_type_array)
+        return 1;
+
+    int len = json_object_array_length(env_val);
+    config->host_import_envc = len;
+    config->host_import_envp = malloc(sizeof(char*) * (len + 1));
+    config->host_import_envp[len] = NULL;
+
+    int i = 0;
+    for (size_t i = 0; i < len; i++)
+    {
+        json_object* val = json_object_array_get_idx(env_val, i);
+        if (json_object_get_type(val) != json_type_string)
+            return 1;
+        const char* str_val = json_object_get_string(val);
+        config->host_import_envp[i++] = strdup(str_val);
+    }
+
+    return 0;
+}
+
 static int parse_enclave_disk_config_entry(
     const char* key,
     struct json_object* value,
@@ -392,6 +417,10 @@ static int parse_sgxlkl_app_config_entry(
     else if (!strcmp("environment", key))
     {
         err = parse_env(config, value);
+    }
+    else if (!strcmp("host_import_envp", key))
+    {
+        err = parse_host_import_envp(config, value);
     }
     else if (!strcmp("exit_status", key))
     {
