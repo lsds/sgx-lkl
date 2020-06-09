@@ -1025,7 +1025,7 @@ static void init_random()
 {
     struct rand_pool_info* pool_info = 0;
     FILE* f;
-    int fd;
+    int fd = 0;
 
     SGXLKL_VERBOSE("Adding entropy to entropy pool\n");
 
@@ -1112,10 +1112,12 @@ static void* lkl_termination_thread(void* args)
      * thread is mapped to an LKL host thread. This way, no new kernel thread
      * will be created when we are actually shutting down.
      */
+#ifdef DEBUG
     long pid = lkl_sys_getpid();
     SGXLKL_VERBOSE(
         "Performed LKL syscall to get host task allocated (pid=%li)\n", pid);
     SGXLKL_ASSERT(pid);
+#endif
 
     /* Block on semaphore until shutdown */
     sgxlkl_host_ops.sem_down(termination_sem);

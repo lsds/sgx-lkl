@@ -30,8 +30,6 @@ void sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 
     size_t sgxlkl_enclave_size = __oe_get_enclave_size();
     size_t sgxlkl_enclave_heap_size = __oe_get_heap_size();
-    const void* sgxlkl_enclave_heap_base = __oe_get_heap_base();
-    const void* sgxlkl_enclave_heap_end = __oe_get_heap_end();
 
     size_uint64_to_str(sgxlkl_enclave_size, enclave_size_str, 10);
 
