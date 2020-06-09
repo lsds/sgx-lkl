@@ -456,7 +456,7 @@
 /ltp/testcases/kernel/syscalls/kill/kill12
 #/ltp/testcases/kernel/syscalls/lchown/lchown01
 /ltp/testcases/kernel/syscalls/lchown/lchown02
-/ltp/testcases/kernel/syscalls/lchown/lchown03
+#/ltp/testcases/kernel/syscalls/lchown/lchown03
 /ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr01
 /ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
 #/ltp/testcases/kernel/syscalls/link/link02
