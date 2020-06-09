@@ -44,6 +44,8 @@ static void prepare_elf_stack()
                     const char* str = *p;
                     size_t len = strlen(str);
                     char* cpy = malloc(len + 1);
+                    if (!cpy)
+                        sgxlkl_fail("out of memory\n");
                     memcpy(cpy, str, len + 1);
                     app_cfg->envp[app_cfg->envc++] = cpy;
                     app_cfg->envp[app_cfg->envc] = NULL;
