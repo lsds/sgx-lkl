@@ -25,7 +25,7 @@
 /ltp/testcases/kernel/syscalls/bpf/bpf_map01
 /ltp/testcases/kernel/syscalls/bpf/bpf_prog01
 /ltp/testcases/kernel/syscalls/bpf/bpf_prog02
-/ltp/testcases/kernel/syscalls/brk/brk01
+#/ltp/testcases/kernel/syscalls/brk/brk01
 /ltp/testcases/kernel/syscalls/cacheflush/cacheflush01
 /ltp/testcases/kernel/syscalls/capget/capget01
 /ltp/testcases/kernel/syscalls/capget/capget02
@@ -58,8 +58,8 @@
 /ltp/testcases/kernel/syscalls/clock_gettime/clock_gettime02
 /ltp/testcases/kernel/syscalls/clock_gettime/leapsec01
 /ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep01
-/ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep02
-/ltp/testcases/kernel/syscalls/clock_nanosleep2/clock_nanosleep2_01
+#/ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep02
+#/ltp/testcases/kernel/syscalls/clock_nanosleep2/clock_nanosleep2_01
 /ltp/testcases/kernel/syscalls/clock_settime/clock_settime01
 /ltp/testcases/kernel/syscalls/clock_settime/clock_settime02
 /ltp/testcases/kernel/syscalls/clone/clone01
@@ -188,7 +188,7 @@
 /ltp/testcases/kernel/syscalls/fchownat/fchownat01
 /ltp/testcases/kernel/syscalls/fchownat/fchownat02
 /ltp/testcases/kernel/syscalls/fcntl/fcntl01
-/ltp/testcases/kernel/syscalls/fcntl/fcntl02
+#/ltp/testcases/kernel/syscalls/fcntl/fcntl02
 /ltp/testcases/kernel/syscalls/fcntl/fcntl03
 /ltp/testcases/kernel/syscalls/fcntl/fcntl04
 /ltp/testcases/kernel/syscalls/fcntl/fcntl05
@@ -666,7 +666,7 @@
 /ltp/testcases/kernel/syscalls/prctl/prctl05
 /ltp/testcases/kernel/syscalls/prctl/prctl06
 /ltp/testcases/kernel/syscalls/prctl/prctl06_execve
-/ltp/testcases/kernel/syscalls/prctl/prctl07
+#/ltp/testcases/kernel/syscalls/prctl/prctl07
 #/ltp/testcases/kernel/syscalls/pread/pread01
 #/ltp/testcases/kernel/syscalls/pread/pread02
 #/ltp/testcases/kernel/syscalls/pread/pread03
@@ -952,9 +952,9 @@
 /ltp/testcases/kernel/syscalls/syncfs/syncfs01
 #/ltp/testcases/kernel/syscalls/syscall/syscall01
 #/ltp/testcases/kernel/syscalls/sysconf/sysconf01
-/ltp/testcases/kernel/syscalls/sysctl/sysctl01
+#/ltp/testcases/kernel/syscalls/sysctl/sysctl01
 /ltp/testcases/kernel/syscalls/sysctl/sysctl03
-/ltp/testcases/kernel/syscalls/sysctl/sysctl04
+#/ltp/testcases/kernel/syscalls/sysctl/sysctl04
 #/ltp/testcases/kernel/syscalls/sysfs/sysfs01
 #/ltp/testcases/kernel/syscalls/sysfs/sysfs02
 #/ltp/testcases/kernel/syscalls/sysfs/sysfs03
