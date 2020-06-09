@@ -327,6 +327,11 @@ static void help_config()
         "  SGXLKL_HD_KEY",
         "Encryption key as passphrase or file path to a key file for the root "
         "file system image (Debug only).\n");
+    printf(
+        "%-35s %s",
+        "  SGXLKL_HD_OVERLAY",
+        "Set to 1 to create an in-memory writable overlay for a read-only root "
+        "file system.\n");
     printf("## Memory ##\n");
     printf(
         "%-35s %s%ld\n",
@@ -1037,19 +1042,21 @@ static void register_hd(
     int readonly,
     char* keyfile_or_passphrase,
     char* verity_file_or_roothash,
-    char* verity_file_or_hashoffset)
+    char* verity_file_or_hashoffset,
+    int overlay)
 {
     size_t idx = encl->num_disks;
 
     sgxlkl_host_verbose(
-        "Registering disk %lu (path='%s', mnt='%s', [%s %s %s %s])\n",
+        "Registering disk %lu (path='%s', mnt='%s', [%s %s %s %s %s])\n",
         idx,
         path,
         mnt,
         readonly ? "RO" : "RW",
         keyfile_or_passphrase ? "encrypted" : "",
         verity_file_or_roothash ? "verity-hash" : "",
-        verity_file_or_hashoffset ? "verity-offset" : "");
+        verity_file_or_hashoffset ? "verity-offset" : "",
+        overlay ? "overlay" : "");
 
     if (strlen(mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
         sgxlkl_host_fail(
@@ -1104,6 +1111,7 @@ static void register_hd(
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
     disk->enc = is_disk_encrypted(fd);
     disk->create = 0; // set by app config
+    disk->overlay = overlay;
 
     blk_device_init(disk, encl->shared_memory.enable_swiotlb);
 
@@ -1191,7 +1199,8 @@ static void register_hds(sgxlkl_config_t* encl, char* root_hd)
         sgxlkl_config_bool(SGXLKL_HD_RO),
         sgxlkl_config_str(SGXLKL_HD_KEY),
         sgxlkl_config_str(SGXLKL_HD_VERITY),
-        sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
+        sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET),
+        sgxlkl_config_bool(SGXLKL_HD_OVERLAY));
     // Register secondary disks
     while (*hds_str)
     {
@@ -1202,7 +1211,7 @@ static void register_hds(sgxlkl_config_t* encl, char* root_hd)
         char* hd_mnt_end = strchrnul(hd_mnt, ':');
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL);
+        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL, false);
 
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while (*hds_str == ' ' || *hds_str == ',')
