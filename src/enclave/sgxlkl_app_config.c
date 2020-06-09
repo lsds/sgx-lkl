@@ -428,10 +428,13 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
 
     for (size_t i=0; i < config->num_disks; i++)
     {
-        if (i > 0 && config->disks[i].overlay)
-            sgxlkl_fail("overlay only allowed for root disk\n");
-        if (!config->disks[i].ro)
-            sgxlkl_fail("overlay only allowed for read-only root disk\n");
+        if (config->disks[i].overlay)
+        {
+            if (i > 0)
+                sgxlkl_fail("overlay only allowed for root disk\n");
+            if (!config->disks[i].ro)
+                sgxlkl_fail("overlay only allowed for read-only root disk\n");
+        }
     }
 
     // Fix argv[0]
