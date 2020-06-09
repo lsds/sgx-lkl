@@ -71,4 +71,20 @@ static inline uint64_t _lthread_timespec_to_usec(const struct timespec* ts)
     return (ts->tv_sec * 1000000) + ts->tv_nsec / 1000;
 }
 
+// TODO: should this be static?
+static inline struct schedctx *__scheduler_self()
+{
+	struct schedctx *self;
+	__asm__ __volatile__ ("mov %%gs:48,%0" : "=r" (self) );
+	return self;
+}
+
+
+static inline struct lthread_sched*
+lthread_get_sched()
+{
+    struct schedctx *c = __scheduler_self();
+    return &c->sched;
+}
+
 #endif /* LTHREAD_INT_H */

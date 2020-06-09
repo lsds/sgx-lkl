@@ -137,7 +137,7 @@ struct lthread
     char funcname[64];            /* optional func name */
     struct lthread* lt_join;      /* lthread we want to join on */
     void** lt_exit_ptr;           /* exit ptr for lthread_join */
-    locale_t locale;              /* locale of current lthread */
+    //locale_t locale;              /* locale of current lthread */
     uint32_t ops;                 /* num of ops since yield */
     uint64_t sleep_usecs;         /* how long lthread is sleeping */
     FILE* stdio_locks;            /* locked files */
@@ -182,11 +182,83 @@ struct lthread_sched
     struct lthread* current_lthread;
 };
 
+struct schedctx {
+	/* Part 1 -- these fields may be external or
+	 * internal (accessed via asm) ABI. Do not change. */
+	struct schedctx *self;
+	uintptr_t *dtv;
+	void *unused1, *unused2;
+	uintptr_t sysinfo;
+	uintptr_t canary, canary2;
+
+	/* Part 2 -- implementation details, non-ABI. */
+	int tid;
+	int errno_val;
+	volatile int detach_state;
+	volatile int cancel;
+	volatile unsigned char canceldisable, cancelasync;
+	unsigned char tsd_used:1;
+	unsigned char unblock_cancel:1;
+	unsigned char dlerror_flag:1;
+	unsigned char *map_base;
+	size_t map_size;
+	void *stack;
+	size_t stack_size;
+	size_t guard_size;
+	void *start_arg;
+	void *(*start)(void *);
+	void *result;
+	struct __ptcb *cancelbuf;
+	void **tsd;
+	struct {
+		volatile void *volatile head;
+		long off;
+		volatile void *volatile pending;
+	} robust_list;
+	volatile int timer_id;
+	//locale_t locale;
+	volatile int killlock[1];
+	char *dlerror_buf;
+	void *stdio_locks;
+
+	/* Part 3 -- the positions of these fields relative to
+	 * the end of the structure is external and internal ABI. */
+	uintptr_t canary_at_end;
+	uintptr_t *dtv_copy;
+    struct lthread_sched sched;
+};
+
+/* Thread Control Block (TCB) for lthreads */
+struct lthread_tcb_base {
+    void *self;
+    char _pad_0[32];
+    // SGX-LKL does not have full stack smashing protection (SSP) support right
+    // now. In particular, we do not generate a random stack guard for every
+    // new thread. However, when aplications are compiled with stack protection
+    // enabled, GCC makes certain assumptions about the Thread Control Block
+    // (TCB) layout. Among other things, it expects a read-only stack
+    // guard/canary value at an offset 0x28 (40 bytes) from the FS segment
+    // base/start of the TCB (see schedctx struct above).
+    uint64_t stack_guard_dummy; // Equivalent to schedctx->canary (see above).
+                                // canary2 is only used on the x32 arch, so we
+                                // ignore it here.
+    struct schedctx *schedctx;
+};
+
+/* Thread Control Block (TCB) for ethreads/the scheduler (schedctx) */
+struct sched_tcb_base {
+    void *self;
+    char _pad_0[32];
+    uint64_t stack_guard_dummy; // See struct lthread_tcb_base comment
+    struct schedctx *schedctx;
+};
+
 typedef struct lthread* lthread_t;
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+    void init_ethread_tls();
 
     void lthread_sched_global_init(
         size_t sleepspins,
