@@ -1,17 +1,11 @@
 trigger: none
 pr: none
-schedules:
-- cron: "0 0 * * *"
-  displayName: Daily midnight run
-  branches:
-    include:
-    - oe_port
-  always: true
 
 extends:
   template: template.yml
   parameters:
-    publish: false
+    publish: true
+    apt_repo_blob_container: apt
     test_timeout_minutes: 120 # ethread==1 takes longer to run
     ethreads:
     - 1

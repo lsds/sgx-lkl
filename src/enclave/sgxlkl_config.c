@@ -77,6 +77,7 @@ int sgxlkl_copy_config(const sgxlkl_config_t* from, sgxlkl_config_t** to)
         dc->enc = hdc->enc;
         memcpy(dc->mnt, hdc->mnt, sizeof(dc->mnt));
         dc->ro = hdc->ro;
+        dc->overlay = hdc->overlay;
         if (hdc->key && hdc->key_len > 0)
         {
             MALLOC_CHECKED(dc->key, hdc->key_len);

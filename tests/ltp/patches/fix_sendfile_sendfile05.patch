@@ -1,0 +1,69 @@
+The original test case create a child process to test
+Sendfile system call. But, sgx-lkl environment supports single process.
+Hence, the test case is modified to use pthread instead of a child
+process.
+
+diff --git a/testcases/kernel/syscalls/sendfile/sendfile05.c b/testcases/kernel/syscalls/sendfile/sendfile05.c
+index 0f268ceb3..e2d37fa05 100644
+--- a/testcases/kernel/syscalls/sendfile/sendfile05.c
++++ b/testcases/kernel/syscalls/sendfile/sendfile05.c
+@@ -51,8 +51,10 @@
+ #include <sys/mman.h>
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
++#include <pthread.h>
+ #include "test.h"
+ #include "safe_macros.h"
++#include "tst_safe_pthread.h"
+ 
+ #ifndef OFF_T
+ #define OFF_T off_t
+@@ -64,11 +66,12 @@ char in_file[100];
+ char out_file[100];
+ int out_fd;
+ pid_t child_pid;
++pthread_t child_tid;
+ static int sockfd, s;
+ static struct sockaddr_in sin1;	/* shared between do_child and create_server */
+ 
+ void cleanup(void);
+-void do_child(void);
++void* do_child(void* parm);
+ void setup(void);
+ int create_server(void);
+ 
+@@ -109,14 +112,14 @@ void do_sendfile(void)
+ 
+ 	shutdown(sockfd, SHUT_RDWR);
+ 	shutdown(s, SHUT_RDWR);
+-	kill(child_pid, SIGKILL);
++	SAFE_PTHREAD_JOIN(child_tid, NULL);
+ 	close(in_fd);
+ }
+ 
+ /*
+  * do_child
+  */
+-void do_child(void)
++void* do_child(void* parm)
+ {
+ 	int lc;
+ 	socklen_t length;
+@@ -127,7 +130,7 @@ void do_child(void)
+ 		recvfrom(sockfd, rbuf, 4096, 0, (struct sockaddr *)&sin1,
+ 			 &length);
+ 	}
+-	exit(0);
++	pthread_exit(0);
+ }
+ 
+ /*
+@@ -206,7 +209,7 @@ int create_server(void)
+ 
+ 		}
+ #else
+-		do_child();
++		SAFE_PTHREAD_CREATE(&child_tid, NULL, do_child, NULL);
+ #endif
+ 	}
+ 

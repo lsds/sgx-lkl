@@ -1,14 +1,15 @@
-trigger: none
-pr:
+trigger:
   branches:
     include:
-    - '*'  # must quote since "*" is a YAML reserved character; we want a string
+    - 'oe_port'
   paths:
     exclude:
     - '*.md'
     - 'docs/'
+pr: none
 
 extends:
   template: template.yml
   parameters:
-    publish: false
+    publish: true
+    apt_repo_blob_container: apt-dev

@@ -21,7 +21,7 @@ static const char* STRING_KEYS[] = {"run",
                                     "allowedips",
                                     "endpoint",
                                     "exit_status"};
-static const char* BOOL_KEYS[] = {"readonly", "create"};
+static const char* BOOL_KEYS[] = {"readonly", "overlay", "create"};
 static const char* INT_KEYS[] = {"roothash_offset", "size"};
 static const char* ARRAY_KEYS[] = {"disk_config", "peers"};
 
@@ -155,6 +155,10 @@ static int parse_enclave_disk_config_entry(
     else if (!oe_strcmp("readonly", key))
     {
         disk->ro = json_object_get_boolean(value);
+    }
+    else if (!oe_strcmp("overlay", key))
+    {
+        disk->overlay = json_object_get_boolean(value);
     }
     else if (!oe_strcmp("create", key))
     {
@@ -420,6 +424,17 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
         if (!(config->envp = oe_malloc(sizeof(config->envp))))
             sgxlkl_fail("Failed to allocate memory for app config envp\n");
         config->envp[0] = NULL;
+    }
+
+    for (size_t i=0; i < config->num_disks; i++)
+    {
+        if (config->disks[i].overlay)
+        {
+            if (i > 0)
+                sgxlkl_fail("overlay only allowed for root disk\n");
+            if (!config->disks[i].ro)
+                sgxlkl_fail("overlay only allowed for read-only root disk\n");
+        }
     }
 
     // Fix argv[0]

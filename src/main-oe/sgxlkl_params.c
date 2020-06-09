@@ -310,6 +310,12 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
      TYPE_BOOL,
      {.def_bool = DEFAULT_SGXLKL_ENABLE_SWIOTLB},
      0}, /* 65 */
+
+    {"SGXLKL_HD_OVERLAY",
+     "hd_overlay",
+     TYPE_BOOL,
+     {.def_bool = false},
+     0}, /* 66 */
 };
 
 static inline struct sgxlkl_config_elem* config_elem_by_key(const char* key)
