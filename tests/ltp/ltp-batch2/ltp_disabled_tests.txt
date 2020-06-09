@@ -58,7 +58,7 @@
 /ltp/testcases/kernel/syscalls/clock_gettime/clock_gettime02
 /ltp/testcases/kernel/syscalls/clock_gettime/leapsec01
 /ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep01
-#/ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep02
+/ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep02
 #/ltp/testcases/kernel/syscalls/clock_nanosleep2/clock_nanosleep2_01
 /ltp/testcases/kernel/syscalls/clock_settime/clock_settime01
 /ltp/testcases/kernel/syscalls/clock_settime/clock_settime02
@@ -188,7 +188,7 @@
 /ltp/testcases/kernel/syscalls/fchownat/fchownat01
 /ltp/testcases/kernel/syscalls/fchownat/fchownat02
 /ltp/testcases/kernel/syscalls/fcntl/fcntl01
-#/ltp/testcases/kernel/syscalls/fcntl/fcntl02
+/ltp/testcases/kernel/syscalls/fcntl/fcntl02
 /ltp/testcases/kernel/syscalls/fcntl/fcntl03
 /ltp/testcases/kernel/syscalls/fcntl/fcntl04
 /ltp/testcases/kernel/syscalls/fcntl/fcntl05
@@ -604,7 +604,7 @@
 /ltp/testcases/kernel/syscalls/munmap/munmap02
 /ltp/testcases/kernel/syscalls/munmap/munmap03
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep01
-/ltp/testcases/kernel/syscalls/nanosleep/nanosleep02
+#/ltp/testcases/kernel/syscalls/nanosleep/nanosleep02
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep04
 /ltp/testcases/kernel/syscalls/newuname/newuname01
 /ltp/testcases/kernel/syscalls/nice/nice01
