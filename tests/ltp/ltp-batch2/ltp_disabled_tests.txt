@@ -478,7 +478,7 @@
 /ltp/testcases/kernel/syscalls/llseek/llseek01
 /ltp/testcases/kernel/syscalls/llseek/llseek02
 /ltp/testcases/kernel/syscalls/llseek/llseek03
-/ltp/testcases/kernel/syscalls/lremovexattr/lremovexattr01
+#/ltp/testcases/kernel/syscalls/lremovexattr/lremovexattr01
 /ltp/testcases/kernel/syscalls/lseek/lseek01
 /ltp/testcases/kernel/syscalls/lseek/lseek02
 /ltp/testcases/kernel/syscalls/lseek/lseek07
