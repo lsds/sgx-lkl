@@ -1,4 +1,5 @@
-#include "pthread_impl.h"
+#include <string.h>
+
 
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
@@ -9,6 +10,9 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
+#include "enclave/lthread.h"
+#include "enclave/lthread_int.h"
+#include "enclave/sgxlkl_config.h"
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 
@@ -219,7 +223,7 @@ static void _sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 void sgxlkl_ethread_init(void)
 {
     void* tls_page;
-    __asm__ __volatile__("mov %%fs:0,%0" : "=r"(tls_page));
+    __asm__ __volatile__("mov %%gs:0,%0" : "=r"(tls_page));
 
     struct sched_tcb_base* sched_tcb = (struct sched_tcb_base*)tls_page;
     sched_tcb->self = (void*)tls_page;
@@ -234,7 +238,7 @@ void sgxlkl_ethread_init(void)
     }
 
     /* Initialization completed, now run the scheduler */
-    __init_tls();
+    init_ethread_tls();
     _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
     lthread_run();
 
@@ -359,7 +363,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     SGXLKL_VERBOSE("enter\n");
 
     void* tls_page;
-    __asm__ __volatile__("mov %%fs:0,%0" : "=r"(tls_page));
+    __asm__ __volatile__("mov %%gs:0,%0" : "=r"(tls_page));
 
     struct sched_tcb_base* sched_tcb = (struct sched_tcb_base*)tls_page;
     sched_tcb->self = (void*)tls_page;

@@ -9,6 +9,12 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
+<<<<<<< HEAD
+=======
+#include "enclave/lthread_int.h"
+#include "enclave/sgxlkl_app_config.h"
+#include "enclave/sgxlkl_config.h"
+>>>>>>> move lthread init before libc init
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
@@ -150,9 +156,10 @@ int __libc_init_enclave(int argc, char** argv)
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-
+    
+    init_ethread_tls();
     __init_libc(envp, argv[0]);
-    __init_tls();
+    
 
     size_t espins = cfg->espins;
     size_t esleep = cfg->esleep;
