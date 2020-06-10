@@ -16,7 +16,7 @@ In addition a test related to shutdown a local endpoint is also
 disabled until issue 405.
 url:https://github.com/lsds/sgx-lkl/issues/405
 diff --git a/testcases/kernel/syscalls/sendto/sendto01.c b/testcases/kernel/syscalls/sendto/sendto01.c
-index 6fe0274ee..69cde8361 100644
+index 6fe0274ee..702baeae4 100644
 --- a/testcases/kernel/syscalls/sendto/sendto01.c
 +++ b/testcases/kernel/syscalls/sendto/sendto01.c
 @@ -42,6 +42,8 @@
@@ -118,7 +118,7 @@ index 6fe0274ee..69cde8361 100644
  	 .cleanup = cleanup1,
  	 .desc = "invalid to buffer length"}
  	,
-+// TODO: Enable back after issue 405 fixed
++// TODO: Enable back after issue 169 is fixed
  #ifndef UCLINUX
 -	/* Skip since uClinux does not implement memory protection */
 -	{.domain = PF_INET,
@@ -153,7 +153,7 @@ index 6fe0274ee..69cde8361 100644
  #endif
  	{.domain = PF_INET,
  	 .type = SOCK_DGRAM,
-@@ -195,20 +201,20 @@ struct test_case_t tdat[] = {
+@@ -195,20 +201,21 @@ struct test_case_t tdat[] = {
  	 .setup = setup1,
  	 .cleanup = cleanup1,
  	 .desc = "UDP message too big"}
@@ -171,6 +171,7 @@ index 6fe0274ee..69cde8361 100644
 -	 .setup = setup2,
 -	 .cleanup = cleanup1,
 -	 .desc = "local endpoint shutdown"}
++// TODO: Enable back after issue 405 is fixed
 +//	,
 +//	{.domain = PF_INET,
 +//	 .type = SOCK_STREAM,
@@ -188,7 +189,7 @@ index 6fe0274ee..69cde8361 100644
  	,
  	{.domain = PF_INET,
  	 .type = SOCK_DGRAM,
-@@ -231,9 +237,9 @@ int TST_TOTAL = sizeof(tdat) / sizeof(tdat[0]);
+@@ -231,9 +238,9 @@ int TST_TOTAL = sizeof(tdat) / sizeof(tdat[0]);
  static char *argv0;
  #endif
  
@@ -200,7 +201,7 @@ index 6fe0274ee..69cde8361 100644
  	socklen_t slen = sizeof(*sin0);
  
  	sin0->sin_family = AF_INET;
-@@ -255,27 +261,21 @@ static pid_t start_server(struct sockaddr_in *sin0)
+@@ -255,27 +262,21 @@ static pid_t start_server(struct sockaddr_in *sin0)
  	}
  	SAFE_GETSOCKNAME(cleanup, sfd, (struct sockaddr *)sin0, &slen);
  
@@ -238,7 +239,7 @@ index 6fe0274ee..69cde8361 100644
  {
  	struct sockaddr_in fsin;
  	fd_set afds, rfds;
-@@ -287,7 +287,7 @@ static void do_child(void)
+@@ -287,7 +288,7 @@ static void do_child(void)
  	nfds = sfd + 1;
  
  	/* accept connections until killed */
@@ -247,7 +248,7 @@ index 6fe0274ee..69cde8361 100644
  		socklen_t fromlen;
  
  		memcpy(&rfds, &afds, sizeof(rfds));
-@@ -315,6 +315,8 @@ static void do_child(void)
+@@ -315,6 +316,8 @@ static void do_child(void)
  			}
  		}
  	}
@@ -256,7 +257,7 @@ index 6fe0274ee..69cde8361 100644
  }
  
  int main(int ac, char *av[])
-@@ -323,10 +325,6 @@ int main(int ac, char *av[])
+@@ -323,10 +326,6 @@ int main(int ac, char *av[])
  
  	tst_parse_opts(ac, av, NULL, NULL);
  
@@ -267,7 +268,7 @@ index 6fe0274ee..69cde8361 100644
  
  	setup();
  
-@@ -364,20 +362,18 @@ int main(int ac, char *av[])
+@@ -364,20 +363,18 @@ int main(int ac, char *av[])
  	tst_exit();
  }
  
