@@ -97,11 +97,19 @@ git clone --branch oe_port git@github.com:lsds/sgx-lkl.git
 cd sgx-lkl
 ```
 
-3. Install the Open Enclave build dependencies
+3. Install the Open Enclave build dependencies:
 ```
 cd openenclave
 sudo scripts/ansible/install-ansible.sh
 sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
+```
+
+Note that the above also installs the Intel SGX driver on the host.
+
+If running on an Azure Confidential Computing (ACC) VM, which offers SGX support,
+the last line above should be replaced by:
+```
+sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 ```
 
 4. Build SGX-LKL in the source tree:
