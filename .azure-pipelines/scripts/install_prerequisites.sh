@@ -11,10 +11,6 @@ sudo apt-get install -y \
     python3-venv unzip dkms debhelper apt-utils pax-utils openjdk-8-jdk-headless \
     expect
 
-# Install the Open Enclave build dependencies for Azure
-sudo bash $SGXLKL_ROOT/openenclave/scripts/ansible/install-ansible.sh
-sudo ansible-playbook $SGXLKL_ROOT/openenclave/scripts/ansible/oe-contributors-acc-setup-no-driver.yml
-
 if [[ ! -x "$(command -v docker)" ]]; then
     sudo apt-get install -y docker.io
     # Allow to run Docker without sudo

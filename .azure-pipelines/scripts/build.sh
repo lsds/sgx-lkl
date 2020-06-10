@@ -33,6 +33,12 @@ JunitTestStarted "$test_name"
 # Ensure we have a pristine environment
 git submodule foreach --recursive git clean -xdf
 make distclean
+
+# Install the Open Enclave build dependencies for Azure
+sudo bash $SGXLKL_ROOT/openenclave/scripts/ansible/install-ansible.sh
+sudo ansible-playbook $SGXLKL_ROOT/openenclave/scripts/ansible/oe-contributors-acc-setup-no-driver.yml
+
+# Let's build
 make $make_args && make install $make_install_args
 make_exit=$?
 
