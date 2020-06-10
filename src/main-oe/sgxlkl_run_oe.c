@@ -1264,6 +1264,8 @@ static void register_hds(char* root_hd)
         sgxlkl_config_bool(SGXLKL_HD_OVERLAY));
 
     // Copy root disk settings into app_config.
+    // TODO: refactor the key file reading etc and set up app_config with all
+    // disks first.
     sgxlkl_enclave_disk_config_t* root_disk = &app_config->disks[0];
     root_disk->key = host_state.disks[0].key;
     root_disk->key_len = host_state.disks[0].key_len;
