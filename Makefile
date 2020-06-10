@@ -20,7 +20,7 @@ $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
 	# TODO replace with build option https://github.com/openenclave/openenclave/issues/2894
 	cd $(OE_SUBMODULE) && sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
 	mkdir -p $(OE_SUBMODULE)/build
-	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DCOMPILE_SYSTEM_EDL=ON ..
+	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DCOMPILE_SYSTEM_EDL=ON ..
 	$(MAKE) -C $(OE_SUBMODULE)/build && $(MAKE) -C $(OE_SUBMODULE)/build install
 
 # Install the glibc headers as for building libsgxlkl.so --nostdincludes is required.

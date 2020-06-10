@@ -85,7 +85,7 @@ endif
 
 MAIN_OE_OBJS =$(addprefix $(LIB_SGXLKL_BUILD)/main-oe/,$(MAIN_OE_SRCS:.c=.o))
 
-OE_PKGCONFIG_OUTPUT := $(shell PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:$(OE_SDK_ROOT)/share/pkgconfig pkg-config oehost-gcc --libs)
+OE_PKGCONFIG_OUTPUT := $(shell PKG_CONFIG_PATH=$(OE_SDK_ROOT)/share/pkgconfig:${PKG_CONFIG_PATH} pkg-config oehost-gcc --libs)
 ifeq ($(findstring sgx_dcap_ql,$(OE_PKGCONFIG_OUTPUT)),sgx_dcap_ql)
 	DCAP_LIB=-lsgx_dcap_ql
 endif
