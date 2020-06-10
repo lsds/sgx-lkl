@@ -78,9 +78,6 @@ stages:
         - bash: .azure-pipelines/scripts/dump_system_info.sh
           displayName: Dump system info
 
-        - bash: .azure-pipelines/scripts/install_openenclave.sh
-          displayName: Install Open Enclave
-
         - bash: .azure-pipelines/scripts/build.sh
           displayName: Compile and Build
           env:

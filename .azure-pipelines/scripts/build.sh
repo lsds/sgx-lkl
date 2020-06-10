@@ -9,7 +9,6 @@ if [ -z $SGXLKL_PREFIX ]; then
     exit 1
 fi
 
-. /opt/openenclave/share/openenclave/openenclaverc
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 
 # Initialize the variables.
@@ -33,7 +32,7 @@ JunitTestStarted "$test_name"
 
 # Ensure we have a pristine environment
 git submodule foreach --recursive git clean -xdf
-make clean
+make distclean
 make $make_args && make install $make_install_args
 make_exit=$?
 
