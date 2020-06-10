@@ -8,21 +8,12 @@
 
 typedef struct sgxlkl_host_disk_state
 {
-    /* Provided by sgx-lkl-run at runtime. */
-    int fd;
-    size_t size;
-    char* mmap;
-    bool is_encrypted;
-    char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1]; // mount point ("/" for root
-                                                // disk)
-    int ro;                                     // Read-only?
-    char* key;                                  // Encryption key
-    size_t key_len;                             // Key length
-    char* roothash;                             // Root hash (for dm-verity)
-    size_t roothash_offset; // Merkle tree offset (for dm-verity)
-
-    int is_mounted; // Has been mounted
-    bool overlay;
+    char* image_path;                           /* Path to image file */
+    int fd;                                     /* File descriptor */
+    char* mmap;                                 /* Memory map */
+    char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1]; /* Mount point */
+    int readonly;                               /* Read-only */
+    size_t size;                                /* Size of disk */
 } sgxlkl_host_disk_state_t;
 
 typedef struct sgxlkl_host_config

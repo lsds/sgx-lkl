@@ -565,9 +565,223 @@ void app_config_from_file(
     app_config_from_str(buf, app_config);
 }
 
+static void prepare_verity(
+    sgxlkl_enclave_disk_config_t* disk,
+    const char* disk_path,
+    char* verity_file_or_roothash,
+    char* verity_file_or_hashoffset)
+{
+    if (!verity_file_or_roothash)
+    {
+        disk->roothash = NULL;
+        disk->roothash_offset = 0;
+        return;
+    }
+
+    if (access(verity_file_or_roothash, R_OK) != -1)
+    {
+        FILE* hf;
+        char hash[MAX_HASH_DIGITS + 2];
+
+        if (!(hf = fopen(verity_file_or_roothash, "r")))
+            sgxlkl_host_fail(
+                "Failed to open root hash file %s.\n", verity_file_or_roothash);
+
+        if (!fgets(hash, MAX_HASH_DIGITS + 2, hf))
+            sgxlkl_host_fail(
+                "Failed to read root hash from file %s.\n",
+                verity_file_or_roothash);
+
+        /* Remove possible new line */
+        char* nl = strchr(hash, '\n');
+        if (nl)
+            *nl = 0;
+
+        size_t hash_len = strlen(hash);
+        if (hash_len > MAX_HASH_DIGITS)
+            sgxlkl_host_fail(
+                "Root hash read from file %s too long! Maximum length: %d\n",
+                verity_file_or_roothash,
+                MAX_HASH_DIGITS);
+
+        disk->roothash = (char*)malloc(hash_len + 1);
+        strncpy(disk->roothash, hash, hash_len);
+        disk->roothash[hash_len] = 0;
+
+        fclose(hf);
+    }
+    else
+        disk->roothash = verity_file_or_roothash;
+
+    char* hashoffset_path;
+    if (!verity_file_or_hashoffset)
+    {
+        size_t hashoffset_path_len =
+            strlen(disk_path) + strlen(".hashoffset") + 1;
+        hashoffset_path = (char*)malloc(hashoffset_path_len);
+        snprintf(
+            hashoffset_path,
+            hashoffset_path_len,
+            "%s%s",
+            disk_path,
+            ".hashoffset");
+    }
+    else
+    {
+        hashoffset_path = verity_file_or_hashoffset;
+    }
+
+    char* hashoffset_str;
+    if (access(hashoffset_path, R_OK) != -1)
+    {
+        FILE* hf;
+        char hashoffset_buf[MAX_HASHOFFSET_DIGITS];
+
+        if (!(hf = fopen(hashoffset_path, "r")))
+            sgxlkl_host_fail(
+                "Failed to open hash offset file %s.\n", hashoffset_path);
+
+        if (!fgets(hashoffset_buf, MAX_HASHOFFSET_DIGITS, hf))
+            sgxlkl_host_fail(
+                "Failed to read hash offset from file %s.\n", hashoffset_path);
+
+        fclose(hf);
+
+        hashoffset_str = hashoffset_buf;
+    }
+    else if (verity_file_or_hashoffset)
+    {
+        hashoffset_str = verity_file_or_hashoffset;
+    }
+    else
+        sgxlkl_host_fail(
+            "A hash offset must be set via SGXLKL_HD_VERITY_OFFSET when "
+            "SGXLKL_HD_VERITY is used.\n");
+
+    errno = 0;
+    disk->roothash_offset = strtoll(hashoffset_str, NULL, 10);
+    if (errno == EINVAL || errno == ERANGE)
+        sgxlkl_host_fail("Failed to parse hash offset!\n");
+
+    if (hashoffset_path != verity_file_or_hashoffset)
+        free(hashoffset_path);
+}
+
+static void get_disk_encryption_config(
+    sgxlkl_enclave_disk_config_t* disk,
+    const char* image_path,
+    char* keyfile_or_passphrase,
+    char* verity_file_or_roothash,
+    char* verity_file_or_hashoffset)
+{
+    // If key and root hash are provided remotely or is set via enclave
+    // config, don't set it here.
+    if (host_state.enclave_config.mode != HW_RELEASE_MODE &&
+        keyfile_or_passphrase)
+    {
+        // Currently we have a single parameter for passphrases and
+        // keyfiles. Determine which one it is.
+        if (access(keyfile_or_passphrase, R_OK) != -1)
+        {
+            FILE* kf;
+
+            if (!(kf = fopen(keyfile_or_passphrase, "rb")))
+                sgxlkl_host_fail(
+                    "Failed to open keyfile %s.\n", keyfile_or_passphrase);
+
+            fseek(kf, 0, SEEK_END);
+            disk->key_len = ftell(kf);
+            if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024)
+            {
+                sgxlkl_host_warn(
+                    "Provided key file is larger than maximum supported "
+                    "key "
+                    "file size (%dkB). Only the first %dkB will be used.\n",
+                    MAX_KEY_FILE_SIZE_KB,
+                    MAX_KEY_FILE_SIZE_KB);
+                disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
+            }
+            rewind(kf);
+
+            disk->key = (char*)malloc((disk->key_len));
+            if (!fread(disk->key, disk->key_len, 1, kf))
+                sgxlkl_host_fail(
+                    "Failed to read keyfile %s.\n", keyfile_or_passphrase);
+
+            fclose(kf);
+        }
+        else
+        {
+            disk->key_len = strlen(keyfile_or_passphrase);
+            disk->key = (char*)malloc(disk->key_len);
+            memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
+        }
+    }
+
+    prepare_verity(
+        disk, image_path, verity_file_or_roothash, verity_file_or_hashoffset);
+}
+
+void disk_config_from_cmdline(
+    const char* root_disk_path,
+    sgxlkl_app_config_t* app_config)
+{
+    /* Count disks to add */
+    app_config->num_disks = 1; // Root disk
+    const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
+    if (hds_str[0])
+    {
+        app_config->num_disks++;
+        for (int i = 0; hds_str[i]; i++)
+        {
+            if (hds_str[i] == ',')
+                app_config->num_disks++;
+        }
+    }
+
+    app_config->disks =
+        calloc(app_config->num_disks, sizeof(sgxlkl_enclave_disk_config_t));
+    if (!app_config->disks)
+        sgxlkl_host_fail("out of memory\n");
+
+    /* Add root disk */
+    sgxlkl_enclave_disk_config_t* root_disk = &app_config->disks[0];
+    strcpy(root_disk->mnt, "/");
+    root_disk->readonly = sgxlkl_config_bool(SGXLKL_HD_RO);
+    root_disk->overlay = sgxlkl_config_bool(SGXLKL_HD_OVERLAY);
+
+    get_disk_encryption_config(
+        root_disk,
+        root_disk_path,
+        sgxlkl_config_str(SGXLKL_HD_KEY),
+        sgxlkl_config_str(SGXLKL_HD_VERITY),
+        sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
+
+    /* Secondary disks */
+    char* tmp = strdup(hds_str);
+    for (size_t i = 1; i < app_config->num_disks && *tmp; i++)
+    {
+        char* hd_path = tmp;
+        char* hd_mnt = strchrnul(hd_path, ':');
+        *hd_mnt = '\0';
+        hd_mnt++;
+        char* hd_mnt_end = strchrnul(hd_mnt, ':');
+        *hd_mnt_end = '\0';
+        int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
+
+        strcpy(app_config->disks[i].mnt, hd_mnt);
+        app_config->disks[i].readonly = hd_ro;
+
+        tmp = strchrnul(hd_mnt_end + 1, ',');
+        while (*tmp == ' ' || *tmp == ',')
+            tmp++;
+    }
+}
+
 void app_config_from_cmdline(
     int argc,
     char** argv,
+    const char* root_disk_file,
     sgxlkl_app_config_t* app_config)
 {
     *app_config = sgxlkl_default_enclave_config.app_config;
@@ -586,9 +800,6 @@ void app_config_from_cmdline(
 
     app_config->cwd = sgxlkl_config_str(SGXLKL_CWD);
     app_config->auxv = NULL;
-    app_config->num_disks = 1;
-    app_config->disks = calloc(1, sizeof(sgxlkl_enclave_disk_config_t));
-    strcpy(app_config->disks[0].mnt, "/");
 
     app_config->host_import_envc = 0;
     app_config->host_import_envp = NULL;
@@ -609,6 +820,8 @@ void app_config_from_cmdline(
     }
 
     app_config->sizes = sgxlkl_default_enclave_config.app_config.sizes;
+
+    disk_config_from_cmdline(root_disk_file, app_config);
 }
 
 void check_envs(const char** pres, char** envp, const char* warn_msg)
@@ -977,108 +1190,6 @@ void set_wg_config_from_cmdline(sgxlkl_enclave_wg_config_t* wg)
     }
 }
 
-static void prepare_verity(
-    sgxlkl_host_disk_state_t* disk,
-    char* disk_path,
-    char* verity_file_or_roothash,
-    char* verity_file_or_hashoffset)
-{
-    if (!verity_file_or_roothash)
-    {
-        disk->roothash = NULL;
-        disk->roothash_offset = 0;
-        return;
-    }
-
-    if (access(verity_file_or_roothash, R_OK) != -1)
-    {
-        FILE* hf;
-        char hash[MAX_HASH_DIGITS + 2];
-
-        if (!(hf = fopen(verity_file_or_roothash, "r")))
-            sgxlkl_host_fail(
-                "Failed to open root hash file %s.\n", verity_file_or_roothash);
-
-        if (!fgets(hash, MAX_HASH_DIGITS + 2, hf))
-            sgxlkl_host_fail(
-                "Failed to read root hash from file %s.\n",
-                verity_file_or_roothash);
-
-        /* Remove possible new line */
-        char* nl = strchr(hash, '\n');
-        if (nl)
-            *nl = 0;
-
-        size_t hash_len = strlen(hash);
-        if (hash_len > MAX_HASH_DIGITS)
-            sgxlkl_host_fail(
-                "Root hash read from file %s too long! Maximum length: %d\n",
-                verity_file_or_roothash,
-                MAX_HASH_DIGITS);
-
-        disk->roothash = (char*)malloc(hash_len + 1);
-        strncpy(disk->roothash, hash, hash_len);
-        disk->roothash[hash_len] = 0;
-
-        fclose(hf);
-    }
-    else
-        disk->roothash = verity_file_or_roothash;
-
-    char* hashoffset_path;
-    if (!verity_file_or_hashoffset)
-    {
-        size_t hashoffset_path_len =
-            strlen(disk_path) + strlen(".hashoffset") + 1;
-        hashoffset_path = (char*)malloc(hashoffset_path_len);
-        snprintf(
-            hashoffset_path,
-            hashoffset_path_len,
-            "%s%s",
-            disk_path,
-            ".hashoffset");
-    }
-    else
-    {
-        hashoffset_path = verity_file_or_hashoffset;
-    }
-
-    char* hashoffset_str;
-    if (access(hashoffset_path, R_OK) != -1)
-    {
-        FILE* hf;
-        char hashoffset_buf[MAX_HASHOFFSET_DIGITS];
-
-        if (!(hf = fopen(hashoffset_path, "r")))
-            sgxlkl_host_fail(
-                "Failed to open hash offset file %s.\n", hashoffset_path);
-
-        if (!fgets(hashoffset_buf, MAX_HASHOFFSET_DIGITS, hf))
-            sgxlkl_host_fail(
-                "Failed to read hash offset from file %s.\n", hashoffset_path);
-
-        fclose(hf);
-
-        hashoffset_str = hashoffset_buf;
-    }
-    else if (verity_file_or_hashoffset)
-    {
-        hashoffset_str = verity_file_or_hashoffset;
-    }
-    else
-        sgxlkl_host_fail(
-            "A hash offset must be set via SGXLKL_HD_VERITY_OFFSET when "
-            "SGXLKL_HD_VERITY is used.\n");
-
-    errno = 0;
-    disk->roothash_offset = strtoll(hashoffset_str, NULL, 10);
-    if (errno == EINVAL || errno == ERANGE)
-        sgxlkl_host_fail("Failed to parse hash offset!\n");
-
-    if (hashoffset_path != verity_file_or_hashoffset)
-        free(hashoffset_path);
-}
-
 static int is_disk_encrypted(int fd)
 {
     unsigned char magic[2] = {0};
@@ -1091,42 +1202,28 @@ static int is_disk_encrypted(int fd)
     return !(magic[0] == 0x53 && magic[1] == 0xEF);
 }
 
-static void register_hd(
-    char* path,
-    char* mnt,
-    int readonly,
-    size_t idx,
-    char* keyfile_or_passphrase,
-    char* verity_file_or_roothash,
-    char* verity_file_or_hashoffset,
-    int overlay)
+static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
 {
-    const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-
     sgxlkl_host_verbose(
-        "Registering disk %lu (path='%s', mnt='%s', [%s %s %s %s %s])\n",
+        "Registering disk %lu (path='%s', mnt='%s', [%s])\n",
         idx,
-        path,
-        mnt,
-        readonly ? "RO" : "RW",
-        keyfile_or_passphrase ? "encrypted" : "",
-        verity_file_or_roothash ? "verity-hash" : "",
-        verity_file_or_hashoffset ? "verity-offset" : "",
-        overlay ? "overlay" : "");
+        disk->image_path,
+        disk->mnt,
+        disk->readonly ? "RO" : "RW");
 
-    if (strlen(mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
+    if (strlen(disk->mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
         sgxlkl_host_fail(
             "Mount path for disk %lu too long (maximum length is %d): \"%s\"\n",
             idx,
             SGXLKL_DISK_MNT_MAX_PATH_LEN,
-            mnt);
+            disk->mnt);
 
-    int fd = open(path, readonly ? O_RDONLY : O_RDWR);
+    int fd = open(disk->image_path, disk->readonly ? O_RDONLY : O_RDWR);
     if (fd == -1)
         sgxlkl_host_fail(
             "Unable to open disk file %s for %s access: %s\n",
-            path,
-            readonly ? "read" : "read/write",
+            disk->image_path,
+            disk->readonly ? "read" : "read/write",
             strerror(errno));
 
     struct stat disk_stat;
@@ -1139,13 +1236,18 @@ static void register_hd(
         {
             sgxlkl_host_fail(
                 "Failed to get block device size of %s: %s\n",
-                path,
+                disk->image_path,
                 strerror(errno));
         }
     }
 
     char* disk_mmap = mmap(
-        NULL, size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
+        NULL,
+        size,
+        PROT_READ | (disk->readonly ? 0 : PROT_WRITE),
+        MAP_SHARED,
+        fd,
+        0);
     if (disk_mmap == MAP_FAILED)
         sgxlkl_host_fail(
             "Could not map memory for disk image: %s\n", strerror(errno));
@@ -1158,87 +1260,18 @@ static void register_hd(
     if (res == -1)
         sgxlkl_host_fail("fcntl(disk_fd, F_SETFL)");
 
-    sgxlkl_host_disk_state_t* disk = &host_state.disks[idx];
     disk->fd = fd;
-    disk->size = size;
     disk->mmap = disk_mmap;
-    disk->is_encrypted = is_disk_encrypted(fd);
-    strncpy(disk->mnt, mnt, SGXLKL_DISK_MNT_MAX_PATH_LEN);
-    disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
-    disk->overlay = overlay;
     disk->size = size;
-    disk->ro = readonly;
 
     blk_device_init(disk, idx, host_state.enclave_config.swiotlb);
-
-    if (econf->mode != HW_RELEASE_MODE)
-    {
-        // If key and root hash are provided remotely or is set via enclave
-        // config, don't set it here.
-        if (disk->is_encrypted && keyfile_or_passphrase)
-        {
-            // Currently we have a single parameter for passphrases and
-            // keyfiles. Determine which one it is.
-            if (access(keyfile_or_passphrase, R_OK) != -1)
-            {
-                FILE* kf;
-
-                if (!(kf = fopen(keyfile_or_passphrase, "rb")))
-                    sgxlkl_host_fail(
-                        "Failed to open keyfile %s.\n", keyfile_or_passphrase);
-
-                fseek(kf, 0, SEEK_END);
-                disk->key_len = ftell(kf);
-                if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024)
-                {
-                    sgxlkl_host_warn(
-                        "Provided key file is larger than maximum supported "
-                        "key "
-                        "file size (%dkB). Only the first %dkB will be used.\n",
-                        MAX_KEY_FILE_SIZE_KB,
-                        MAX_KEY_FILE_SIZE_KB);
-                    disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
-                }
-                rewind(kf);
-
-                disk->key = (char*)malloc((disk->key_len));
-                if (!fread(disk->key, disk->key_len, 1, kf))
-                    sgxlkl_host_fail(
-                        "Failed to read keyfile %s.\n", keyfile_or_passphrase);
-
-                fclose(kf);
-            }
-            else
-            {
-                disk->key_len = strlen(keyfile_or_passphrase);
-                disk->key = (char*)malloc(disk->key_len);
-                memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
-            }
-        }
-
-        prepare_verity(
-            disk, path, verity_file_or_roothash, verity_file_or_hashoffset);
-    }
-
-    host_state.num_disks++;
 }
 
 static void register_hds(char* root_hd)
 {
-    sgxlkl_app_config_t* app_config = &host_state.enclave_config.app_config;
-
-    // Count disks to register
-    size_t num_disks = 1; // Root disk
-    char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
-    if (hds_str[0])
-    {
-        num_disks++;
-        for (int i = 0; hds_str[i]; i++)
-        {
-            if (hds_str[i] == ',')
-                num_disks++;
-        }
-    }
+    size_t num_disks = host_state.num_disks;
+    if (num_disks == 0)
+        sgxlkl_host_fail("no disks in host config");
 
     sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
     shm->num_virtio_blk_dev = num_disks;
@@ -1248,47 +1281,11 @@ static void register_hds(char* root_hd)
     if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
         sgxlkl_host_fail("out of memory\n");
 
-    if (app_config->num_disks == 0)
-        sgxlkl_host_fail("no root disk config");
-
-    size_t idx = 0;
-    // Register root disk
-    register_hd(
-        root_hd,
-        "/",
-        sgxlkl_config_bool(SGXLKL_HD_RO),
-        idx++,
-        sgxlkl_config_str(SGXLKL_HD_KEY),
-        sgxlkl_config_str(SGXLKL_HD_VERITY),
-        sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET),
-        sgxlkl_config_bool(SGXLKL_HD_OVERLAY));
-
-    // Copy root disk settings into app_config.
-    // TODO: refactor the key file reading etc and set up app_config with all
-    // disks first.
-    sgxlkl_enclave_disk_config_t* root_disk = &app_config->disks[0];
-    root_disk->key = host_state.disks[0].key;
-    root_disk->key_len = host_state.disks[0].key_len;
-    root_disk->roothash = host_state.disks[0].roothash;
-    root_disk->roothash_offset = host_state.disks[0].roothash_offset;
-    root_disk->readonly = host_state.disks[0].ro;
-    root_disk->overlay = host_state.disks[0].overlay;
-
-    // Register secondary disks
-    while (*hds_str)
+    for (size_t i = 0; i < num_disks; i++)
     {
-        char* hd_path = hds_str;
-        char* hd_mnt = strchrnul(hd_path, ':');
-        *hd_mnt = '\0';
-        hd_mnt++;
-        char* hd_mnt_end = strchrnul(hd_mnt, ':');
-        *hd_mnt_end = '\0';
-        int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(hd_path, hd_mnt, hd_ro, idx++, NULL, NULL, NULL, false);
-
-        hds_str = strchrnul(hd_mnt_end + 1, ',');
-        while (*hds_str == ' ' || *hds_str == ',')
-            hds_str++;
+        sgxlkl_host_disk_state_t* disk = &host_state.disks[i];
+        register_hd(disk, i);
+        strcpy(shm->virtio_blk_dev_names[i], disk->mnt);
     }
 }
 
@@ -1717,7 +1714,7 @@ void enclave_config_from_cmdline(long nproc, int mode)
     set_wg_config_from_cmdline(&host_state.enclave_config.wg);
 }
 
-void host_config_from_cmdline()
+void host_config_from_cmdline(char* root_disk_path)
 {
     host_state.config.shm_file = sgxlkl_config_str(SGXLKL_SHMEM_FILE);
     host_state.config.shm_len = sgxlkl_config_uint64(SGXLKL_SHMEM_SIZE);
@@ -1725,6 +1722,41 @@ void host_config_from_cmdline()
     host_state.config.thread_affinity =
         sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY);
     host_state.config.tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
+
+    if (!root_disk_path)
+        sgxlkl_host_fail("no root disk file\n");
+
+    /* Add root disk */
+    host_state.num_disks = 1;
+    sgxlkl_host_disk_state_t* root_disk = &host_state.disks[0];
+    strcpy(root_disk->mnt, "/");
+    root_disk->image_path = root_disk_path;
+
+    /* Secondary disks */
+    const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
+    char* tmp = strdup(hds_str);
+    for (size_t i = 1; *tmp; i++)
+    {
+        char* hd_path = tmp;
+        char* hd_mnt = strchrnul(hd_path, ':');
+        *hd_mnt = '\0';
+        hd_mnt++;
+        char* hd_mnt_end = strchrnul(hd_mnt, ':');
+        *hd_mnt_end = '\0';
+        int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
+
+        host_state.disks[i].image_path = hd_path;
+        strcpy(host_state.disks[i].mnt, hd_mnt);
+        host_state.disks[i].readonly = hd_ro;
+
+        tmp = strchrnul(hd_mnt_end + 1, ',');
+        while (*tmp == ' ' || *tmp == ',')
+            tmp++;
+
+        host_state.num_disks++;
+        if (host_state.num_disks >= HOST_MAX_DISKS)
+            sgxlkl_host_fail("too many disks\n");
+    }
 }
 
 int main(int argc, char* argv[], char* envp[])
@@ -1856,7 +1888,7 @@ int main(int argc, char* argv[], char* envp[])
     else if (sgxlkl_configured(SGXLKL_APP_CONFIG))
         app_config_from_str(sgxlkl_config_str(SGXLKL_APP_CONFIG), app_config);
     else
-        app_config_from_cmdline(argc, argv, app_config);
+        app_config_from_cmdline(argc, argv, root_hd, app_config);
 
     /* Print warnings for ignored options, e.g. for debug options in non-debug
      * mode. */
@@ -1870,7 +1902,7 @@ int main(int argc, char* argv[], char* envp[])
     if (host_config_path)
         sgxlkl_host_fail("host config files not supported yet\n");
     else
-        host_config_from_cmdline();
+        host_config_from_cmdline(root_hd);
 
     /* Host and guest cannot use virtio in HW mode without bounce buffer,so in
      * hardware mode SWIOTLB is always enabled.
