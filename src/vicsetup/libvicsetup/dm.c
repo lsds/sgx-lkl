@@ -545,3 +545,373 @@ done:
 
     return result;
 }
+
+/*
+**==============================================================================
+**
+** Experimental raw dm-ioctl code (to bypass libdevmapper).
+**
+**==============================================================================
+*/
+
+#ifdef USE_RAW_DM_IOCTL
+
+/* ioctl() commands */
+#define DM_VERSION_CMD 3241737472
+#define DM_CREATE_CMD 3241737475
+#define DM_RELOAD_CMD 3241737481
+#define DM_RESUME_CMD 3241737478
+
+#define DM_VERSION_INITIALIZER { 4, 0, 0 }
+#define DM_MAX_TYPE_NAME 16
+#define DM_NAME_LEN 128
+#define DM_UUID_LEN 129
+#define DM_DATA_SIZE 16384
+#define DM_DATA_START (sizeof(struct dm_ioctl) - sizeof(struct dm_target))
+#define DM_PARAMS_LEN 4096
+
+#define DM_EXISTS_FLAG 0x00000004
+
+#define DM_UEVENT_GENERATED_FLAG (1 << 13)
+
+struct dm_target
+{
+    uint64_t sector_start;
+    uint64_t length;
+    int32_t status;
+    uint32_t next;
+    char target_type[DM_MAX_TYPE_NAME];
+    char params[DM_PARAMS_LEN];
+};
+
+struct dm_ioctl
+{
+    uint32_t version[3];
+    uint32_t data_size; /* DM_DATA_SIZE */
+    uint32_t data_start; /* DM_DATA_START */
+    uint32_t target_count;
+    int32_t open_count;
+    uint32_t flags;
+    uint32_t event_nr;
+    uint32_t padding;
+    uint64_t dev;
+    char name[DM_NAME_LEN];
+    char uuid[DM_UUID_LEN];
+    char data[7];
+    struct dm_target target;
+};
+
+#if 0
+static void _dump_dm_ioctl(struct dm_ioctl* dmi)
+{
+    printf(
+        "dm_ioctl\n"
+        "{\n"
+        "    version=%u.%u.%u\n"
+        "    data_size=%u\n"
+        "    data_start=%u\n"
+        "    target_count=%u\n"
+        "    open_count=%d\n"
+        "    flags=%u\n"
+        "    event_nr=%u\n"
+        "    padding=%u\n"
+        "    dev=%lu\n"
+        "    name=%s\n"
+        "    uuid=%s\n",
+        dmi->version[0],
+        dmi->version[1],
+        dmi->version[2],
+        dmi->data_size,
+        dmi->data_start,
+        dmi->target_count,
+        dmi->open_count,
+        dmi->flags,
+        dmi->event_nr,
+        dmi->padding,
+        dmi->dev,
+        dmi->name,
+        dmi->uuid);
+
+    if (dmi->target_count > 0)
+    {
+        printf(
+            "    target.sector_start=%lu\n"
+            "    target.length=%lu\n"
+            "    target.status=%d\n"
+            "    target.next=%u\n"
+            "    target.target_type=%s\n"
+            "    target.params=%s\n",
+            dmi->target.sector_start,
+            dmi->target.length,
+            dmi->target.status,
+            dmi->target.next,
+            dmi->target.target_type,
+            dmi->target.params);
+    }
+
+    printf("}\n");
+}
+#endif
+
+static int _ioctl(int fd, unsigned long request, struct dm_ioctl* dmi)
+{
+    int r;
+#ifdef TRACE_IOCTL
+    const char* name;
+#endif
+
+#ifdef TRACE_IOCTL
+    switch(request)
+    {
+        case DM_VERSION_CMD:
+            name = "version";
+            break;
+        case DM_CREATE_CMD:
+            name = "create";
+            break;
+        case DM_RELOAD_CMD:
+            name = "reload";
+            break;
+        case DM_RESUME_CMD:
+            name = "resume";
+            break;
+        default:
+            name = "unknown";
+            break;
+    }
+#endif
+
+#ifdef TRACE_IOCTL
+    printf("**** before ioctl(%lu, %s)\n", request, name);
+    _dump_dm_ioctl(dmi);
+#endif
+
+    r = ioctl(fd, request, dmi);
+
+#ifdef TRACE_IOCTL
+    printf("**** after ioctl(%s): r=%d errno=%d\n", name, r, errno);
+    _dump_dm_ioctl(dmi);
+#endif
+
+    return r;
+}
+
+static vic_result_t _update_dev_mapper_node(const char* name)
+{
+    vic_result_t result = VIC_OK;
+    char path[PATH_MAX];
+    mode_t mask;
+    const mode_t mode = 0600;
+    const uint32_t major = 253;
+    const uint32_t minor = 0;
+    const uid_t uid = 0;
+    const gid_t gid = 0;
+    dev_t dev = makedev(major, minor);
+
+    STRLCPY(path, "/dev/mapper/");
+    STRLCAT(path, name);
+
+    mask = umask(0);
+
+    if (mknod(path, S_IFBLK | mode, dev) < 0)
+    {
+        umask(mask);
+        RAISE(VIC_FAILED);
+    }
+
+    umask(mask);
+
+    if (chown(path, uid, gid) < 0)
+        RAISE(VIC_FAILED);
+
+done:
+    return result;
+}
+
+vic_result_t vic_dm_create_integrity(
+    const char* name,
+    const char* path,
+    uint64_t start,
+    uint64_t size,
+    uint64_t offset,
+    char mode,
+    const char* integrity)
+{
+    vic_result_t result = VIC_OK;
+    char params[1024];
+    char* hexkey = NULL;
+    char dev[PATH_MAX];
+    int ctl = -1;
+    struct dm_ioctl* dmi = NULL;
+    static const uint32_t dm_version[] = DM_VERSION_INITIALIZER;
+    int r;
+
+    /* Reject invalid parameters */
+    if (!name || !path)
+        RAISE(VIC_BAD_PARAMETER);
+
+    /* If not a block device, then map to a loopback device */
+    {
+        struct stat st;
+
+        if (stat(path, &st) != 0)
+            RAISE(VIC_FAILED);
+
+        if (S_ISBLK(st.st_mode))
+        {
+            if (vic_strlcpy(dev, path, PATH_MAX) >= PATH_MAX)
+                RAISE(VIC_PATH_TOO_LONG);
+        }
+        else
+        {
+            if (vic_loop_attach(path, 0, false, false, dev) != 0)
+                RAISE(VIC_FAILED_TO_GET_LOOP_DEVICE);
+        }
+    }
+
+    /* Format the params */
+    {
+        size_t tag_size = vic_integrity_tag_size(integrity);
+
+        if (tag_size == (size_t)-1)
+            RAISE(VIC_UNEXPECTED);
+
+        /* ATTN-C: hard-coded block size */
+        uint64_t block_size = 512;
+
+        int n = snprintf(
+            params,
+            sizeof(params),
+            "%s %lu %lu %c 1 block_size:%lu",
+            dev,
+            offset,
+            tag_size,
+            mode,
+            block_size);
+
+        if (n <= 0 || (size_t)n >= sizeof(params))
+            RAISE(VIC_BUFFER_TOO_SMALL);
+    }
+
+    /* Open the /dev/mapper/control device */
+    if ((ctl = open("/dev/mapper/control", O_RDWR)) < 0)
+        RAISE(VIC_OPEN_FAILED);
+
+    /* Allocate instance of struct dm_ioctl */
+    if (!(dmi = vic_malloc(DM_DATA_SIZE)))
+        RAISE(VIC_OUT_OF_MEMORY);
+
+    memset(dmi, 0, DM_DATA_SIZE);
+
+#ifdef TRACE_TARGET
+    printf("TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
+        start, size, "crypt", params);
+#endif
+
+    /* Perform DM_VERSION_CMD */
+    {
+        memset(dmi, 0, sizeof(struct dm_ioctl));
+        memcpy(dmi->version, dm_version, sizeof(dmi->version));
+        dmi->data_size = DM_DATA_SIZE;
+        dmi->data_start = DM_DATA_START;
+        dmi->flags = DM_EXISTS_FLAG;
+
+        if ((r = _ioctl(ctl, DM_VERSION_CMD, dmi)) < 0)
+            RAISE(VIC_IOCTL_FAILED);
+    }
+
+    /* Perform DM_VERSION_CMD */
+    /* Perform DM_CREATE_CMD */
+    {
+        size_t retries = 0;
+        char uuid[VIC_UUID_STRING_SIZE];
+
+        vic_uuid_generate(uuid);
+
+        memset(dmi, 0, sizeof(struct dm_ioctl));
+        memcpy(dmi->version, dm_version, sizeof(dmi->version));
+        dmi->data_size = DM_DATA_SIZE;
+        dmi->data_start = DM_DATA_START;
+        dmi->flags = DM_EXISTS_FLAG;
+        STRLCPY(dmi->name, name);
+        STRLCPY(dmi->uuid, uuid);
+
+retry:
+        if ((r = _ioctl(ctl, DM_CREATE_CMD, dmi)) < 0)
+        {
+            if (errno == EBUSY && retries++ < 10)
+            {
+                printf("RETRY........\n");
+                goto retry;
+            }
+            RAISE(VIC_IOCTL_FAILED);
+        }
+    }
+
+    /* Perform DM_RELOAD_CMD */
+    {
+        size_t n;
+
+        memset(dmi, 0, sizeof(struct dm_ioctl));
+        memcpy(dmi->version, dm_version, sizeof(dmi->version));
+        dmi->data_size = DM_DATA_SIZE;
+        dmi->data_start = DM_DATA_START;
+        dmi->target_count = 1;
+        dmi->flags = DM_EXISTS_FLAG;
+        STRLCPY(dmi->name, name);
+
+        dmi->target.sector_start = start;
+        dmi->target.length = size;
+        STRLCPY(dmi->target.target_type, "integrity");
+        n = STRLCPY(dmi->target.params, params);
+
+        dmi->target.next = sizeof(struct dm_target) - DM_PARAMS_LEN + n;
+
+        if ((r = _ioctl(ctl, DM_RELOAD_CMD, dmi)) < 0)
+            RAISE(VIC_IOCTL_FAILED);
+    }
+
+    /* Perform DM_RESUME */
+    {
+        size_t n;
+
+        memset(dmi, 0, sizeof(struct dm_ioctl));
+        memcpy(dmi->version, dm_version, sizeof(dmi->version));
+        dmi->data_size = DM_DATA_SIZE;
+        dmi->data_start = DM_DATA_START;
+        dmi->target_count = 1;
+        dmi->flags = DM_EXISTS_FLAG;
+        dmi->event_nr = 0;
+        STRLCPY(dmi->name, name);
+
+        dmi->target.sector_start = start;
+        dmi->target.length = size;
+        STRLCPY(dmi->target.target_type, "crypt");
+        n = STRLCPY(dmi->target.params, params);
+
+        dmi->target.next = sizeof(struct dm_target) - DM_PARAMS_LEN + n;
+
+        if ((r = _ioctl(ctl, DM_RESUME_CMD, dmi)) < 0)
+            RAISE(VIC_IOCTL_FAILED);
+    }
+
+    close(ctl);
+    ctl = -1;
+
+    CHECK(_update_dev_mapper_node(name));
+
+done:
+
+    if (hexkey)
+        vic_free(hexkey);
+
+    if (ctl >= 0)
+        close(ctl);
+
+    if (dmi)
+        vic_free(dmi, DM_DATA_SIZE);
+
+    return result;
+}
+
+#endif /* USE_RAW_DM_IOCTL */

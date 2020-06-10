@@ -11,6 +11,8 @@ all:
 tests: dirs
 	$(MAKE) KEYSIZE=64 INTEGRITY="hmac(sha256)" integrity
 	$(MAKE) KEYSIZE=96 INTEGRITY="hmac(sha256)" integrity
+
+xxx:
 	$(MAKE) KEYSIZE=128 INTEGRITY="hmac(sha512)" integrity
 
 UUID=90faa067-e33f-464a-98ab-86a5fd5e56e4
@@ -19,7 +21,7 @@ INTEGRITY_OPTS += --uuid $(UUID)
 INTEGRITY_OPTS += --integrity "$(INTEGRITY)"
 INTEGRITY_OPTS += --keyfile keyfile
 
-VG=valgrind --tool=memcheck --leak-check=full
+#VG=valgrind --tool=memcheck --leak-check=full
 
 integrity:
 	head -c $(KEYSIZE) /dev/urandom > keyfile

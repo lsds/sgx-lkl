@@ -10,7 +10,6 @@
 #include <lkl.h>
 #include <lkl_host.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <syscall.h>
@@ -43,8 +42,6 @@
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
-
-#define BIT(x) (1ULL << x)
 
 #define UMOUNT_DISK_TIMEOUT 2000
 
@@ -336,30 +333,6 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_load(): %s (%d)\n", strerror(-err), err);
     }
 
-    char* key_outside = lkl_cd->disk_config->key;
-#ifdef USE_KERNEL_MEMORY
-    lkl_cd->disk_config->key = (char*)lkl_sys_mmap(
-        NULL,
-        lkl_cd->disk_config->key_len,
-        PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS,
-        -1,
-        0);
-    if ((int64_t)lkl_cd->disk_config->key <= 0)
-    {
-        sgxlkl_fail(
-            "Unable to allocate memory for disk encryption key inside the "
-            "enclave: %s\n",
-            lkl_strerror((intptr_t)lkl_cd->disk_config->key));
-    }
-#else
-    if (!(lkl_cd->disk_config->key = malloc(lkl_cd->disk_config->key_len)))
-    {
-        sgxlkl_fail("failed to allocate key\n");
-    }
-#endif
-    memcpy(lkl_cd->disk_config->key, key_outside, lkl_cd->disk_config->key_len);
-
     err = crypt_activate_by_passphrase(
         cd,
         lkl_cd->crypt_name,
@@ -383,25 +356,9 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     crypt_free(cd);
 
-    // The key is only needed during activation, so don't keep it around
-    // afterwards and free up space.
+    // The key is only needed during activation, so clear it now.
     memset(lkl_cd->disk_config->key, 0, lkl_cd->disk_config->key_len);
-
-#ifdef USE_KERNEL_MEMORY
-    unsigned long munmap_ret;
-    if ((munmap_ret = lkl_sys_munmap(
-             (unsigned long)lkl_cd->disk_config->key,
-             lkl_cd->disk_config->key_len)))
-    {
-        sgxlkl_fail(
-            "Unable to unmap memory for disk encryption key: %s\n",
-            lkl_strerror((int)munmap_ret));
-    }
-#else
-    free(lkl_cd->disk_config->key);
-#endif
     lkl_cd->disk_config->key = NULL;
-    lkl_cd->disk_config->key_len = 0;
 
     return 0;
 }
@@ -409,7 +366,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
     int err;
-    /* ATTN: vicsetup only supports 512 bytes sectors */
+    /* ATTN: vicsetup only supports 512 bytes sectors for integrity */
     static const size_t SECTOR_SIZE = 512;
     static const size_t MIN_LUKS2_ITERATIONS = 1000;
 
@@ -451,28 +408,12 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     if (err != 0)
         sgxlkl_fail("crypt_format(): %s (%d)\n", strerror(-err), err);
 
-    // Key must be copied from userspace memory to LKL visible memory.
-    char* key_outside = lkl_cd->disk_config->key;
-    char* key_kernel = (char*)lkl_sys_mmap(
-        NULL,
-        lkl_cd->disk_config->key_len,
-        PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS,
-        -1,
-        0);
-    if ((int64_t)key_kernel <= 0)
-        sgxlkl_fail(
-            "Unable to allocate memory for disk encryption key inside the "
-            "enclave: %s\n",
-            lkl_strerror((int)lkl_cd->disk_config->key));
-    memcpy(key_kernel, key_outside, lkl_cd->disk_config->key_len);
-
     err = crypt_keyslot_add_by_key(
         cd,
         CRYPT_ANY_SLOT,
         NULL,
         0,
-        key_kernel,
+        lkl_cd->disk_config->key,
         lkl_cd->disk_config->key_len,
         0);
     if (err != 0)
@@ -480,13 +421,6 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
             "crypt_keyslot_add_by_key(): %s (%d)\n", strerror(-err), err);
 
     crypt_free(cd);
-
-    unsigned long munmap_ret;
-    if ((munmap_ret = lkl_sys_munmap(
-             (unsigned long)key_kernel, lkl_cd->disk_config->key_len)))
-        sgxlkl_fail(
-            "Unable to unmap memory for disk encryption key: %s\n",
-            lkl_strerror((int)munmap_ret));
 
     return 0;
 }
@@ -551,55 +485,6 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
     free(volume_hash_bytes);
 
     return NULL;
-}
-
-static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
-{
-#ifdef USE_KERNEL_MEMORY
-    int err;
-
-    /*
-     * We need to pivot to a stack which is inside LKL's known memory mappings
-     * otherwise get_user_pages will not manage to find the mapping, and will
-     * fail.
-     *
-     * Buffers passed to the kernel via the crypto API need to be allocated
-     * on this stack, or on heap pages allocated via lkl_sys_mmap.
-     *
-     * ATTN: the crypto API works over user memory. Revisit this assumption.
-     */
-    const int stack_size = 64 * 1024;
-
-    void* addr = lkl_sys_mmap(
-        NULL,
-        stack_size,
-        PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS,
-        -1,
-        0);
-    if (addr == MAP_FAILED)
-    {
-        sgxlkl_fail("lkl_sys_mmap failed\n");
-    }
-
-    pthread_t pt;
-    pthread_attr_t ptattr;
-    pthread_attr_init(&ptattr);
-    pthread_attr_setstack(&ptattr, addr, stack_size);
-    err = pthread_create(&pt, &ptattr, start_routine, arg);
-    if (err < 0)
-    {
-        sgxlkl_fail("pthread_create()=%s (%d)\n", strerror(err), err);
-    }
-
-    err = pthread_join(pt, NULL);
-    if (err < 0)
-    {
-        sgxlkl_fail("pthread_join()=%s (%d)\n", strerror(err), err);
-    }
-#else
-    (*start_routine)(arg);
-#endif
 }
 
 static void lkl_mount_virtual()
@@ -667,9 +552,7 @@ static void lkl_mount_disk(
         SGXLKL_VERBOSE("Activating verity disk\n");
         dev_str_verity[sizeof dev_str_verity - 2] = device;
         lkl_cd.crypt_name = dev_str_verity + offset_dev_str_crypt_name;
-        lkl_run_in_kernel_stack(
-            (void* (*)(void*)) & lkl_activate_verity_disk_thread,
-            (void*)&lkl_cd);
+        lkl_activate_verity_disk_thread(&lkl_cd);
 
         // We now want to mount the verified volume
         dev_str = dev_str_verity;
@@ -685,15 +568,11 @@ static void lkl_mount_disk(
         if (disk->create)
         {
             SGXLKL_VERBOSE("Creating empty crypto disk\n");
-            lkl_run_in_kernel_stack(
-                (void* (*)(void*)) & lkl_create_crypto_disk_thread,
-                (void*)&lkl_cd);
+            lkl_create_crypto_disk_thread(&lkl_cd);
         }
 
         SGXLKL_VERBOSE("Activating crypto disk\n");
-        lkl_run_in_kernel_stack(
-            (void* (*)(void*)) & lkl_activate_crypto_disk_thread,
-            (void*)&lkl_cd);
+        lkl_activate_crypto_disk_thread(&lkl_cd);
 
         // We now want to mount the decrypted volume
         dev_str = dev_str_enc;
@@ -1057,6 +936,10 @@ static void init_random()
     }
 
     fd = open("/dev/random", O_RDONLY);
+    /* Define ioctl() rather than including <sys/ioctl.h> to work around
+     * duplicate definitions of the _IO* family of macros.
+     */
+    extern int ioctl (int, int, ...);
     if (ioctl(fd, RNDADDENTROPY, pool_info) == -1)
         goto err;
 
