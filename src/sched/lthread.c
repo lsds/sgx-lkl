@@ -97,7 +97,7 @@ struct lthread_queue* __active_lthreads = NULL;
 struct lthread_queue* __active_lthreads_tail = NULL;
 #endif
 
-int _switch(struct cpu_ctx* new_ctx, struct cpu_ctx* cur_ctx) __attribute__((noreturn));
+int _switch(struct cpu_ctx* new_ctx, struct cpu_ctx* cur_ctx);
 #ifdef __i386__
 __asm__("    .text                                  \n"
         "    .p2align 2,,3                          \n"
@@ -327,7 +327,7 @@ void _lthread_yield_cb(struct lthread* lt, void (*f)(void*), void* arg)
     _switch(&sched->ctx, &lt->ctx);
 }
 
-void __attribute__((noreturn)) _lthread_yield(struct lthread* lt)
+void _lthread_yield(struct lthread* lt)
 {
     struct lthread_sched* sched = lthread_get_sched();
     _switch(&sched->ctx, &lt->ctx);
@@ -818,6 +818,7 @@ void lthread_exit(void* ptr)
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
     _lthread_yield(lt);
+    __builtin_unreachable();
 }
 
 /* lthread_join may proceed only when:
