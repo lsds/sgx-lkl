@@ -9,3 +9,7 @@
 	path = sgx-lkl-musl
 	url = https://github.com/lsds/sgx-lkl-musl.git
 	branch = oe_port
+[submodule "openenclave"]
+	path = openenclave
+	url = https://github.com/openenclave/openenclave.git
+	branch = feature/sgx-lkl-support
