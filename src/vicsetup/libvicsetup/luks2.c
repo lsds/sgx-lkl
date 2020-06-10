@@ -3399,8 +3399,8 @@ vic_result_t luks2_format(
 
         snprintf(dmpath, sizeof(dmpath), "/dev/mapper/%s", name);
 
+        /* ATTN: This wipes the whole file (is there a cheaper way?) */
         CHECK(_wipe_device(dmpath));
-
         CHECK(vic_dm_remove(name));
         CHECK(vic_dm_remove(name_dif));
     }

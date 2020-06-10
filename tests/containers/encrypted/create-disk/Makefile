@@ -1,7 +1,7 @@
 include ../../../common.mk
 
 # ATTN: make kernel memory bigger to accomodate dm-integrity usage
-export SGXLKL_CMDLINE="mem=64M" # SGXLKL_HEAP=500M"
+export SGXLKL_CMDLINE="mem=64M"
 
 CC_APP=/usr/bin/python3
 CC_APP_CONFIG=app-config.json
