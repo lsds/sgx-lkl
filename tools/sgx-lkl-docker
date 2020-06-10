@@ -8,7 +8,6 @@ sgxlkl_root="${cmd_root}/.."
 
 sub_cmd=
 cc_name=
-cc_mode=debug
 cc_app_cfg=
 cc_host_cfg=
 
@@ -37,19 +36,10 @@ function usage() {
 function build-cc() {
     echo "SGX-LKL root: $sgxlkl_root"
 
-    echo "Creating confidential container '${cc_name}' for $cc_mode mode"
+    echo "Creating confidential container '${cc_name}'"
 
     context_dir=$(mktemp -d sgxlkl_docker_context_XXXX)
     echo "Using temporary directory ${context_dir}"
-
-    if [[ $cc_mode == release ]]; then
-        suffix=
-        mode_arg="--hw-release"
-    else
-        suffix="-$cc_mode"
-        mode_arg="--hw-debug"
-    fi
-    install_prefix="/opt/sgx-lkl$suffix"
 
     cat >>${context_dir}/Dockerfile << EOF
 FROM ubuntu:18.04
@@ -67,8 +57,8 @@ ENV TMPDIR=/tmp
 # See https://github.com/microsoft/Azure-DCAP-Client.
 ENV AZDCAP_CACHE=${TMPDIR}
 
-ENTRYPOINT ["${install_prefix}/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
-CMD ["${mode_arg}"]
+ENTRYPOINT ["/opt/sgx-lkl/lib/external/loader", "/opt/sgx-lkl/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
+CMD ["--hw-release"]
 EOF
 
     cp ${cc_app_cfg} ${context_dir}/app-cfg.json
@@ -103,9 +93,6 @@ function main() {
                 ;;
             build-cc)
                 sub_cmd=$1
-                ;;
-            --mode=?*)
-                cc_mode=${1#*=}
                 ;;
             --name=?*)
                 cc_name=${1#*=}
