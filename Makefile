@@ -15,7 +15,6 @@ all: update-git-submodules $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIB
 
 # Build and install Open Enclave locally
 $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
-	cd $(OE_SUBMODULE) && git submodule update --recursive --init
 	# Don't build tests.
 	# TODO replace with build option https://github.com/openenclave/openenclave/issues/2894
 	cd $(OE_SUBMODULE) && sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
@@ -140,6 +139,8 @@ ${HOST_MUSL}/.git ${LKL}/.git ${SGXLKL_LIBC_SRC_DIR}/.git:
 
 update-git-submodules:
 	[ "$(FORCE_SUBMODULES_UPDATE)" = "false" ] || git submodule update --progress
+	# Initialise the missing Open Enclave submodules
+	cd $(OE_SUBMODULE) && git submodule update --recursive --progress --init
 
 fsgsbase-kernel-module:
 	make -C ${TOOLS}/kmod-set-fsgsbase

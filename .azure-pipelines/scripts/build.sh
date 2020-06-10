@@ -30,8 +30,7 @@ stack_trace_file_path="report/$test_name.stack"
 # Start the test timer.
 JunitTestStarted "$test_name"
 
-# Ensure we have a pristine environment
-git submodule foreach --recursive git clean -xdf
+# Ensure that we have a clean build tree
 make distclean
 
 # Install the Open Enclave build dependencies for Azure
