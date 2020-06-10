@@ -19,11 +19,13 @@ INTEGRITY_OPTS += --uuid $(UUID)
 INTEGRITY_OPTS += --integrity "$(INTEGRITY)"
 INTEGRITY_OPTS += --keyfile keyfile
 
+VG=valgrind --tool=memcheck --leak-check=full
+
 integrity:
 	head -c $(KEYSIZE) /dev/urandom > keyfile
 	head -c $(DISK_SIZE) /dev/zero > integrity
-	vicsetup luksFormat $(INTEGRITY_OPTS) integrity pass
-	vicsetup luksOpen integrity pass integrity
+	$(VG) vicsetup luksFormat $(INTEGRITY_OPTS) integrity pass
+	$(VG) vicsetup luksOpen integrity pass integrity
 	$(eval TMP1 := $(shell /bin/mktemp))
 	dd if=/dev/urandom of=$(TMP1) bs=4096 count=1
 	cat $(TMP1) > /dev/mapper/integrity

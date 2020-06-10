@@ -106,11 +106,6 @@ vic_result_t vic_verity_format(
         salt = salt_buf;
     }
 
-#if 0
-    if (hsize != salt_size)
-        RAISE(VIC_BAD_PARAMETER);
-#endif
-
     /* Handle the uuid_buf parameter or generate a new UUID */
     if (uuid)
     {
@@ -372,13 +367,6 @@ vic_result_t vic_verity_format(
             memcpy(blk, &sb, sizeof(vic_verity_sb_t));
             CHECK(vic_blockdev_put(hash_dev, 0, blk, 1));
         }
-
-#if 0
-        vic_verity_dump_sb(&sb);
-        printf("Root hash:\t\t");
-        vic_hexdump_flat(&root_hash, hsize);
-        printf("\n");
-#endif
     }
 
 done:

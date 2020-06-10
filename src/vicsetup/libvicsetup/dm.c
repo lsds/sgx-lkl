@@ -19,7 +19,7 @@
 
 #define DM_UUID_LEN 129
 
-#define TRACE_TARGET
+// #define TRACE_TARGET
 // #define USE_UDEV
 
 static vic_result_t _format_dev_uuid(
@@ -120,7 +120,7 @@ vic_result_t vic_dm_create_crypt(
             if (tag_size == (size_t)-1)
                 RAISE(VIC_UNEXPECTED);
 
-            /* ATTN: support other ciphers in integrity mode */
+            /* ATTN-C: support other ciphers in integrity mode */
             if (strcmp(cipher, "aes-xts-plain64") != 0)
                 RAISE(VIC_UNSUPPORTED_CIPHER);
 
@@ -270,7 +270,7 @@ vic_result_t vic_dm_create_integrity(
         if (tag_size == (size_t)-1)
             RAISE(VIC_UNEXPECTED);
 
-        /* ATTN: hard-coded block size */
+        /* ATTN-C: hard-coded block size */
         uint64_t block_size = 512;
 
         int n = snprintf(

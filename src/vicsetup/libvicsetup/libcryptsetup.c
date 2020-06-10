@@ -21,14 +21,13 @@
 
 #define __FLF__ __FILE__, __LINE__, __FUNCTION__
 
-#if 0
+#ifdef TRACE_ENTER_LEAVE
 #define ENTER printf("ENTER: %s(%u): %s()\n", __FLF__);
 #define LEAVE printf("LEAVE: %s(%u): %s()\n", __FLF__);
 #else
 #define ENTER
 #define LEAVE
 #endif
-
 
 struct crypt_device
 {
@@ -432,12 +431,14 @@ int __crypt_keyslot_add_by_key(
 
     ENTER;
 
+    /* ATTN-C: keyslot selection not supported (only CRYPT_ANY_SLOT) */
+    /* ATTN-C: only CRYPT_PBKDF_NO_BENCHMARK flag is supported */
+
     /* Check parameters */
     {
         if (!_valid_cd(cd))
             ERAISE(EINVAL);
 
-        /* ATTN: keyslot selection not supported */
         if (keyslot != CRYPT_ANY_SLOT)
             ERAISE(ENOTSUP);
 
@@ -457,7 +458,6 @@ int __crypt_keyslot_add_by_key(
         if (!passphrase || !passphrase_size)
             ERAISE(EINVAL);
 
-        /* ATTN: limited flag support */
         if (flags & ~CRYPT_PBKDF_NO_BENCHMARK)
             ERAISE(EINVAL);
 
@@ -650,6 +650,9 @@ int __crypt_activate_by_passphrase(
 
     ENTER;
 
+    /* ATTN-C: only CRYPT_ACTIVATE_READONLY flag is supported */
+    /* ATTN-C: keyslot selection not supported (only CRYPT_ANY_SLOT) */
+
     if (!_valid_cd(cd) || !cd->bd || !name || !passphrase || !passphrase_size)
         ERAISE(EINVAL);
 
@@ -668,7 +671,6 @@ int __crypt_activate_by_passphrase(
         vic_key_t key;
         size_t key_size;
 
-        /* ATTN: only support read-only flag for now */
         if (flags & ~CRYPT_ACTIVATE_READONLY)
             ERAISE(EINVAL);
 
@@ -692,7 +694,6 @@ int __crypt_activate_by_passphrase(
     {
         /* Open the LUKS1 device */
 
-        /* ATTN: only support read-only flag for now */
         if (flags & ~CRYPT_ACTIVATE_READONLY)
             ERAISE(EINVAL);
 
@@ -737,6 +738,8 @@ int __crypt_activate_by_volume_key(
 
     ENTER;
 
+    /* ATTN-C: only CRYPT_ACTIVATE_READONLY flag is supported */
+
     if (!_valid_cd(cd) || !cd->bd || !name || !volume_key || !volume_key_size)
         ERAISE(EINVAL);
 
@@ -758,7 +761,6 @@ int __crypt_activate_by_volume_key(
         memcpy(&key, volume_key, volume_key_size);
         key_size = volume_key_size;
 
-        /* ATTN: only support read-only flag for now */
         if (flags & ~CRYPT_ACTIVATE_READONLY)
             ERAISE(EINVAL);
 
@@ -781,7 +783,6 @@ int __crypt_activate_by_volume_key(
         memcpy(&key, volume_key, volume_key_size);
         key_size = volume_key_size;
 
-        /* ATTN: only support read-only flag for now */
         if (flags & ~CRYPT_ACTIVATE_READONLY)
             ERAISE(EINVAL);
 

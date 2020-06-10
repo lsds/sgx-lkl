@@ -201,10 +201,8 @@ static void _dump_keyslot(const vic_luks_keyslot_t* slot)
         return;
     }
 
-#if 1
     if (slot->active == LUKS_KEY_DISABLED)
         return;
-#endif
 
     printf("\tIterations:\t\t%d\n", slot->iterations);
 
@@ -276,7 +274,7 @@ static const mbedtls_cipher_info_t* _get_cipher_info(const luks1_hdr_t* hdr)
     if (!hdr)
         GOTO(done);
 
-    /* ATTN: Only AES is supported */
+    /* ATTN-C: Only AES is supported */
     if (strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) != 0)
         return NULL;
 
@@ -430,7 +428,7 @@ static int _crypt(
 
     if (!(ci = _get_cipher_info(hdr)))
     {
-        /* ATTN: unsupported cipher */
+        /* ATTN-C: unsupported cipher */
         GOTO(done);
     }
 
@@ -1505,7 +1503,7 @@ vic_result_t luks1_open(
         }
         else
         {
-            /* ATTN: "aes:64-cbc-lmk" not supported */
+            /* ATTN-C: "aes:64-cbc-lmk" not supported */
             RAISE(VIC_UNSUPPORTED_CIPHER);
         }
     }

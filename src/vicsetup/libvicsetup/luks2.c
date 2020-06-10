@@ -1632,7 +1632,7 @@ int luks2_dump_hdr(const luks2_hdr_t* hdr)
                 GOTO(done);
         }
 
-#if 0
+#ifdef PRINT_JSON
         printf("%.*s\n", (int)ext->json_size, ext->json_data);
         json_print(stdout, ext->json_data, ext->json_size);
 #endif
@@ -1647,33 +1647,6 @@ int luks2_dump_hdr(const luks2_hdr_t* hdr)
 
     }
     printf("}\n");
-
-    /* ATTN: remove or normalize JSON object ordering */
-#if 0
-    /* Compare with original JSON */
-    {
-        char* json;
-
-        if (!(json = _to_json(ext)))
-            GOTO(done);
-
-        if (strlen(json) != strlen(ext->json_data))
-        {
-            fprintf(stderr, "*** WARNING: JSON size mismatch\n");
-            GOTO(done);
-        }
-
-        if (strcmp(json, ext->json_data) != 0)
-        {
-            fprintf(stderr, "*** WARNING: JSON data mismatch\n");
-            json_print(stderr, json, strlen(json) + 1);
-            json_print(stderr, ext->json_data, strlen(ext->json_data) + 1);
-            GOTO(done);
-        }
-
-        vic_free(json);
-    }
-#endif
 
     ret = 0;
 
@@ -2141,7 +2114,7 @@ static const mbedtls_cipher_info_t* _get_cipher_info(
     }
     else
     {
-        /* ATTN: support other cipher types */
+        /* ATTN-C: support other cipher types */
         GOTO(done);
     }
 
@@ -2640,11 +2613,6 @@ static int _init_keyslot(
 
     vic_random(ks.kdf.salt, sizeof(ks.kdf.salt));
 
-#if 0
-    if ((ks.kdf.cpus = vic_num_cpus()) == (uint64_t)-1)
-        GOTO(done);
-#endif
-
     *ks_out = ks;
 
     ret = 0;
@@ -2719,19 +2687,9 @@ static vic_result_t _initialize_hdr(
     /* hdr.keyslots[] */
     {
         const size_t hdr_sizes = 2 * p->phdr.hdr_size;
-#if 0
-        size_t area_size = vic_round_up(DEFAULT_AF_STRIPES * key_size, 4096);
-#endif
 
         /* Calcualte the keyslots size */
         keyslots_size = OVERHEAD_BYTES - hdr_sizes;
-
-#if 0
-        /* ATTN: figure out why this fails */
-        /* Verify that keyslots_size is big enough */
-        if (keyslots_size < LUKS2_NUM_KEYSLOTS * area_size)
-            RAISE(VIC_UNEXPECTED);
-#endif
     }
 
     /* hdr.segments[] */
@@ -3096,10 +3054,6 @@ static vic_result_t _open_integrity_device(
     /* Read the super block */
     CHECK(vic_integrity_read_sb(dev, ext->segments[0].offset, &sb));
 
-#if 0
-    vic_integrity_dump_sb(&sb);
-#endif
-
     /* Set the device size */
     size = sb.provided_data_sectors;
 
@@ -3399,7 +3353,7 @@ vic_result_t luks2_format(
 
         snprintf(dmpath, sizeof(dmpath), "/dev/mapper/%s", name);
 
-        /* ATTN: This wipes the whole file (is there a cheaper way?) */
+        /* ATTN-B: This wipes the whole file (is there a cheaper way?) */
         CHECK(_wipe_device(dmpath));
         CHECK(vic_dm_remove(name));
         CHECK(vic_dm_remove(name_dif));
