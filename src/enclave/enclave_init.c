@@ -150,6 +150,27 @@ static int startmain(void* args)
     /* Get the application configuration & disk param from remote server */
     enclave_get_app_config(&app_config);
 
+    /* Retrieve remote attestation report to exercise Azure DCAP Client (for testing only) */
+    // TODO replace this later on
+    if (sgxlkl_enclave->mode == HW_DEBUG_MODE)
+    {
+        uint8_t* remote_report;
+        size_t remote_report_size;
+        oe_result_t result = OE_UNEXPECTED;
+        result = oe_get_report_v2(
+            OE_REPORT_FLAGS_REMOTE_ATTESTATION,
+            NULL,
+            0,
+            NULL,
+            0,
+            &remote_report,
+            &remote_report_size
+        );
+        if (OE_OK != result)
+            sgxlkl_fail("Failed to retrieve report via oe_get_report_v2: %d.\n", result);
+        oe_free_report(&remote_report);
+    }
+
     /* Disk config has been set through app config
      * Merge host-provided disk info (fd, capacity, mmap) */
     if (app_config.disks)

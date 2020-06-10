@@ -25,7 +25,7 @@
 /ltp/testcases/kernel/syscalls/bpf/bpf_map01
 /ltp/testcases/kernel/syscalls/bpf/bpf_prog01
 /ltp/testcases/kernel/syscalls/bpf/bpf_prog02
-/ltp/testcases/kernel/syscalls/brk/brk01
+#/ltp/testcases/kernel/syscalls/brk/brk01
 /ltp/testcases/kernel/syscalls/cacheflush/cacheflush01
 /ltp/testcases/kernel/syscalls/capget/capget01
 /ltp/testcases/kernel/syscalls/capget/capget02
@@ -59,7 +59,7 @@
 /ltp/testcases/kernel/syscalls/clock_gettime/leapsec01
 /ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep01
 /ltp/testcases/kernel/syscalls/clock_nanosleep/clock_nanosleep02
-/ltp/testcases/kernel/syscalls/clock_nanosleep2/clock_nanosleep2_01
+#/ltp/testcases/kernel/syscalls/clock_nanosleep2/clock_nanosleep2_01
 /ltp/testcases/kernel/syscalls/clock_settime/clock_settime01
 /ltp/testcases/kernel/syscalls/clock_settime/clock_settime02
 /ltp/testcases/kernel/syscalls/clone/clone01
@@ -78,7 +78,7 @@
 /ltp/testcases/kernel/syscalls/cma/process_vm_readv02
 /ltp/testcases/kernel/syscalls/cma/process_vm_readv03
 /ltp/testcases/kernel/syscalls/cma/process_vm_writev02
-/ltp/testcases/kernel/syscalls/connect/connect01
+#/ltp/testcases/kernel/syscalls/connect/connect01
 /ltp/testcases/kernel/syscalls/copy_file_range/copy_file_range01
 /ltp/testcases/kernel/syscalls/copy_file_range/copy_file_range02
 /ltp/testcases/kernel/syscalls/copy_file_range/copy_file_range03
@@ -478,7 +478,7 @@
 /ltp/testcases/kernel/syscalls/llseek/llseek01
 /ltp/testcases/kernel/syscalls/llseek/llseek02
 /ltp/testcases/kernel/syscalls/llseek/llseek03
-/ltp/testcases/kernel/syscalls/lremovexattr/lremovexattr01
+#/ltp/testcases/kernel/syscalls/lremovexattr/lremovexattr01
 /ltp/testcases/kernel/syscalls/lseek/lseek01
 /ltp/testcases/kernel/syscalls/lseek/lseek02
 /ltp/testcases/kernel/syscalls/lseek/lseek07
@@ -604,7 +604,7 @@
 /ltp/testcases/kernel/syscalls/munmap/munmap02
 /ltp/testcases/kernel/syscalls/munmap/munmap03
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep01
-/ltp/testcases/kernel/syscalls/nanosleep/nanosleep02
+#/ltp/testcases/kernel/syscalls/nanosleep/nanosleep02
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep04
 /ltp/testcases/kernel/syscalls/newuname/newuname01
 /ltp/testcases/kernel/syscalls/nice/nice01
@@ -666,7 +666,7 @@
 /ltp/testcases/kernel/syscalls/prctl/prctl05
 /ltp/testcases/kernel/syscalls/prctl/prctl06
 /ltp/testcases/kernel/syscalls/prctl/prctl06_execve
-/ltp/testcases/kernel/syscalls/prctl/prctl07
+#/ltp/testcases/kernel/syscalls/prctl/prctl07
 #/ltp/testcases/kernel/syscalls/pread/pread01
 #/ltp/testcases/kernel/syscalls/pread/pread02
 #/ltp/testcases/kernel/syscalls/pread/pread03
@@ -717,7 +717,7 @@
 #/ltp/testcases/kernel/syscalls/reboot/reboot01
 #/ltp/testcases/kernel/syscalls/reboot/reboot02
 #/ltp/testcases/kernel/syscalls/recv/recv01
-/ltp/testcases/kernel/syscalls/recvfrom/recvfrom01
+#/ltp/testcases/kernel/syscalls/recvfrom/recvfrom01
 #/ltp/testcases/kernel/syscalls/recvmsg/recvmsg01
 #/ltp/testcases/kernel/syscalls/recvmsg/recvmsg02
 /ltp/testcases/kernel/syscalls/recvmsg/recvmsg03
@@ -952,9 +952,9 @@
 /ltp/testcases/kernel/syscalls/syncfs/syncfs01
 #/ltp/testcases/kernel/syscalls/syscall/syscall01
 #/ltp/testcases/kernel/syscalls/sysconf/sysconf01
-/ltp/testcases/kernel/syscalls/sysctl/sysctl01
+#/ltp/testcases/kernel/syscalls/sysctl/sysctl01
 /ltp/testcases/kernel/syscalls/sysctl/sysctl03
-/ltp/testcases/kernel/syscalls/sysctl/sysctl04
+#/ltp/testcases/kernel/syscalls/sysctl/sysctl04
 #/ltp/testcases/kernel/syscalls/sysfs/sysfs01
 #/ltp/testcases/kernel/syscalls/sysfs/sysfs02
 #/ltp/testcases/kernel/syscalls/sysfs/sysfs03
