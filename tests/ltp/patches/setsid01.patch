@@ -1,16 +1,17 @@
 diff --git a/testcases/kernel/syscalls/setsid/setsid01.c b/testcases/kernel/syscalls/setsid/setsid01.c
-index ed8f0e4ad..67f086ad7 100644
+index ed8f0e4ad..dc6353b14 100644
 --- a/testcases/kernel/syscalls/setsid/setsid01.c
 +++ b/testcases/kernel/syscalls/setsid/setsid01.c
-@@ -39,6 +39,7 @@
+@@ -39,6 +39,8 @@
  #include <sys/types.h>
  #include <sys/stat.h>
  #include "test.h"
 +#include <pthread.h>
++#include <tst_safe_pthread.h>
  
  #define INVAL_FLAG	-1
  #define USER2		301
-@@ -53,161 +54,113 @@ int TST_TOTAL = 1;
+@@ -53,161 +55,127 @@ int TST_TOTAL = 1;
  static char *argv0;
  #endif
  
@@ -29,71 +30,71 @@ index ed8f0e4ad..67f086ad7 100644
 -	int fail = 0;
 -	int ret, status;
 -	int exno = 0;
--
--	int lc;
-+  int fail = 0;
-+  int lc;
++    int fail = 0;
++    int lc;
  
+-	int lc;
+-
 -	tst_parse_opts(ac, av, NULL, NULL);
-+  tst_parse_opts(ac, av, NULL, NULL);
++    tst_parse_opts(ac, av, NULL, NULL);
  #ifdef UCLINUX
 -	argv0 = av[0];
-+  argv0 = av[0];
++    argv0 = av[0];
  
 -	maybe_run_child(&do_child_1, "n", 1);
 -	maybe_run_child(&do_child_2, "n", 2);
-+  maybe_run_child(&do_child_1, "n", 1);
-+  maybe_run_child(&do_child_2, "n", 2);
++    maybe_run_child(&do_child_1, "n", 1);
++    maybe_run_child(&do_child_2, "n", 2);
  #endif
  
 -	/*
 -	 * perform global setup for the test
 -	 */
 -	setup();
--
++    /*
++     * perform global setup for the test
++     */
++    setup();
++
++    for (lc = 0; TEST_LOOPING(lc); lc++) {
++
++        /* reset tst_count in case we are looping */
++        tst_count = 0;
++
++        /*
++         * When the process group having forked of a child
++         * and then it attached itself to another process
++         * group and tries to setsid
++         */
++        int s;
++
++        pthread_t master_tid;
++
++        s = SAFE_PTHREAD_CREATE(&master_tid, NULL, do_master_thread, NULL);
++
++        if (s == 0)
++        {
++            tst_resm(TINFO, "master thread created fine ...\n");
++            SAFE_PTHREAD_JOIN(master_tid, NULL);
++        }
++        else
++        {
++            tst_resm(TFAIL, "master thread create failed");
++            fail = 1;
++        }
++
++        if (!fail) {
++            tst_resm(TPASS, "all misc tests passed");
++        }
++    }
++    cleanup();
++    tst_exit();
+ 
 -	for (lc = 0; TEST_LOOPING(lc); lc++) {
--
++}
+ 
 -		/* reset tst_count in case we are looping */
 -		tst_count = 0;
-+  /*
-+   * perform global setup for the test
-+   */
-+  setup();
-+
-+  for (lc = 0; TEST_LOOPING(lc); lc++) {
-+
-+    /* reset tst_count in case we are looping */
-+    tst_count = 0;
-+
-+    /*
-+     * When the process group having forked of a child
-+     * and then it attached itself to another process
-+     * group and tries to setsid
-+     */
-+    int s;
-+
-+    pthread_t master_tid;
-+
-+    s = pthread_create(&master_tid, NULL, do_master_thread, NULL);
-+
-+    if (s == 0)
-+    {
-+      printf("%s(): thread created fine ...\n", __FUNCTION__);
-+      pthread_join(master_tid, NULL);
-+    }
-+    else
-+    {
-+      printf("%s(): thread created error ...\n", __FUNCTION__);
-+      tst_resm(TFAIL, "Pthread create failed");
-+      fail = 1;
-+    }
-+
-+    if (!fail) {
-+      tst_resm(TPASS, "all misc tests passed");
-+    }
-+  }
-+  cleanup();
-+  tst_exit();
  
 -		/*
 -		 * When the process group having forked of a child
@@ -101,17 +102,29 @@ index ed8f0e4ad..67f086ad7 100644
 -		 * group and tries to setsid
 -		 */
 -		pid = FORK_OR_VFORK();
--
++static void* do_master_thread(void* arg)
++{
++    int s;
++    pthread_t child_tid;
+ 
 -		if (pid == 0) {
 -			if ((pid = FORK_OR_VFORK()) == -1) {
 -				tst_resm(TFAIL, "Fork failed");
-+}
++    if (setpgid(0, 0) < 0) {
++		tst_resm(TFAIL, "master thread: setpgid(0,0) failed with error: %s", strerror(errno));
++        pthread_exit(NULL);
++	}
++    else 
++    {
++		tst_resm(TINFO, "master thread: setpgid(0,0) success");
++	}
  
 -			}
 -			if (pid == 0) {
 -#ifdef UCLINUX
 -				if (self_exec(argv0, "n", 1) < 0) {
 -					tst_resm(TFAIL, "self_exec failed");
++    s = SAFE_PTHREAD_CREATE(&child_tid, NULL, do_child_thread, NULL);
  
 -				}
 -#else
@@ -153,38 +166,48 @@ index ed8f0e4ad..67f086ad7 100644
 -	}
 -	cleanup();
 -	tst_exit();
-+static void* do_master_thread(void* arg)
-+{
-+  int s;
-+  pthread_t child_tid;
++    if (s == 0)
++    {
++        tst_resm(TINFO, "child thread created fine ...\n");
++        SAFE_PTHREAD_JOIN(child_tid, NULL);
++    }
++    else
++    {
++        tst_resm(TFAIL, "child thread create failed ...\n");
++        SAFE_PTHREAD_JOIN(child_tid, NULL);
++    }
++
++    pthread_exit(NULL);
  
--}
-+  setpgid(0,0);
+ }
  
 -/*
 - * do_child_1()
 - */
 -void do_child_1(void)
--{
++
++static void* do_child_thread(void* arg)
+ {
 -	int exno = 0;
 -	int retval, ret, status;
 -	int pid;
-+  s = pthread_create(&child_tid, NULL, do_child_thread, NULL);
++    int retval;
  
 -	sleep(1);
-+  if (s == 0)
-+  {
-+    printf("%s(): thread created fine ...\n", __FUNCTION__);
-+    pthread_join(child_tid, NULL);
-+  }
-+  else
-+    printf("%s(): thread created error ...\n", __FUNCTION__);
++    /* Since thread is being used , need to replace getppid() with getpid() */
++    retval = setpgid(0, getpid());
  
 -	if (setpgid(0, 0) < 0) {
 -		tst_resm(TFAIL, "setpgid(0,0) failed: %s", strerror(errno));
 -		exno = 1;
 -	}
-+  pthread_exit(NULL);
++    if (retval < 0) {
++        tst_resm(TFAIL, "setpgid failed, errno :%d", errno);
++    }
++    else
++    {
++        tst_resm(TINFO, "setpgid for child thread success");
++    }
  
 -	if ((pid = FORK_OR_VFORK()) == -1) {
 -		tst_brkm(TFAIL, NULL, "Fork failed");
@@ -225,36 +248,40 @@ index ed8f0e4ad..67f086ad7 100644
 -		}
 -	}
 -	exit(exno);
- }
+-}
++    retval = setsid();
++
++    if (errno == EPERM) {
++        tst_resm(TPASS, "setsid SUCCESS to set "
++                "errno to EPERM");
++    } else {
++        tst_resm(TFAIL, "setsid failed, expected %d,"
++                "return %d", -1, errno);
++    }
++
++    pthread_exit(NULL);
  
 -/*
 - * do_child_2()
 - */
 -void do_child_2(void)
-+
-+static void* do_child_thread(void* arg)
- {
+-{
 -	for (;;) ;
-+  int retval;
-+
-+  retval = setpgid(0, getppid());
-+  
-+  if (retval < 0) {
-+    tst_resm(TFAIL, "setpgid failed, errno :%d", errno);
-+  }
-+
-+  retval = setsid();
-+
-+  if (errno == EPERM) {
-+    tst_resm(TPASS, "setsid SUCCESS to set "
-+        "errno to EPERM");
-+  } else {
-+    tst_resm(TFAIL, "setsid failed, expected %d,"
-+        "return %d", -1, errno);
-+  }
-+  
-+  pthread_exit(NULL);
-+
+ }
+ 
+ /*
+@@ -216,11 +184,11 @@ void do_child_2(void)
+ void setup(void)
+ {
+ 
+-	tst_sig(FORK, DEF_HANDLER, cleanup);
++    tst_sig(FORK, DEF_HANDLER, cleanup);
+ 
+-	umask(0);
++    umask(0);
+ 
+-	TEST_PAUSE;
++    TEST_PAUSE;
  }
  
  /*
