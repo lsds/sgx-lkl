@@ -22,6 +22,7 @@ typedef struct sgxlkl_host_disk_state
     size_t roothash_offset; // Merkle tree offset (for dm-verity)
 
     int is_mounted; // Has been mounted
+    bool overlay;
 } sgxlkl_host_disk_state_t;
 
 typedef struct sgxlkl_host_config

@@ -1251,8 +1251,8 @@ static void register_hds(char* root_hd)
     register_hd(
         root_hd,
         "/",
-        idx++,
         sgxlkl_config_bool(SGXLKL_HD_RO),
+        idx++,
         sgxlkl_config_str(SGXLKL_HD_KEY),
         sgxlkl_config_str(SGXLKL_HD_VERITY),
         sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET),
@@ -1268,7 +1268,7 @@ static void register_hds(char* root_hd)
         char* hd_mnt_end = strchrnul(hd_mnt, ':');
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(hd_path, hd_mnt, hd_ro, idx++, NULL, NULL, NULL);
+        register_hd(hd_path, hd_mnt, hd_ro, idx++, NULL, NULL, NULL, false);
 
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while (*hds_str == ' ' || *hds_str == ',')

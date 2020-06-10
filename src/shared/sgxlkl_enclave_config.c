@@ -472,6 +472,7 @@ static json_result_t json_read_app_config_callback(
                 "app_config.sizes.num_stack_pages",
                 &data->app_config->sizes.num_stack_pages);
             JU64("app_config.sizes.num_tcs", &data->app_config->sizes.num_tcs);
+            JBOOL("app_config.disks.overlay", &APPDISK()->overlay);
 
             // else
             FAIL(
@@ -690,6 +691,17 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     CONFCHECK(app_cfg->run == NULL && app_cfg->argc == 0, "argc == 0");
     CONFCHECK(app_cfg->envc < 0, "invalid envc");
     CONFCHECK(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "invalid net_mask4");
+
+    for (size_t i = 0; i < cfg->app_config.num_disks; i++)
+    {
+        if (cfg->app_config.disks[i].overlay)
+        {
+            if (strcmp(cfg->app_config.disks[i].mnt, "/") != 0)
+                FAIL("overlay only allowed for root disk\n");
+            if (!cfg->app_config.disks[i].readonly)
+                FAIL("overlay only allowed for read-only root disk\n");
+        }
+    }
 }
 
 int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)

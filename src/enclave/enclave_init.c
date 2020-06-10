@@ -98,13 +98,6 @@ static void init_wireguard()
         sgxlkl_info("wg0 has public key %s\n", key);
     }
 
-    if (false)
-        test_attestation();
-
-    sgxlkl_app_config_t* app_config =
-        &sgxlkl_enclave_state.enclave_config->app_config;
-    find_and_mount_disks(app_config);
-
     /* Add peers */
     if (wg_dev)
     {

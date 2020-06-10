@@ -43,6 +43,7 @@ typedef struct sgxlkl_enclave_disk_config
     bool readonly;
     bool create;
     size_t size;
+    bool overlay;
 } sgxlkl_enclave_disk_config_t;
 
 typedef struct sgxlkl_enclave_wg_peer_config

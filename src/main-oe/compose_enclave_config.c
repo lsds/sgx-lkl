@@ -178,10 +178,10 @@ static json_obj_t* mk_json_disks(
     for (size_t i = 0; i < num_disks; i++)
     {
         _Static_assert(
-            sizeof(sgxlkl_enclave_disk_config_t) == 320,
+            sizeof(sgxlkl_enclave_disk_config_t) == 328,
             "sgxlkl_enclave_disk_config_t size has changed");
 
-        r->array[i] = mk_json_objects(NULL, 9);
+        r->array[i] = mk_json_objects(NULL, 10);
         r->array[i]->objects[0] = mk_json_string("mnt", disks[i].mnt);
         r->array[i]->objects[1] =
             mk_json_hex_string("key", disks[i].key, disks[i].key_len);
@@ -195,6 +195,7 @@ static json_obj_t* mk_json_disks(
             mk_json_boolean("readonly", disks[i].readonly);
         r->array[i]->objects[7] = mk_json_boolean("create", disks[i].create);
         r->array[i]->objects[8] = mk_json_u64("size", disks[i].size);
+        r->array[i]->objects[9] = mk_json_boolean("overlay", disks[i].overlay);
     }
     return r;
 }
