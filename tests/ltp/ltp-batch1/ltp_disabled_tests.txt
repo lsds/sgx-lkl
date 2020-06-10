@@ -461,7 +461,7 @@
 /ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
 #/ltp/testcases/kernel/syscalls/link/link02
 #/ltp/testcases/kernel/syscalls/link/link03
-/ltp/testcases/kernel/syscalls/link/link04
+#/ltp/testcases/kernel/syscalls/link/link04
 #/ltp/testcases/kernel/syscalls/link/link05
 #/ltp/testcases/kernel/syscalls/link/link06
 #/ltp/testcases/kernel/syscalls/link/link07
