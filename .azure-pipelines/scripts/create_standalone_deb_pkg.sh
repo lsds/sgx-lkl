@@ -53,8 +53,6 @@ fi
 
 . $SGXLKL_ROOT/.azure-pipelines/scripts/set_version.sh
 
-patchelf_version=0.10
-
 if [[ $SGXLKL_BUILD_MODE == release ]]; then
     suffix=
 else
@@ -68,18 +66,6 @@ external_lib_dir=lib/external
 exe_name=sgx-lkl-run-oe
 exe_path=$SGXLKL_PREFIX/bin/$exe_name
 
-dlopened_libs=(
-    /usr/lib/libdcap_quoteprov.so # via Intel DCAP library
-    /lib/x86_64-linux-gnu/libnss_dns.so.2 # via libcurl (via Azure DCAP Client library)
-)
-
-# Extra files needed by libsgx libraries.
-libsgx_enclave_image_paths=(
-    /usr/lib/x86_64-linux-gnu/libsgx_pce.signed.so
-    /usr/lib/x86_64-linux-gnu/libsgx_qe3.signed.so
-    /usr/lib/x86_64-linux-gnu/libsgx_qve.signed.so
-)
-
 deb_pkg_version=${SGXLKL_VERSION}
 deb_pkg_full_name=${deb_pkg_name}_${deb_pkg_version}
 
@@ -91,60 +77,16 @@ deb_install_prefix=$deb_root_dir$install_prefix
 rm -rf $tmp_dir
 mkdir -p $tmp_dir
 
-# We build patchelf ourselves as the Ubuntu package is too old and has bugs that affect us.
-cd $tmp_dir
-git clone https://github.com/NixOS/patchelf.git || true
-cd patchelf
-git checkout $patchelf_version
-./bootstrap.sh
-./configure --prefix=$tmp_dir/patchelf/dist
-make
-make install
-export PATH=$tmp_dir/patchelf/dist/bin:$PATH
-
-mkdir -p $deb_install_prefix $deb_install_prefix/$external_lib_dir
+mkdir -p $deb_install_prefix
 
 # Copy installation prefix into Debian package tree.
 cp -r $SGXLKL_PREFIX/. $deb_install_prefix
 
-# Copy shared library dependencies into Debian package tree.
-# Note that lddtree includes the input executables / libraries as well in its output.
-# This is why 'rm' below is removing the (only) executable again.
-echo "Shared library dependencies of $exe_path ${dlopened_libs[@]}:"
-lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq
-lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq | xargs -i cp {} $deb_install_prefix/$external_lib_dir
-rm $deb_install_prefix/$external_lib_dir/$exe_name
+# Bundle all dependencies.
+SGXLKL_PREFIX=$deb_install_prefix SGXLKL_TARGET_PREFIX=$install_prefix \
+    $SGXLKL_ROOT/tools/make_self_contained.sh
 
-# Patch RPATHs of main executable and shared libraries.
-patchelf --force-rpath --set-rpath "\$ORIGIN/../$external_lib_dir" $deb_install_prefix/bin/$exe_name
-for lib_path in $deb_install_prefix/lib/external/*; do
-    patchelf --force-rpath --set-rpath "\$ORIGIN" $lib_path
-done
-
-# Patch the main executable interpreter path.
-# Note that the interpreter has to be a valid absolute path as this is read
-# directly by the kernel which does not use the rpath etc for resolution.
-interp_path=$(patchelf --print-interpreter $deb_install_prefix/bin/$exe_name)
-interp_filename=$(basename $interp_path)
-cp $interp_path $deb_install_prefix/$external_lib_dir
-interp_install_path=$install_prefix/$external_lib_dir/$interp_filename
-patchelf --set-interpreter $interp_install_path $deb_install_prefix/bin/$exe_name
-
-# Copy extra data files into Debian package tree.
-cp "${libsgx_enclave_image_paths[@]}" $deb_install_prefix/$external_lib_dir
-
-# Sanity check 1: ldd will fail if patchelf broke something badly,
-# though note that this does not check whether libraries can be resolved.
-set -x
-ldd $deb_install_prefix/bin/$exe_name
-set +x
-
-# Sanity check 2: Run --help in empty Docker container to check if libs can be resolved.
-# Note: This does not check whether the Azure DCAP Client library loads.
-tar cv --files-from /dev/null | sudo docker import - empty
-sudo docker run --rm -v $deb_install_prefix:$install_prefix empty $install_prefix/bin/$exe_name --help
-
-# Finally, build the .deb package.
+# Build the .deb package.
 mkdir $deb_root_dir/DEBIAN
 cat << EOF > $deb_root_dir/DEBIAN/control
 Package: ${deb_pkg_name}
