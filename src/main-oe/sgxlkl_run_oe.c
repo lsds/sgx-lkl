@@ -1225,6 +1225,8 @@ static void register_hd(
 
 static void register_hds(char* root_hd)
 {
+    sgxlkl_app_config_t* app_config = &host_state.enclave_config.app_config;
+
     // Count disks to register
     size_t num_disks = 1; // Root disk
     char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
@@ -1246,6 +1248,9 @@ static void register_hds(char* root_hd)
     if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
         sgxlkl_host_fail("out of memory\n");
 
+    if (app_config->num_disks == 0)
+        sgxlkl_host_fail("no root disk config");
+
     size_t idx = 0;
     // Register root disk
     register_hd(
@@ -1257,6 +1262,15 @@ static void register_hds(char* root_hd)
         sgxlkl_config_str(SGXLKL_HD_VERITY),
         sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET),
         sgxlkl_config_bool(SGXLKL_HD_OVERLAY));
+
+    // Copy root disk settings into app_config.
+    sgxlkl_enclave_disk_config_t* root_disk = &app_config->disks[0];
+    root_disk->key = host_state.disks[0].key;
+    root_disk->key_len = host_state.disks[0].key_len;
+    root_disk->roothash = host_state.disks[0].roothash;
+    root_disk->roothash_offset = host_state.disks[0].roothash_offset;
+    root_disk->readonly = host_state.disks[0].ro;
+    root_disk->overlay = host_state.disks[0].overlay;
 
     // Register secondary disks
     while (*hds_str)
