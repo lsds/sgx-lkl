@@ -57,7 +57,10 @@ ENV TMPDIR=/tmp
 # See https://github.com/microsoft/Azure-DCAP-Client.
 ENV AZDCAP_CACHE=${TMPDIR}
 
-ENTRYPOINT ["/opt/sgx-lkl/lib/external/loader", "/opt/sgx-lkl/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
+ENTRYPOINT ["/opt/sgx-lkl/lib/external/loader", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
+    "--enclave-image=/opt/sgx-lkl/lib/libsgxlkl.so.signed",\
+    "--host-config=/host-cfg.json",\
+    "--app-config=/app-cfg.json"]
 CMD ["--hw-release"]
 EOF
 
