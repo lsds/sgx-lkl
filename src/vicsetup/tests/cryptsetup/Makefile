@@ -84,14 +84,14 @@ csformat1:
 
 CSFORMAT2_OPTS += --type luks2
 CSFORMAT2_OPTS += --master-key-file KEY
-CSFORMAT1_OPTS += --key-size 512
+CSFORMAT2_OPTS += --key-size 256
 CSFORMAT2_OPTS += --pbkdf pbkdf2
 CSFORMAT2_OPTS += --hash sha256
 CSFORMAT2_OPTS += --iter-time 1
 CSFORMAT2_OPTS += --integrity "hmac-sha512"
 
 csformat2:
-	head -c 64 /dev/urandom > KEY
+	head -c 96 /dev/urandom > KEY
 	head -c 32M /dev/zero > LUKS
 	cryptsetup luksFormat $(CSFORMAT2_OPTS) LUKS
 

@@ -1,11 +1,15 @@
 include ../../../common.mk
 
+# ATTN: make kernel memory bigger to accomodate dm-integrity usage
+export SGXLKL_CMDLINE="mem=64M" # SGXLKL_HEAP=500M"
+
 CC_APP=/usr/bin/python3
 CC_APP_CONFIG=app-config.json
 
 CC_IMAGE_SIZE=128M
 
 CC_IMAGE_DATA=data.img
+
 CC_IMAGE_DATA_SIZE=3G
 CC_IMAGE_DATA_KEY_FILE=data.key
 
@@ -37,3 +41,8 @@ run-hw: $(CC_IMAGE) ${CC_IMAGE_DATA}
 
 run-sw: $(CC_IMAGE) ${CC_IMAGE_DATA}
 	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE)
+
+world:
+	rm -f data.img
+	$(MAKE) -C ../../../..
+	$(MAKE) -f Makefile run-hw

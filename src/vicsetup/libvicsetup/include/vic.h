@@ -64,6 +64,7 @@ typedef enum _vic_result
     VIC_NOT_BLOCK_MULTIPLE,
     VIC_FILE_TOO_SMALL,
     VIC_OPEN_FAILED,
+    VIC_CLOSE_FAILED,
     VIC_SEEK_FAILED,
     VIC_IOCTL_FAILED,
     VIC_BAD_SIGNATURE,
@@ -88,6 +89,12 @@ typedef struct _vic_blockdev vic_blockdev_t;
 
 typedef struct _vic_blockdev
 {
+    vic_result_t (*bd_partial_close)(
+        vic_blockdev_t* dev);
+
+    vic_result_t (*bd_reopen)(
+        vic_blockdev_t* dev);
+
     vic_result_t (*bd_set_size)(
         vic_blockdev_t* dev,
         size_t size);
@@ -205,6 +212,10 @@ vic_result_t vic_blockdev_same(
 vic_result_t vic_blockdev_close(vic_blockdev_t* dev);
 
 size_t vic_blockdev_get_size_from_path(const char* path);
+
+vic_result_t vic_blockdev_partial_close(vic_blockdev_t* dev);
+
+vic_result_t vic_blockdev_reopen(vic_blockdev_t* dev);
 
 /*
 **==============================================================================

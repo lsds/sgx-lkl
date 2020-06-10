@@ -24,6 +24,7 @@ typedef struct _blockdev
     size_t offset;
     size_t block_size;
     uint32_t flags;
+    int open_flags; /* flags passed to open() */
     int fd;
 }
 blockdev_t;
@@ -74,6 +75,36 @@ static vic_result_t _get_full_size(int fd, size_t* size_out)
 
 done:
 
+    return result;
+}
+
+static vic_result_t _bd_partial_close(vic_blockdev_t* bd_)
+{
+    vic_result_t result = VIC_OK;
+    blockdev_t* bd = (blockdev_t*)bd_;
+
+    if (!_valid_blockdev(bd))
+        RAISE(VIC_BAD_PARAMETER);
+
+    close(bd->fd);
+    bd->fd = -1;
+
+done:
+    return result;
+}
+
+static vic_result_t _bd_reopen(vic_blockdev_t* bd_)
+{
+    vic_result_t result = VIC_OK;
+    blockdev_t* bd = (blockdev_t*)bd_;
+
+    if (!_valid_blockdev(bd) || bd->fd != -1)
+        RAISE(VIC_BAD_PARAMETER);
+
+    if ((bd->fd = open(bd->path, bd->open_flags)) < 0)
+        RAISE(VIC_OPEN_FAILED);
+
+done:
     return result;
 }
 
@@ -408,7 +439,10 @@ vic_result_t vic_blockdev_open(
     bd->size = bd->full_size;
     bd->block_size = block_size;
     bd->flags = flags;
+    bd->open_flags = open_flags;
 
+    bd->base.bd_partial_close = _bd_partial_close;
+    bd->base.bd_reopen = _bd_reopen;
     bd->base.bd_set_size = _bd_set_size;
     bd->base.bd_set_offset = _bd_set_offset;
     bd->base.bd_get_offset = _bd_get_offset;
@@ -442,7 +476,7 @@ vic_result_t vic_blockdev_get_path(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_get_path(bd, path));
 
@@ -457,7 +491,7 @@ vic_result_t vic_blockdev_get_block_size(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_get_block_size(bd, block_size));
 
@@ -472,7 +506,7 @@ vic_result_t vic_blockdev_set_block_size(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_set_block_size(bd, block_size));
 
@@ -487,7 +521,7 @@ vic_result_t vic_blockdev_get_size(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_get_size(bd, size));
 
@@ -502,7 +536,7 @@ vic_result_t vic_blockdev_get_num_blocks(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_get_num_blocks(bd, num_blocks));
 
@@ -519,7 +553,7 @@ vic_result_t vic_blockdev_get(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_get(bd, blkno, blocks, nblocks));
 
@@ -536,7 +570,7 @@ vic_result_t vic_blockdev_put(
     vic_result_t result = VIC_OK;
 
     if (!bd)
-        RAISE(result);
+        RAISE(VIC_BAD_PARAMETER);
 
     CHECK(bd->bd_put(bd, blkno, blocks, nblocks));
 
@@ -646,4 +680,30 @@ done:
         close(fd);
 
     return ret;
+}
+
+vic_result_t vic_blockdev_partial_close(vic_blockdev_t* bd)
+{
+    vic_result_t result = VIC_OK;
+
+    if (!bd || !bd->bd_partial_close)
+        RAISE(VIC_BAD_PARAMETER);
+
+    CHECK(bd->bd_partial_close(bd));
+
+done:
+    return result;
+}
+
+vic_result_t vic_blockdev_reopen(vic_blockdev_t* bd)
+{
+    vic_result_t result = VIC_OK;
+
+    if (!bd || !bd->bd_reopen)
+        RAISE(VIC_BAD_PARAMETER);
+
+    CHECK(bd->bd_reopen(bd));
+
+done:
+    return result;
 }

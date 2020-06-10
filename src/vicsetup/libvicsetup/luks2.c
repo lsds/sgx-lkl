@@ -3062,9 +3062,15 @@ static vic_result_t _format_integrity_device(
     /* Get the payload offset in sectors */
     offset = ext->segments[0].offset / VIC_SECTOR_SIZE;
 
+    /* Close just the file descriptor */
+    vic_blockdev_partial_close(dev);
+
     /* Let dm-integrity format the integrity device */
     CHECK(vic_dm_create_integrity(
         name, path, start, size, offset, mode, _get_integrity_type(ext)));
+
+    /* Reopen the file (affecting only the file descriptor) */
+    vic_blockdev_reopen(dev);
 
     /* Remove the integrity device from the device mapper */
     CHECK(vic_dm_remove(name));
@@ -3085,6 +3091,8 @@ static vic_result_t _open_integrity_device(
     size_t offset;
     vic_integrity_sb_t sb;
 
+    CHECK(vic_blockdev_get_path(dev, path));
+
     /* Read the super block */
     CHECK(vic_integrity_read_sb(dev, ext->segments[0].offset, &sb));
 
@@ -3094,8 +3102,6 @@ static vic_result_t _open_integrity_device(
 
     /* Set the device size */
     size = sb.provided_data_sectors;
-
-    CHECK(vic_blockdev_get_path(dev, path));
 
     /* Get the payload offset in sectors */
     offset = ext->segments[0].offset / VIC_SECTOR_SIZE;
@@ -3394,7 +3400,6 @@ vic_result_t luks2_format(
         snprintf(dmpath, sizeof(dmpath), "/dev/mapper/%s", name);
 
         CHECK(_wipe_device(dmpath));
-        (void)_wipe_device;
 
         CHECK(vic_dm_remove(name));
         CHECK(vic_dm_remove(name_dif));

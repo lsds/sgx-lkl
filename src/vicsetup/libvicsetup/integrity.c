@@ -3,6 +3,7 @@
 
 #include "integrity.h"
 #include "raise.h"
+#include "hexdump.h"
 
 // Layout: SB | JOURNAL | [ DATA | TAGS ]*
 //
@@ -36,7 +37,7 @@ vic_result_t vic_integrity_read_sb(
     memcpy(sb, &blk, sizeof(vic_integrity_sb_t));
 
     if (memcmp(sb->magic, _magic, sizeof(sb->magic)) != 0)
-        RAISE(VIC_NOT_FOUND);
+        RAISE(VIC_BAD_SIGNATURE);
 
 done:
     return result;

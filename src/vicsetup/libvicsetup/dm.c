@@ -19,7 +19,7 @@
 
 #define DM_UUID_LEN 129
 
-// #define TRACE_TARGET
+#define TRACE_TARGET
 // #define USE_UDEV
 
 static vic_result_t _format_dev_uuid(
@@ -235,6 +235,10 @@ vic_result_t vic_dm_create_integrity(
     struct dm_task* dmt = NULL;
     char* hexkey = NULL;
     char dev[PATH_MAX];
+#ifdef USE_UDEV
+    int sync;
+    uint32_t cookie = 0;
+#endif
 
     /* Reject invalid parameters */
     if (!name || !path)
@@ -301,6 +305,17 @@ vic_result_t vic_dm_create_integrity(
     if (!dm_task_add_target(dmt, start, size, "integrity", params))
         RAISE(VIC_FAILED);
 
+#ifdef USE_UDEV
+    /* Determine whether sync support is available */
+    if ((sync = dm_udev_get_sync_support()))
+    {
+        uint16_t udev_flags = 0;
+        // udev_flags += DM_UDEV_DISABLE_LIBRARY_FALLBACK;
+        // udev_flags += DM_UDEV_DISABLE_SUBSYSTEM_RULES_FLAG;
+        dm_task_set_cookie(dmt, &cookie, udev_flags);
+    }
+#endif
+
     /* Run the task to create the new target type */
     if (!dm_task_run(dmt))
         RAISE(VIC_FAILED);
@@ -312,6 +327,11 @@ vic_result_t vic_dm_create_integrity(
         if (!dm_task_get_info(dmt, &dmi) || !dmi.exists)
             RAISE(VIC_FAILED);
     }
+
+#ifdef USE_UDEV
+    if (sync)
+        dm_udev_wait(cookie);
+#endif
 
 done:
 
@@ -469,6 +489,10 @@ vic_result_t vic_dm_remove(const char* name)
     vic_result_t result = VIC_OK;
     struct dm_task* dmt = NULL;
     const size_t max_retries = 10;
+#ifdef USE_UDEV
+    int sync;
+    uint32_t cookie = 0;
+#endif
 
     if (!name)
         RAISE(VIC_BAD_PARAMETER);
@@ -478,6 +502,16 @@ vic_result_t vic_dm_remove(const char* name)
 
     if (!dm_task_set_name(dmt, name))
         RAISE(VIC_FAILED);
+
+#ifdef USE_UDEV
+    /* Determine whether sync support is available */
+    if ((sync = dm_udev_get_sync_support()))
+    {
+        uint16_t udev_flags = 0;
+        udev_flags += DM_UDEV_DISABLE_LIBRARY_FALLBACK;
+        dm_task_set_cookie(dmt, &cookie, udev_flags);
+    }
+#endif
 
     /* Wait until the device is not busy (wait 1 second at most) */
     for (size_t i = 0; i < max_retries; i++)
@@ -494,6 +528,10 @@ vic_result_t vic_dm_remove(const char* name)
             break;
         }
     }
+#ifdef USE_UDEV
+    if (sync)
+        dm_udev_wait(cookie);
+#endif
 
 done:
 

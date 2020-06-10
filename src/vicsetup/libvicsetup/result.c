@@ -100,6 +100,8 @@ const char* vic_result_string(vic_result_t result)
             return "VIC_FILE_TOO_SMALL";
         case VIC_OPEN_FAILED:
             return "VIC_OPEN_FAILED";
+        case VIC_CLOSE_FAILED:
+            return "VIC_CLOSE_FAILED";
         case VIC_SEEK_FAILED:
             return "VIC_SEEK_FAILED";
         case VIC_IOCTL_FAILED:

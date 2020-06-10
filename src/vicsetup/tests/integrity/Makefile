@@ -4,12 +4,14 @@ include ../../defs.mak
 
 export PATH+=:$(TOP)/vicsetup
 
+DISK_SIZE=32M
+
 all:
 
 tests: dirs
-	$(MAKE) KEYSIZE=128 INTEGRITY="hmac(sha512)" integrity
-	$(MAKE) KEYSIZE=96 INTEGRITY="hmac(sha256)" integrity
 	$(MAKE) KEYSIZE=64 INTEGRITY="hmac(sha256)" integrity
+	$(MAKE) KEYSIZE=96 INTEGRITY="hmac(sha256)" integrity
+	$(MAKE) KEYSIZE=128 INTEGRITY="hmac(sha512)" integrity
 
 UUID=90faa067-e33f-464a-98ab-86a5fd5e56e4
 INTEGRITY_OPTS += --luks2
@@ -19,7 +21,7 @@ INTEGRITY_OPTS += --keyfile keyfile
 
 integrity:
 	head -c $(KEYSIZE) /dev/urandom > keyfile
-	head -c 32M /dev/zero > integrity
+	head -c $(DISK_SIZE) /dev/zero > integrity
 	vicsetup luksFormat $(INTEGRITY_OPTS) integrity pass
 	vicsetup luksOpen integrity pass integrity
 	$(eval TMP1 := $(shell /bin/mktemp))

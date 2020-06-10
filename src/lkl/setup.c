@@ -409,11 +409,9 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
     int err;
-#if 0
-    static const size_t SECTOR_SIZE = 4096;
-#else
+    /* ATTN: vicsetup only supports 512 bytes sectors */
     static const size_t SECTOR_SIZE = 512;
-#endif
+    static const size_t MIN_LUKS2_ITERATIONS = 1000;
 
     char* disk_path = lkl_cd->disk_path;
 
@@ -424,48 +422,20 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     // As we generate our own key and don't use a simple "password" we use
     // the minimal kdf settings possible.
-    struct crypt_pbkdf_type pbkdf = {
+    struct crypt_pbkdf_type pbkdf =
+    {
         .type = "pbkdf2",
         .hash = "sha256",
-        .iterations = 1000, // Minimum iterations that will be accepted.
-        .time_ms = 1,
-        .flags = CRYPT_PBKDF_NO_BENCHMARK};
-
-    struct crypt_params_luks2 params = {
-        .sector_size = SECTOR_SIZE, .pbkdf = &pbkdf,
-        // Temporarily disabled, see comment below.
-        //.integrity = "hmac(sha512)"
+        .iterations = MIN_LUKS2_ITERATIONS,
     };
-    // TODO uncomment/change integrity_key_size after moving to FLUKS
-    // This reflects the integrity string defined above ("hmac(sha512)").
-    // size_t integrity_key_size = 512 / 8;
+    struct crypt_params_luks2 params =
+    {
+        .sector_size = SECTOR_SIZE,
+        .pbkdf = &pbkdf,
+        .integrity = "hmac(sha256)"
+    };
 
-    // FIXME adding integrity_key_size to the volume_key_size leads to "Bad
-    // address" in crypt_hash_write()
-    //  Output:
-    //   # Setting PBKDF2 type key digest 0.
-    //   [LKL SYSCALL ] [tid=58 ] writev 66      (1, 140491604915536, 2, 0, 0,
-    //   0) = 36 [LKL SYSCALL ] [tid=58 ] read   63      (7, 140491604917056,
-    //   32, 0, 0, 0) = 32 [LKL SYSCALL ] [tid=58 ] socket 198     (38, 5, 0, 0,
-    //   0, 0) = 9 [LKL SYSCALL ] [tid=58 ] bind   200     (9, 140491604916048,
-    //   88, 0, 0, 0) = 0 [LKL SYSCALL ] [tid=58 ] accept 202     (9, 0, 0, 0,
-    //   0, 0) = 10 [LKL SYSCALL ] [tid=58 ] sendto 206     (10,
-    //   140491566209008, 96, 32768, 0, 0) = -14 (Bad address) <--- ! [LKL
-    //   SYSCALL ] [tid=58 ] close  57      (9, 0, 0, 0, 0, 0) = 0 [LKL SYSCALL
-    //   ] [tid=58 ] close  57      (10, 0, 0, 0, 0, 0) = 0 [   SGX-LKL  ] Fail:
-    //   crypt_format(): Invalid argument (-22)
-    //
-    // Not making the key larger but still enabling integrity avoids the above
-    // error but then leads to error during disk activation:
-    //   [    0.521978] device-mapper: table: 253:1: crypt: Error decoding and
-    //   setting key"
-    //
-    // For now, we keep integrity disabled and re-enable it again after the move
-    // to FLUKS, assuming the issue does not appear there.
-    // size_t volume_key_size = 256 / 8 + integrity_key_size;
-
-    size_t volume_key_size = 256 / 8;
-
+    size_t volume_key_size = 96;
     const char* cipher = "aes";
     const char* cipher_mode = "xts-plain64";
 
@@ -598,7 +568,7 @@ static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
      *
      * ATTN: the crypto API works over user memory. Revisit this assumption.
      */
-    const int stack_size = 32 * 1024;
+    const int stack_size = 64 * 1024;
 
     void* addr = lkl_sys_mmap(
         NULL,
