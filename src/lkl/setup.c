@@ -1343,7 +1343,6 @@ void lkl_start_init()
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
-    lkl_dev_blk_ops = sgxlkl_dev_blk_mem_ops;
 
     // TODO Make tracing options configurable via SGX-LKL config file.
 

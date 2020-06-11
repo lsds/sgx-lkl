@@ -82,58 +82,37 @@ sgx-lkl-setup
 B. Building SGX-LKL-OE from source
 ----------------------------------
 
-SGX-LKL has been tested on Ubuntu Linux 18.04.
-
-### 1. Install the SGX-LKL branch of the Open Enclave SDK 
-
-To run SGX-LKL in SGX enclaves, it relies on an installation of the *Open Enclave 
-SDK* (https://openenclave.io/sdk/). The current version of SGX-LKL-OE requires a
-modified version of the Open Enclave SDK, which can be found here: 
-https://github.com/openenclave/openenclave (branch: feature/sgx-lkl-support).
-
-1. Clone the `feature.sgx-lkl` branch of the Open Enclave SDK:
-```
-git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl
-```
-
-2. Install the Open Enclave build requirements:
-```
-cd openenclave-sgxlkl
-sudo scripts/ansible/install-ansible.sh
-sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
-```
-
-3. Build the Open Enclave SDK:
-```
-mkdir build
-cd build
-cmake -G "Unix Makefiles" -DCOMPILE_SYSTEM_EDL=ON ..
-make
-sudo make install
-```
-
-4. Source the Open Enclave SDK configuration script:
-```
-source /opt/openenclave/share/openenclave/openenclaverc
-```
-
-### 2. Building SGX-LKL as part of the source tree
+SGX-LKL has been tested on Ubuntu Linux 18.04 and with a gcc compiler
+version of 7.4 or above. Older compiler versions may lead to compilation
+and/or linking errors.
 
 1. Install the SGX-LKL build dependencies:
 ```
 sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev
 ```
 
-Compilation has been tested with versions 7.4 of gcc. Older compiler versions
-may lead to compilation and/or linking errors.
-
 2. Clone the SGX-LKL git repository:
 ```
-git clone --branch oe_port git@github.com:lsds/sgx-lkl.git sgx-lkl
+git clone --branch oe_port git@github.com:lsds/sgx-lkl.git
 cd sgx-lkl
 ```
 
-3. Build SGX-LKL in the source tree:
+3. Install the Open Enclave build dependencies:
+```
+cd openenclave
+sudo scripts/ansible/install-ansible.sh
+sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
+```
+
+Note that the above also installs the Intel SGX driver on the host.
+
+If running on an Azure Confidential Computing (ACC) VM, which offers SGX support,
+the last line above should be replaced by:
+```
+sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
+```
+
+4. Build SGX-LKL in the source tree:
 
 #### DEBUG build (with debug functionality, no compiler optimisations)
 
@@ -165,9 +144,8 @@ To build SGX-LKL in release mode, run:
     make RELEASE=true
 ```
 
-4. To install SGX-LKL on the host system, use the following command:
+5. To install SGX-LKL on the host system, use the following command:
 ```
-source /opt/openenclave/share/openenclave/openenclaverc
 sudo -E make install
 ```
 
@@ -185,13 +163,13 @@ sudo make uninstall
 This removes SGX-LKL specific artefacts from the installation directory as
 well as cached artefacts of `sgx-lkl-disk` (stored in `~/.cache/sgxlkl`).
 
-5. To make the SGX-LKL commands available from any directory, add an entry to 
+6. To make the SGX-LKL commands available from any directory, add an entry to 
 the `PATH` environment variable:
 ```
 PATH="$PATH:/opt/sgx-lkl/bin"
 ```
 
-6. Finally, setup the host environment by running:
+7. Finally, setup the host environment by running:
 ```
 sgx-lkl-setup
 ```
