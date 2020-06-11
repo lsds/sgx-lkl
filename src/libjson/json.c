@@ -607,6 +607,22 @@ static void _trace_result(
     }
 }
 
+static void* _malloc(json_parser_t* parser, size_t size)
+{
+    if (!parser || !parser->allocator || !parser->allocator->ja_malloc)
+        return NULL;
+
+    return (*parser->allocator->ja_malloc)(size);
+}
+
+static void _free(json_parser_t* parser, void* ptr)
+{
+    if (!parser || !parser->allocator || !parser->allocator->ja_free || !ptr)
+        return;
+
+    return (*parser->allocator->ja_free)(ptr);
+}
+
 static size_t _split(
     char* s,
     const char sep,
@@ -855,7 +871,9 @@ static int _expect(json_parser_t* parser, const char* str, size_t len)
 
 static json_result_t _get_value(json_parser_t* parser);
 
-static json_result_t _get_array(json_parser_t* parser, size_t* array_size)
+static json_result_t _get_array(
+    json_parser_t* parser,
+    size_t* array_size)
 {
     json_result_t result = JSON_OK;
     char c;
@@ -1041,6 +1059,7 @@ static json_result_t _get_value(json_parser_t* parser)
 {
     json_result_t result = JSON_OK;
     char c;
+    json_parser_t* scanner = NULL;
 
     /* Skip whitespace */
     while (parser->ptr != parser->end && _isspace(*parser->ptr))
@@ -1115,11 +1134,17 @@ static json_result_t _get_value(json_parser_t* parser)
             {
                 size_t array_size = 0;
 
-                json_parser_t scanner = *parser;
-                scanner.scan = 1;
+                if (!(scanner = _malloc(parser, sizeof(json_parser_t))))
+                    RAISE(JSON_OUT_OF_MEMORY);
 
-                if (_get_array(&scanner, &array_size) != JSON_OK)
+                _memcpy(scanner, parser, sizeof(json_parser_t));
+                scanner->scan = 1;
+
+                if (_get_array(scanner, &array_size) != JSON_OK)
                     RAISE(JSON_BAD_SYNTAX);
+
+                _free(parser, scanner);
+                scanner = NULL;
 
                 un.integer = (signed long long)array_size;
 
@@ -1173,6 +1198,10 @@ static json_result_t _get_value(json_parser_t* parser)
     }
 
 done:
+
+    if (scanner)
+        _free(parser, scanner);
+
     return result;
 }
 
@@ -1196,6 +1225,7 @@ json_result_t json_parser_init(
     parser->end = data + size;
     parser->callback = callback;
     parser->callback_data = callback_data;
+    parser->allocator = allocator;
 
     return JSON_OK;
 }
@@ -1252,7 +1282,7 @@ json_result_t json_match(json_parser_t* parser, const char* pattern)
 
         if (pattern_len < sizeof(buf))
             ptr = buf;
-        else if (!(ptr = parser->allocator->ja_malloc(pattern_len + 1)))
+        else if (!(ptr = _malloc(parser, pattern_len + 1)))
             RAISE(JSON_OUT_OF_MEMORY);
 
         _strlcpy(ptr, pattern, pattern_len + 1);
@@ -1292,7 +1322,7 @@ json_result_t json_match(json_parser_t* parser, const char* pattern)
 done:
 
     if (ptr && ptr != buf)
-        parser->allocator->ja_free(ptr);
+        _free(parser, ptr);
 
     return result;
 }

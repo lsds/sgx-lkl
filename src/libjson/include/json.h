@@ -34,7 +34,7 @@ typedef unsigned long size_t;
 typedef unsigned long uint64_t;
 typedef long int64_t;
 
-#define JSON_MAX_NESTING 256
+#define JSON_MAX_NESTING 64
 
 typedef enum _json_result
 {
