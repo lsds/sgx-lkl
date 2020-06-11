@@ -24,6 +24,9 @@ extraction:
     configure:
       command:
       - echo "no configure step"
+      # Work around https://github.com/openenclave/openenclave/issues/3127
+      # by linking against a dummy library instead (libm).
+      - sed -i 's/NAMES sgx_enclave_common/NAMES sgx_enclave_common m/g' openenclave/host/CMakeLists.txt
 
     index:
       build_command:
