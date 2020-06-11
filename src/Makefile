@@ -12,9 +12,11 @@ RANLIB  = $(CROSS_COMPILE)ranlib
 
 # TODO remove -Wno-error flags
 CFLAGS_MAIN = -I$(OE_SDK_INCLUDES) -Wall -Werror -Wno-error=incompatible-pointer-types -Wno-error=pointer-to-int-cast -Wno-error=strict-aliasing
+CFLAGS_MAIN += -DOE_WITH_EXPERIMENTAL_EEID
 # TODO add -nostdinc after relayering work complete
 #      cannot use -nostdinc currently as stdatomic.h is included which is missing
 CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE -DSGXLKL_ENCLAVE
+CFLAGS_ENCLAVE += -DOE_WITH_EXPERIMENTAL_EEID
 LINK_MAIN =
 
 SGXLKL_VERSION = "$(shell cat ${SGXLKL_ROOT}/VERSION)"
