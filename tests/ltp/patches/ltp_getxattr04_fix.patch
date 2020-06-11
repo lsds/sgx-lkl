@@ -1,32 +1,28 @@
-+ // Patch Description: Tests were failing with kernel panic in loop filesystem. 
-+ // So modified the tests to use root file system.
++ Patch Description: Tests were failing with kernel panic in loop filesystem. 
++ So modified the tests to use root file system.
 diff --git a/testcases/kernel/syscalls/getxattr/getxattr04.c b/testcases/kernel/syscalls/getxattr/getxattr04.c
-index ad83e3ec6..878042970 100644
+index ad83e3ec6..af751b40d 100644
 --- a/testcases/kernel/syscalls/getxattr/getxattr04.c
 +++ b/testcases/kernel/syscalls/getxattr/getxattr04.c
-@@ -52,7 +52,7 @@ static void loop_getxattr(void)
+@@ -52,7 +52,6 @@ static void loop_getxattr(void)
  {
         int res;
 
 -       while (!end) {
-+//     while (!end) {
                 res = getxattr(TEST_FILE, TRUSTED_SMALL, NULL, 0);
                 if (res == -1) {
                         if (errno == ENODATA) {
-@@ -65,9 +65,10 @@ static void loop_getxattr(void)
+@@ -65,8 +64,8 @@ static void loop_getxattr(void)
 
                         exit(0);
                 }
 -       }
--
-+//     }
+
 +       SAFE_REMOVEXATTR(TEST_FILE, TRUSTED_SMALL);
         tst_res(TPASS, "getxattr() succeeded to get an existing attribute");
-+
         exit(0);
  }
-
-@@ -88,13 +89,17 @@ static void verify_getxattr(void)
+@@ -88,13 +87,17 @@ static void verify_getxattr(void)
                 SAFE_REMOVEXATTR(TEST_FILE, TRUSTED_BIG);
         }
 
@@ -47,7 +43,7 @@ index ad83e3ec6..878042970 100644
 
         SAFE_TOUCH(TEST_FILE, 0644, NULL);
 
-@@ -108,10 +113,6 @@ static void setup(void)
+@@ -108,10 +111,6 @@ static void setup(void)
  static struct tst_test test = {
         .needs_tmpdir = 1,
         .needs_root = 1,
