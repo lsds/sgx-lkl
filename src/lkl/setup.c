@@ -1495,15 +1495,14 @@ void lkl_start_init()
     size_t num_disks = app_config->num_disks;
     for (i = 0; i < num_disks; ++i)
     {
-        const sgxlkl_enclave_disk_config_t* disk_i = &app_config->disks[i];
         SGXLKL_VERBOSE(
             "Disk %zu: Disk encryption: %s\n",
             i,
-            (is_encrypted(disk_i) ? "ON" : "off"));
+            (is_encrypted(&app_config->disks[i]) ? "ON" : "off"));
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
             i,
-            (!disk_i->readonly ? "YES" : "no"));
+            (!app_config->disks[i].readonly ? "YES" : "no"));
     }
 
     /* Setup bounce buffer for virtio */
