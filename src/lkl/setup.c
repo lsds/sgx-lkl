@@ -360,8 +360,8 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_load(): %s (%d)\n", strerror(-err), err);
     }
 
-    char* key_outside = lkl_cd->disk_config->key;
-    lkl_cd->disk_config->key = (char*)lkl_sys_mmap(
+    uint8_t* key_outside = lkl_cd->disk_config->key;
+    lkl_cd->disk_config->key = (uint8_t*)lkl_sys_mmap(
         NULL,
         lkl_cd->disk_config->key_len,
         PROT_READ | PROT_WRITE,
@@ -381,7 +381,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         cd,
         lkl_cd->crypt_name,
         CRYPT_ANY_SLOT,
-        lkl_cd->disk_config->key,
+        (char*)lkl_cd->disk_config->key,
         lkl_cd->disk_config->key_len,
         lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
     if (err == -1)
@@ -490,8 +490,8 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_format(): %s (%d)\n", strerror(-err), err);
 
     // Key must be copied from userspace memory to LKL visible memory.
-    char* key_outside = lkl_cd->disk_config->key;
-    char* key_kernel = (char*)lkl_sys_mmap(
+    uint8_t* key_outside = lkl_cd->disk_config->key;
+    uint8_t* key_kernel = (uint8_t*)lkl_sys_mmap(
         NULL,
         lkl_cd->disk_config->key_len,
         PROT_READ | PROT_WRITE,
@@ -510,7 +510,7 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         CRYPT_ANY_SLOT,
         NULL,
         0,
-        key_kernel,
+        (char*)key_kernel,
         lkl_cd->disk_config->key_len,
         0);
     if (err != 0)
@@ -565,7 +565,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_load(): %s (%d)\n", strerror(err), err);
     }
 
-    char* volume_hash_bytes = NULL;
+    uint8_t* volume_hash_bytes = NULL;
     ssize_t hash_size = crypt_get_volume_key_size(cd);
     if (hex_to_bytes(lkl_cd->disk_config->roothash, &volume_hash_bytes) !=
         hash_size)
@@ -576,7 +576,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
     err = crypt_activate_by_volume_key(
         cd,
         lkl_cd->crypt_name,
-        volume_hash_bytes,
+        (char*)volume_hash_bytes,
         32,
         lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
     if (err != 0)
@@ -1362,7 +1362,6 @@ bool is_lkl_terminating()
 
 static void init_enclave_clock()
 {
-    struct timespec ts;
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
 
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");

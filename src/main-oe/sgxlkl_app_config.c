@@ -128,7 +128,6 @@ static int parse_host_import_envp(
     config->host_import_envp = malloc(sizeof(char*) * (len + 1));
     config->host_import_envp[len] = NULL;
 
-    int i = 0;
     for (size_t i = 0; i < len; i++)
     {
         json_object* val = json_object_array_get_idx(env_val, i);

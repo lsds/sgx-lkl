@@ -105,10 +105,11 @@ static json_obj_t* mk_json_objects(const char* key, size_t len)
 
 static json_obj_t* mk_json_int(const char* key, uint64_t value, const char* fmt)
 {
-    char* tmp = calloc(1, 8 * 2 + 1);
+    size_t len = 8 * 2 + 1;
+    char* tmp = calloc(1, len);
     if (!tmp)
         FAIL("out of memory\n");
-    snprintf(tmp, sizeof(tmp), fmt, value);
+    snprintf(tmp, len, fmt, value);
     return mk_json_string(key, tmp);
 }
 
@@ -214,8 +215,7 @@ static json_obj_t* mk_json_wg_peers(
     {
         mk_json_objects(key, 4);
         r->objects[i] = mk_json_objects(NULL, 3);
-        r->objects[i]->objects[0] =
-            mk_json_hex_string("key", peers[i].key, sizeof(wg_key));
+        r->objects[i]->objects[0] = mk_json_string("key", peers[i].key);
         r->objects[i]->objects[1] =
             mk_json_string("allowed_ips", peers[i].allowed_ips);
         r->objects[i]->objects[2] =
@@ -235,7 +235,7 @@ static json_obj_t* mk_json_wg(
     json_obj_t* r = mk_json_objects(key, 4);
     r->objects[0] = mk_json_string("ip", wg->ip);
     r->objects[1] = mk_json_u16("listen_port", wg->listen_port);
-    r->objects[2] = mk_json_hex_string("key", wg->key, sizeof(wg_key));
+    r->objects[2] = mk_json_string("key", wg->key);
     r->objects[3] = mk_json_wg_peers("peers", wg->peers, wg->num_peers);
 
     return r;
@@ -467,7 +467,7 @@ static void sort_json(json_obj_t* obj)
             }
         }
     }
-    else if (is_json_array)
+    else if (is_json_array(obj))
     {
         for (size_t i = 0; i < obj->size; i++)
             sort_json(obj->array[i]);

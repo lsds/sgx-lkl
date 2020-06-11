@@ -188,7 +188,6 @@ void* blkdevice_thread(void* arg)
         if (vio_host_check_guest_shutdown_evt())
             continue;
 
-        sgxlkl_host_disk_state_t* disk = get_disk_config(cfg->dev_id);
         struct virtio_dev* dev =
             host_state.shared_memory.virtio_blk_dev_mem[cfg->dev_id];
         virtio_process_queue(dev, 0);

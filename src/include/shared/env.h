@@ -13,7 +13,7 @@ int getenv_bool(const char* var, int def);
 
 uint64_t next_pow2(uint64_t x);
 
-ssize_t hex_to_bytes(const char* hex, char** result);
+ssize_t hex_to_bytes(const char* hex, uint8_t** result);
 
 char* bytes_to_hex(
     char* str,

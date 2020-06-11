@@ -18,7 +18,7 @@ extern struct mpmcq __scheduler_queue;
 _Noreturn void __dls3(elf64_stack_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
-static int find_and_mount_disks()
+static void find_and_mount_disks()
 {
     const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
     const sgxlkl_app_config_t* app_config = &config->app_config;
@@ -130,6 +130,7 @@ static int startmain(void* args)
 
     init_wireguard();
     find_and_mount_disks();
+    test_attestation(); /* Exercises AZ DCAP client for testing */
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */

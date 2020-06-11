@@ -54,7 +54,7 @@ void size_uint64_to_str(uint64_t size, char* buf, uint64_t len)
 
 uint64_t getenv_uint64(const char* var, uint64_t def, uint64_t max)
 {
-    char *val;
+    char* val;
     if (!(val = getenv(var)))
         return def;
 
@@ -89,9 +89,10 @@ uint64_t next_pow2(uint64_t x)
     return n;
 }
 
-ssize_t hex_to_bytes(const char* hex, char** result)
+ssize_t hex_to_bytes(const char* hex, uint8_t** result)
 {
-    char buf[3] = "xx\0", *endp, *bytes;
+    char buf[3] = "xx\0", *endp;
+    uint8_t* bytes;
     size_t i, len;
     int odd = 0;
 

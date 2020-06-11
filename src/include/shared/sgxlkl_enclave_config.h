@@ -34,7 +34,7 @@ typedef enum exit_status_mode
 typedef struct sgxlkl_enclave_disk_config
 {
     char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1];
-    char* key;
+    uint8_t* key; /* binary */
     char* key_id;
     size_t key_len;
     bool fresh_key;

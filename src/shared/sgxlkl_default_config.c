@@ -27,7 +27,7 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .espins = DEFAULT_SGXLKL_ESPINS,
     .esleep = DEFAULT_SGXLKL_ESLEEP,
     .ethreads = DEFAULT_SGXLKL_ETHREADS,
-    .clock_res = {0, 0, 0, 0, 0, 0, 0, 0},
+    .clock_res = {{0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}},
 
     /* Various */
     .stacksize = DEFAULT_SGXLKL_STACK_SIZE,

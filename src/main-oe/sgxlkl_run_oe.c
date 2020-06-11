@@ -703,7 +703,7 @@ static void get_disk_encryption_config(
             }
             rewind(kf);
 
-            disk->key = (char*)malloc((disk->key_len));
+            disk->key = (uint8_t*)malloc((disk->key_len));
             if (!fread(disk->key, disk->key_len, 1, kf))
                 sgxlkl_host_fail(
                     "Failed to read keyfile %s.\n", keyfile_or_passphrase);
@@ -713,7 +713,7 @@ static void get_disk_encryption_config(
         else
         {
             disk->key_len = strlen(keyfile_or_passphrase);
-            disk->key = (char*)malloc(disk->key_len);
+            disk->key = (uint8_t*)malloc(disk->key_len);
             memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
         }
     }
@@ -1240,6 +1240,9 @@ static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
                 strerror(errno));
         }
     }
+
+    if (is_disk_encrypted(fd))
+        sgxlkl_host_verbose("Disk is encrypted.\n");
 
     char* disk_mmap = mmap(
         NULL,

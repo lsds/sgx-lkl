@@ -49,29 +49,6 @@ static int strdupz(char** to, const char* from)
     return 0;
 }
 
-static int strndupz(char** to, const char* from, size_t n)
-{
-    if (!to)
-        return 1;
-    else if (!from)
-    {
-        *to = NULL;
-        return 0;
-    }
-    else
-    {
-        *to = malloc(n + 1);
-        if (!*to)
-        {
-            *to = NULL;
-            return 1;
-        }
-        else
-            memcpy(*to, from, n + 1);
-    }
-    return 0;
-}
-
 typedef struct json_callback_data
 {
     sgxlkl_enclave_config_t* config;
@@ -100,13 +77,6 @@ static char* make_path(json_parser_t* parser)
     char* r = NULL;
     strdupz(&r, tmp);
     return r;
-}
-
-static void show_path(json_parser_t* parser)
-{
-    char* tmp = make_path(parser);
-    INFO("json path: %s\n", tmp);
-    free(tmp);
 }
 
 #define SEEN(X) data->seen = string_list_add(data->seen, make_path(parser));
@@ -248,8 +218,6 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
     }
 
 JINTDECLU(uint64_t, tmp <= UINT64_MAX);
-JINTDECLS(int64_t, INT64_MIN <= tmp && tmp <= INT64_MAX);
-JINTDECLU(uint32_t, tmp <= UINT32_MAX);
 JINTDECLS(int32_t, INT32_MIN <= tmp && tmp <= INT32_MAX);
 JINTDECLU(uint16_t, tmp <= UINT16_MAX);
 
@@ -275,12 +243,6 @@ JINTDECLU(uint16_t, tmp <= UINT16_MAX);
 
 #define JU64(P, D)                                                          \
     if (decode_uint64_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
-        return JSON_OK;
-#define JS64(P, D)                                                         \
-    if (decode_int64_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
-        return JSON_OK;
-#define JU32(P, D)                                                          \
-    if (decode_uint32_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
         return JSON_OK;
 #define JS32(P, D)                                                         \
     if (decode_int32_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
@@ -382,8 +344,6 @@ static json_result_t json_read_app_config_callback(
             break;
         case JSON_REASON_VALUE:
         {
-            // show_path(parser);
-
             if (MATCH("app_config") && type == JSON_TYPE_NULL)
             {
                 memset(data->app_config, 0, sizeof(sgxlkl_app_config_t));
@@ -484,7 +444,6 @@ static json_result_t json_read_app_config_callback(
 
     result = JSON_OK;
 
-done:
     return result;
 }
 
@@ -560,8 +519,6 @@ static json_result_t json_read_callback(
             break;
         case JSON_REASON_VALUE:
         {
-            // show_path(parser);
-
             char* cur_path = make_path(parser);
             if (last_path)
             {
@@ -675,7 +632,6 @@ static json_result_t json_read_callback(
 
     result = JSON_OK;
 
-done:
     return result;
 }
 
