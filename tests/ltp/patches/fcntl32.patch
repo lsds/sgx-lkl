@@ -42,8 +42,8 @@ index f567acc70..2d9b574cc 100644
 -		break;
 -	}
 +	rmdir(MNTPOINT);
-+	SAFE_MKDIR(cleanup,MNTPOINT, DIR_MODE);
-+	SAFE_MOUNT(cleanup,device, MNTPOINT, fs_type, 0, NULL);
++	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, NULL);
  
 -	SAFE_TOUCH(cleanup, "file", FILE_MODE, NULL);
 +	SAFE_TOUCH(cleanup, FILENAME, FILE_MODE, NULL);
@@ -63,8 +63,8 @@ index f567acc70..2d9b574cc 100644
  	if (fd2 > 0 && close(fd2))
  		tst_resm(TWARN | TERRNO, "Failed to close file");
 +	remove(FILENAME);
-+	SAFE_UMOUNT(NULL,MNTPOINT);
-+	SAFE_RMDIR(NULL,MNTPOINT);
++	SAFE_UMOUNT(NULL, MNTPOINT);
++	SAFE_RMDIR(NULL, MNTPOINT);
  
 -	tst_rmdir();
  }

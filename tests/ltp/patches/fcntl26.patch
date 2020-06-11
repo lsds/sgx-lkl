@@ -46,8 +46,8 @@ index ac74b5571..be3472cfa 100644
  
  	tst_sig(NOFORK, DEF_HANDLER, cleanup);
 +	rmdir(MNTPOINT);
-+	SAFE_MKDIR(cleanup,MNTPOINT, DIR_MODE);
-+	SAFE_MOUNT(cleanup,device, MNTPOINT, fs_type, 0, NULL);
++	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
++	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, NULL);
  
 -	TEST_PAUSE;
 -
@@ -65,8 +65,8 @@ index ac74b5571..be3472cfa 100644
  
 -	tst_rmdir();
 +	remove(FILENAME);
-+	SAFE_UMOUNT(NULL,MNTPOINT);
-+	SAFE_RMDIR(NULL,MNTPOINT);
++	SAFE_UMOUNT(NULL, MNTPOINT);
++	SAFE_RMDIR(NULL, MNTPOINT);
 +
  
  }
