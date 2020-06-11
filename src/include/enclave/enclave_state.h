@@ -15,7 +15,6 @@ typedef struct sgxlkl_enclave_disk_state
 {
     size_t host_disk_index;
     int fd;
-    char* mmap;
     size_t capacity;
     bool mounted;
 } sgxlkl_enclave_disk_state_t;
