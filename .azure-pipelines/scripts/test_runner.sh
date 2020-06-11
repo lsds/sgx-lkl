@@ -125,9 +125,10 @@ function GetReadyToRunNextTest()
 function SkipTestIfDisabled()
 {
     skip_test=false
-    is_test_disabled=$(grep $file "$disabled_tests_file" | wc -l)
+    if [[ $file != "tests/languages/python/Makefile" ]]; then
+    # is_test_disabled=$(grep $file "$disabled_tests_file" | wc -l)
     # if this test is disabled set counters and skip to next test
-    if [[ $is_test_disabled -ge 1 ]]; then
+    #if [[ $is_test_disabled -ge 1 ]]; then
         echo "Test $file is disabled. Skipping test..."
         echo "To enable the test remove $file from $disabled_tests_file"
 
