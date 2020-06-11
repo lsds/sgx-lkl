@@ -1,0 +1,17 @@
+extraction:
+  cpp:
+    after_prepare:
+    - .azure-pipelines/scripts/install_prerequisites.sh
+    - .azure-pipelines/scripts/dump_system_info.sh
+    
+    configure:
+      command:
+      - echo "no configure step"
+    
+    before_index:
+    - export build_mode=debug
+    - export SGXLKL_PREFIX=/opt/sgx-lkl
+
+    index:
+      build_command:
+      - .azure-pipelines/scripts/build.sh
