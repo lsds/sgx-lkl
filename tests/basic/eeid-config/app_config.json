@@ -1,5 +1,5 @@
 {
-  "run": "app/hello-eeid",
+  "run": "hello-eeid",
   "args": [
     "arg"
   ],
