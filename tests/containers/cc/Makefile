@@ -11,11 +11,12 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# TODO verify host-side networking for DCAP Client
+# Note: OE_LOG_LEVEL=INFO also enables Azure DCAP Client logging.
 CC_DOCKER_ARGS=\
 	--rm --privileged --network=host \
-	-v $(SGXLKL_PREFIX):$(SGXLKL_PREFIX) \
-	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0
+	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
+	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
+	-e OE_LOG_LEVEL=INFO
 
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
@@ -27,7 +28,7 @@ $(DATA_IMAGE): $(DISK_IMAGE)
 	cp $(DISK_IMAGE) $(DATA_IMAGE)
 
 $(CC_stamp): $(DISK_IMAGE) $(DATA_IMAGE)
-	$(SGXLKL_DOCKER_TOOL) build-cc --name=$(CC) --mode=$(SGXLKL_BUILD_MODE) --host-cfg=host-config.json --app-cfg=app-config.json
+	$(SGXLKL_DOCKER_TOOL) build-cc --name=$(CC) --host-cfg=host-config.json --app-cfg=app-config.json
 	touch $(CC_stamp)
 
 run: run-hw run-sw

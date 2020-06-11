@@ -107,6 +107,7 @@ void* monitor_console_input(void* cons_dev)
         if (ret & DEV_CONSOLE_WRITE)
             virtio_process_queue(dev, RX_QUEUE_ID);
     } while (1);
+    return NULL;
 }
 
 /*
@@ -196,6 +197,8 @@ static int console_enqueue(
     }
 
     virtio_req_complete(req, ret);
+    // TODO https://github.com/lsds/sgx-lkl/issues/374
+    return 0;
 }
 
 /*
@@ -309,7 +312,6 @@ void* console_task(void* arg)
 {
     int timeout_ms = WAIT_FOR_EVENT_TIMEOUT;
     struct virtio_dev* dev = &_console_dev->dev;
-    host_evt_channel_t* evt_chn = _cfg->host_evt_chn;
 
     pthread_mutex_init(&(_cfg->lock), NULL);
     pthread_cond_init(&(_cfg->cond), NULL);

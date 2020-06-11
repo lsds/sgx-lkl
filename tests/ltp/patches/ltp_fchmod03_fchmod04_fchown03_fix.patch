@@ -1,0 +1,94 @@
++ Created and deleted temporary directories with root permissions as tests were failing
++ to create directories using nobody.
++ Modified tests fchmod03, fchmod04, fchown03
+diff --git a/testcases/kernel/syscalls/fchmod/fchmod03.c b/testcases/kernel/syscalls/fchmod/fchmod03.c
+index a5824f36b..7341df112 100644
+--- a/testcases/kernel/syscalls/fchmod/fchmod03.c
++++ b/testcases/kernel/syscalls/fchmod/fchmod03.c
+@@ -141,6 +141,8 @@ void setup(void)
+        tst_sig(NOFORK, DEF_HANDLER, cleanup);
+
+        tst_require_root();
++
++       tst_tmpdir(); // TODO: Will be removed once fixing git issue :357
+
+        ltpuser = getpwnam(nobody_uid);
+        if (ltpuser == NULL)
+@@ -149,7 +151,7 @@ void setup(void)
+
+        TEST_PAUSE;
+
+-       tst_tmpdir();
++//     tst_tmpdir(); // TODO: Will be enabled once fixing git issue :236
+
+        /*
+         * Create a test file under temporary directory with specified
+@@ -165,6 +167,8 @@ void cleanup(void)
+        if (close(fd) == -1)
+                tst_resm(TWARN | TERRNO, "close failed");
+
++       tst_require_root(); // TODO: Will be removed once fixing git issue :357
++
+        tst_rmdir();
+
+ }
+diff --git a/testcases/kernel/syscalls/fchmod/fchmod04.c b/testcases/kernel/syscalls/fchmod/fchmod04.c
+index befaadb35..a7ef5d8ef 100644
+--- a/testcases/kernel/syscalls/fchmod/fchmod04.c
++++ b/testcases/kernel/syscalls/fchmod/fchmod04.c
+@@ -146,6 +146,8 @@ void setup(void)
+ {
+        tst_require_root();
+
++       tst_tmpdir(); // TODO: Will be removed once fixing git issue :357
++
+        tst_sig(NOFORK, DEF_HANDLER, cleanup);
+
+        /* Switch to nobody user for correct error code collection */
+@@ -158,7 +160,7 @@ void setup(void)
+
+        TEST_PAUSE;
+
+-       tst_tmpdir();
++//     tst_tmpdir(); // TODO: Will be enabled once fixing git issue :236
+
+        /*
+         * Create a test directory under temporary directory with specified
+@@ -185,6 +187,8 @@ void cleanup(void)
+        /* Close the test directory opened during setup() */
+        SAFE_CLOSE(NULL, fd);
+
++       tst_require_root(); // TODO: Will be removed once fixing git issue :357
++
+        tst_rmdir();
+
+ }
+diff --git a/testcases/kernel/syscalls/fchown/fchown03.c b/testcases/kernel/syscalls/fchown/fchown03.c
+index f7fe994fd..7d70645e8 100644
+--- a/testcases/kernel/syscalls/fchown/fchown03.c
++++ b/testcases/kernel/syscalls/fchown/fchown03.c
+@@ -112,12 +112,14 @@ static void setup(void)
+
+        tst_require_root();
+
++       tst_tmpdir(); // TODO: Will be removed once fixing git issue :357
++
+        ltpuser = SAFE_GETPWNAM(cleanup, nobody_uid);
+        SAFE_SETEUID(NULL, ltpuser->pw_uid);
+
+        TEST_PAUSE;
+
+-       tst_tmpdir();
++//     tst_tmpdir(); // TODO: Will be enabled once fixing git issue :236
+
+        fildes = SAFE_OPEN(cleanup, TESTFILE, O_RDWR | O_CREAT, FILE_MODE);
+
+@@ -135,5 +137,7 @@ static void cleanup(void)
+        if (fildes > 0 && close(fildes))
+                tst_resm(TWARN | TERRNO, "close(%s) Failed", TESTFILE);
+
++       tst_require_root(); // TODO: Will be removed once fixing git issue :357
++
+        tst_rmdir();
+ }
+

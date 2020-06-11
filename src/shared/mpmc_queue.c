@@ -39,6 +39,7 @@
 #include <stdlib.h>
 
 #include "shared/mpmc_queue.h"
+#include "openenclave/corelibc/oemalloc.h"
 
 static void pause(void);
 static void pause()
@@ -53,7 +54,7 @@ int newmpmcq(struct mpmcq* q, size_t buffer_size, void* buffer)
     size_t i;
     buffer_size /= sizeof(*q->buffer);
     q->buffer =
-        buffer != 0 ? buffer : calloc(sizeof(struct cell_t), buffer_size);
+        buffer != 0 ? buffer : oe_calloc(sizeof(struct cell_t), buffer_size);
     q->buffer_mask = (buffer_size - 1);
     assert((buffer_size >= 2) && ((buffer_size & (buffer_size - 1)) == 0));
     for (i = 0; i != buffer_size; i += 1)

@@ -253,6 +253,8 @@ static int virtio_process_one(struct virtio_dev* dev, int qidx)
     } while (desc && req->buf_count < VIRTIO_REQ_MAX_BUFS);
 
     dev->ops->enqueue(dev, qidx, req);
+    // TODO https://github.com/lsds/sgx-lkl/issues/375
+    return 0;
 }
 
 static inline void virtio_set_avail_event(struct virtq* q, uint16_t val)

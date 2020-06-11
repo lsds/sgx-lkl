@@ -10,9 +10,9 @@ HOST_MUSL_BUILD         ?= ${HOST_CC}
 SGXLKL_LIBC_SRC_DIR     ?= $(MUSL_LIBC_BASE_DIR)/sgx-lkl-musl
 SGXLKL_LIBC_BLD_DIR     ?= ${BUILD_DIR}/sgx-lkl-musl
 BUILD_VARIANT           ?= musl
-SGXLKL_CFLAGS           ?= -std=c11 -Wall -Werror -isystem -I${SGXLKL_LIBC_SRC_DIR}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y -DOPENSSL_EXTRA
+SGXLKL_CFLAGS           ?= -std=c11 -Wall -Werror -isystem ${SGXLKL_LIBC_SRC_DIR}/src/internal/ -DLKL_HOST_CONFIG_VIRTIO_NET=y -DLKL_HOST_CONFIG_POSIX=y -DOPENSSL_EXTRA
 GLIBC_CFLAGS            ?= -O2
 LIBC_CONFIGURE_OPTS     ?=
 LIBC_CFLAGS             ?= -fPIC -D__USE_GNU
 THIRD_PARTY_CFLAGS      = -fPIC -Wl,--dynamic-linker=${HOST_LIBC_BLD_DIR}/lib/libc.so
-SGXLKL_INCLUDES         ?= -I$(SGXLKL_LIBC_SRC_DIR)/src/internal -I$(SGXLKL_LIBC_SRC_DIR)/src/include -I$(SGXLKL_LIBC_BLD_DIR)/include -I$(SGXLKL_LIBC_SRC_DIR)/arch/$(ARCH)
+SGXLKL_INCLUDES         ?= -isystem $(SGXLKL_LIBC_SRC_DIR)/src/internal -isystem $(SGXLKL_LIBC_SRC_DIR)/src/include -isystem $(SGXLKL_LIBC_BLD_DIR)/include -isystem $(SGXLKL_LIBC_SRC_DIR)/arch/$(ARCH)

@@ -1,0 +1,104 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "SGX-LKL app config schema",
+    "required": [
+        "run",
+        "disk_config"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "run": {
+            "type": "string",
+            "description": "Absolute path to the application",
+            "pattern": "^/.+$"
+        },
+        "args": {
+            "type": "array",
+            "description": "Application arguments",
+            "default": [],
+            "items": {
+                "type": "string"
+            }
+        },
+        "cwd": {
+            "type": "string",
+            "description": "Absolute path to the working directory",
+            "pattern": "^/.*$",
+            "default": "/"
+        },
+        "environment": {
+            "type": "object",
+            "description": "Environment variables",
+            "patternProperties": {
+                "^.*$": { "type": "string" }
+            },
+            "additionalProperties": false,
+            "default": {}
+        },
+        "exit_status": {
+            "type": "string",
+            "description": "Whether and how the app exit code is forwarded to the host",
+            "enum": ["full", "binary", "none"],
+            "default": "full"
+        },
+        "disk_config": {
+            "type": "array",
+            "description": "Disks to mount",
+            "items": {
+                "type": "object",
+                "description": "Disk configuration",
+                "required": [
+                    "disk"
+                ],
+                "additionalProperties": false,
+                "dependencies": {
+                    "roothash": ["roothash_offset"],
+                    "roothash_offset": ["roothash"],
+                    "create": ["size"],
+                    "size": ["create"]
+                },
+                "properties": {
+                    "disk": {
+                        "type": "string",
+                        "description": "Mount point",
+                        "pattern": "^/.*$"
+                    },
+                    "readonly": {
+                        "type": "boolean",
+                        "description": "Whether to mount the disk read-only",
+                        "default": false
+                    },
+                    "overlay": {
+                        "type": "boolean",
+                        "description": "Whether to create an in-memory writable overlay for a read-only root disk",
+                        "default": false
+                    },
+                    "roothash": {
+                        "type": "string",
+                        "description": "dm-verity hash."
+                    },
+                    "roothash_offset": {
+                        "type": "integer",
+                        "description": "dm-verity hash offset.",
+                        "minimum": 0
+                    },
+                    "create": {
+                        "type": "boolean",
+                        "description": "Whether to dynamically create the disk (note that an empty image file must exist).",
+                        "default": false
+                    },
+                    "size": {
+                        "type": "integer",
+                        "description": "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.",
+                        "minimum": 0
+                    },
+                    "key": {
+                        "type": "string",
+                        "description": "An explanation about the purpose of this instance."
+                    }
+                }
+            }
+        }
+    }
+}

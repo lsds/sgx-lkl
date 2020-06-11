@@ -77,14 +77,21 @@ int parallelthr(void* arg)
 	// the SGX-LKL host interface that backs the clone system call causes
 	// host tasks to become serialised.
 	// Note: This test will work only with 2+ ethreads.
-	while (__atomic_load_n(&counter, __ATOMIC_SEQ_CST) < 100)
+	while (1)
 	{
 		int v = __atomic_load_n(&counter, __ATOMIC_SEQ_CST);
+
+		if (v == 100)
+			break;
+
 		if (v % 2 == odd)
 		{
 			__atomic_compare_exchange_n(&counter, &v, v+1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 		}
 	}
+
+	fprintf(stderr, "Thread %d finished\n", odd);
+
 	return 0;
 }
 
@@ -126,10 +133,12 @@ int main(int argc, char** argv)
 	fprintf(stderr, "\nIf this test hangs after waking up one thread, check you have at least 2 ethreads\n");
 	fprintf(stderr, "This test is checking that LKL is able to wake up two cloned threads and leaving them running in parallel\n\n");
 	futex_wake(&barrier);
+	fprintf(stderr, "Waiting for for Thread 0 to finish\n");
 	futex_wait(&ctid_futex1, ctid1);
+	fprintf(stderr, "Waiting for for Thread 1 to finish\n");
 	futex_wait(&ctid_futex2, ctid2);
 
 	fprintf(stderr, "\nTEST_PASSED\n");
 
-    return 0;
+	return 0;
 }

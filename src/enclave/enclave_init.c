@@ -41,24 +41,44 @@ static void __sgxlkl_enclave_copy_app_config(
     sgxlkl_app_config_t* app_config,
     const sgxlkl_config_t* sgxlkl_config)
 {
-    int i = 0, j = 0;
+    int i = 0, envc = 0;
     char** envp = NULL;
+    size_t total_size = 0;
 
     app_config->argc = sgxlkl_config->argc;
-    app_config->argv = oe_malloc((app_config->argc + 1) * sizeof(char*));
 
     for (i = 0; i < app_config->argc; i++)
-        app_config->argv[i] = oe_strdup(sgxlkl_config->argv[i]);
-    app_config->argv[i] = NULL;
+        total_size += oe_strlen(sgxlkl_config->argv[i]) + 1;
 
     envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
-    for (; envp[j++] != NULL;)
-        ;
+    while (envp[envc] != NULL)
+    {
+        total_size += oe_strlen(envp[envc]) + 1;
+        envc++;
+    }
 
-    app_config->envp = oe_malloc((j + 1) * sizeof(char*));
-    for (j = 0; envp[j] != NULL; j++)
-        app_config->envp[j] = oe_strdup(envp[j]);
-    app_config->envp[j] = NULL;
+    char* buf = oe_malloc((total_size + 1) * sizeof(char*));
+    app_config->argv =
+        oe_malloc((sgxlkl_config->argc + envc + 2) * sizeof(char*));
+    size_t remaining = total_size + 1;
+
+    char* p = buf;
+    for (i = 0; i < app_config->argc; i++)
+    {
+        app_config->argv[i] = p;
+        p += oe_snprintf(p, remaining, "%s", sgxlkl_config->argv[i]) + 1;
+        remaining -= p - app_config->argv[i];
+    }
+    app_config->argv[i] = NULL;
+
+    app_config->envp = &app_config->argv[i + 1];
+    for (i = 0; i < envc; i++)
+    {
+        app_config->envp[i] = p;
+        p += oe_snprintf(p, remaining, "%s", envp[i]) + 1;
+        remaining -= p - app_config->envp[i];
+    }
+    app_config->envp[i] = NULL;
 
     app_config->cwd = oe_strdup(sgxlkl_config->cwd);
 
@@ -129,6 +149,27 @@ static int startmain(void* args)
 
     /* Get the application configuration & disk param from remote server */
     enclave_get_app_config(&app_config);
+
+    /* Retrieve remote attestation report to exercise Azure DCAP Client (for testing only) */
+    // TODO replace this later on
+    if (sgxlkl_enclave->mode == HW_DEBUG_MODE)
+    {
+        uint8_t* remote_report;
+        size_t remote_report_size;
+        oe_result_t result = OE_UNEXPECTED;
+        result = oe_get_report_v2(
+            OE_REPORT_FLAGS_REMOTE_ATTESTATION,
+            NULL,
+            0,
+            NULL,
+            0,
+            &remote_report,
+            &remote_report_size
+        );
+        if (OE_OK != result)
+            sgxlkl_fail("Failed to retrieve report via oe_get_report_v2: %d.\n", result);
+        oe_free_report(&remote_report);
+    }
 
     /* Disk config has been set through app config
      * Merge host-provided disk info (fd, capacity, mmap) */

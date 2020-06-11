@@ -68,61 +68,51 @@ echo "enable_fsgsbase" | sudo tee -a /etc/modules
 sudo modprobe enable_fsgsbase
 ```
 
+To make the SGX-LKL commands available from any directory, add an entry to 
+the `PATH` environment variable:
+```
+PATH="$PATH:/opt/sgx-lkl/bin"
+```
+
+Finally, setup the host environment by running:
+```
+sgx-lkl-setup
+```
+
 B. Building SGX-LKL-OE from source
 ----------------------------------
 
-SGX-LKL has been tested on Ubuntu Linux 18.04.
-
-### 1. Install the SGX-LKL branch of the Open Enclave SDK 
-
-To run SGX-LKL in SGX enclaves, it relies on an installation of the *Open Enclave 
-SDK* (https://openenclave.io/sdk/). The current version of SGX-LKL-OE requires a
-modified version of the Open Enclave SDK, which can be found here: 
-https://github.com/openenclave/openenclave (branch: feature/sgx-lkl-support).
-
-1. Clone the `feature.sgx-lkl` branch of the Open Enclave SDK:
-```
-git clone -b feature/sgx-lkl-support git@github.com:openenclave/openenclave.git openenclave-sgxlkl
-```
-
-2. Install the Open Enclave build requirements:
-```
-cd openenclave-sgxlkl
-sudo scripts/ansible/install-ansible.sh
-sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
-```
-
-3. Build the Open Enclave SDK:
-```
-mkdir build
-cd build
-cmake -G "Unix Makefiles" ..
-make
-sudo make install
-```
-
-4. Source the Open Enclave SDK configuration script:
-```
-source /opt/openenclave/share/openenclave/openenclaverc
-```
-
-### 2. Building SGX-LKL as part of the source tree
+SGX-LKL has been tested on Ubuntu Linux 18.04 and with a gcc compiler
+version of 7.4 or above. Older compiler versions may lead to compilation
+and/or linking errors.
 
 1. Install the SGX-LKL build dependencies:
 ```
 sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-dev libjson-c-dev automake autopoint autoconf pkgconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev
 ```
 
-Compilation has been tested with versions 7.4 of gcc. Older compiler versions
-may lead to compilation and/or linking errors.
-
 2. Clone the SGX-LKL git repository:
 ```
-git clone --branch oe_port git@github.com:lsds/sgx-lkl.git sgx-lkl
+git clone --branch oe_port git@github.com:lsds/sgx-lkl.git
 cd sgx-lkl
 ```
 
-3. Build SGX-LKL in the source tree:
+3. Install the Open Enclave build dependencies:
+```
+cd openenclave
+sudo scripts/ansible/install-ansible.sh
+sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
+```
+
+Note that the above also installs the Intel SGX driver on the host.
+
+If running on an Azure Confidential Computing (ACC) VM, which offers SGX support,
+the last line above should be replaced by:
+```
+sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
+```
+
+4. Build SGX-LKL in the source tree:
 
 #### DEBUG build (with debug functionality, no compiler optimisations)
 
@@ -154,9 +144,9 @@ To build SGX-LKL in release mode, run:
     make RELEASE=true
 ```
 
-2. To install SGX-LKL on the host system, use the following command:
+5. To install SGX-LKL on the host system, use the following command:
 ```
-sudo make install
+sudo -E make install
 ```
 
 SGX-LKL is installed under `/opt/sgx-lkl` by default. To change the install prefix, 
@@ -173,13 +163,13 @@ sudo make uninstall
 This removes SGX-LKL specific artefacts from the installation directory as
 well as cached artefacts of `sgx-lkl-disk` (stored in `~/.cache/sgxlkl`).
 
-3. To make the SGX-LKL commands available from any directory, add an entry to 
+6. To make the SGX-LKL commands available from any directory, add an entry to 
 the `PATH` environment variable:
 ```
 PATH="$PATH:/opt/sgx-lkl/bin"
 ```
 
-4. Finally, setup the host environment by running:
+7. Finally, setup the host environment by running:
 ```
 sgx-lkl-setup
 ```
@@ -455,15 +445,4 @@ _To be added_
 G. Debugging SGX-LKL-OE and applications
 -----------------------------------------
 
-SGX-LKL provides a wrapper around gdb.
-
-1. Before running it, first run `. <OE_PREFIX>/share/openenclave/openenclaverc`.
-sgx-lkl-gdb automatically loads the SGX-LKL gdb plugin which ensures that debug symbols (if available) are loaded correctly. 
-
-When running in HW mode, `sgx-lkl-gdb` uses the corresponding SGX debug 
-instructions to read from and write to enclave memory.
-
-2. To debug an application, invoke `sgx-lkl-gdb` as follows:
-```
-SGXLKL_TAP=sgxlkl_tap0 ../../gdb/sgx-lkl-gdb --args sgx-lkl-run-oe --hw-debug ./sgxlkl-miniroot-fs.img /usr/bin/redis-server --bind 10.0.1.1
-```
+See the [Debugging](docs/Debugging.md) page for details.

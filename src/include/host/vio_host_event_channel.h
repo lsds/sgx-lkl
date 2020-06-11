@@ -42,7 +42,7 @@ void vio_host_process_enclave_event(uint8_t dev_id, int timeout_ms);
  *
  * @dev_id : Device identifier for waking up the guest sleeping task
  */
-int vio_host_notify_host_event(uint8_t dev_id);
+void vio_host_notify_host_event(uint8_t dev_id);
 
 /*
  * Function is to wake up the sleeping host tasks.
