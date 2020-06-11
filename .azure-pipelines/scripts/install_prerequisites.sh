@@ -1,10 +1,8 @@
 #!/bin/bash
 set -ex
 
-[[ "$NOSUDO" == 1 ]] && SUDO="" || SUDO="sudo"
-
-$SUDO apt-get update
-$SUDO apt-get install -y \
+sudo apt-get update
+sudo apt-get install -y \
     build-essential \
     curl wget rsync pv \
     make gcc g++ bc python xutils-dev flex bison autogen libgcrypt20-dev libjson-c-dev \
@@ -14,7 +12,7 @@ $SUDO apt-get install -y \
     expect
 
 if [[ ! -x "$(command -v docker)" ]]; then
-    $SUDO apt-get install -y docker.io
+    sudo apt-get install -y docker.io
     # Allow to run Docker without sudo
-    $SUDO chmod u+s $(which docker)
+    sudo chmod u+s $(which docker)
 fi

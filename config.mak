@@ -143,6 +143,7 @@ OE_SDK_ROOT := ${BUILD_DIR}/openenclave
 export OE_SDK_INCLUDES := $(OE_SDK_ROOT)/include
 export OE_SDK_LIBS := $(OE_SDK_ROOT)/lib
 OE_OESIGN_TOOL_PATH := $(OE_SDK_ROOT)/bin
+OE_HAS_QUOTE_PROVIDER ?= ON
 
 OE_LIBS := enclave/liboecore.a \
            enclave/liboeenclave.a \

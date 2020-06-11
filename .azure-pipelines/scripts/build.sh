@@ -9,8 +9,6 @@ if [ -z $SGXLKL_PREFIX ]; then
     exit 1
 fi
 
-[[ "$NOSUDO" == 1 ]] && SUDO="" || SUDO="sudo"
-
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 
 # Initialize the variables.
@@ -36,8 +34,8 @@ JunitTestStarted "$test_name"
 make distclean
 
 # Install the Open Enclave build dependencies for Azure
-$SUDO bash $SGXLKL_ROOT/openenclave/scripts/ansible/install-ansible.sh
-$SUDO ansible-playbook $SGXLKL_ROOT/openenclave/scripts/ansible/oe-contributors-acc-setup-no-driver.yml
+sudo bash $SGXLKL_ROOT/openenclave/scripts/ansible/install-ansible.sh
+sudo ansible-playbook $SGXLKL_ROOT/openenclave/scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 
 # Let's build
 make $make_args && make install $make_install_args
