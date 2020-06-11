@@ -1190,18 +1190,6 @@ void set_wg_config_from_cmdline(sgxlkl_enclave_wg_config_t* wg)
     }
 }
 
-static int is_disk_encrypted(int fd)
-{
-    unsigned char magic[2] = {0};
-    ssize_t read_bytes = pread(fd, magic, 2, EXT4_MAGIC_OFFSET);
-    if (read_bytes != 2)
-    {
-        perror("pread(disk,2,EXT4_MAGIC_OFFSET)");
-        return 0;
-    }
-    return !(magic[0] == 0x53 && magic[1] == 0xEF);
-}
-
 static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
 {
     sgxlkl_host_verbose(
@@ -1240,9 +1228,6 @@ static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
                 strerror(errno));
         }
     }
-
-    if (is_disk_encrypted(fd))
-        sgxlkl_host_verbose("Disk is encrypted.\n");
 
     char* disk_mmap = mmap(
         NULL,
