@@ -1213,7 +1213,7 @@ static void* lkl_termination_thread(void* args)
 
     // Unmount disks
     long res;
-    for (int i = num_disks - 1; i >= 0; --i)
+    /*for (int i = num_disks - 1; i >= 0; --i)
     {
         if (!disks[i].mounted)
             continue;
@@ -1248,7 +1248,7 @@ static void* lkl_termination_thread(void* args)
                 disks[i].mnt,
                 lkl_strerror(res));
         }
-    }
+    }*/
 
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
