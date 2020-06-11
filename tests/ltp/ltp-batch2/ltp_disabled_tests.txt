@@ -790,7 +790,7 @@
 #/ltp/testcases/kernel/syscalls/select/select02
 #/ltp/testcases/kernel/syscalls/select/select03
 #/ltp/testcases/kernel/syscalls/select/select04
-/ltp/testcases/kernel/syscalls/send/send01
+#/ltp/testcases/kernel/syscalls/send/send01
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile02
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile03
 /ltp/testcases/kernel/syscalls/sendfile/sendfile04
@@ -874,7 +874,7 @@
 /ltp/testcases/kernel/syscalls/setsockopt/setsockopt02
 #/ltp/testcases/kernel/syscalls/setsockopt/setsockopt03
 #/ltp/testcases/kernel/syscalls/setsockopt/setsockopt04
-/ltp/testcases/kernel/syscalls/settimeofday/settimeofday01
+#/ltp/testcases/kernel/syscalls/settimeofday/settimeofday01
 /ltp/testcases/kernel/syscalls/settimeofday/settimeofday02
 #/ltp/testcases/kernel/syscalls/setuid/setuid01
 #/ltp/testcases/kernel/syscalls/setuid/setuid03
