@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-SUDO=${SUDO:-sudo}
+[[ "$NOSUDO" == 1 ]] && SUDO="" || SUDO="sudo"
 
 $SUDO apt-get update
 $SUDO apt-get install -y \

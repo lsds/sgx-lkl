@@ -9,7 +9,7 @@ if [ -z $SGXLKL_PREFIX ]; then
     exit 1
 fi
 
-SUDO=${SUDO:-sudo}
+[[ "$NOSUDO" == 1 ]] && SUDO="" || SUDO="sudo"
 
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 
