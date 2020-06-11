@@ -57,7 +57,7 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
         .disks = NULL,
         .num_peers = 0,
         .peers = NULL,
-        .sizes = {.num_heap_pages = 40000, // 262144,
+        .sizes = {.num_heap_pages = 262144,
                   .num_stack_pages = 1024,
                   .num_tcs = 8},
     }};
