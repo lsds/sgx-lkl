@@ -1,6 +1,9 @@
 #include "lkl/asm/host_ops.h"
 #include "lkl/setup.h"
 
+#define OE_BUILD_ENCLAVE
+#include <openenclave/attestation/attester.h>
+
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -56,29 +59,50 @@ static void find_and_mount_disks()
     lkl_mount_disks(app_config->disks, app_config->num_disks, app_config->cwd);
 }
 
-static void test_attestation()
+// In internal OE header openenclave/internal/sgx/eeid_plugin.h
+#define OE_FORMAT_UUID_SGX_EEID_ECDSA_P256                                \
+    {                                                                     \
+        0x17, 0x04, 0x94, 0xa6, 0xab, 0x23, 0x47, 0x98, 0x8c, 0x38, 0x35, \
+            0x1c, 0xb0, 0xb6, 0xaf, 0x0A                                  \
+    }
+
+oe_result_t oe_sgx_eeid_attester_initialize(void);
+
+static void get_attestation_evidence()
 {
-    /* Retrieve remote attestation report to exercise Azure DCAP Client (for
-     * testing only) */
-    // TODO replace this later on
-    if (sgxlkl_enclave->mode == HW_DEBUG_MODE)
+    /* Retrieve remote attestation report to exercise Azure DCAP Client
+     * (currently just for testing) */
+    if (sgxlkl_in_hw_release_mode())
     {
-        uint8_t* remote_report;
-        size_t remote_report_size;
-        oe_result_t result = OE_UNEXPECTED;
-        result = oe_get_report_v2(
-            OE_REPORT_FLAGS_REMOTE_ATTESTATION,
+        static const oe_uuid_t format_id = {OE_FORMAT_UUID_SGX_EEID_ECDSA_P256};
+
+        oe_sgx_eeid_attester_initialize();
+
+        size_t evidence_buffer_size = 0;
+        uint8_t* evidence_buffer = NULL;
+        // TODO: there seems to be a problem with endorsements.
+        // size_t endorsements_buffer_size = 0;
+        // uint8_t *endorsements_buffer = NULL;
+
+        oe_result_t result = oe_get_evidence(
+            &format_id,
             NULL,
             0,
             NULL,
             0,
-            &remote_report,
-            &remote_report_size);
-        if (OE_OK != result)
+            &evidence_buffer,
+            &evidence_buffer_size,
+            NULL,
+            0);
+
+        if (result != OE_OK)
             sgxlkl_fail(
-                "Failed to retrieve report via oe_get_report_v2: %d.\n",
-                result);
-        oe_free_report(remote_report);
+                "Failed to retrieve attestation evidence: %d.\n", result);
+        else
+            sgxlkl_info("Successfully obtained attestation evidence\n");
+
+        oe_free_evidence(evidence_buffer);
+        // oe_free_endorsements(endorsements_buffer);
     }
 }
 
@@ -130,7 +154,7 @@ static int startmain(void* args)
 
     init_wireguard();
     find_and_mount_disks();
-    test_attestation(); /* Exercises AZ DCAP client for testing */
+    get_attestation_evidence();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
