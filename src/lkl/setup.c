@@ -44,8 +44,6 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 
-#define BIT(x) (1ULL << x)
-
 #define UMOUNT_DISK_TIMEOUT 2000
 
 // Block size in bytes of the ext4 filesystem for newly created empty disks.
@@ -134,7 +132,6 @@ static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
     if (dstbuf[dstdir_len - 1] != '/')
         dstbuf[dstdir_len++] = '/';
     struct lkl_linux_dirent64* dev = NULL;
-    int disknum = 0;
     while ((dev = lkl_readdir(dir)) != NULL)
     {
         strncpy(srcbuf + srcdir_len, dev->d_name, sizeof(srcbuf) - srcdir_len);
@@ -309,17 +306,17 @@ fail:
     return err;
 }
 
-static int lkl_mount_overlay_tmpfs(
+static void lkl_mount_overlay_tmpfs(
     const char* mnt_point)
 {
-    int err = lkl_sys_mount("tmpfs", mnt_point, "tmpfs", 0, "mode=0777");
+    int err = lkl_sys_mount("tmpfs", (char*)mnt_point, "tmpfs", 0, "mode=0777");
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_mount(tmpfs): %s\n", lkl_strerror(err));
     }
 }
 
-static int lkl_mount_overlayfs(
+static void lkl_mount_overlayfs(
     const char* lower_dir,
     const char* upper_dir,
     const char* work_dir,
@@ -331,7 +328,7 @@ static int lkl_mount_overlayfs(
             sizeof(opts),
             "lowerdir=%s,upperdir=%s,workdir=%s",
             lower_dir, upper_dir, work_dir);
-    int err = lkl_sys_mount("overlay", mnt_point, "overlay", 0, opts);
+    int err = lkl_sys_mount("overlay", (char*)mnt_point, "overlay", 0, opts);
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_mount(overlayfs): %s\n", lkl_strerror(err));
@@ -917,8 +914,6 @@ void lkl_mount_disks(
 
     lkl_mount_root_disk(root_disk);
 
-    char dev_path[] = {"/dev/vdXX"};
-    size_t dev_path_len = strlen(dev_path);
     for (size_t i = 0; i < num_disks; ++i)
     {
         if (root_disk == &disks[i] || disks[i].fd == -1)
@@ -1081,7 +1076,7 @@ static void init_random()
 {
     struct rand_pool_info* pool_info = 0;
     FILE* f;
-    int fd;
+    int fd = 0;
 
     SGXLKL_VERBOSE("Adding entropy to entropy pool\n");
 
@@ -1159,7 +1154,7 @@ static struct lkl_sem* termination_sem;
 static _Atomic(bool) is_lkl_terminating = false;
 
 /* Function to carry out the shutdown sequence */
-static int lkl_termination_thread(void* args)
+static void* lkl_termination_thread(void* args)
 {
     SGXLKL_VERBOSE("enter\n");
 
@@ -1168,7 +1163,7 @@ static int lkl_termination_thread(void* args)
      * thread is mapped to an LKL host thread. This way, no new kernel thread
      * will be created when we are actually shutting down.
      */
-    long pid = lkl_sys_getpid();
+    long pid __attribute__((unused)) = lkl_sys_getpid();
     SGXLKL_VERBOSE(
         "Performed LKL syscall to get host task allocated (pid=%li)\n", pid);
     SGXLKL_ASSERT(pid);
@@ -1280,8 +1275,6 @@ static int lkl_termination_thread(void* args)
     sgxlkl_free_config(sgxlkl_enclave);
 
     lthread_exit(NULL);
-
-    SGXLKL_VERBOSE("done\n");
 }
 
 /* Create the LKL termination thread */
@@ -1318,8 +1311,6 @@ void lkl_terminate(int exit_status)
 
 static void init_enclave_clock()
 {
-    struct timespec ts;
-
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
     if (oe_is_within_enclave(

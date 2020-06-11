@@ -127,7 +127,7 @@ void vio_host_process_enclave_event(uint8_t dev_id, int timeout_ms)
 /*
  * Function to wake up the guest device event handler
  */
-int vio_host_notify_host_event(uint8_t dev_id)
+void vio_host_notify_host_event(uint8_t dev_id)
 {
     host_dev_config_t* cfg = &_dev_cfg[dev_id];
     host_evt_channel_t* evt = cfg->host_evt_chn;

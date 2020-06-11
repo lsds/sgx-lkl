@@ -218,7 +218,7 @@ void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files)
     mmap_num_pages = num_pages - (2 * bitmap_req_pages);
 
     // Bitmaps are stored at the beginning of the enclave memory range
-    mmap_bitmap = base;
+    mmap_bitmap = (void*)base;
     mmap_fresh_bitmap = (char*)mmap_bitmap + (bitmap_req_pages * PAGE_SIZE);
 
     // Base address for range of pages available to mmap calls

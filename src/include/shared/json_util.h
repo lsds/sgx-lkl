@@ -19,7 +19,7 @@ int my_callback(const char* key, struct json_object* value, void* userarg);
 int parse_json(struct json_object* jobj, parse_json_callback cb, void* userarg);
 
 int parse_json_from_str(
-    char* str,
+    const char* str,
     parse_json_callback cb,
     void* userarg,
     char** err);

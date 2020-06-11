@@ -201,11 +201,9 @@ void lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();
     struct lthread* lt = NULL;
-    size_t s, pauses = sleepspins;
-    struct timespec sleeptime = {0, sleeptime_ns};
+    size_t pauses = sleepspins;
     int spins = futex_wake_spins;
     int dequeued;
-    size_t i;
 
     /* scheduler not initiliazed, and no lthreads where created */
     if (sched == NULL)
@@ -362,7 +360,6 @@ void _lthread_free(struct lthread* lt)
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
         if (cont < 0 || waiters) {
-            int private_flag = priv ? FUTEX_PRIVATE : 0;
             enclave_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
         }
     }
@@ -383,7 +380,7 @@ void _lthread_free(struct lthread* lt)
     {
         if (__active_lthreads_tail == __active_lthreads)
         {
-            __active_lthreads_tail == NULL;
+            __active_lthreads_tail = NULL;
         }
         struct lthread_queue* new_head = __active_lthreads->next;
         oe_free(__active_lthreads);
@@ -821,6 +818,7 @@ void lthread_exit(void* ptr)
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
     _lthread_yield(lt);
+    __builtin_unreachable();
 }
 
 /* lthread_join may proceed only when:

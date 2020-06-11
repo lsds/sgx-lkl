@@ -14,7 +14,7 @@ extern void register_enclave_signal_handler(void* signal_handler);
 /*
  * Function to stop the host network device
  */
-extern int net_dev_remove(uint8_t dev_id);
+extern void net_dev_remove(uint8_t dev_id);
 
 /* Used for signaling the sleeping ethread in case of any virtio event */
 static pthread_cond_t cond;

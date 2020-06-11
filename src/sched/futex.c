@@ -74,7 +74,6 @@ void futex_tick()
 {
     struct futex_q *fq, *tmp;
     uint64_t usecs;
-    struct timespec ts;
     int local_futex_sleepers;
 
     /* if there are no sleepers, we can bail quickly */
@@ -108,7 +107,6 @@ void futex_tick()
 /* constructs a new futex_q */
 static struct futex_q* __futex_wait_new(uint32_t futex_key, uint32_t bitset)
 {
-    int rc;
     struct futex_q* fq;
 
     /*
@@ -136,6 +134,7 @@ static struct futex_q* __futex_wait_new(uint32_t futex_key, uint32_t bitset)
     return fq;
 }
 
+#ifdef SGXLKL_DEBUG_FUTEX
 static uint64_t _lthread_timespec_to_usec_safe(struct timespec* ts)
 {
     if (!ts)
@@ -143,6 +142,7 @@ static uint64_t _lthread_timespec_to_usec_safe(struct timespec* ts)
 
     return _lthread_timespec_to_usec(ts);
 }
+#endif
 
 static void __do_futex_unlock(void* lock)
 {

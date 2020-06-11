@@ -10,7 +10,10 @@ CC = gcc
 CROSS_COMPILE =
 RANLIB  = $(CROSS_COMPILE)ranlib
 
-CFLAGS_MAIN = -I$(OE_SDK_INCLUDES)
+# TODO remove -Wno-error flags
+CFLAGS_MAIN = -I$(OE_SDK_INCLUDES) -Wall -Werror -Wno-error=incompatible-pointer-types -Wno-error=pointer-to-int-cast -Wno-error=strict-aliasing
+# TODO add -nostdinc after relayering work complete
+#      cannot use -nostdinc currently as stdatomic.h is included which is missing
 CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE
 LINK_MAIN =
 
@@ -28,7 +31,7 @@ CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-m
 
 CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
 CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -I$(CRYPTSETUP_BUILD)/include -I$(E2FSPROGS_BUILD)/include
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include
 
 # -----------------------------------------------------------------------------------------
 

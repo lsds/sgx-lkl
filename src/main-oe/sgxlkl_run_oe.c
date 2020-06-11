@@ -595,13 +595,16 @@ int getopt_sgxlkl(int argc, char* argv[], struct option long_options[])
 
         // Handle no argument options
         if (opt->has_arg == no_argument)
+        {
             if (arg[optidx])
                 return -1;
             else
                 break;
+        }
 
         // Handle required argument options
         if (opt->has_arg == required_argument)
+        {
             if (arg[optidx] == '=')
             {
                 optidx++;
@@ -617,6 +620,7 @@ int getopt_sgxlkl(int argc, char* argv[], struct option long_options[])
                 else
                     optidx = 0;
             }
+        }
         optarg = &argv[optind][optidx];
         break;
     }
@@ -712,36 +716,6 @@ void set_clock_res(sgxlkl_config_t* conf)
     clock_getres(
         CLOCK_MONOTONIC_COARSE, &conf->clock_res[CLOCK_MONOTONIC_COARSE]);
     clock_getres(CLOCK_BOOTTIME, &conf->clock_res[CLOCK_BOOTTIME]);
-}
-
-static void* find_vvar_base(void)
-{
-    FILE* maps;
-    char mapping[128];
-    void* vvar_base = 0;
-
-    if (!(maps = fopen("/proc/self/maps", "r")))
-        return NULL;
-
-    int found = 0;
-    while (!found && fgets(mapping, sizeof(mapping), maps))
-    {
-        int name_idx = -1;
-        if (sscanf(
-                mapping,
-                "%p-%*p r-%*cp %*x %*x:%*x %*u %n",
-                &vvar_base,
-                &name_idx) != 1)
-        {
-            continue;
-        }
-        if (name_idx >= 0 &&
-            !strncmp(&mapping[name_idx], "[vvar]", sizeof("[vvar]") - 1))
-            found = 1;
-    }
-
-    fclose(maps);
-    return found ? vvar_base : NULL;
 }
 
 static void* register_shm(char* path, size_t len)
@@ -1434,40 +1408,6 @@ static void setup_sw_mode_signal_handlers(void)
         sgxlkl_host_fail("Failed to register SIGTRAP handler\n");
 }
 
-static void sgxlkl_read_config_data(
-    const char* filename,
-    unsigned char** config_data)
-{
-    unsigned char* data = NULL;
-    size_t read_size = 0;
-    int fd = -1, read_offset = 0;
-    off_t data_len = 0;
-
-    if ((fd = open(filename, O_RDONLY)) < 0)
-        return;
-
-    data_len = lseek(fd, 0, SEEK_END);
-
-    lseek(fd, 0, SEEK_SET);
-    data = (unsigned char*)malloc(data_len + 1);
-
-    if (!data)
-        return;
-
-    while ((read_size =
-                read(fd, &data[read_offset], (data_len - read_offset))) > 0)
-        read_offset += read_size;
-    data[data_len] = '\0';
-
-    if (read_size < 0)
-        sgxlkl_host_warn(
-            "Failed to read CC PLATFORM POLICY: error(%s)\n", strerror(errno));
-
-    close(fd);
-
-    *config_data = data;
-}
-
 /* Parses the string provided as config for CPU affinity specifications. The
  * specification must consist of a comma-separated list of core IDs. It can
  * contain ranges. For example, "0-2,4" is a valid specification.
@@ -1566,6 +1506,7 @@ void* ethread_init(ethread_args_t* args)
             result,
             oe_result_str(result));
     }
+    return NULL;
 }
 
 void* enclave_init(ethread_args_t* args)
@@ -1602,7 +1543,6 @@ int main(int argc, char* argv[], char* envp[])
     char libsgxlkl[PATH_MAX];
     sgxlkl_config_t encl = {0};
     char* root_hd = NULL;
-    size_t ecs = 0;
     long nproc;
     size_t num_ethreads = 1;
     pthread_t* sgxlkl_threads;
@@ -1612,7 +1552,6 @@ int main(int argc, char* argv[], char* envp[])
     pthread_t* host_timerdev_task;
     int* ethreads_cores;
     size_t ethreads_cores_len;
-    int encl_mmap_flags;
     pthread_attr_t eattr;
     cpu_set_t set;
     char** auxvp;
@@ -1755,9 +1694,6 @@ int main(int argc, char* argv[], char* envp[])
         exit(EXIT_FAILURE);
     }
 
-    const size_t pagesize = sysconf(_SC_PAGESIZE);
-    ecs = sizeof(encl) + (pagesize - (sizeof(encl) % pagesize));
-
     /* Print warnings for ignored options, e.g. for debug options in non-debug
      * mode. */
     check_envs_all(envp);
@@ -1832,7 +1768,7 @@ int main(int argc, char* argv[], char* envp[])
     {
         get_signed_libsgxlkl_path(libsgxlkl, PATH_MAX);
     }
-    sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl ? libsgxlkl : "null");
+    sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl);
 
     parse_cpu_affinity_params(
         sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY),

@@ -438,7 +438,7 @@ int validate_sgxlkl_app_config(sgxlkl_app_config_t* config)
     }
 
     // Fix argv[0]
-    config->argv[0] = config->run;
+    config->argv[0] = (char*) config->run;
 
     return 0;
 }
