@@ -146,7 +146,7 @@ fsgsbase-kernel-module:
 	make -C ${TOOLS}/kmod-set-fsgsbase
 
 install:
-	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb ${PREFIX}/share ${PREFIX}/share/schemas ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
+	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb $(PREFIX)/lib/gdb/openenclave ${PREFIX}/share ${PREFIX}/share/schemas ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
 	cp $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) $(PREFIX)/lib
 	cp $(BUILD_DIR)/$(SGXLKL_RUN_TARGET) $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
@@ -157,6 +157,7 @@ install:
 	cp $(TOOLS)/gdb/sgx-lkl-gdb $(PREFIX)/bin
 	cp $(TOOLS)/gdb/gdbcommands.py $(PREFIX)/lib/gdb
 	cp $(TOOLS)/gdb/sgx-lkl-gdb.py $(PREFIX)/lib/gdb
+	cp -r $(OE_SDK_ROOT)/lib/openenclave/debugger/* $(PREFIX)/lib/gdb/openenclave
 	cp ${TOOLS}/schemas/app-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/schemas/host-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko $(PREFIX)/tools/kmod-set-fsgsbase/

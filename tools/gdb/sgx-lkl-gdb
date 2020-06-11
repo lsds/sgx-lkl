@@ -8,29 +8,15 @@ THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Are we running in the source tree?
 if [ -f $THIS_DIR/sgx-lkl-gdb.py ]; then
     SGXLKL_GDB_HELPER_DIR=$THIS_DIR
+    OE_GDB_PLUGIN_DIR=$THIS_DIR/../../build/openenclave/lib/openenclave/debugger
 else
     SGXLKL_GDB_HELPER_DIR=$THIS_DIR/../lib/gdb
+    OE_GDB_PLUGIN_DIR=$THIS_DIR/../lib/gdb/openenclave
 fi
 
 SGXLKL_GDB_PLUGIN=$SGXLKL_GDB_HELPER_DIR/sgx-lkl-gdb.py
 SGXLKL_GDB_COMMANDS=$SGXLKL_GDB_HELPER_DIR/gdbcommands.py
 
-OE_DEFAULT_LIB_DIR=/opt/openenclave/lib
-OE_LIB_DIR=$(pkg-config --variable libdir oeenclave-gcc || echo "")
-
-if [[ -z "$OE_LIB_DIR" ]]; then
-    if [ -d $OE_DEFAULT_LIB_DIR ]; then
-        echo "WARNING: pkg-config did not find Open Enclave, using default location: $OE_DEFAULT_LIB_DIR"
-        echo "To avoid this warning, source <OE_PREFIX>/share/openenclave/openenclaverc."
-        echo ""
-        OE_LIB_DIR=$OE_DEFAULT_LIB_DIR
-    else
-        echo "Open Enclave not found, please source <OE_PREFIX>/share/openenclave/openenclaverc."
-        exit 1
-    fi
-fi
-
-OE_GDB_PLUGIN_DIR=$OE_LIB_DIR/openenclave/debugger
 OE_GDB_PLUGIN_PATH=$OE_GDB_PLUGIN_DIR/gdb-sgx-plugin
 OE_GDB_PTRACE_PATH=$OE_GDB_PLUGIN_DIR/liboe_ptrace.so
 

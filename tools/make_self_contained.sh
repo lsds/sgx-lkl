@@ -23,7 +23,10 @@ set -e
 #       libcurl.so.4
 #       libgcc_s.so.1
 #       ...
-#   tools/
+#     gdb/
+#       ...
+#   share/
+#     ...
 #
 # In general, this reflects a regular SGX-LKL installation tree plus the lib/external
 # folder containing all bundled libraries.
@@ -57,9 +60,12 @@ if [[ ! -f $exe_path ]]; then
     exit 1
 fi
 
+oegdb_ptrace_lib_name=liboe_ptrace.so
+oegdb_ptrace_lib_path=${SGXLKL_PREFIX}/lib/gdb/openenclave/${oegdb_ptrace_lib_name}
 dlopened_libs=(
     /usr/lib/libdcap_quoteprov.so # via Intel DCAP library
     /lib/x86_64-linux-gnu/libnss_dns.so.2 # via libcurl (via Azure DCAP Client library)
+    ${oegdb_ptrace_lib_path} # via sgx-lkl-gdb
 )
 
 # Extra files needed by libsgx libraries.
@@ -102,9 +108,11 @@ echo "Shared library dependencies of $exe_path ${dlopened_libs[@]}:"
 lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq
 lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq | xargs -i cp {} $SGXLKL_PREFIX/$external_lib_dir
 rm $SGXLKL_PREFIX/$external_lib_dir/$exe_name
+rm $SGXLKL_PREFIX/$external_lib_dir/$oegdb_ptrace_lib_name
 
 # Patch RPATHs of main executable and shared libraries.
 patchelf --force-rpath --set-rpath "\$ORIGIN/../$external_lib_dir" $SGXLKL_PREFIX/bin/$exe_name
+patchelf --force-rpath --set-rpath "\$ORIGIN/../../../$external_lib_dir" $oegdb_ptrace_lib_path
 for lib_path in $SGXLKL_PREFIX/lib/external/*; do
     patchelf --force-rpath --set-rpath "\$ORIGIN" $lib_path
 done
