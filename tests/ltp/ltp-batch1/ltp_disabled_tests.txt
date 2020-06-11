@@ -349,7 +349,7 @@
 #/ltp/testcases/kernel/syscalls/getxattr/getxattr01
 #/ltp/testcases/kernel/syscalls/getxattr/getxattr02
 #/ltp/testcases/kernel/syscalls/getxattr/getxattr03
-/ltp/testcases/kernel/syscalls/getxattr/getxattr04
+#/ltp/testcases/kernel/syscalls/getxattr/getxattr04
 /ltp/testcases/kernel/syscalls/getxattr/getxattr05
 /ltp/testcases/kernel/syscalls/inotify/inotify01
 /ltp/testcases/kernel/syscalls/inotify/inotify02
