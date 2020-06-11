@@ -25,9 +25,11 @@ sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERAD
 
 echo "Done"
 
-echo "Setting up Linux kernel module to support userspace FSGSBase..."
-sudo insmod ${SGXLKL_ROOT}/tools/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko val=1
-sudo rmmod mod_set_cr4_fsgsbase
-dmesg | tail -n 10
-echo "Done"
+if [[ -f ${SGXLKL_ROOT}/tools/kmod-set-fsgsbase ]]; then
+    echo "Setting up Linux kernel module to support userspace FSGSBase..."
+    sudo insmod ${SGXLKL_ROOT}/tools/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko val=1
+    sudo rmmod mod_set_cr4_fsgsbase
+    dmesg | tail -n 10
+    echo "Done"
+fi
 
