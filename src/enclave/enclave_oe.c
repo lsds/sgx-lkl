@@ -246,14 +246,18 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     memset(&sgxlkl_enclave_state, 0, sizeof(sgxlkl_enclave_state));
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
+#ifdef DEBUG
     sgxlkl_verbose = 0;
+#endif
 
     if (_read_eeid_config(shared_memory))
         return 1;
 
+#ifdef DEBUG
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
     sgxlkl_verbose = sgxlkl_enclave_state.config->verbose;
+#endif
 
     SGXLKL_VERBOSE("enter\n");
 
