@@ -16,17 +16,19 @@ Also, a test related to shutdown a local endpoint is also
 disabled until issue 405.
 url:https://github.com/lsds/sgx-lkl/issues/405
 diff --git a/testcases/kernel/syscalls/send/send01.c b/testcases/kernel/syscalls/send/send01.c
-index 2e0ae2177..b0e10028e 100644
+index 2e0ae2177..9d7caa4a3 100644
 --- a/testcases/kernel/syscalls/send/send01.c
 +++ b/testcases/kernel/syscalls/send/send01.c
-@@ -43,6 +43,7 @@
+@@ -43,7 +43,8 @@
  
  #include "test.h"
  #include "safe_macros.h"
+-
 +#include "pthread.h"
- 
++#include "tst_safe_pthread.h"
  char *TCID = "send01";
  int testno;
+ 
 @@ -67,13 +68,13 @@ struct test_case_t {		/* test case structure */
  };
  
@@ -124,11 +126,14 @@ index 2e0ae2177..b0e10028e 100644
  	socklen_t slen = sizeof(*sin0);
  
  	sin0->sin_family = AF_INET;
-@@ -184,28 +190,22 @@ static pid_t start_server(struct sockaddr_in *sin0)
+@@ -184,28 +190,14 @@ static pid_t start_server(struct sockaddr_in *sin0)
  		return -1;
  	}
  	SAFE_GETSOCKNAME(cleanup, sfd, (struct sockaddr *)sin0, &slen);
--
++	 //start a child thread to create a directory
++	SAFE_PTHREAD_CREATE(&tid, NULL, do_child_thread, NULL);
++	return tid;
+ 
 -	switch ((pid = FORK_OR_VFORK())) {
 -	case 0:
 -#ifdef UCLINUX
@@ -144,18 +149,7 @@ index 2e0ae2177..b0e10028e 100644
 -	default:
 -		close(sfd);
 -		return pid;
-+	 //start a child thread to create a directory
-+	if(pthread_create(&tid, NULL, do_child_thread, NULL)== -1)
-+	{
-+		tst_brkm(TBROK | TERRNO, cleanup, "Thread create failed");
- 	}
-+	else
-+	{
-+		tst_resm(TINFO,"Thread created");
-+		(void)close(sfd);
-+	}
-+	return tid;
-+
+-	}
  
 -	exit(1);
  }
@@ -165,7 +159,7 @@ index 2e0ae2177..b0e10028e 100644
  {
  	fd_set afds, rfds;
  	int nfds, cc, fd;
-@@ -217,7 +217,7 @@ static void do_child(void)
+@@ -217,7 +209,7 @@ static void do_child(void)
  	nfds = sfd + 1;
  
  	/* accept connections until killed */
@@ -174,7 +168,7 @@ index 2e0ae2177..b0e10028e 100644
  		socklen_t fromlen;
  
  		memcpy(&rfds, &afds, sizeof(rfds));
-@@ -245,6 +245,9 @@ static void do_child(void)
+@@ -245,6 +237,9 @@ static void do_child(void)
  			}
  		}
  	}
@@ -184,7 +178,7 @@ index 2e0ae2177..b0e10028e 100644
  }
  
  int main(int ac, char *av[])
-@@ -253,11 +256,6 @@ int main(int ac, char *av[])
+@@ -253,11 +248,6 @@ int main(int ac, char *av[])
  
  	tst_parse_opts(ac, av, NULL, NULL);
  
@@ -196,7 +190,7 @@ index 2e0ae2177..b0e10028e 100644
  	setup();
  
  	for (lc = 0; TEST_LOOPING(lc); ++lc) {
-@@ -293,20 +291,18 @@ int main(int ac, char *av[])
+@@ -293,21 +283,18 @@ int main(int ac, char *av[])
  	tst_exit();
  }
  
@@ -215,8 +209,9 @@ index 2e0ae2177..b0e10028e 100644
  static void cleanup(void)
  {
 -	kill(server_pid, SIGKILL);
+-
 +	kill_thread = 1;
 +	sched_yield();
- 
  }
  
+ static void setup0(void)
