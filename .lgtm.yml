@@ -11,7 +11,14 @@ extraction:
 
     after_prepare:
     - printenv
-    - pwd
+    # Install npm packages in HOME.
+    # https://stackoverflow.com/a/13021677
+    - export NPM_PACKAGES="$HOME/.npm-packages"
+    - mkdir -p "$NPM_PACKAGES"
+    - echo "prefix = $NPM_PACKAGES" >> ~/.npmrc
+    - export PATH="$NPM_PACKAGES/bin:$PATH"
+    - export NODE_PATH="$NPM_PACKAGES/lib/node_modules:$NODE_PATH"
+    # esy is an Open Enclave build dependency.
     - npm install -g esy
     
     configure:
