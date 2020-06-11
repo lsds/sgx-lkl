@@ -1,5 +1,8 @@
+Patch Description: Tests were failing due to unavailability of fork() support. 
+So modified the tests to use pthreads and verify the error condition for setsid().
+
 diff --git a/testcases/kernel/syscalls/setsid/setsid01.c b/testcases/kernel/syscalls/setsid/setsid01.c
-index ed8f0e4ad..1e40e7b21 100644
+index ed8f0e4ad..f891140dd 100644
 --- a/testcases/kernel/syscalls/setsid/setsid01.c
 +++ b/testcases/kernel/syscalls/setsid/setsid01.c
 @@ -39,6 +39,8 @@
@@ -11,19 +14,18 @@ index ed8f0e4ad..1e40e7b21 100644
  
  #define INVAL_FLAG	-1
  #define USER2		301
-@@ -53,161 +55,102 @@ int TST_TOTAL = 1;
+@@ -53,18 +55,14 @@ int TST_TOTAL = 1;
  static char *argv0;
  #endif
  
 -void do_child_1(void);
 -void do_child_2(void);
- void setup(void);
- void cleanup(void);
- 
 +static void* do_child_thread(void* arg);
 +static void* do_master_thread(void* arg);
 +
-+
+ void setup(void);
+ void cleanup(void);
+ 
  int main(int ac, char **av)
  {
 -	int pid;
@@ -31,49 +33,19 @@ index ed8f0e4ad..1e40e7b21 100644
 -	int ret, status;
 -	int exno = 0;
 -
--	int lc;
-+     int lc;
+ 	int lc;
  
--	tst_parse_opts(ac, av, NULL, NULL);
-+     tst_parse_opts(ac, av, NULL, NULL);
- #ifdef UCLINUX
--	argv0 = av[0];
-+     argv0 = av[0];
+ 	tst_parse_opts(ac, av, NULL, NULL);
+@@ -86,128 +84,67 @@ int main(int ac, char **av)
+ 		tst_count = 0;
  
--	maybe_run_child(&do_child_1, "n", 1);
--	maybe_run_child(&do_child_2, "n", 2);
-+     maybe_run_child(&do_child_1, "n", 1);
-+     maybe_run_child(&do_child_2, "n", 2);
- #endif
- 
--	/*
--	 * perform global setup for the test
--	 */
--	setup();
-+     /*
-+      * perform global setup for the test
-+      */
-+     setup();
- 
--	for (lc = 0; TEST_LOOPING(lc); lc++) {
-+     for (lc = 0; TEST_LOOPING(lc); lc++) {
- 
--		/* reset tst_count in case we are looping */
--		tst_count = 0;
-+          /* reset tst_count in case we are looping */
-+          tst_count = 0;
- 
--		/*
+ 		/*
 -		 * When the process group having forked of a child
 -		 * and then it attached itself to another process
 -		 * group and tries to setsid
--		 */
++		 * Creates two threads and tries to do setsid()
+ 		 */
 -		pid = FORK_OR_VFORK();
-+          /*
-+           * When the process group having forked of a child
-+           * and then it attached itself to another process
-+           * group and tries to setsid
-+           */
 +          pthread_t master_tid;
  
 -		if (pid == 0) {
@@ -86,8 +58,7 @@ index ed8f0e4ad..1e40e7b21 100644
 -#ifdef UCLINUX
 -				if (self_exec(argv0, "n", 1) < 0) {
 -					tst_resm(TFAIL, "self_exec failed");
-+          SAFE_PTHREAD_JOIN(master_tid, NULL);
- 
+-
 -				}
 -#else
 -				do_child_1();
@@ -125,12 +96,10 @@ index ed8f0e4ad..1e40e7b21 100644
 -		if (!(fail || exno)) {
 -			tst_resm(TPASS, "all misc tests passed");
 -		}
--	}
--	cleanup();
--	tst_exit();
-+     }
-+     cleanup();
-+     tst_exit();
++          SAFE_PTHREAD_JOIN(master_tid, NULL);
+ 	}
+ 	cleanup();
+ 	tst_exit();
  
  }
  
@@ -138,7 +107,6 @@ index ed8f0e4ad..1e40e7b21 100644
 - * do_child_1()
 - */
 -void do_child_1(void)
-+
 +static void* do_master_thread(void* arg)
  {
 -	int exno = 0;
@@ -151,7 +119,7 @@ index ed8f0e4ad..1e40e7b21 100644
 +          tst_resm(TFAIL, "master thread: setpgid(0,0) failed with error: %s", strerror(errno));
 +          pthread_exit(NULL);
 +     }
-+     else 
++     else
 +     {
 +          tst_resm(TINFO, "master thread: setpgid(0,0) success");
 +     }
@@ -239,22 +207,6 @@ index ed8f0e4ad..1e40e7b21 100644
 +     }
 +
 +     pthread_exit(NULL);
-+
- }
- 
- /*
-@@ -216,11 +159,11 @@ void do_child_2(void)
- void setup(void)
- {
- 
--	tst_sig(FORK, DEF_HANDLER, cleanup);
-+     tst_sig(FORK, DEF_HANDLER, cleanup);
- 
--	umask(0);
-+     umask(0);
- 
--	TEST_PAUSE;
-+     TEST_PAUSE;
  }
  
  /*
