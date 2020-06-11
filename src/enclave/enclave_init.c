@@ -42,6 +42,7 @@ static int find_and_mount_disks()
             if (strcmp(app_disk->mnt, shm->virtio_blk_dev_names[j]) == 0)
             {
                 estate->disk_state[i].host_disk_index = j;
+                // TODO: do we need the host's disk->mmap?
                 found = true;
             }
         }

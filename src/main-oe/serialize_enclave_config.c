@@ -11,7 +11,7 @@
 #include "shared/json.h"
 #include "shared/sgxlkl_enclave_config.h"
 
-#include "host/compose_enclave_config.h"
+#include "host/serialize_enclave_config.h"
 
 #define FAIL sgxlkl_host_fail
 #define INFO sgxlkl_host_info
@@ -474,9 +474,8 @@ static void sort_json(json_obj_t* obj)
     }
 }
 
-void compose_enclave_config(
-    const sgxlkl_host_state_t* host_state,
-    const sgxlkl_app_config_t* app_config,
+void serialize_enclave_config(
+    const sgxlkl_enclave_config_t* config,
     char** buffer,
     size_t* buffer_size)
 {
@@ -489,7 +488,7 @@ void compose_enclave_config(
         sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
-    const sgxlkl_enclave_config_t* config = &host_state->enclave_config;
+    const sgxlkl_app_config_t* app_config = &config->app_config;
 
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
 #define FPFS32(N) root->objects[cnt++] = mk_json_s32(#N, config->N)

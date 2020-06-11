@@ -28,7 +28,7 @@
 #include <netinet/ip.h>
 
 #include "enclave/enclave_mem.h"
-#include "host/compose_enclave_config.h"
+#include "host/serialize_enclave_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "host/vio_host_event_channel.h"
@@ -1614,7 +1614,7 @@ void _create_enclave(
 
     char* buffer = NULL;
     size_t buffer_size = 0;
-    compose_enclave_config(&host_state, app_config, &buffer, &buffer_size);
+    serialize_enclave_config(&host_state.enclave_config, &buffer, &buffer_size);
     oe_eeid_t* eeid = NULL;
     oe_create_eeid_sgx(buffer_size, &eeid);
     oe_enclave_size_settings_t oe_sizes = {
