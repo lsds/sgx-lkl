@@ -503,6 +503,8 @@ void serialize_enclave_config(
     json_obj_t* root = mk_json_objects(NULL, root_size);
 
     size_t cnt = 0;
+    root->objects[cnt++] =
+        mk_json_u64("format_version", SGXLKL_ENCLAVE_CONFIG_VERSION);
     FPFS32(mode);
     FPFU64(stacksize);
     FPFSS(

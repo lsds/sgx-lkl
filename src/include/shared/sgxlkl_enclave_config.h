@@ -92,6 +92,8 @@ typedef struct sgxlkl_app_config
     sgxlkl_app_size_config_t sizes;
 } sgxlkl_app_config_t;
 
+#define SGXLKL_ENCLAVE_CONFIG_VERSION 1UL
+
 typedef struct sgxlkl_enclave_config
 {
     int mode;

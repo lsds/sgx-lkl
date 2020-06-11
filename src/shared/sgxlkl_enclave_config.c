@@ -528,7 +528,13 @@ static json_result_t json_read_callback(
             }
             last_path = cur_path;
 
-            JU64("stacksize", &data->config->stacksize);
+            JPATHT("format_version", JSON_TYPE_STRING, {
+                uint64_t format_version = strtoul(un->string, NULL, 10);
+                if (format_version < SGXLKL_ENCLAVE_CONFIG_VERSION)
+                    FAIL(
+                        "invalid enclave config format version %lu\n",
+                        un->integer);
+            });
 
 #define HOSTDISK() \
     (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
@@ -543,6 +549,7 @@ static json_result_t json_read_callback(
                 memcpy(disk->mnt, un->string, len + 1);
             });
 
+            JU64("stacksize", &data->config->stacksize);
             JPATHT("mmap_files", JSON_TYPE_STRING, {
                 if (strcmp(un->string, "shared") == 0)
                     data->config->mmap_files = ENCLAVE_MMAP_FILES_SHARED;
