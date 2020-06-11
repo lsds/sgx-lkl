@@ -141,16 +141,113 @@ struct _json_parser
         const char* message);
 };
 
+/* This function initializes the JSON parser. The parser destroys its input
+ * text.
+ *     - json_data - zero-terminated JSON text (modified during parsing).
+ *     - json_size - length of the JSON text excluding the zero terminator.
+ *     - callback - called repeatedly during parsing.
+ *     - callback_data - user data passed to the callback.
+ *     - allocator - required custom allocator.
+ */
 json_result_t json_parser_init(
-    json_parser_t* self,
-    char* data,
-    size_t size,
+    json_parser_t* parser,
+    char* json_data,
+    size_t json_size,
     json_parser_callback_t callback,
     void* callback_data,
     json_allocator_t* allocator);
 
-json_result_t json_parser_parse(json_parser_t* self);
+/* This function performs parsing which calls the callback passed to
+ * json_parser_init() as elements are recognized. The following is the
+ * general form of a callback function.
+ *
+ *     static json_result_t _json_read_callback(
+ *         json_parser_t* parser,
+ *         json_reason_t reason,
+ *         json_type_t type,
+ *         const json_union_t* un,
+ *         void* callback_data)
+ *     {
+ *         json_result_t result = JSON_UNEXPECTED;
+ *
+ *         switch (reason)
+ *         {
+ *             case JSON_REASON_NONE:
+ *             {
+ *                 break;
+ *             }
+ *             case JSON_REASON_NAME:
+ *             {
+ *                 break;
+ *             }
+ *             case JSON_REASON_BEGIN_OBJECT:
+ *             {
+ *                 break;
+ *             }
+ *             case JSON_REASON_END_OBJECT:
+ *             {
+ *                 break;
+ *             }
+ *             case JSON_REASON_BEGIN_ARRAY:
+ *             {
+ *                 break;
+ *             }
+ *             case JSON_REASON_END_ARRAY:
+ *             {
+ *                 break;
+ *             }
+ *             case JSON_REASON_VALUE:
+ *             {
+ *                 break;
+ *             }
+ *         }
+ *
+ *         result = JSON_OK;
+ *
+ *     done:
+ *         return result;
+ *     }
+ */
+json_result_t json_parser_parse(json_parser_t* parser);
 
+/* This function can be called within the parser callback. It matches
+ * the value currently being parsed. For example, consider the following
+ * JSON text.
+ *
+ *     {
+ *         widget: {
+ *             0: {
+ *                 gadget: {
+ *                     color: "green"
+ *                 }
+ *             }
+ *             1: {
+ *                 gadget: {
+ *                     color: "blue"
+ *                 }
+ *             }
+ *         }
+ *     }
+ *
+ * When the parser recognizes the color value, it calls the parser callback.
+ * The callback attempts to match the color value as follows.
+ *
+ *     json_match(parser, "widget.#.gadget.color");
+ *                         ^      ^ ^      ^
+ *                         0      1 2      3
+ *
+ * This returns JSON_OK on success. The "#" character matches an element
+ * whose name is an integer. The matched integer can be retrieved by using the
+ * subscript of the path element corresponding to the element. For example:
+ *
+ *     parser->path[1].number;
+ *
+ * The path node has other uses and defines other fields. See json_node_t for
+ * more information.
+ *
+ * Note that this function is optional and parsers can be written that do
+ * not use it at all.
+ */
 json_result_t json_match(json_parser_t* parser, const char* pattern);
 
 typedef void (*json_write_t)(
@@ -158,12 +255,25 @@ typedef void (*json_write_t)(
     const void* buf,
     size_t count);
 
+/* This function prints the value contained in a JSON union.
+ *     - write - callback responsible for writing the output.
+ *     - stream - passed to the callback.
+ *     - type - type of the value.
+ *     - un - union containing the value.
+ */
 void json_print_value(
     json_write_t write,
     void* stream,
     json_type_t type,
     const json_union_t* un);
 
+/* This function formats JSON text into human readable form.
+ *     - write - callback responsible for writing the output.
+ *     - stream - passed to the callback.
+ *     - json_data - zero-terminated JSON text.
+ *     - json_size - length of the JSON text excluding the zero terminator.
+ *     - allocator - required memory allocator.
+ */
 json_result_t json_print(
     json_write_t write,
     void* write_data,
@@ -171,6 +281,17 @@ json_result_t json_print(
     size_t json_size,
     json_allocator_t* allocator);
 
+/* This function dumps the current JSON path. It may be called within a parser
+ * callback.
+ *     - write - callback responsible for writing the output.
+ *     - stream - passed to the callback.
+ *     - parser - the JSON parser instance.
+ *
+ * For example, it might print something like this (continuing with the example
+ * above).
+ *
+ *     widget.1.gadget.color
+ */
 void json_dump_path(
     json_write_t write,
     void* stream,
