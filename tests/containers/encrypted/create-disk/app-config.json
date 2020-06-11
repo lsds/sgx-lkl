@@ -14,7 +14,7 @@
         "disk": "/data",
         "readonly": false,
         "create": true,
-        "size": 524288000,
+        "size": 3221225472,
         "key": "123456"
       }
     ]

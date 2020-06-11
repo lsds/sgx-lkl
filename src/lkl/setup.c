@@ -363,6 +363,29 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     return 0;
 }
 
+// ATTN: integrity is disabled for now because dm-ioctl() depletes kernel
+// memory when formatting large integrity devices (when executing within the
+// dm-integrity module). This can be overcome either by making the disk image
+// small or making the kernel memory large. The following turns out to work
+// for 3GB disks.
+//
+//     export SGXLKL_CMDLINE="mem=80M"
+//
+// But allocating this much memory to the kernel is unreasonable. The only
+// workable solution seems to be formatting integrity devices in user space.
+// It is unclear why dm-crypt and dm-verity formatting is done in user space
+// while dm-intetrity formatting is done in kernel space.
+//
+// The failure begins in vic_dm_create_integrity() and occcurs when libdevmapper
+// invokes icotl() with the DM_RELOAD_CMD request. The kernel then panics with
+// an out-of-memory error. Custom device-mapper user-space code was written
+// that bypasses libdevmapper but the error is the same.
+//
+// Recall that integrity formatting is performed by the dm-integrity module
+// within the kernel. The integrity superblock is initially zero-filled. When
+// activated for the first time, the kernel module formats the device.
+// #define ENABLE_INTEGRITY
+
 static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
     int err;
@@ -389,10 +412,16 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     {
         .sector_size = SECTOR_SIZE,
         .pbkdf = &pbkdf,
+#ifdef ENABLE_INTEGRITY
         .integrity = "hmac(sha256)"
+#endif
     };
 
-    size_t volume_key_size = 96;
+#ifdef ENABLE_INTEGRITY
+    size_t volume_key_size = 96; /* key size plus integrity tag size */
+#else
+    size_t volume_key_size = 64;
+#endif
     const char* cipher = "aes";
     const char* cipher_mode = "xts-plain64";
 
