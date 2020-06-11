@@ -10,7 +10,9 @@ extraction:
       ]
 
     after_prepare:
-    - .azure-pipelines/scripts/dump_system_info.sh
+    - printenv
+    - pwd
+    - npm install -g esy
     
     configure:
       command:
