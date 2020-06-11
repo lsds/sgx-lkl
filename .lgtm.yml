@@ -1,6 +1,7 @@
 extraction:
   cpp:
     after_prepare:
+    - export SUDO=
     - .azure-pipelines/scripts/install_prerequisites.sh
     - .azure-pipelines/scripts/dump_system_info.sh
     
@@ -10,7 +11,7 @@ extraction:
     
     before_index:
     - export build_mode=debug
-    - export SGXLKL_PREFIX=/opt/sgx-lkl
+    - export SGXLKL_PREFIX=dist
 
     index:
       build_command:
