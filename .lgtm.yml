@@ -31,4 +31,4 @@ extraction:
 
     index:
       build_command:
-      - make DEBUG=true OE_HAS_QUOTE_PROVIDER=OFF
+      - make DEBUG=true OE_HAS_QUOTE_PROVIDER=OFF || cat /opt/src/third_party/popt/config.log
