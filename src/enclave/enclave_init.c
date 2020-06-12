@@ -168,7 +168,7 @@ static int startmain(void* args)
         );
         if (OE_OK != result)
             sgxlkl_fail("Failed to retrieve report via oe_get_report_v2: %d.\n", result);
-        oe_free_report(&remote_report);
+        oe_free_report(remote_report);
     }
 
     /* Disk config has been set through app config
