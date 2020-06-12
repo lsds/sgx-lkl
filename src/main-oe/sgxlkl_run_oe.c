@@ -1757,7 +1757,6 @@ int main(int argc, char* argv[], char* envp[])
     sgxlkl_app_config_t* app_config = &host_state.enclave_config.app_config;
     char* root_hd = NULL;
     long nproc = sysconf(_SC_NPROCESSORS_ONLN);
-    size_t num_ethreads = 1;
     pthread_t* sgxlkl_threads;
     pthread_t* host_vdisk_task;
     pthread_t* host_netdev_task;
@@ -1934,7 +1933,7 @@ int main(int argc, char* argv[], char* envp[])
         &ethreads_cores,
         &ethreads_cores_len);
 
-    sgxlkl_threads = calloc(sizeof(*sgxlkl_threads), num_ethreads);
+    sgxlkl_threads = calloc(sizeof(*sgxlkl_threads), econf->ethreads);
     if (sgxlkl_threads == 0)
     {
         sgxlkl_host_fail(
@@ -2057,9 +2056,9 @@ int main(int argc, char* argv[], char* envp[])
     __gdb_hook_starter_ready(base_addr, econf->mode, libsgxlkl);
 #endif
 
-    ethread_args_t ethreads_args[num_ethreads];
+    ethread_args_t ethreads_args[econf->ethreads];
 
-    for (int i = 0; i < num_ethreads; i++)
+    for (int i = 0; i < econf->ethreads; i++)
     {
         pthread_attr_init(&eattr);
         if (ethreads_cores_len)
@@ -2096,7 +2095,7 @@ int main(int argc, char* argv[], char* envp[])
 
     long exit_status = 0;
 
-    for (int i = 0; i < num_ethreads; i++)
+    for (int i = 0; i < econf->ethreads; i++)
     {
         pthread_join(sgxlkl_threads[i], &return_value);
         if (i == 0)
