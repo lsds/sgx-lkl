@@ -8,7 +8,7 @@
 #include "shared/env.h"
 #include "shared/read_enclave_config.h"
 
-sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
+const sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
@@ -23,17 +23,20 @@ bool sgxlkl_in_hw_release_mode()
 
 static void prepare_elf_stack()
 {
-    sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
-    sgxlkl_app_config_t* app_cfg = &config->app_config;
+    sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
+    const sgxlkl_enclave_config_t* config = state->config;
+    const sgxlkl_app_config_t* app_cfg = &config->app_config;
 
     // import host envp
+    state->imported_envc = 0;
+    state->imported_envp = NULL;
+
     if (sgxlkl_enclave_state.shared_memory.envp &&
         app_cfg->host_import_envc > 0)
     {
-        app_cfg->envp = realloc(
-            app_cfg->envp,
-            sizeof(char*) * (app_cfg->envc + app_cfg->host_import_envc + 1));
-        if (!app_cfg->envp)
+        state->imported_envp =
+            malloc(sizeof(char*) * app_cfg->host_import_envc);
+        if (!state->imported_envp)
             sgxlkl_fail("out of memory\n");
 
         for (size_t i = 0; i < app_cfg->host_import_envc; i++)
@@ -52,8 +55,7 @@ static void prepare_elf_stack()
                     if (!cpy)
                         sgxlkl_fail("out of memory\n");
                     memcpy(cpy, str, len + 1);
-                    app_cfg->envp[app_cfg->envc++] = cpy;
-                    app_cfg->envp[app_cfg->envc] = NULL;
+                    state->imported_envp[state->imported_envc++] = cpy;
                 }
             }
         }
@@ -71,10 +73,11 @@ static void prepare_elf_stack()
         total_size += strlen(app_cfg->argv[i]) + 1;
     total_count += app_cfg->argc + 1;
     for (size_t i = 0; i < app_cfg->envc; i++)
-    {
         total_size += strlen(app_cfg->envp[i]) + 1;
-        total_count += app_cfg->envc + 1;
-    }
+    total_count += app_cfg->envc + 1;
+    for (size_t i = 0; i < state->imported_envc; i++)
+        total_size += strlen(state->imported_envp[i]) + 1;
+    total_count += state->imported_envc + 1;
     total_count += 1; // auxv terminator
     total_count += 1; // platform-independent stuff terminator
 
@@ -90,8 +93,6 @@ static void prepare_elf_stack()
         memcpy(buf_ptr, (S), len);  \
         out[j++] = buf_ptr;         \
         buf_ptr += len;             \
-        free((void*)S);             \
-        S = NULL;                   \
     }
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
@@ -99,9 +100,7 @@ static void prepare_elf_stack()
     // argv
     stack->argv = out;
     if (have_run)
-    {
         ADD_STRING(app_cfg->run);
-    }
     for (size_t i = 0; i < app_cfg->argc; i++)
         ADD_STRING(app_cfg->argv[i]);
     stack->argc = j;
@@ -111,6 +110,9 @@ static void prepare_elf_stack()
     stack->envp = out + j;
     for (size_t i = 0; i < app_cfg->envc; i++)
         ADD_STRING(app_cfg->envp[i]);
+    for (size_t i = 0; i < state->imported_envc; i++)
+        // Is this the right order for imported vars?
+        ADD_STRING(state->imported_envp[i]);
     out[j++] = NULL;
 
     // auxv
@@ -131,7 +133,7 @@ static void prepare_elf_stack()
 // We need to have a separate function here
 int __sgx_init_enclave()
 {
-    sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
+    const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
     _register_enclave_signal_handlers(config->mode);
 
     prepare_elf_stack();
@@ -217,15 +219,20 @@ void sgxlkl_ethread_init(void)
     return;
 }
 
-static int _read_eeid_config(const sgxlkl_shared_memory_t* shm)
+static int _read_eeid_config()
 {
     const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
     const char* config_json = (const char*)eeid->data;
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
-    if (sgxlkl_read_enclave_config(config_json, &sgxlkl_enclave_state.config))
-        return 1;
+    sgxlkl_enclave_config_t* cfg = malloc(sizeof(sgxlkl_enclave_config_t));
+    sgxlkl_read_enclave_config(config_json, &cfg);
+    sgxlkl_enclave_state.config = cfg;
+    return 0;
+}
 
+static int _copy_shared_memory(const sgxlkl_shared_memory_t* shm)
+{
     // Copy shared memory. Deep copy so the host can't change it?
     memcpy(
         &sgxlkl_enclave_state.shared_memory,
@@ -250,7 +257,10 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     sgxlkl_verbose = 0;
 #endif
 
-    if (_read_eeid_config(shared_memory))
+    if (_read_eeid_config())
+        return 1;
+
+    if (_copy_shared_memory(shared_memory))
         return 1;
 
 #ifdef DEBUG
@@ -283,4 +293,25 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     _dlstart_c((size_t)sgxlkl_enclave_base);
 
     return __sgx_init_enclave();
+}
+
+void sgxlkl_free_enclave_state()
+{
+    sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
+
+    sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
+    state->config = NULL;
+
+    state->imported_envc = 0;
+    free(state->imported_envp);
+
+    state->elf64_stack.argc = 0;
+    free(state->elf64_stack.argv);
+    free(state->elf64_stack.envp);
+    free(state->elf64_stack.auxv);
+
+    state->num_disk_state = 0;
+    free(state->disk_state);
+
+    state->libc_state = libc_not_started;
 }

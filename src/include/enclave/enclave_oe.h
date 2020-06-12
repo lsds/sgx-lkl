@@ -20,7 +20,7 @@ extern void* _dlstart_c(size_t base);
 extern int __libc_init_enclave(int argc, char** argv);
 
 /* Shortcut to sgxlkl_enclave_state.enclave_config */
-sgxlkl_enclave_config_t* sgxlkl_enclave;
+const sgxlkl_enclave_config_t* sgxlkl_enclave;
 
 bool sgxlkl_in_sw_debug_mode();
 bool sgxlkl_in_hw_release_mode();

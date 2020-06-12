@@ -992,7 +992,7 @@ void lkl_poststart_net(int net_dev_id)
     }
 }
 
-static void do_sysctl(sgxlkl_enclave_config_t* encl)
+static void do_sysctl(const sgxlkl_enclave_config_t* encl)
 {
     if (!encl->sysctl)
         return;
@@ -1317,7 +1317,7 @@ static void* lkl_termination_thread(void* args)
     /* Free the shutdown semaphore late in the shutdown sequence */
     sgxlkl_host_ops.sem_free(termination_sem);
 
-    sgxlkl_free_enclave_config(sgxlkl_enclave);
+    sgxlkl_free_enclave_state();
 
     lthread_exit(NULL);
 }

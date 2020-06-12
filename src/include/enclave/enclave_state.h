@@ -29,7 +29,11 @@ typedef struct
 
 typedef struct sgxlkl_enclave_state
 {
-    sgxlkl_enclave_config_t* config;
+    const sgxlkl_enclave_config_t* config;
+
+    // Imported environment variables
+    char** imported_envp;
+    size_t imported_envc;
 
     /* Flattened ELF64 process stack */
     elf64_stack_t elf64_stack;
@@ -48,5 +52,7 @@ typedef struct sgxlkl_enclave_state
 } sgxlkl_enclave_state_t;
 
 extern sgxlkl_enclave_state_t sgxlkl_enclave_state;
+
+void sgxlkl_free_enclave_state();
 
 #endif /* ENCLAVE_STATE_H */

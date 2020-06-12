@@ -17,11 +17,7 @@
 #define strcmp oe_strcmp
 #define strtok_r oe_strtok_r
 #define snprintf oe_snprintf
-// #define strtol oe_strtol
 #define strtoul oe_strtoul
-// #define strcpy oe_strcpy
-// #define strtod oe_strtod
-// #define strtoull oe_strtoull
 
 #endif // SGXLKL_ENCLAVE
 
