@@ -225,7 +225,7 @@
 /ltp/testcases/kernel/syscalls/fcntl/fcntl36
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync01
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync02
-/ltp/testcases/kernel/syscalls/fdatasync/fdatasync03
+#/ltp/testcases/kernel/syscalls/fdatasync/fdatasync03
 #/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr01
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr02
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr03
