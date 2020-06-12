@@ -29,9 +29,11 @@ CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunc
 -Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -fPIC
 CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-math -Wa,--noexecstack
 
+LIBVICSETUP_DIR = $(srcdir)/vicsetup/libvicsetup
+
 CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
 CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include -I$(LIBVICSETUP_DIR)/include -I$(LIBVICSETUP_DIR)/argon2/include
 
 # -----------------------------------------------------------------------------------------
 
@@ -50,7 +52,7 @@ builddirs:
 # Build enclave static library: libsgxlkl.a
 
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
-              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
+              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c) $(LIBVICSETUP_SRCS) $(wildcard $(LIBVICSETUP_DIR)/*.c)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
