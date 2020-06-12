@@ -31,7 +31,7 @@ CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-m
 
 CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
 CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include
 
 # -----------------------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ builddirs:
 # Build enclave static library: libsgxlkl.a
 
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
-              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c)
+              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
