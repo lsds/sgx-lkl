@@ -59,7 +59,7 @@ else
     suffix="-$SGXLKL_BUILD_MODE"
 fi
 
-deb_pkg_name=clc$suffix
+deb_pkg_name=sgx-lkl$suffix
 deb_pkg_license=/usr/share/common-licenses/GPL-2
 install_prefix=/opt/sgx-lkl$suffix
 external_lib_dir=lib/external
@@ -104,7 +104,7 @@ EOF
 pkgs=()
 for lib_path in $deb_install_prefix/$external_lib_dir/*; do
     lib_name=${lib_path##*/}
-    pkg=$(dpkg -S \*/$lib_name | grep -v -e clc -e i386 | head -1 | cut -f1 -d":")
+    pkg=$(dpkg -S \*/$lib_name | grep -v -e sgx-lkl -e i386 | head -1 | cut -f1 -d":")
     if [[ -z $pkg ]]; then
         echo "No package found that contains $lib_name! Exiting..."
         exit 1

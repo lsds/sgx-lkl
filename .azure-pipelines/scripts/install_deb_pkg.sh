@@ -8,7 +8,7 @@ else
     suffix="-$SGXLKL_BUILD_MODE"
 fi
 
-deb_pkg_name=clc$suffix
+deb_pkg_name=sgx-lkl$suffix
 deb_pkg=($SGXLKL_DEB_DIR/${deb_pkg_name}_*.deb)
 deb_pkg=${deb_pkg[0]}
 echo "Using $deb_pkg"

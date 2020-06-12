@@ -58,7 +58,8 @@ echo "deb [trusted=yes] https://clcpackages.blob.core.windows.net/apt/1fa5fb889b
 Now, install with:
 ```sh
 sudo apt update
-sudo apt install clc
+# or: sgx-lkl-nonrelease (-release variant will follow)
+sudo apt install sgx-lkl-debug
 ```
 
 The FSGSBASE DKMS driver can be installed with:
