@@ -33,64 +33,11 @@
 #include <json.h>
 #include <sys/stat.h>
 #include <string.h>
+#include "../common/load_file.h"
 
 static void _write(void* stream, const void* buf, size_t count)
 {
     fwrite(buf, 1, count, (FILE*)stream);
-}
-
-int _load_file(
-    const char* path,
-    size_t extra_bytes,
-    void** data_out,
-    size_t* size_out)
-{
-    int ret = -1;
-    FILE* is = NULL;
-    void* data = NULL;
-    size_t size;
-
-    /* Get size of this file */
-    {
-        struct stat st;
-
-        if (stat(path, &st) != 0)
-            goto done;
-
-        size = (size_t)st.st_size;
-    }
-
-    /* Allocate memory */
-    if (!(data = malloc(size + extra_bytes)))
-        goto done;
-
-    /* Open the file */
-    if (!(is = fopen(path, "rb")))
-        goto done;
-
-    /* Read file into memory */
-    if (fread(data, 1, size, is) != size)
-        goto done;
-
-    /* Zero-fill any extra bytes */
-    if (extra_bytes)
-        memset((unsigned char*)data + size, 0, extra_bytes);
-
-    *data_out = data;
-    *size_out = size;
-    data = NULL;
-
-    ret = 0;
-
-done:
-
-    if (data)
-        free(data);
-
-    if (is)
-        fclose(is);
-
-    return ret;
 }
 
 int main(int argc, char** argv)
@@ -109,7 +56,7 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    if (_load_file(argv[1], 1, (void**)&json_data, &json_size) != 0)
+    if (json_load_file(argv[1], 1, (void**)&json_data, &json_size) != 0)
     {
         fprintf(stderr, "%s: failed to access '%s'\n", argv[0], argv[1]);
         exit(1);
