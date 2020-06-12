@@ -29,7 +29,9 @@ void* enclave_mremap(
 
 int enclave_mmap_flags_supported(int flags, int fd);
 
-/* Report memory usages (total and free bytes) in enclave */
+/**
+ * Report memory usages (total and free bytes) in enclave
+ */
 void enclave_mem_info(size_t* total, size_t* free);
 
 int syscall_SYS_munmap(void* addr, size_t length);
