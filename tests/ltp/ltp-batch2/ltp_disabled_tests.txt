@@ -740,8 +740,8 @@
 #/ltp/testcases/kernel/syscalls/rename/rename13
 /ltp/testcases/kernel/syscalls/rename/rename14
 /ltp/testcases/kernel/syscalls/renameat/renameat01
-/ltp/testcases/kernel/syscalls/renameat2/renameat201
-/ltp/testcases/kernel/syscalls/renameat2/renameat202
+#/ltp/testcases/kernel/syscalls/renameat2/renameat201
+#/ltp/testcases/kernel/syscalls/renameat2/renameat202
 /ltp/testcases/kernel/syscalls/request_key/request_key01
 /ltp/testcases/kernel/syscalls/request_key/request_key02
 /ltp/testcases/kernel/syscalls/request_key/request_key03
