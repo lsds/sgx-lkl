@@ -21,12 +21,14 @@ As an example, we use the `python:3-alpine3.10` image from Docker Hub:
 docker pull python:3-alpine3.10
 docker run --rm python:3-alpine3.10 python3 -c "print('Hello world!')"
 ```
+Note that we use the Alpine 3.10 image because SGX-LKL does not yet [support newer versions](https://github.com/lsds/sgx-lkl/issues/200).
 
 SGX-LKL provides tools to convert the Docker image into a disk image and configuration files:
 ```sh
 sgx-lkl-disk create --size=100M --docker=python:3-alpine3.10 python.img
 sgx-lkl-cfg create --disk python.img --host-cfg host-cfg.json --app-cfg app-cfg.json
 ```
+Note that the use of the `sgx-lkl-cfg` tool is optional but simplifies the creation of the initial SGX-LKL configuration files.
 
 To update the command-line parameters of the executed Python process, open the `app-cfg.json` configuration file and adjust the `"args"` field:
 ```
@@ -57,9 +59,8 @@ sgx-lkl-docker build --name=python-sgxlkl --host-cfg=host-cfg.json --app-cfg=app
 Note that the Docker image is minimal and does not contain a Linux distribution.
 The entrypoint of the image launches the SGX-LKL runtime with the packaged configuration files.
 
-Run the image with Docker:
+Run the image with Docker, adjusting `/opt/sgx-lkl-debug` as necessary depending on your SGX-LKL installation:
 ```sh
-# Adjust /opt/sgx-lkl-debug accordingly, depending on your SGX-LKL installation.
 docker run --rm -v /opt/sgx-lkl-debug:/opt/sgx-lkl --device /dev/sgx python-sgxlkl --hw-debug
 ```
 
