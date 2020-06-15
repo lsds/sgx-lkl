@@ -735,7 +735,7 @@
 /ltp/testcases/kernel/syscalls/rename/rename08
 /ltp/testcases/kernel/syscalls/rename/rename09
 #/ltp/testcases/kernel/syscalls/rename/rename10
-/ltp/testcases/kernel/syscalls/rename/rename11
+#/ltp/testcases/kernel/syscalls/rename/rename11
 #/ltp/testcases/kernel/syscalls/rename/rename12
 #/ltp/testcases/kernel/syscalls/rename/rename13
 /ltp/testcases/kernel/syscalls/rename/rename14
