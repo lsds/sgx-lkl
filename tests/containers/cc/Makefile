@@ -11,12 +11,13 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# Note: OE_LOG_LEVEL=INFO also enables Azure DCAP Client logging.
+# Due to the use of the Azure DCAP Client on the host,
+# it also implicitly verifies host-side networking (not using the TAP device).
 CC_DOCKER_ARGS=\
 	--rm --privileged --network=host \
 	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
-	-e OE_LOG_LEVEL=INFO
+	-e AZDCAP_DEBUG_LOG_LEVEL=INFO
 
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
@@ -35,10 +36,22 @@ run: run-hw run-sw
 
 ifeq (${SGXLKL_PREFIX},)
 run-hw:
-	@echo SGXLKL_PREFIX missing, skipping test
+	@echo SGXLKL_PREFIX missing, skipping test.
+	@echo For local testing, run the following first:
+	@echo "> cd $$SGXLKL_ROOT"
+	@echo "> export SGXLKL_PREFIX=$$SGXLKL_ROOT/build/install"
+	@echo "> make install PREFIX=\$$SGXLKL_PREFIX"
+	@echo "> tools/make_self_contained.sh"
+	@echo "Then re-run the test with SGXLKL_PREFIX still set."
 
 run-sw:
-	@echo SGXLKL_PREFIX missing, skipping test
+	@echo SGXLKL_PREFIX missing, skipping test.
+	@echo For local testing, run the following first:
+	@echo "> cd $$SGXLKL_ROOT"
+	@echo "> export SGXLKL_PREFIX=$$SGXLKL_ROOT/build/install"
+	@echo "> make install PREFIX=\$$SGXLKL_PREFIX"
+	@echo "> tools/make_self_contained.sh"
+	@echo "Then re-run the test with SGXLKL_PREFIX still set."
 else
 run-hw: $(CC_stamp)
 	docker run $(CC_DOCKER_ARGS) $(CC) --hw-debug

@@ -127,7 +127,7 @@ interp_install_path=$SGXLKL_TARGET_PREFIX/$external_lib_dir/$interp_filename
 patchelf --set-interpreter $interp_install_path $SGXLKL_PREFIX/bin/$exe_name
 
 # Add a well-known symlink to the loader so that it can be used if needed.
-ln -s $interp_filename $SGXLKL_PREFIX/$external_lib_dir/loader
+ln -sf $interp_filename $SGXLKL_PREFIX/$external_lib_dir/loader
 
 # Copy extra data files into Debian package tree.
 cp "${libsgx_enclave_image_paths[@]}" $SGXLKL_PREFIX/$external_lib_dir
