@@ -23,17 +23,16 @@ function usage() {
     echo "`basename $0` <command>"
     echo
     echo "where <command> is one of the following:"
-    echo "  build-cc                                           Build confidential container" 
+    echo "  build                                              Re-package disk images and configuration as Docker image" 
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
     echo "    --app-cfg=<path>                                 Path to app configuration file."
-    echo "    --mode=<debug|nonrelease>                          Select the deployment mode of SGX-LKL (default: debug)"
     echo
     echo " [-?]                                                Display this help message."
     exit 1
 }
 
-function build-cc() {
+function build() {
     echo "SGX-LKL root: $sgxlkl_root"
 
     echo "Creating confidential container '${cc_name}'"
@@ -94,7 +93,7 @@ function main() {
             -h|-\?|--help)
                 usage && exit
                 ;;
-            build-cc)
+            build)
                 sub_cmd=$1
                 ;;
             --name=?*)
@@ -120,8 +119,8 @@ function main() {
     done
 
     case "$sub_cmd" in
-        build-cc)
-            build-cc "$@"
+        build)
+            build "$@"
             ;;
         *)
             echo "Missing/unknown command" && usage && exit 1
