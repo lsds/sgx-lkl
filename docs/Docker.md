@@ -28,7 +28,7 @@ sgx-lkl-disk create --size=100M --docker=python:3-alpine3.10 python.img
 sgx-lkl-cfg create --disk python.img --host-cfg host-cfg.json --app-cfg app-cfg.json
 ```
 
-Open `app-cfg.json` and adjust the `"args"` field:
+To update the command-line parameters of the executed Python process, open the `app-cfg.json` configuration file and adjust the `"args"` field:
 ```
 "args": ["-c", "print('Hello world!')"],
 ```
@@ -40,14 +40,14 @@ sgx-lkl-run-oe --host-config=host-cfg.json --app-config=app-cfg.json --hw-debug
 
 ## Re-packaging as Docker image
 
-SGX-LKL together with disk images and configuration files can be run as command-line tool in various environments. In order to run SGX-LKL in environments that require Docker images (like Kubernetes) we need to re-package the disk image, configuration files, and optionally SGX-LKL itself, as Docker image.
+SGX-LKL together with disk images and configuration files can be run as command-line tool in various environments. In order to run SGX-LKL in environments that require Docker images (like Kubernetes) we need to re-package the disk image, configuration files, and optionally SGX-LKL itself, as a Docker image.
 
 Continuing from the previous section we start with three files:
 - `python.img`
 - `host-cfg.json`
 - `app-cfg.json`
 
-Currently, the tooling of SGX-LKL assumes that SGX-LKL is not part of the Docker image but instead mounted into the Docker container from the host. In the same spirit as the Docker runtime, this allows independent updating of SGX-LKL without requiring to rebuild Docker images.
+The tooling of SGX-LKL assumes that SGX-LKL is not part of the Docker image but instead mounted into the Docker container from the host. In the same spirit as the Docker runtime, this allows independent updating of SGX-LKL without requiring to rebuild Docker images.
 
 Re-package as Docker image:
 ```sh
