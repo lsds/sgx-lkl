@@ -9,6 +9,7 @@
 long int strtol(const char* nptr, char** endptr, int base);
 #else
 #include <host/sgxlkl_util.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #define FAIL sgxlkl_host_fail
@@ -21,7 +22,7 @@ long int strtol(const char* nptr, char** endptr, int base);
 
 #include <enclave/enclave_mem.h>
 #include <enclave/enclave_state.h>
-#include <shared/json.h>
+#include <json.h>
 #include <shared/read_enclave_config.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
@@ -70,9 +71,17 @@ static char* make_path(json_parser_t* parser)
     if (parser->depth > 0)
     {
         char* p = (char*)tmp;
-        p += sprintf(p, "%s", parser->path[0]);
+        size_t len = strlen(parser->path[0].name);
+        memcpy(p, parser->path[0].name, len);
+        p += len;
+        *p = '\0';
         for (size_t i = 1; i < parser->depth; i++)
-            p += sprintf(p, ".%s", parser->path[i]);
+        {
+            len = strlen(parser->path[i].name);
+            memcpy(p, parser->path[i].name, len);
+            p += len;
+            *p = '\0';
+        }
     }
 
     char* r = NULL;
@@ -104,7 +113,7 @@ static char* make_path(json_parser_t* parser)
         return JSON_BAD_PARAMETER;                \
     }
 
-#define MATCH(PATH) json_match(parser, PATH, &i) == JSON_OK
+#define MATCH(PATH) json_match(parser, PATH) == JSON_OK
 
 #define JPATH(PATH, CODE) \
     if (MATCH(PATH))      \
@@ -158,16 +167,13 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
         json_type_t type,                                                 \
         const json_union_t* value,                                        \
         char* path,                                                       \
-        size_t* index,                                                    \
         T* to)                                                            \
     {                                                                     \
         if (!to)                                                          \
             return JSON_BAD_PARAMETER;                                    \
                                                                           \
-        size_t i;                                                         \
         if (MATCH(path))                                                  \
         {                                                                 \
-            *index = i;                                                   \
             if (type != JSON_TYPE_STRING)                                 \
                 FAIL("invalid value type for '%s'\n", make_path(parser)); \
             _Static_assert(                                               \
@@ -191,16 +197,13 @@ static uint64_t hex2int(const char* digits, size_t num_digits)
         json_type_t type,                                                 \
         const json_union_t* value,                                        \
         char* path,                                                       \
-        size_t* index,                                                    \
         T* to)                                                            \
     {                                                                     \
         if (!to)                                                          \
             return JSON_BAD_PARAMETER;                                    \
                                                                           \
-        size_t i;                                                         \
         if (MATCH(path))                                                  \
         {                                                                 \
-            *index = i;                                                   \
             if (type != JSON_TYPE_STRING)                                 \
                 FAIL("invalid value type for '%s'\n", make_path(parser)); \
             _Static_assert(                                               \
@@ -242,14 +245,14 @@ JINTDECLU(uint16_t, tmp <= UINT16_MAX);
         }                          \
     } while (0);
 
-#define JU64(P, D)                                                          \
-    if (decode_uint64_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+#define JU64(P, D)                                                      \
+    if (decode_uint64_t(parser, JSON_TYPE_STRING, un, P, D) == JSON_OK) \
         return JSON_OK;
-#define JS32(P, D)                                                         \
-    if (decode_int32_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+#define JS32(P, D)                                                     \
+    if (decode_int32_t(parser, JSON_TYPE_STRING, un, P, D) == JSON_OK) \
         return JSON_OK;
-#define JU16(P, D)                                                          \
-    if (decode_uint16_t(parser, JSON_TYPE_STRING, un, P, &i, D) == JSON_OK) \
+#define JU16(P, D)                                                      \
+    if (decode_uint16_t(parser, JSON_TYPE_STRING, un, P, D) == JSON_OK) \
         return JSON_OK;
 
 void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)
@@ -299,7 +302,7 @@ static json_result_t json_read_app_config_callback(
 {
     json_result_t result = JSON_UNEXPECTED;
     json_callback_data_t* data = (json_callback_data_t*)callback_data;
-    unsigned long i;
+    size_t i = parser->path[parser->depth - 1].index;
 
     switch (reason)
     {
@@ -422,7 +425,7 @@ static json_result_t json_read_app_config_callback(
                 return JSON_OK;
             }
             JBOOL("disks.readonly", &APPDISK()->readonly);
-            if (json_match(parser, "disks.key", &i) == JSON_OK)
+            if (json_match(parser, "disks.key") == JSON_OK)
             {
                 SEEN(parser);
                 CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
@@ -477,7 +480,7 @@ static json_result_t json_read_callback(
     static char* last_path = NULL;
     json_result_t result = JSON_UNEXPECTED;
     json_callback_data_t* data = (json_callback_data_t*)callback_data;
-    unsigned long i;
+    size_t i = parser->path[parser->depth - 1].index;
 
     switch (reason)
     {
@@ -714,12 +717,15 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     char* json_copy = malloc(sizeof(char) * (json_len + 1));
     memcpy(json_copy, from, json_len);
 
+    json_allocator_t allocator = {.ja_malloc = malloc, .ja_free = free};
+
     if ((r = json_parser_init(
              &parser,
              json_copy,
              strlen(from),
              json_read_callback,
-             &callback_data)) != JSON_OK)
+             &callback_data,
+             &allocator)) != JSON_OK)
     {
         FAIL("json_parser_init() failed: %d\n", r);
     }

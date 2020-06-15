@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <json.h>
 #include "enclave/enclave_mem.h"
 #include "enclave/wireguard.h"
 #include "host/sgxlkl_util.h"
 #include "shared/env.h"
 #include "shared/host_state.h"
-#include "shared/json.h"
 #include "shared/sgxlkl_enclave_config.h"
 
 #include "host/serialize_enclave_config.h"
