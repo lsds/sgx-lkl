@@ -139,7 +139,8 @@ endif
 
 # OpenEnclave
 OE_SUBMODULE := $(SGXLKL_ROOT)/openenclave
-OE_SDK_ROOT := ${BUILD_DIR}/openenclave
+OE_SDK_ROOT_DEFAULT := $(BUILD_DIR)/openenclave
+OE_SDK_ROOT ?= $(OE_SDK_ROOT_DEFAULT)
 export OE_SDK_INCLUDES := $(OE_SDK_ROOT)/include
 export OE_SDK_LIBS := $(OE_SDK_ROOT)/lib
 OE_OESIGN_TOOL_PATH := $(OE_SDK_ROOT)/bin
