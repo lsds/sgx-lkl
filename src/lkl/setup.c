@@ -634,6 +634,11 @@ static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
     }
 }
 
+static bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk)
+{
+    return disk->key || disk->key_id || disk->fresh_key;
+}
+
 static void lkl_mount_virtual()
 {
     lkl_mount_devtmpfs("/dev");

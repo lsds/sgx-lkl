@@ -293,183 +293,6 @@ void parse_mmap_files(sgxlkl_enclave_mmap_files_t* dest, const char* value)
         FAIL("Invalid mmap_files value: %s\n", value);
 }
 
-static json_result_t json_read_app_config_callback(
-    json_parser_t* parser,
-    json_reason_t reason,
-    json_type_t type,
-    const json_union_t* un,
-    void* callback_data)
-{
-    json_result_t result = JSON_UNEXPECTED;
-    json_callback_data_t* data = (json_callback_data_t*)callback_data;
-    size_t i = parser->path[parser->depth - 1].index;
-
-    switch (reason)
-    {
-        case JSON_REASON_NONE:
-            FAIL("unreachable");
-        case JSON_REASON_NAME:
-            break;
-        case JSON_REASON_BEGIN_OBJECT:
-            if (MATCH("disks"))
-            {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(
-                    data->array,
-                    new_count * sizeof(sgxlkl_enclave_disk_config_t));
-                if (!data->array)
-                    FAIL("out of memory\n");
-                sgxlkl_enclave_disk_config_t* disks =
-                    (sgxlkl_enclave_disk_config_t*)data->array;
-                for (size_t i = data->array_count; i < new_count; i++)
-                    memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
-                data->array_count = new_count;
-            }
-            break;
-        case JSON_REASON_END_OBJECT:
-            break;
-        case JSON_REASON_BEGIN_ARRAY:
-            if (data->array || data->array_count != 0)
-                FAIL("json: nested arrays not supported.");
-            data->array = NULL;
-            data->array_count = 0;
-            break;
-        case JSON_REASON_END_ARRAY:
-            if (MATCH("argv"))
-            {
-                data->config->argc = data->array_count;
-                data->config->argv = (char**)data->array;
-            }
-            else if (MATCH("envp"))
-            {
-                data->config->envc = data->array_count;
-                data->config->envp = (char**)data->array;
-            }
-            else if (MATCH("auxv"))
-            {
-                data->config->auxc = data->array_count;
-                data->config->auxv = (Elf64_auxv_t**)data->array;
-            }
-            else if (MATCH("disks"))
-            {
-                data->config->num_disks = data->array_count;
-                data->config->disks =
-                    (sgxlkl_enclave_disk_config_t*)data->array;
-            }
-            else if (MATCH("peers"))
-            {
-                data->config->wg.num_peers = data->array_count;
-                data->config->wg.peers =
-                    (sgxlkl_enclave_wg_peer_config_t*)data->array;
-            }
-            else if (MATCH("host_import_envp"))
-            {
-                data->config->host_import_envc = data->array_count;
-                data->config->host_import_envp = (char**)data->array;
-            }
-            else
-                FAIL("unknown json array '%s'\n", make_path(parser));
-            data->array = NULL;
-            data->array_count = 0;
-            break;
-        case JSON_REASON_VALUE:
-        {
-            JSTRING("run", data->config->run);
-            JSTRING("cwd", data->config->cwd);
-            JPATHT("argv", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
-            });
-            JPATHT("envp", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
-            });
-            JPATHT("host_import_envp", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
-            });
-
-#define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
-            JU64("auxv.a_type", &AUXV()->a_type);
-            JU64("auxv.a_val", &AUXV()->a_un.a_val);
-
-            JPATHT("exit_status", JSON_TYPE_STRING, {
-                parse_exit_status(&data->config->exit_status, un->string);
-            });
-
-#define APPDISK() \
-    (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
-
-            JBOOL("disks.create", &APPDISK()->create);
-            JU64("disks.size", &APPDISK()->size);
-            if (MATCH("disks.mnt"))
-            {
-                SEEN(parser);
-                size_t len = strlen(un->string);
-                if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
-                    FAIL("invalid length of 'mnt' for disk %d\n", i);
-                sgxlkl_enclave_disk_config_t* disk = APPDISK();
-                memcpy(disk->mnt, un->string, len + 1);
-                return JSON_OK;
-            }
-            JBOOL("disks.readonly", &APPDISK()->readonly);
-            if (json_match(parser, "disks.key") == JSON_OK)
-            {
-                SEEN(parser);
-                CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
-                sgxlkl_enclave_disk_config_t* disk = APPDISK();
-                if (type == JSON_TYPE_NULL)
-                    disk->key = NULL;
-                else
-                {
-                    size_t l = strlen(un->string);
-                    disk->key_len = l / 2;
-                    disk->key = calloc(1, disk->key_len);
-                    if (!disk->key)
-                        FAIL("out of memory\n");
-                    for (size_t i = 0; i < disk->key_len; i++)
-                        disk->key[i] = hex2int(un->string + 2 * i, 2);
-                }
-                return JSON_OK;
-            }
-            JSTRING("disks.key_id", APPDISK()->key_id);
-            JBOOL("disks.fresh_key", &APPDISK()->fresh_key);
-            JSTRING("disks.roothash", APPDISK()->roothash);
-            JU64("disks.roothash_offset", &APPDISK()->roothash_offset);
-            JU64(
-                "image_sizes.num_heap_pages",
-                &data->config->image_sizes.num_heap_pages);
-            JU64(
-                "image_sizes.num_stack_pages",
-                &data->config->image_sizes.num_stack_pages);
-            JU64("image_sizes.num_tcs", &data->config->image_sizes.num_tcs);
-            JBOOL("disks.overlay", &APPDISK()->overlay);
-
-            // else
-            FAIL(
-                "Unknown json element (or value for) '%s', refusing to run "
-                "with this configuration.\n",
-                make_path(parser));
-        }
-    }
-
-    result = JSON_OK;
-
-    return result;
-}
-
 static json_result_t json_read_callback(
     json_parser_t* parser,
     json_reason_t reason,
@@ -503,9 +326,20 @@ static json_result_t json_read_callback(
                     memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
                 data->array_count = new_count;
             }
-            else
-                result = json_read_app_config_callback(
-                    parser, reason, type, un, data);
+            else if (MATCH("disks"))
+            {
+                size_t new_count = data->array_count + 1;
+                data->array = realloc(
+                    data->array,
+                    new_count * sizeof(sgxlkl_enclave_disk_config_t));
+                if (!data->array)
+                    FAIL("out of memory\n");
+                sgxlkl_enclave_disk_config_t* disks =
+                    (sgxlkl_enclave_disk_config_t*)data->array;
+                for (size_t i = data->array_count; i < new_count; i++)
+                    memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
+                data->array_count = new_count;
+            }
             break;
         case JSON_REASON_END_OBJECT:
             // Reset last_path for sortedness check of objects in arrays.
@@ -522,16 +356,39 @@ static json_result_t json_read_callback(
             data->array_count = 0;
             break;
         case JSON_REASON_END_ARRAY:
-            if (MATCH("wg.peers"))
+            if (MATCH("argv"))
+            {
+                data->config->argc = data->array_count;
+                data->config->argv = (char**)data->array;
+            }
+            else if (MATCH("envp"))
+            {
+                data->config->envc = data->array_count;
+                data->config->envp = (char**)data->array;
+            }
+            else if (MATCH("auxv"))
+            {
+                data->config->auxc = data->array_count;
+                data->config->auxv = (Elf64_auxv_t**)data->array;
+            }
+            else if (MATCH("disks"))
+            {
+                data->config->num_disks = data->array_count;
+                data->config->disks =
+                    (sgxlkl_enclave_disk_config_t*)data->array;
+            }
+            else if (MATCH("host_import_envp"))
+            {
+                data->config->host_import_envc = data->array_count;
+                data->config->host_import_envp = (char**)data->array;
+            }
+            else if (MATCH("wg.peers"))
             {
                 data->config->wg.num_peers = data->array_count;
                 data->config->wg.peers =
                     (sgxlkl_enclave_wg_peer_config_t*)data->array;
             }
-            else if (
-                MATCH("clock_res") ||
-                json_read_app_config_callback(parser, reason, type, un, data) ==
-                    JSON_OK)
+            else if (MATCH("clock_res"))
             {
                 /* OK */
             }
@@ -643,9 +500,89 @@ static json_result_t json_read_callback(
             JSTRING("sysctl", data->config->sysctl);
             JBOOL("swiotlb", &data->config->swiotlb);
 
-            if (json_read_app_config_callback(parser, reason, type, un, data) ==
-                JSON_OK)
+            JSTRING("run", data->config->run);
+            JSTRING("cwd", data->config->cwd);
+            JPATHT("argv", JSON_TYPE_STRING, {
+                size_t new_count = data->array_count + 1;
+                data->array = realloc(data->array, new_count * sizeof(char*));
+                for (size_t i = data->array_count; i < new_count; i++)
+                    ((char**)data->array)[i] = NULL;
+                strdupz((char**)data->array + data->array_count, un->string);
+                data->array_count = new_count;
+            });
+            JPATHT("envp", JSON_TYPE_STRING, {
+                size_t new_count = data->array_count + 1;
+                data->array = realloc(data->array, new_count * sizeof(char*));
+                for (size_t i = data->array_count; i < new_count; i++)
+                    ((char**)data->array)[i] = NULL;
+                strdupz((char**)data->array + data->array_count, un->string);
+                data->array_count = new_count;
+            });
+            JPATHT("host_import_envp", JSON_TYPE_STRING, {
+                size_t new_count = data->array_count + 1;
+                data->array = realloc(data->array, new_count * sizeof(char*));
+                for (size_t i = data->array_count; i < new_count; i++)
+                    ((char**)data->array)[i] = NULL;
+                strdupz((char**)data->array + data->array_count, un->string);
+                data->array_count = new_count;
+            });
+
+#define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
+            JU64("auxv.a_type", &AUXV()->a_type);
+            JU64("auxv.a_val", &AUXV()->a_un.a_val);
+
+            JPATHT("exit_status", JSON_TYPE_STRING, {
+                parse_exit_status(&data->config->exit_status, un->string);
+            });
+
+#define DISK() \
+    (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
+
+            JBOOL("disks.create", &DISK()->create);
+            JU64("disks.size", &DISK()->size);
+            if (MATCH("disks.mnt"))
+            {
+                SEEN(parser);
+                size_t len = strlen(un->string);
+                if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
+                    FAIL("invalid length of 'mnt' for disk %d\n", i);
+                sgxlkl_enclave_disk_config_t* disk = DISK();
+                memcpy(disk->mnt, un->string, len + 1);
                 return JSON_OK;
+            }
+            JBOOL("disks.readonly", &DISK()->readonly);
+            if (json_match(parser, "disks.key") == JSON_OK)
+            {
+                SEEN(parser);
+                CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
+                sgxlkl_enclave_disk_config_t* disk = DISK();
+                if (type == JSON_TYPE_NULL)
+                    disk->key = NULL;
+                else
+                {
+                    size_t l = strlen(un->string);
+                    disk->key_len = l / 2;
+                    disk->key = calloc(1, disk->key_len);
+                    if (!disk->key)
+                        FAIL("out of memory\n");
+                    for (size_t i = 0; i < disk->key_len; i++)
+                        disk->key[i] = hex2int(un->string + 2 * i, 2);
+                }
+                return JSON_OK;
+            }
+            JSTRING("disks.key_id", DISK()->key_id);
+            JBOOL("disks.fresh_key", &DISK()->fresh_key);
+            JSTRING("disks.roothash", DISK()->roothash);
+            JU64("disks.roothash_offset", &DISK()->roothash_offset);
+            JBOOL("disks.overlay", &DISK()->overlay);
+
+            JU64(
+                "image_sizes.num_heap_pages",
+                &data->config->image_sizes.num_heap_pages);
+            JU64(
+                "image_sizes.num_stack_pages",
+                &data->config->image_sizes.num_stack_pages);
+            JU64("image_sizes.num_tcs", &data->config->image_sizes.num_tcs);
 
             // Else element is unknown. We ignore this to allow newer launchers
             // to support options that older enclave images don't know about.
@@ -666,19 +603,23 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
 
     CONFCHECK(cfg->run == NULL && cfg->argv == NULL, "missing run/argv");
     CONFCHECK(cfg->run == NULL && cfg->argc == 0, "argc == 0");
-    CONFCHECK(cfg->envc < 0, "invalid envc");
+    CONFCHECK(cfg->argc < 0, "negative argc");
+    CONFCHECK(cfg->envc < 0, "negative envc");
+    CONFCHECK(cfg->auxc < 0, "negative auxc");
     CONFCHECK(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "invalid net_mask4");
-    CONFCHECK(cfg->mode > 3 || cfg->net_mask4 > 32, "invalid net_mask4");
+    CONFCHECK(cfg->ethreads > MAX_SGXLKL_ETHREADS, "too many ethreads");
+    CONFCHECK(
+        cfg->max_user_threads > MAX_SGXLKL_MAX_USER_THREADS,
+        "max_user_threads too large");
 
     for (size_t i = 0; i < cfg->num_disks; i++)
     {
-        if (cfg->disks[i].overlay)
-        {
-            if (strcmp(cfg->disks[i].mnt, "/") != 0)
-                FAIL("overlay only allowed for root disk\n");
-            if (!cfg->disks[i].readonly)
-                FAIL("overlay only allowed for read-only root disk\n");
-        }
+        CONFCHECK(
+            cfg->disks[i].overlay && strcmp(cfg->disks[i].mnt, "/") != 0,
+            "overlay only allowed for root disk\n");
+        CONFCHECK(
+            cfg->disks[i].overlay && !cfg->disks[i].readonly,
+            "overlay only allowed for read-only root disk\n");
     }
 }
 
@@ -772,6 +713,20 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
     NONDEFAULT_FREE(kernel_cmd);
     NONDEFAULT_FREE(sysctl);
 
+    for (size_t i = 0; i < config->argc; i++)
+        free(config->argv[i]);
+    NONDEFAULT_FREE(argv);
+
+    for (size_t i = 0; i < config->envc; i++)
+        free(config->envp[i]);
+    NONDEFAULT_FREE(envp);
+
+    for (size_t i = 0; i < config->auxc; i++)
+        free(config->auxv[i]);
+    NONDEFAULT_FREE(auxv);
+
+    for (size_t i = 0; i < config->host_import_envc; i++)
+        free(config->host_import_envp[i]);
     NONDEFAULT_FREE(host_import_envp);
 
     for (size_t i = 0; i < config->num_disks; i++)
@@ -782,9 +737,4 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
     }
     NONDEFAULT_FREE(disks);
     free(config);
-}
-
-bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk)
-{
-    return disk->key || disk->key_id || disk->fresh_key;
 }

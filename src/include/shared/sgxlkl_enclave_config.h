@@ -8,6 +8,9 @@
 #include "mpmc_queue.h"
 #include "time.h"
 
+#define MAX_SGXLKL_ETHREADS 1024
+#define MAX_SGXLKL_MAX_USER_THREADS 65536
+
 typedef enum sgxlkl_enclave_mode
 {
     UNKNOWN_MODE = 0,
@@ -128,11 +131,6 @@ typedef struct sgxlkl_enclave_config
     /* Image sizes */
     sgxlkl_image_sizes_config_t image_sizes;
 } sgxlkl_enclave_config_t;
-
-#define MAX_SGXLKL_ETHREADS 1024
-#define MAX_SGXLKL_MAX_USER_THREADS 65536
-
-bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk);
 
 extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;
 
