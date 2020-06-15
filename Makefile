@@ -13,6 +13,7 @@ default: all
 
 all: update-git-submodules $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
 
+# Check if the user didn't override the default in-tree OE install location with another OE host install
 ifeq ($(OE_SDK_ROOT),$(OE_SDK_ROOT_DEFAULT))
 # Build and install Open Enclave locally
 $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
