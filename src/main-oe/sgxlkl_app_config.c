@@ -63,7 +63,9 @@ static int assert_entry_type(const char* key, struct json_object* value)
     return err;
 }
 
-static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
+static int parse_args(
+    sgxlkl_enclave_config_t* config,
+    struct json_object* args_val)
 {
     if (json_object_get_type(args_val) != json_type_array)
         return 1;
@@ -86,7 +88,9 @@ static int parse_args(sgxlkl_app_config_t* config, struct json_object* args_val)
     return 0;
 }
 
-static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
+static int parse_env(
+    sgxlkl_enclave_config_t* config,
+    struct json_object* env_val)
 {
     if (json_object_get_type(env_val) != json_type_object)
         return 1;
@@ -117,7 +121,7 @@ static int parse_env(sgxlkl_app_config_t* config, struct json_object* env_val)
 }
 
 static int parse_host_import_envp(
-    sgxlkl_app_config_t* config,
+    sgxlkl_enclave_config_t* config,
     struct json_object* env_val)
 {
     if (json_object_get_type(env_val) != json_type_array)
@@ -211,7 +215,7 @@ static int parse_enclave_disk_config_entry(
 }
 
 static int parse_disks(
-    sgxlkl_app_config_t* config,
+    sgxlkl_enclave_config_t* config,
     struct json_object* disks_val)
 {
     if (json_object_get_type(disks_val) != json_type_array)
@@ -280,7 +284,7 @@ static int parse_enclave_wg_peer_config_entry(
 }
 
 static int parse_network(
-    sgxlkl_app_config_t* config,
+    sgxlkl_enclave_config_t* config,
     struct json_object* net_val)
 {
     if (json_object_get_type(net_val) != json_type_object)
@@ -325,8 +329,8 @@ static int parse_network(
             }
         }
 
-        config->num_peers = num_peers;
-        config->peers = peers;
+        config->wg.num_peers = num_peers;
+        config->wg.peers = peers;
 
         break;
     }
@@ -356,7 +360,7 @@ static uint64_t parse_uint64(const char* key, struct json_object* value)
 }
 
 static int parse_sizes(
-    sgxlkl_app_config_t* config,
+    sgxlkl_enclave_config_t* config,
     struct json_object* sizes_val)
 {
     if (json_object_get_type(sizes_val) != json_type_object)
@@ -368,11 +372,11 @@ static int parse_sizes(
     JSON_OBJECT_FOREACH(it, sizes_val, key, value)
     {
         if (!strcmp("num_heap_pages", key))
-            config->sizes.num_heap_pages = parse_uint64(key, value);
+            config->image_sizes.num_heap_pages = parse_uint64(key, value);
         else if (!strcmp("num_stack_pages", key))
-            config->sizes.num_stack_pages = parse_uint64(key, value);
+            config->image_sizes.num_stack_pages = parse_uint64(key, value);
         else if (!strcmp("num_tcs", key))
-            config->sizes.num_tcs = parse_uint64(key, value);
+            config->image_sizes.num_tcs = parse_uint64(key, value);
         else
         {
             FAIL("Unknown configuration entry: %s\n", key);
@@ -389,7 +393,7 @@ static int parse_sgxlkl_app_config_entry(
     void* arg)
 {
     int err = 0;
-    sgxlkl_app_config_t* config = (sgxlkl_app_config_t*)arg;
+    sgxlkl_enclave_config_t* config = (sgxlkl_enclave_config_t*)arg;
 
     if (!strcmp("run", key))
     {
@@ -475,7 +479,7 @@ static int parse_sgxlkl_app_config_entry(
  * NULL otherwise. */
 int parse_sgxlkl_app_config_from_str(
     const char* str,
-    sgxlkl_app_config_t* config,
+    sgxlkl_enclave_config_t* config,
     char** err)
 {
     *err = NULL;

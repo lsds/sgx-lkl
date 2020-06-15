@@ -23,13 +23,12 @@ extern void init_sysconf(long nproc_conf, long nproc_onln);
 
 static void find_and_mount_disks()
 {
-    const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
-    const sgxlkl_app_config_t* app_config = &config->app_config;
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
-    if (app_config->num_disks == 0)
+    if (cfg->num_disks == 0)
         sgxlkl_fail("bug: no disks\n");
 
-    size_t n = app_config->num_disks;
+    size_t n = cfg->num_disks;
     sgxlkl_enclave_state_t* estate = &sgxlkl_enclave_state;
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
 
@@ -38,14 +37,13 @@ static void find_and_mount_disks()
 
     for (int i = 0; i < n; i++)
     {
-        sgxlkl_enclave_disk_config_t* app_disk = &app_config->disks[i];
+        sgxlkl_enclave_disk_config_t* app_disk = &cfg->disks[i];
         bool found = false;
         for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
         {
             if (strcmp(app_disk->mnt, shm->virtio_blk_dev_names[j]) == 0)
             {
                 estate->disk_state[i].host_disk_index = j;
-                // TODO: do we need the host's disk->mmap?
                 found = true;
             }
         }
@@ -56,7 +54,7 @@ static void find_and_mount_disks()
                 app_disk->mnt);
     }
 
-    lkl_mount_disks(app_config->disks, app_config->num_disks, app_config->cwd);
+    lkl_mount_disks(cfg->disks, cfg->num_disks, cfg->cwd);
 }
 
 // In internal OE header openenclave/internal/sgx/eeid_plugin.h
@@ -108,15 +106,14 @@ static void get_attestation_evidence()
 
 static void init_wireguard()
 {
-    const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
-    const sgxlkl_app_config_t* app_config = &config->app_config;
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
     /* Get WG public key */
     wg_device* wg_dev;
     if (wg_get_device(&wg_dev, "wg0"))
         sgxlkl_fail("Failed to locate Wireguard interface 'wg0'.\n");
 
-    if (config->verbose)
+    if (cfg->verbose)
     {
         wg_key_b64_string key;
         wg_key_to_base64(key, wg_dev->public_key);
@@ -126,13 +123,13 @@ static void init_wireguard()
     /* Add peers */
     if (wg_dev)
     {
-        wgu_add_peers(wg_dev, app_config->peers, app_config->num_peers, 1);
+        wgu_add_peers(wg_dev, cfg->wg.peers, cfg->wg.num_peers, 1);
     }
-    else if (app_config->num_peers)
+    else if (cfg->wg.num_peers)
     {
         sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
     }
-    if (app_config->num_peers && config->verbose)
+    if (cfg->wg.num_peers && cfg->verbose)
         wgu_list_devices();
 }
 

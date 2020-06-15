@@ -89,7 +89,7 @@ typedef struct ethread_args
 
 int parse_sgxlkl_app_config_from_str(
     const char* str,
-    sgxlkl_app_config_t* conf,
+    sgxlkl_enclave_config_t* conf,
     char** err);
 
 /**************************************************************************************************************************/
@@ -525,21 +525,16 @@ static void sgxlkl_loader_signal_handler(int signo)
 }
 #endif // DEBUG && VIRTIO_TEST_HOOK
 
-void app_config_from_str(char* app_config_str, sgxlkl_app_config_t* app_config)
+void app_config_from_str(char* app_config_str)
 {
-    if (!app_config)
-        sgxlkl_host_fail("missing app config object\n");
-
-    *app_config = sgxlkl_default_enclave_config.app_config;
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
     char* err = NULL;
-    if (parse_sgxlkl_app_config_from_str(app_config_str, app_config, &err))
+    if (parse_sgxlkl_app_config_from_str(app_config_str, econf, &err))
         sgxlkl_host_fail("Invalid app config: %s\n", err);
 }
 
-void app_config_from_file(
-    char* app_config_path,
-    sgxlkl_app_config_t* app_config)
+void app_config_from_file(const char* app_config_path)
 {
     int fd;
     if ((fd = open(app_config_path, O_RDONLY)) < 0)
@@ -562,7 +557,7 @@ void app_config_from_file(
         sgxlkl_host_fail(
             "Failed to read %s: %s.\n", app_config_path, strerror(errno));
 
-    app_config_from_str(buf, app_config);
+    app_config_from_str(buf);
 }
 
 static void prepare_verity(
@@ -724,7 +719,7 @@ static void get_disk_encryption_config(
 
 void disk_config_from_cmdline(
     const char* root_disk_path,
-    sgxlkl_app_config_t* app_config)
+    sgxlkl_enclave_config_t* app_config)
 {
     /* Count disks to add */
     app_config->num_disks = 1; // Root disk
@@ -778,14 +773,8 @@ void disk_config_from_cmdline(
     }
 }
 
-void app_config_from_cmdline(
-    int argc,
-    char** argv,
-    const char* root_disk_file,
-    sgxlkl_app_config_t* app_config)
+void app_config_from_cmdline(int argc, char** argv, const char* root_disk_file)
 {
-    *app_config = sgxlkl_default_enclave_config.app_config;
-
     if (argc <= 0)
     {
         sgxlkl_host_err(
@@ -794,34 +783,34 @@ void app_config_from_cmdline(
         exit(EXIT_FAILURE);
     }
 
-    app_config->run = argv[0];
-    app_config->argc = argc - 1;
-    app_config->argv = argv + 1;
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
-    app_config->cwd = sgxlkl_config_str(SGXLKL_CWD);
-    app_config->auxv = NULL;
+    econf->run = argv[0];
+    econf->argc = argc - 1;
+    econf->argv = argv + 1;
 
-    app_config->host_import_envc = 0;
-    app_config->host_import_envp = NULL;
+    econf->cwd = sgxlkl_config_str(SGXLKL_CWD);
+    econf->auxv = NULL;
+
+    econf->host_import_envc = 0;
+    econf->host_import_envp = NULL;
 
     char* hostenv = sgxlkl_config_str(SGXLKL_HOST_IMPORT_ENV);
     while (hostenv)
     {
         char* comma = strchr(hostenv, ',');
-        app_config->host_import_envp = realloc(
-            app_config->host_import_envp, app_config->host_import_envc + 1);
-        if (!app_config->host_import_envp)
+        econf->host_import_envp =
+            realloc(econf->host_import_envp, econf->host_import_envc + 1);
+        if (!econf->host_import_envp)
             sgxlkl_host_fail("out of memory\n");
 
-        app_config->host_import_envp[app_config->host_import_envc++] =
+        econf->host_import_envp[econf->host_import_envc++] =
             comma ? strndup(hostenv, comma - hostenv) : strdup(hostenv);
 
         hostenv = comma ? comma + 1 : NULL;
     }
 
-    app_config->sizes = sgxlkl_default_enclave_config.app_config.sizes;
-
-    disk_config_from_cmdline(root_disk_file, app_config);
+    disk_config_from_cmdline(root_disk_file, econf);
 }
 
 void check_envs(const char** pres, char** envp, const char* warn_msg)
@@ -1593,7 +1582,6 @@ void* enclave_init(ethread_args_t* args)
 void _create_enclave(
     char* libsgxlkl,
     uint32_t oe_flags,
-    const sgxlkl_app_config_t* app_config,
     oe_enclave_t** oe_enclave)
 {
     oe_result_t result = OE_UNEXPECTED;
@@ -1602,14 +1590,18 @@ void _create_enclave(
 
     char* buffer = NULL;
     size_t buffer_size = 0;
+
     serialize_enclave_config(&host_state.enclave_config, &buffer, &buffer_size);
+
     oe_eeid_t* eeid = NULL;
     oe_create_eeid_sgx(buffer_size, &eeid);
+    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
     oe_enclave_size_settings_t oe_sizes = {
-        .num_heap_pages = app_config->sizes.num_heap_pages,
-        .num_stack_pages = app_config->sizes.num_stack_pages,
-        .num_tcs = app_config->sizes.num_tcs,
+        .num_heap_pages = econf->image_sizes.num_heap_pages,
+        .num_stack_pages = econf->image_sizes.num_stack_pages,
+        .num_tcs = econf->image_sizes.num_tcs,
     };
+
     eeid->size_settings = oe_sizes;
     memcpy(eeid->data, buffer, buffer_size);
 
@@ -1754,7 +1746,6 @@ int main(int argc, char* argv[], char* envp[])
     char* enclave_config_path = NULL;
     char libsgxlkl[PATH_MAX];
     const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-    sgxlkl_app_config_t* app_config = &host_state.enclave_config.app_config;
     char* root_hd = NULL;
     long nproc = sysconf(_SC_NPROCESSORS_ONLN);
     pthread_t* sgxlkl_threads;
@@ -1794,22 +1785,22 @@ int main(int argc, char* argv[], char* envp[])
         {"app-config", required_argument, 0, 'a'},
         {0, 0, 0, 0}};
 
-    int enclave_mode = UNKNOWN_MODE;
+    host_state.enclave_config = sgxlkl_default_enclave_config;
 
     while ((c = getopt_sgxlkl(argc, argv, long_options)) != -1)
     {
         switch (c)
         {
             case SW_DEBUG_MODE:
-                enclave_mode = SW_DEBUG_MODE;
+                host_state.enclave_config.mode = SW_DEBUG_MODE;
                 oe_flags = OE_ENCLAVE_FLAG_SIMULATE | OE_ENCLAVE_FLAG_DEBUG;
                 break;
             case HW_DEBUG_MODE:
-                enclave_mode = HW_DEBUG_MODE;
+                host_state.enclave_config.mode = HW_DEBUG_MODE;
                 oe_flags = OE_ENCLAVE_FLAG_DEBUG;
                 break;
             case HW_RELEASE_MODE:
-                enclave_mode = HW_RELEASE_MODE;
+                host_state.enclave_config.mode = HW_RELEASE_MODE;
                 break;
             case 'e':
                 enclave_image_provided = true;
@@ -1842,6 +1833,8 @@ int main(int argc, char* argv[], char* envp[])
         }
     }
 
+    const sgxlkl_enclave_mode_t enclave_mode = host_state.enclave_config.mode;
+
     if (enclave_mode == UNKNOWN_MODE)
     {
         sgxlkl_host_err(
@@ -1871,11 +1864,11 @@ int main(int argc, char* argv[], char* envp[])
     /* Check if app_config has been provided via a file or an environment
      * variable */
     if (app_config_path)
-        app_config_from_file(app_config_path, app_config);
+        app_config_from_file(app_config_path);
     else if (sgxlkl_configured(SGXLKL_APP_CONFIG))
-        app_config_from_str(sgxlkl_config_str(SGXLKL_APP_CONFIG), app_config);
+        app_config_from_str(sgxlkl_config_str(SGXLKL_APP_CONFIG));
     else
-        app_config_from_cmdline(argc, argv, root_hd, app_config);
+        app_config_from_cmdline(argc, argv, root_hd);
 
     /* Print warnings for ignored options, e.g. for debug options in non-debug
      * mode. */
@@ -1966,7 +1959,7 @@ int main(int argc, char* argv[], char* envp[])
 
     /* Enclave creation */
     sgxlkl_host_verbose("oe_create_enclave...\n");
-    _create_enclave(libsgxlkl, oe_flags, app_config, &oe_enclave);
+    _create_enclave(libsgxlkl, oe_flags, &oe_enclave);
 
     /* Perform host interface initialization */
     sgxlkl_host_interface_initialization();

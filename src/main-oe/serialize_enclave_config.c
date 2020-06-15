@@ -260,48 +260,19 @@ static json_obj_t* mk_json_auxv(
     return r;
 }
 
-static json_obj_t* mk_json_app_config(const sgxlkl_app_config_t* app_config)
+static json_obj_t* mk_json_image_sizes(
+    char* key,
+    const sgxlkl_image_sizes_config_t* sizes)
 {
-    if (!app_config)
-        return mk_json_obj("app_config", JSON_TYPE_NULL, NULL, NULL, 0);
-    else
-    {
-        json_obj_t* r = mk_json_objects("app_config", 10);
-        r->objects[0] = mk_json_string("run", app_config->run);
-        r->objects[1] = mk_json_string("cwd", app_config->cwd);
-        r->objects[2] =
-            mk_json_string_array("argv", app_config->argv, app_config->argc);
-        r->objects[3] =
-            mk_json_string_array("envp", app_config->envp, app_config->envc);
-        r->objects[4] = mk_json_string_array(
-            "host_import_envp",
-            app_config->host_import_envp,
-            app_config->host_import_envc);
-        r->objects[5] =
-            mk_json_auxv("auxv", app_config->auxv, app_config->auxc);
-        r->objects[6] =
-            mk_json_disks("disks", app_config->disks, app_config->num_disks);
-        r->objects[7] =
-            mk_json_wg_peers("peers", app_config->peers, app_config->num_peers);
-        r->objects[8] = mk_json_string(
-            "exit_status",
-            app_config->exit_status == EXIT_STATUS_FULL
-                ? "full"
-                : app_config->exit_status == EXIT_STATUS_BINARY
-                      ? "binary"
-                      : app_config->exit_status == EXIT_STATUS_NONE
-                            ? "none"
-                            : "unknown");
+    _Static_assert(
+        sizeof(sgxlkl_image_sizes_config_t) == 24,
+        "sgxlkl_image_sizes_config_t size has changed");
 
-        r->objects[9] = mk_json_objects("sizes", 3);
-        r->objects[9]->objects[0] =
-            mk_json_u64("num_heap_pages", app_config->sizes.num_heap_pages);
-        r->objects[9]->objects[1] =
-            mk_json_u64("num_stack_pages", app_config->sizes.num_stack_pages);
-        r->objects[9]->objects[2] =
-            mk_json_u64("num_tcs", app_config->sizes.num_tcs);
-        return r;
-    }
+    json_obj_t* r = mk_json_objects(key, 3);
+    r->objects[0] = mk_json_u64("num_heap_pages", sizes->num_heap_pages);
+    r->objects[1] = mk_json_u64("num_stack_pages", sizes->num_stack_pages);
+    r->objects[2] = mk_json_u64("num_tcs", sizes->num_tcs);
+    return r;
 }
 
 static void print_to_buffer(
@@ -485,10 +456,8 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 472,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
-
-    const sgxlkl_app_config_t* app_config = &config->app_config;
 
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
 #define FPFS32(N) root->objects[cnt++] = mk_json_s32(#N, config->N)
@@ -505,7 +474,13 @@ void serialize_enclave_config(
     size_t cnt = 0;
     root->objects[cnt++] =
         mk_json_u64("format_version", SGXLKL_ENCLAVE_CONFIG_VERSION);
-    FPFS32(mode);
+    FPFSS(
+        mode,
+        config->mode == SW_DEBUG_MODE
+            ? "sw_debug"
+            : config->mode == HW_DEBUG_MODE
+                  ? "hw_debug"
+                  : config->mode == HW_RELEASE_MODE ? "hw_release" : "unknown");
     FPFU64(stacksize);
     FPFSS(
         mmap_files,
@@ -539,7 +514,30 @@ void serialize_enclave_config(
     FPFS(kernel_cmd);
     FPFS(sysctl);
     FPFBOOL(swiotlb);
-    root->objects[cnt++] = mk_json_app_config(app_config);
+
+    FPFS(run);
+    FPFS(cwd);
+    root->objects[cnt++] =
+        mk_json_string_array("argv", config->argv, config->argc);
+    root->objects[cnt++] =
+        mk_json_string_array("envp", config->envp, config->envc);
+    root->objects[cnt++] = mk_json_string_array(
+        "host_import_envp", config->host_import_envp, config->host_import_envc);
+    root->objects[cnt++] = mk_json_auxv("auxv", config->auxv, config->auxc);
+    root->objects[cnt++] =
+        mk_json_disks("disks", config->disks, config->num_disks);
+
+    root->objects[cnt++] = mk_json_string(
+        "exit_status",
+        config->exit_status == EXIT_STATUS_FULL
+            ? "full"
+            : config->exit_status == EXIT_STATUS_BINARY
+                  ? "binary"
+                  : config->exit_status == EXIT_STATUS_NONE ? "none"
+                                                            : "unknown");
+
+    root->objects[cnt++] =
+        mk_json_image_sizes("image_sizes", &config->image_sizes);
 
     root->size = cnt;
 

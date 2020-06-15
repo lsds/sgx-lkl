@@ -24,24 +24,21 @@ bool sgxlkl_in_hw_release_mode()
 static void prepare_elf_stack()
 {
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
-    const sgxlkl_enclave_config_t* config = state->config;
-    const sgxlkl_app_config_t* app_cfg = &config->app_config;
+    const sgxlkl_enclave_config_t* cfg = state->config;
 
     // import host envp
     state->imported_envc = 0;
     state->imported_envp = NULL;
 
-    if (sgxlkl_enclave_state.shared_memory.envp &&
-        app_cfg->host_import_envc > 0)
+    if (sgxlkl_enclave_state.shared_memory.envp && cfg->host_import_envc > 0)
     {
-        state->imported_envp =
-            malloc(sizeof(char*) * app_cfg->host_import_envc);
+        state->imported_envp = malloc(sizeof(char*) * cfg->host_import_envc);
         if (!state->imported_envp)
             sgxlkl_fail("out of memory\n");
 
-        for (size_t i = 0; i < app_cfg->host_import_envc; i++)
+        for (size_t i = 0; i < cfg->host_import_envc; i++)
         {
-            const char* name = app_cfg->host_import_envp[i];
+            const char* name = cfg->host_import_envp[i];
             for (char* const* p = sgxlkl_enclave_state.shared_memory.envp;
                  p && *p != NULL;
                  p++)
@@ -61,20 +58,20 @@ static void prepare_elf_stack()
         }
     }
 
-    int have_run = app_cfg->run != NULL;
+    int have_run = cfg->run != NULL;
     size_t total_size = 0;
     size_t total_count = 1;
     if (have_run)
     {
-        total_size += strlen(app_cfg->run) + 1;
+        total_size += strlen(cfg->run) + 1;
         total_count++;
     }
-    for (size_t i = 0; i < app_cfg->argc; i++)
-        total_size += strlen(app_cfg->argv[i]) + 1;
-    total_count += app_cfg->argc + 1;
-    for (size_t i = 0; i < app_cfg->envc; i++)
-        total_size += strlen(app_cfg->envp[i]) + 1;
-    total_count += app_cfg->envc + 1;
+    for (size_t i = 0; i < cfg->argc; i++)
+        total_size += strlen(cfg->argv[i]) + 1;
+    total_count += cfg->argc + 1;
+    for (size_t i = 0; i < cfg->envc; i++)
+        total_size += strlen(cfg->envp[i]) + 1;
+    total_count += cfg->envc + 1;
     for (size_t i = 0; i < state->imported_envc; i++)
         total_size += strlen(state->imported_envp[i]) + 1;
     total_count += state->imported_envc + 1;
@@ -100,16 +97,16 @@ static void prepare_elf_stack()
     // argv
     stack->argv = out;
     if (have_run)
-        ADD_STRING(app_cfg->run);
-    for (size_t i = 0; i < app_cfg->argc; i++)
-        ADD_STRING(app_cfg->argv[i]);
+        ADD_STRING(cfg->run);
+    for (size_t i = 0; i < cfg->argc; i++)
+        ADD_STRING(cfg->argv[i]);
     stack->argc = j;
     out[j++] = NULL;
 
     // envp
     stack->envp = out + j;
-    for (size_t i = 0; i < app_cfg->envc; i++)
-        ADD_STRING(app_cfg->envp[i]);
+    for (size_t i = 0; i < cfg->envc; i++)
+        ADD_STRING(cfg->envp[i]);
     for (size_t i = 0; i < state->imported_envc; i++)
         // Is this the right order for imported vars?
         ADD_STRING(state->imported_envp[i]);
@@ -117,10 +114,10 @@ static void prepare_elf_stack()
 
     // auxv
     stack->auxv = (Elf64_auxv_t**)(out + j);
-    for (size_t i = 0; i < app_cfg->auxc; i++)
+    for (size_t i = 0; i < cfg->auxc; i++)
     {
-        out[j++] = (char*)app_cfg->auxv[i]->a_type;
-        out[j++] = (char*)app_cfg->auxv[i]->a_un.a_val;
+        out[j++] = (char*)cfg->auxv[i]->a_type;
+        out[j++] = (char*)cfg->auxv[i]->a_un.a_val;
     }
     out[j++] = NULL;
 
