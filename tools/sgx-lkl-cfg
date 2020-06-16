@@ -37,25 +37,22 @@ def main():
         '--app-cfg', metavar='PATH', type=Path, default=Path('app-config.json'),
         help='Path to app config file to be created')
     parser_create.add_argument(
-        '--with-optional', action='store_true',
+        '--complete', action='store_true',
         help='Whether to add optional fields (using default values)')
     parser_create.set_defaults(func=create)
 
-    parser_add_optional = subparsers.add_parser(
-        'add-optional', help='Add/replace optional fields with default values')
-    parser_add_optional.add_argument(
+    parser_make_complete = subparsers.add_parser(
+        'make-complete', help='Add optional fields with default values')
+    parser_make_complete.add_argument(
         '--host-cfg', metavar='PATH', type=Path,
         help='Path to host config file to be modified')
-    parser_add_optional.add_argument(
+    parser_make_complete.add_argument(
         '--app-cfg', metavar='PATH', type=Path,
         help='Path to app config file to be modified')
-    parser_add_optional.add_argument(
-        '--override', action='store_true',
-        help='Whether to override existing values (default is to only add missing fields)')
-    parser_add_optional.add_argument(
+    parser_make_complete.add_argument(
         '--dry-run', action='store_true',
         help='Print what would happen without doing it')
-    parser_add_optional.set_defaults(func=add_optional)
+    parser_make_complete.set_defaults(func=make_complete)
 
     parser_validate = subparsers.add_parser(
         'validate', help='Validate host and app config files')
@@ -165,13 +162,13 @@ def create(args):
                 name, val = entry.split('=', maxsplit=1)
                 app_cfg['environment'][name] = val
 
-    if args.with_optional:
+    if args.complete:
         with open(APP_CFG_SCHEMA_PATH) as f:
             app_cfg_schema = json.load(f)
         with open(HOST_CFG_SCHEMA_PATH) as f:
             host_cfg_schema = json.load(f)
-        _add_optional(app_cfg, app_cfg_schema, quiet=True)
-        _add_optional(host_cfg, host_cfg_schema, quiet=True)
+        _make_complete(app_cfg, app_cfg_schema, quiet=True)
+        _make_complete(host_cfg, host_cfg_schema, quiet=True)
 
     with open(args.host_cfg, 'w') as f:
         json.dump(host_cfg, f, indent=INDENT)
@@ -193,7 +190,7 @@ def create(args):
         print( '        Please modify "run" in the app configuration if needed.')
     print('- Change any additional fields if needed (see documentation).')
 
-def add_optional(args):
+def make_complete(args):
     items = [
         (args.app_cfg, APP_CFG_SCHEMA_PATH),
         (args.host_cfg, HOST_CFG_SCHEMA_PATH)
@@ -201,40 +198,39 @@ def add_optional(args):
     for cfg_path, schema_path in items:
         if not cfg_path:
             continue
-        override_text = '/overriding' if args.override else ''
         dry_run_text = ' (dry run)' if args.dry_run else ''
-        print(f'Adding{override_text} optional fields in {cfg_path}{dry_run_text}')
+        print(f'Adding optional fields in {cfg_path}{dry_run_text}')
         print()
         with open(cfg_path) as f:
             cfg = json.load(f, object_pairs_hook=dict_raise_on_duplicates)
         with open(schema_path) as f:
             cfg_schema = json.load(f)
 
-        _add_optional(cfg, cfg_schema, override=args.override)
+        modified = _make_complete(cfg, cfg_schema)
+        if not modified:
+            print('No fields were missing.')
 
         if not args.dry_run:
             with open(cfg_path, 'w') as f:
                 json.dump(cfg, f, indent=INDENT)
 
-def _add_optional(obj, obj_schema, obj_key_path='$', override=False, quiet=False):
+def _make_complete(obj, obj_schema, obj_key_path='$', quiet=False):
+    modified = False
     for key, field_schema in obj_schema['properties'].items():
         field_key_path = f'{obj_key_path}.{key}'
         if 'default' in field_schema:
             default_value = field_schema['default']
-            if key in obj:
-                if override and default_value != obj[key]:
-                    if not quiet:
-                        print(f'Overriding {field_key_path}: {json.dumps(default_value)} (old: {json.dumps(obj[key])})')
-                    obj[key] = default_value
-            else:
+            if key not in obj:
                 if not quiet:
                     print(f'Added {field_key_path}: {json.dumps(default_value)}')
                 obj[key] = default_value
+                modified = True
         item_schema = field_schema.get('items')
         if item_schema and 'properties' in item_schema:
             for i, item_obj in enumerate(obj[key]):
                 item_key_path = f'{field_key_path}[{i}]'
-                _add_optional(item_obj, item_schema, item_key_path)
+                modified |= _make_complete(item_obj, item_schema, item_key_path)
+    return modified
 
 def dict_raise_on_duplicates(ordered_pairs):
     # https://stackoverflow.com/a/14902564
