@@ -642,7 +642,7 @@
 /ltp/testcases/kernel/syscalls/pidfd_send_signal/pidfd_send_signal02
 /ltp/testcases/kernel/syscalls/pidfd_send_signal/pidfd_send_signal03
 #/ltp/testcases/kernel/syscalls/pipe/pipe01
-/ltp/testcases/kernel/syscalls/pipe/pipe02
+#/ltp/testcases/kernel/syscalls/pipe/pipe02
 #/ltp/testcases/kernel/syscalls/pipe/pipe03
 /ltp/testcases/kernel/syscalls/pipe/pipe04
 /ltp/testcases/kernel/syscalls/pipe/pipe05
