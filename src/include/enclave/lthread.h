@@ -137,7 +137,6 @@ struct lthread
     char funcname[64];            /* optional func name */
     struct lthread* lt_join;      /* lthread we want to join on */
     void** lt_exit_ptr;           /* exit ptr for lthread_join */
-    //locale_t locale;              /* locale of current lthread */
     uint32_t ops;                 /* num of ops since yield */
     uint64_t sleep_usecs;         /* how long lthread is sleeping */
     FILE* stdio_locks;            /* locked files */
@@ -181,7 +180,11 @@ struct lthread_sched
     /* convenience data maintained by lthread_resume */
     struct lthread* current_lthread;
 };
-
+/**
+ * lthread scheduler context. Pointer to this structure is maintained in 
+ * sched_tcb_base. The structure is located towards the end of the page pointed
+ * by %gs. 
+ */
 struct schedctx {
 	/* Part 1 -- these fields may be external or
 	 * internal (accessed via asm) ABI. Do not change. */
@@ -258,7 +261,10 @@ typedef struct lthread* lthread_t;
 extern "C"
 {
 #endif
-    void init_ethread_tls();
+    /**
+     * Initialisation of ethread/lthread scheduler thread pointer (schedctx).
+     */
+    void init_ethread_tp();
 
     void lthread_sched_global_init(
         size_t sleepspins,
