@@ -246,14 +246,14 @@ JINTDECLU(uint16_t, tmp <= UINT16_MAX);
         }                          \
     } while (0);
 
-#define JU64(P, D)                                                      \
-    if (decode_uint64_t(parser, JSON_TYPE_STRING, un, P, D) == JSON_OK) \
+#define JU64(P, D)                                          \
+    if (decode_uint64_t(parser, type, un, P, D) == JSON_OK) \
         return JSON_OK;
-#define JS32(P, D)                                                     \
-    if (decode_int32_t(parser, JSON_TYPE_STRING, un, P, D) == JSON_OK) \
+#define JS32(P, D)                                         \
+    if (decode_int32_t(parser, type, un, P, D) == JSON_OK) \
         return JSON_OK;
-#define JU16(P, D)                                                      \
-    if (decode_uint16_t(parser, JSON_TYPE_STRING, un, P, D) == JSON_OK) \
+#define JU16(P, D)                                          \
+    if (decode_uint16_t(parser, type, un, P, D) == JSON_OK) \
         return JSON_OK;
 
 void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)

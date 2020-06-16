@@ -5,7 +5,7 @@ _Static_assert(
     "size of sgxlkl_enclave_config_t changed");
 
 const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
-    .mode = 0,
+    .mode = HW_RELEASE_MODE,
 
     /* Network */
     .net_ip4 = "10.0.1.1",

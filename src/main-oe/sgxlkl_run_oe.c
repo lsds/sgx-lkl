@@ -54,7 +54,7 @@
 #define BUILD_INFO "[NON-RELEASE build (-O3)]"
 #endif
 
-#define SGXLKL_INFO_STRING "SGX-LKL (OE) %s (%s) LKL %s %s"
+#define SGXLKL_INFO_STRING "SGX-LKL (OE) %s (%s) LKL %s %s\n"
 #define SGXLKL_LAUNCHER_NAME "sgx-lkl-run-oe"
 
 // One first empty block for bootloaders, and offset in second block
@@ -115,7 +115,6 @@ static void version()
         SGXLKL_GIT_COMMIT,
         LKL_VERSION,
         BUILD_INFO);
-    printf("\n");
 }
 
 static void usage()

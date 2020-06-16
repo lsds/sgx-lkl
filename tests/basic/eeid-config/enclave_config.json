@@ -14,5 +14,12 @@
       "mnt": "/",
       "readonly": false
     }
-  ]
+  ],
+  "ethreads": "1",
+  "oe_heap_pagecount": "1024",
+  "image_sizes": {
+    "num_heap_pages": "16384",
+    "num_stack_pages": "128",
+    "num_tcs": "1"
+  }
 }
