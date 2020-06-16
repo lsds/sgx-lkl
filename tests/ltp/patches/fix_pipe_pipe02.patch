@@ -2,15 +2,19 @@ This test case is using two parallel jobs to test the
 “broken pipe” behaviour. sgx-lkl environment
 supports single process environment. Hence,
 test case is modified to work on single process
-environment. write API generating both SIGPIPE
-and EPIPE in musl lib environment. This behaviour
-is also taken care.
+environment by removing the code related to 
+child process. 
+write API generating both SIGPIPE
+and EPIPE in musl lib environment. A new github
+issue 474 is raised "https://github.com/lsds/sgx-lkl/issues/474".
+Added if conditions to check EPIPE error and SIGPIPE signal
+handler invocation status.
 
 diff --git a/testcases/kernel/syscalls/pipe/pipe02.c b/testcases/kernel/syscalls/pipe/pipe02.c
-index 204091163..7d3c7d03b 100644
+index 204091163..96dae3dce 100644
 --- a/testcases/kernel/syscalls/pipe/pipe02.c
 +++ b/testcases/kernel/syscalls/pipe/pipe02.c
-@@ -20,26 +20,19 @@
+@@ -20,30 +20,19 @@
  static int fd[2];
  static char rdbuf[SIZE];
  static char wrbuf[SIZE];
@@ -28,7 +32,7 @@ index 204091163..7d3c7d03b 100644
 -	SAFE_WRITE(1, fd[1], wrbuf, SIZE);
 -	exit(0);
 +	flag_sighandle = 1;
-+	tst_res(TINFO,"SIGPIPE signal handler is called");
++	tst_res(TINFO, "SIGPIPE signal handler is called");
  }
  
  static void verify_pipe(void)
@@ -38,11 +42,15 @@ index 204091163..7d3c7d03b 100644
 -	pid_t pid;
  
  	memset(wrbuf, 'a', SIZE);
+-
+-#ifdef UCLINUX
+-	maybe_run_child(&do_child, "dd", &fd[0], &fd[1]);
+-#endif
 +	SAFE_SIGNAL(SIGPIPE, sighandle_sigpipe);
  
- #ifdef UCLINUX
- 	maybe_run_child(&do_child, "dd", &fd[0], &fd[1]);
-@@ -51,18 +44,9 @@ static void verify_pipe(void)
+ 	TEST(pipe(fd));
+ 	if (TST_RET == -1) {
+@@ -51,18 +40,9 @@ static void verify_pipe(void)
  		return;
  	}
  
@@ -63,39 +71,39 @@ index 204091163..7d3c7d03b 100644
  	SAFE_READ(1, fd[0], rdbuf, SIZE);
  
  	if (memcmp(wrbuf, rdbuf, SIZE) != 0) {
-@@ -70,26 +54,27 @@ static void verify_pipe(void)
+@@ -70,26 +50,29 @@ static void verify_pipe(void)
  			"write data didn't match");
  		return;
  	}
 -
 +	
-+	//close the pipe's reader file descriptor
++	// close the pipe's reader file descriptor
  	SAFE_CLOSE(fd[0]);
 -	TST_CHECKPOINT_WAKE(0);
 -	SAFE_WAIT(&status);
  
 -	if (!WIFSIGNALED(status)) {
 -		tst_res(TFAIL, "Child wasn't killed by signal");
--	} else {
++	// Test the broken pipe behaviour
++	TEST(write(fd[1], wrbuf, SIZE));
++	if (TST_RET == -1) {
++		if (errno == EPIPE && flag_sighandle == 1) {
++			tst_res(TPASS|TERRNO, "write returned as expected");
++		} else {
++			tst_res(TFAIL|TERRNO, "write failed with unexpected error");
++		}
++		
+ 	} else {
 -		sig = WTERMSIG(status);
 -		if (sig != SIGPIPE) {
 -			tst_res(TFAIL, "Child killed by %s expected SIGPIPE",
 -				tst_strsig(sig));
--		} else {
++		if (flag_sighandle == 1) {
++			tst_res(TPASS, "write sucessed as expected");
+ 		} else {
 -				tst_res(TPASS, "Child killed by SIGPIPE");
-+	//Test the broken pipe behaviour
-+	TEST(write(fd[1], wrbuf, SIZE));
-+	if(TST_RET == -1){
-+		if(errno !=EPIPE){
-+			tst_res(TFAIL|TERRNO, "write failed with unexpected error");
-+		}
-+		if(errno == EPIPE && flag_sighandle == 1)
-+		{
-+			tst_res(TPASS|TERRNO, "write returned as expected");
++			tst_res(TFAIL, "write sucessed unexpectedly");
  		}
-+		
-+	}else{
-+		tst_res(TFAIL, "write sucessed unexpectedly");
  	}
 +	SAFE_CLOSE(fd[1]);
  }
