@@ -1,0 +1,11 @@
+{
+  "argv": [
+    "app/helloworld"
+  ],
+  "disks": [
+    {
+      "mnt": "/",
+      "readonly": false
+    }
+  ]
+}

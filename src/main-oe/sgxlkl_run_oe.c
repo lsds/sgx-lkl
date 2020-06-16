@@ -87,11 +87,6 @@ typedef struct ethread_args
     oe_enclave_t* oe_enclave;
 } ethread_args_t;
 
-int parse_sgxlkl_app_config_from_str(
-    const char* str,
-    sgxlkl_enclave_config_t* conf,
-    char** err);
-
 /**************************************************************************************************************************/
 
 #ifdef DEBUG
@@ -134,7 +129,6 @@ static void usage()
         "%s <--hw-release> [--enclave-image={libsgxlkl.so}] "
         "[--host-config={host_state_file}] "
         "[--enclave-config={enclave config file}] "
-        "<--app-config={app_config_file}> "
         "<enclave_root_image> [executable] [args]>\n",
         SGXLKL_LAUNCHER_NAME);
     printf("\n");
@@ -148,7 +142,6 @@ static void usage()
         "%s <--sw-debug|--hw-debug> [--enclave-image={libsgxlkl file}] "
         "[--host-config={host config file}] "
         "[--enclave-config={enclave config file}] "
-        "[--app-config={app config file}] "
         "<enclave root image> <executable> [args]>\n",
         SGXLKL_LAUNCHER_NAME);
     printf("\n");
@@ -178,10 +171,6 @@ static void usage()
         "%-35s %s",
         "  --enclave-config={enclave config file}",
         "JSON configuration file with enclave configuration\n");
-    printf(
-        "%-35s %s",
-        "  --app-config={app config file}",
-        "JSON configuration file with enclave app_config\n");
     printf("\n");
     printf(
         "%-35s %s",
@@ -332,7 +321,8 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_WG_PEERS",
         "Comma-separated list of Wireguard peers in the format "
-        "\"{key 1}:{allowed IPs 1}:{endpoint host 1}:{port 1}, {key 2}:{allowed IPs 2}, {key 3}:...\".\n");
+        "\"{key 1}:{allowed IPs 1}:{endpoint host 1}:{port 1}, {key "
+        "2}:{allowed IPs 2}, {key 3}:...\".\n");
     printf("## Disk ##\n");
     printf(
         "%-35s %s",
@@ -361,7 +351,7 @@ static void help_config()
         "%-35s %s%ld\n",
         "  SGXLKL_OE_HEAP_PAGE_COUNT",
         "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=",
-        sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT));
+        sgxlkl_default_enclave_config.oe_heap_pagecount);
     printf(
         "%-35s %s",
         "  SGXLKL_STACK_SIZE",
@@ -525,41 +515,6 @@ static void sgxlkl_loader_signal_handler(int signo)
 }
 #endif // DEBUG && VIRTIO_TEST_HOOK
 
-void app_config_from_str(char* app_config_str)
-{
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-
-    char* err = NULL;
-    if (parse_sgxlkl_app_config_from_str(app_config_str, econf, &err))
-        sgxlkl_host_fail("Invalid app config: %s\n", err);
-}
-
-void app_config_from_file(const char* app_config_path)
-{
-    int fd;
-    if ((fd = open(app_config_path, O_RDONLY)) < 0)
-        sgxlkl_host_fail(
-            "Failed to open %s: %s.\n", app_config_path, strerror(errno));
-
-    off_t len = lseek(fd, 0, SEEK_END);
-    lseek(fd, 0, SEEK_SET);
-    char* buf = (char*)malloc(len + 1);
-    ssize_t ret;
-    int off = 0;
-    while ((ret = read(fd, &buf[off], len - off)) > 0)
-    {
-        off += ret;
-    }
-    buf[len] = 0;
-    close(fd);
-
-    if (ret < 0)
-        sgxlkl_host_fail(
-            "Failed to read %s: %s.\n", app_config_path, strerror(errno));
-
-    app_config_from_str(buf);
-}
-
 static void prepare_verity(
     sgxlkl_enclave_disk_config_t* disk,
     const char* disk_path,
@@ -662,7 +617,7 @@ static void prepare_verity(
         free(hashoffset_path);
 }
 
-static void get_disk_encryption_config(
+static void override_enclave_disk_config(
     sgxlkl_enclave_disk_config_t* disk,
     const char* image_path,
     char* keyfile_or_passphrase,
@@ -671,81 +626,86 @@ static void get_disk_encryption_config(
 {
     // If key and root hash are provided remotely or is set via enclave
     // config, don't set it here.
-    if (host_state.enclave_config.mode != HW_RELEASE_MODE &&
-        keyfile_or_passphrase)
+    if (host_state.enclave_config.mode != HW_RELEASE_MODE)
     {
-        // Currently we have a single parameter for passphrases and
-        // keyfiles. Determine which one it is.
-        if (access(keyfile_or_passphrase, R_OK) != -1)
+        if (keyfile_or_passphrase)
         {
-            FILE* kf;
-
-            if (!(kf = fopen(keyfile_or_passphrase, "rb")))
-                sgxlkl_host_fail(
-                    "Failed to open keyfile %s.\n", keyfile_or_passphrase);
-
-            fseek(kf, 0, SEEK_END);
-            disk->key_len = ftell(kf);
-            if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024)
+            // Currently we have a single parameter for passphrases and
+            // keyfiles. Determine which one it is.
+            if (access(keyfile_or_passphrase, R_OK) != -1)
             {
-                sgxlkl_host_warn(
-                    "Provided key file is larger than maximum supported "
-                    "key "
-                    "file size (%dkB). Only the first %dkB will be used.\n",
-                    MAX_KEY_FILE_SIZE_KB,
-                    MAX_KEY_FILE_SIZE_KB);
-                disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
+                FILE* kf;
+
+                if (!(kf = fopen(keyfile_or_passphrase, "rb")))
+                    sgxlkl_host_fail(
+                        "Failed to open keyfile %s.\n", keyfile_or_passphrase);
+
+                fseek(kf, 0, SEEK_END);
+                disk->key_len = ftell(kf);
+                if (disk->key_len > MAX_KEY_FILE_SIZE_KB * 1024)
+                {
+                    sgxlkl_host_warn(
+                        "Provided key file is larger than maximum supported "
+                        "key "
+                        "file size (%dkB). Only the first %dkB will be used.\n",
+                        MAX_KEY_FILE_SIZE_KB,
+                        MAX_KEY_FILE_SIZE_KB);
+                    disk->key_len = MAX_KEY_FILE_SIZE_KB * 1024;
+                }
+                rewind(kf);
+
+                disk->key = (uint8_t*)malloc((disk->key_len));
+                if (!fread(disk->key, disk->key_len, 1, kf))
+                    sgxlkl_host_fail(
+                        "Failed to read keyfile %s.\n", keyfile_or_passphrase);
+
+                fclose(kf);
             }
-            rewind(kf);
-
-            disk->key = (uint8_t*)malloc((disk->key_len));
-            if (!fread(disk->key, disk->key_len, 1, kf))
-                sgxlkl_host_fail(
-                    "Failed to read keyfile %s.\n", keyfile_or_passphrase);
-
-            fclose(kf);
+            else
+            {
+                disk->key_len = strlen(keyfile_or_passphrase);
+                disk->key = (uint8_t*)malloc(disk->key_len);
+                memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
+            }
         }
-        else
-        {
-            disk->key_len = strlen(keyfile_or_passphrase);
-            disk->key = (uint8_t*)malloc(disk->key_len);
-            memcpy(disk->key, keyfile_or_passphrase, disk->key_len);
-        }
+
+        prepare_verity(
+            disk,
+            image_path,
+            verity_file_or_roothash,
+            verity_file_or_hashoffset);
     }
-
-    prepare_verity(
-        disk, image_path, verity_file_or_roothash, verity_file_or_hashoffset);
 }
 
 void disk_config_from_cmdline(
     const char* root_disk_path,
-    sgxlkl_enclave_config_t* app_config)
+    sgxlkl_enclave_config_t* config)
 {
     /* Count disks to add */
-    app_config->num_disks = 1; // Root disk
+    config->num_disks = 1; // Root disk
     const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
     if (hds_str[0])
     {
-        app_config->num_disks++;
+        config->num_disks++;
         for (int i = 0; hds_str[i]; i++)
         {
             if (hds_str[i] == ',')
-                app_config->num_disks++;
+                config->num_disks++;
         }
     }
 
-    app_config->disks =
-        calloc(app_config->num_disks, sizeof(sgxlkl_enclave_disk_config_t));
-    if (!app_config->disks)
+    config->disks =
+        calloc(config->num_disks, sizeof(sgxlkl_enclave_disk_config_t));
+    if (!config->disks)
         sgxlkl_host_fail("out of memory\n");
 
     /* Add root disk */
-    sgxlkl_enclave_disk_config_t* root_disk = &app_config->disks[0];
+    sgxlkl_enclave_disk_config_t* root_disk = &config->disks[0];
     strcpy(root_disk->mnt, "/");
     root_disk->readonly = sgxlkl_config_bool(SGXLKL_HD_RO);
     root_disk->overlay = sgxlkl_config_bool(SGXLKL_HD_OVERLAY);
 
-    get_disk_encryption_config(
+    override_enclave_disk_config(
         root_disk,
         root_disk_path,
         sgxlkl_config_str(SGXLKL_HD_KEY),
@@ -754,7 +714,7 @@ void disk_config_from_cmdline(
 
     /* Secondary disks */
     char* tmp = strdup(hds_str);
-    for (size_t i = 1; i < app_config->num_disks && *tmp; i++)
+    for (size_t i = 1; i < config->num_disks && *tmp; i++)
     {
         char* hd_path = tmp;
         char* hd_mnt = strchrnul(hd_path, ':');
@@ -764,53 +724,13 @@ void disk_config_from_cmdline(
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
 
-        strcpy(app_config->disks[i].mnt, hd_mnt);
-        app_config->disks[i].readonly = hd_ro;
+        strcpy(config->disks[i].mnt, hd_mnt);
+        config->disks[i].readonly = hd_ro;
 
         tmp = strchrnul(hd_mnt_end + 1, ',');
         while (*tmp == ' ' || *tmp == ',')
             tmp++;
     }
-}
-
-void app_config_from_cmdline(int argc, char** argv, const char* root_disk_file)
-{
-    if (argc <= 0)
-    {
-        sgxlkl_host_err(
-            "Insufficient arguments: no application path provided.\n");
-        usage(SGXLKL_LAUNCHER_NAME);
-        exit(EXIT_FAILURE);
-    }
-
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-
-    econf->run = argv[0];
-    econf->argc = argc - 1;
-    econf->argv = argv + 1;
-
-    econf->cwd = sgxlkl_config_str(SGXLKL_CWD);
-    econf->auxv = NULL;
-
-    econf->host_import_envc = 0;
-    econf->host_import_envp = NULL;
-
-    char* hostenv = sgxlkl_config_str(SGXLKL_HOST_IMPORT_ENV);
-    while (hostenv)
-    {
-        char* comma = strchr(hostenv, ',');
-        econf->host_import_envp =
-            realloc(econf->host_import_envp, econf->host_import_envc + 1);
-        if (!econf->host_import_envp)
-            sgxlkl_host_fail("out of memory\n");
-
-        econf->host_import_envp[econf->host_import_envc++] =
-            comma ? strndup(hostenv, comma - hostenv) : strdup(hostenv);
-
-        hostenv = comma ? comma + 1 : NULL;
-    }
-
-    disk_config_from_cmdline(root_disk_file, econf);
 }
 
 void check_envs(const char** pres, char** envp, const char* warn_msg)
@@ -1121,61 +1041,71 @@ void set_tls()
     }
 }
 
-/* Set up wireguard configuration */
-void set_wg_config_from_cmdline(sgxlkl_enclave_wg_config_t* wg)
+/* Override wireguard enclave configuration */
+void override_enclave_wg_config()
 {
-    wg->ip = sgxlkl_config_str(SGXLKL_WG_IP);
-    wg->listen_port = (uint16_t)sgxlkl_config_uint64(SGXLKL_WG_PORT);
-    wg->key = sgxlkl_config_str(SGXLKL_WG_KEY);
+    sgxlkl_enclave_wg_config_t* wg = &host_state.enclave_config.wg;
 
-    int num_peers = 0;
-    char* peers_str = sgxlkl_config_str(SGXLKL_WG_PEERS);
-    if (peers_str[0])
+    if (sgxlkl_configured(SGXLKL_WG_IP))
+        wg->ip = sgxlkl_config_str(SGXLKL_WG_IP);
+
+    if (sgxlkl_configured(SGXLKL_WG_PORT))
+        wg->listen_port = (uint16_t)sgxlkl_config_uint64(SGXLKL_WG_PORT);
+
+    if (sgxlkl_configured(SGXLKL_WG_KEY))
+        wg->key = sgxlkl_config_str(SGXLKL_WG_KEY);
+
+    if (sgxlkl_configured(SGXLKL_WG_PEERS))
     {
-        num_peers++;
-        for (int i = 0; peers_str[i]; i++)
+        int num_peers = 0;
+        char* peers_str = sgxlkl_config_str(SGXLKL_WG_PEERS);
+        if (peers_str[0])
         {
-            if (peers_str[i] == ',')
-                num_peers++;
-        }
-    }
-
-    wg->num_peers = 0;
-    if (!num_peers)
-        return;
-
-    // Allocate space for wg peer configuration
-    wg->peers = (sgxlkl_enclave_wg_peer_config_t*)malloc(
-        sizeof(sgxlkl_enclave_wg_peer_config_t) * num_peers);
-    while (*peers_str)
-    {
-        char* key = peers_str;
-        char* ips = strchrnul(key, ':');
-        *ips = '\0';
-        ips++;
-
-        char* ips_end = strchrnul(ips, ':');
-	// another ':', possible endpoint following, need to advance string
-        if (*ips_end == ':')
-        {
-	    *ips_end = '\0';
-	    ips_end++;
+            num_peers++;
+            for (int i = 0; peers_str[i]; i++)
+            {
+                if (peers_str[i] == ',')
+                    num_peers++;
+            }
         }
 
-        char* endpoint = ips_end;
-        peers_str = strchrnul(endpoint, ',');
-        if (*peers_str == ',')
+        wg->num_peers = 0;
+        if (!num_peers)
+            return;
+
+        // Allocate space for wg peer configuration
+        wg->peers = (sgxlkl_enclave_wg_peer_config_t*)malloc(
+            sizeof(sgxlkl_enclave_wg_peer_config_t) * num_peers);
+        while (*peers_str)
         {
-            *peers_str = '\0';
-            peers_str++;
-            while (*peers_str == ' ' || *peers_str == ',')
+            char* key = peers_str;
+            char* ips = strchrnul(key, ':');
+            *ips = '\0';
+            ips++;
+
+            char* ips_end = strchrnul(ips, ':');
+            // another ':', possible endpoint following, need to advance string
+            if (*ips_end == ':')
+            {
+                *ips_end = '\0';
+                ips_end++;
+            }
+
+            char* endpoint = ips_end;
+            peers_str = strchrnul(endpoint, ',');
+            if (*peers_str == ',')
+            {
+                *peers_str = '\0';
                 peers_str++;
-        }
+                while (*peers_str == ' ' || *peers_str == ',')
+                    peers_str++;
+            }
 
-        wg->peers[wg->num_peers].key = key;
-        wg->peers[wg->num_peers].allowed_ips = ips;
-        wg->peers[wg->num_peers].endpoint = endpoint;
-        wg->num_peers++;
+            wg->peers[wg->num_peers].key = key;
+            wg->peers[wg->num_peers].allowed_ips = ips;
+            wg->peers[wg->num_peers].endpoint = endpoint;
+            wg->num_peers++;
+        }
     }
 }
 
@@ -1647,51 +1577,99 @@ void find_root_disk_file(int* argc, char*** argv, char** root_hd)
 
 void enclave_config_from_file(const char* filename)
 {
-    char* err;
-    if (parse_sgxlkl_config(filename, &err))
-        sgxlkl_host_fail(
-            "Failed to parse configuration file %s: %s\n", filename, err);
+    int fd;
+    if ((fd = open(filename, O_RDONLY)) < 0)
+        sgxlkl_host_fail("Failed to open %s: %s.\n", filename, strerror(errno));
+
+    off_t len = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+    char* buf = (char*)malloc(len + 1);
+    ssize_t ret;
+    int off = 0;
+    while ((ret = read(fd, &buf[off], len - off)) > 0)
+    {
+        off += ret;
+    }
+    buf[len] = 0;
+    close(fd);
+
+    if (ret < 0)
+        sgxlkl_host_fail("Failed to read %s: %s.\n", filename, strerror(errno));
+
+    if (sgxlkl_read_enclave_config(buf, &host_state.enclave_config, false))
+        sgxlkl_host_fail("Failed to parse enclave config '%s'\n", filename);
 }
 
-void enclave_config_from_cmdline(long nproc, int mode)
+void override_enclave_config(sgxlkl_enclave_mode_t enclave_mode_cmdline)
 {
     sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
-    econf->mode = mode;
+    if (enclave_mode_cmdline != UNKNOWN_MODE)
+        econf->mode = enclave_mode_cmdline;
 
-    econf->oe_heap_pagecount = sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
-    econf->stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
-    econf->max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
-    econf->espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
-    econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
-    econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
-    econf->kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
-    econf->kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
-    econf->sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
-    econf->swiotlb = sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
+    if (sgxlkl_configured(SGXLKL_OE_HEAP_PAGE_COUNT))
+        econf->oe_heap_pagecount =
+            sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
 
-    char* mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
-    econf->mmap_files =
-        !strcmp(mmap_files, "Shared")
-            ? ENCLAVE_MMAP_FILES_SHARED
-            : (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE
-                                              : ENCLAVE_MMAP_FILES_NONE);
+    if (sgxlkl_configured(SGXLKL_STACK_SIZE))
+        econf->stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
 
-    size_t num_ethreads = sgxlkl_configured(SGXLKL_ETHREADS)
-                              ? sgxlkl_config_uint64(SGXLKL_ETHREADS)
-                              : nproc;
+    if (sgxlkl_configured(SGXLKL_MAX_USER_THREADS))
+        econf->max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
 
-    econf->ethreads = num_ethreads;
+    if (sgxlkl_configured(SGXLKL_ESPINS))
+        econf->espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
 
-    econf->net_ip4 = sgxlkl_config_str(SGXLKL_IP4);
-    econf->net_gw4 = sgxlkl_config_str(SGXLKL_GW4);
+    if (sgxlkl_configured(SGXLKL_ESLEEP))
+        econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
 
-    econf->net_mask4 = sgxlkl_config_uint64(SGXLKL_MASK4);
-    strcpy(econf->hostname, sgxlkl_config_str(SGXLKL_HOSTNAME));
-    econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
-    econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
+    if (sgxlkl_configured(SGXLKL_VERBOSE))
+        econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
 
-    set_wg_config_from_cmdline(&host_state.enclave_config.wg);
+    if (sgxlkl_configured(SGXLKL_KERNEL_VERBOSE))
+        econf->kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
+
+    if (sgxlkl_configured(SGXLKL_CMDLINE))
+        econf->kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
+
+    if (sgxlkl_configured(SGXLKL_SYSCTL))
+        econf->sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
+
+    if (sgxlkl_configured(SGXLKL_ENABLE_SWIOTLB))
+        econf->swiotlb = sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
+
+    if (sgxlkl_configured(SGXLKL_MMAP_FILES))
+    {
+        char* mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
+        econf->mmap_files =
+            !strcmp(mmap_files, "Shared")
+                ? ENCLAVE_MMAP_FILES_SHARED
+                : (!strcmp(mmap_files, "Private") ? ENCLAVE_MMAP_FILES_PRIVATE
+                                                  : ENCLAVE_MMAP_FILES_NONE);
+    }
+
+    if (sgxlkl_configured(SGXLKL_ETHREADS))
+        econf->ethreads = sgxlkl_config_uint64(SGXLKL_ETHREADS);
+
+    if (sgxlkl_configured(SGXLKL_IP4))
+        econf->net_ip4 = sgxlkl_config_str(SGXLKL_IP4);
+
+    if (sgxlkl_configured(SGXLKL_GW4))
+        econf->net_gw4 = sgxlkl_config_str(SGXLKL_GW4);
+
+    if (sgxlkl_configured(SGXLKL_MASK4))
+        econf->net_mask4 = sgxlkl_config_uint64(SGXLKL_MASK4);
+
+    if (sgxlkl_configured(SGXLKL_HOSTNAME))
+        strcpy(econf->hostname, sgxlkl_config_str(SGXLKL_HOSTNAME));
+
+    if (sgxlkl_configured(SGXLKL_TAP_MTU))
+        econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
+
+    if (sgxlkl_configured(SGXLKL_HOSTNET))
+        econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
+
+    override_enclave_wg_config();
 }
 
 void host_config_from_cmdline(char* root_disk_path)
@@ -1741,13 +1719,11 @@ void host_config_from_cmdline(char* root_disk_path)
 
 int main(int argc, char* argv[], char* envp[])
 {
-    char* app_config_path = NULL;
     char* host_config_path = NULL;
     char* enclave_config_path = NULL;
     char libsgxlkl[PATH_MAX];
     const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
     char* root_hd = NULL;
-    long nproc = sysconf(_SC_NPROCESSORS_ONLN);
     pthread_t* sgxlkl_threads;
     pthread_t* host_vdisk_task;
     pthread_t* host_netdev_task;
@@ -1782,25 +1758,23 @@ int main(int argc, char* argv[], char* envp[])
         {"enclave-image", required_argument, 0, 'e'},
         {"host-config", required_argument, 0, 'H'},
         {"enclave-config", required_argument, 0, 'c'},
-        {"app-config", required_argument, 0, 'a'},
         {0, 0, 0, 0}};
 
     host_state.enclave_config = sgxlkl_default_enclave_config;
+    sgxlkl_enclave_mode_t enclave_mode_cmdline = UNKNOWN_MODE;
 
     while ((c = getopt_sgxlkl(argc, argv, long_options)) != -1)
     {
         switch (c)
         {
             case SW_DEBUG_MODE:
-                host_state.enclave_config.mode = SW_DEBUG_MODE;
-                oe_flags = OE_ENCLAVE_FLAG_SIMULATE | OE_ENCLAVE_FLAG_DEBUG;
+                enclave_mode_cmdline = SW_DEBUG_MODE;
                 break;
             case HW_DEBUG_MODE:
-                host_state.enclave_config.mode = HW_DEBUG_MODE;
-                oe_flags = OE_ENCLAVE_FLAG_DEBUG;
+                enclave_mode_cmdline = HW_DEBUG_MODE;
                 break;
             case HW_RELEASE_MODE:
-                host_state.enclave_config.mode = HW_RELEASE_MODE;
+                enclave_mode_cmdline = HW_RELEASE_MODE;
                 break;
             case 'e':
                 enclave_image_provided = true;
@@ -1824,24 +1798,10 @@ int main(int argc, char* argv[], char* envp[])
             case 'c':
                 enclave_config_path = optarg;
                 break;
-            case 'a':
-                app_config_path = optarg;
-                break;
             default:
                 sgxlkl_host_fail(
                     "Unexpected command line option: %s\n", argv[optind - 1]);
         }
-    }
-
-    const sgxlkl_enclave_mode_t enclave_mode = host_state.enclave_config.mode;
-
-    if (enclave_mode == UNKNOWN_MODE)
-    {
-        sgxlkl_host_err(
-            "Insufficient arguments: must specific SGX-LKL execution mode.\n");
-        printf("\n");
-        usage(SGXLKL_LAUNCHER_NAME);
-        exit(EXIT_FAILURE);
     }
 
     sgxlkl_host_verbose(
@@ -1850,6 +1810,20 @@ int main(int argc, char* argv[], char* envp[])
         SGXLKL_GIT_COMMIT,
         LKL_VERSION,
         BUILD_INFO);
+
+    argc -= optind;
+    argv += optind;
+    find_root_disk_file(&argc, &argv, &root_hd);
+
+    if (enclave_config_path)
+        enclave_config_from_file(enclave_config_path);
+
+#ifdef DEBUG
+    /* Environment variables override enclave config */
+    override_enclave_config(enclave_mode_cmdline);
+#endif
+
+    const sgxlkl_enclave_mode_t enclave_mode = econf->mode;
     sgxlkl_host_verbose_raw(
         enclave_mode == SW_DEBUG_MODE
             ? " [SOFTWARE DEBUG]\n"
@@ -1857,27 +1831,15 @@ int main(int argc, char* argv[], char* envp[])
                   ? " [HARDWARE DEBUG]\n"
                   : enclave_mode == HW_RELEASE_MODE ? " [HARDWARE RELEASE]\n"
                                                     : "(Unknown)\n");
-    argc -= optind;
-    argv += optind;
-    find_root_disk_file(&argc, &argv, &root_hd);
 
-    /* Check if app_config has been provided via a file or an environment
-     * variable */
-    if (app_config_path)
-        app_config_from_file(app_config_path);
-    else if (sgxlkl_configured(SGXLKL_APP_CONFIG))
-        app_config_from_str(sgxlkl_config_str(SGXLKL_APP_CONFIG));
-    else
-        app_config_from_cmdline(argc, argv, root_hd);
+    if (enclave_mode == SW_DEBUG_MODE)
+        oe_flags = OE_ENCLAVE_FLAG_SIMULATE | OE_ENCLAVE_FLAG_DEBUG;
+    else if (enclave_mode == HW_DEBUG_MODE)
+        oe_flags = OE_ENCLAVE_FLAG_DEBUG;
 
-    /* Print warnings for ignored options, e.g. for debug options in non-debug
-     * mode. */
+    /* Print warnings for ignored options, e.g. for debug options in
+     * non-debug mode. */
     check_envs_all(envp);
-
-    if (enclave_config_path)
-        enclave_config_from_file(enclave_config_path);
-    else
-        enclave_config_from_cmdline(nproc, enclave_mode);
 
     if (host_config_path)
         sgxlkl_host_fail("host config files not supported yet\n");
@@ -1895,7 +1857,7 @@ int main(int argc, char* argv[], char* envp[])
 
     sgxlkl_host_verbose(
         "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\"\n",
-        nproc,
+        sysconf(_SC_NPROCESSORS_ONLN),
         econf->ethreads,
         econf->kernel_cmd);
 
@@ -1907,10 +1869,8 @@ int main(int argc, char* argv[], char* envp[])
 
     /* SW mode requires special signal handling, since
      * OE does not support exception handling in SW mode. */
-    if (econf->mode == SW_DEBUG_MODE)
-    {
+    if (enclave_mode == SW_DEBUG_MODE)
         setup_sw_mode_signal_handlers();
-    }
 
     atexit(sgxlkl_cleanup);
 

@@ -82,7 +82,7 @@ $(LIB_SGXLKL_BUILD)/sgxlkl/$(SGXLKL_STATIC_LIB): $(SGXLKL_OBJS) builddirs
 
 # Build run tool: sgx-lkl-run-oe
 
-MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c)
+MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c) $(wildcard libjson/*.c)
 
 OE_HOST_CALLS = main-oe/sgxlkl_u.c
 ifeq (,$(findstring ${OE_HOST_CALLS},$(MAIN_OE_SRCS)))

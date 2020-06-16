@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "hello-eeid",
+    "arg"
+  ],
+  "envp": [
+    "ABC=DEF"
+  ],
+  "host_import_envp": [
+    "HOSTNAME"
+  ],
+  "disks": [
+    {
+      "mnt": "/",
+      "readonly": false
+    }
+  ]
+}

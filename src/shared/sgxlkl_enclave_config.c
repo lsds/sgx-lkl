@@ -23,7 +23,6 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <enclave/enclave_mem.h>
 #include <enclave/enclave_state.h>
 #include <json.h>
-#include <shared/read_enclave_config.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
 
@@ -62,6 +61,7 @@ typedef struct json_callback_data
     size_t array_count;
     char** envp;
     size_t envc, auxc;
+    bool enforce_format;
 } json_callback_data_t;
 
 static char* make_path(json_parser_t* parser)
@@ -78,6 +78,7 @@ static char* make_path(json_parser_t* parser)
         for (size_t i = 1; i < parser->depth; i++)
         {
             len = strlen(parser->path[i].name);
+            *(p++) = '.';
             memcpy(p, parser->path[i].name, len);
             p += len;
             *p = '\0';
@@ -342,11 +343,14 @@ static json_result_t json_read_callback(
             }
             break;
         case JSON_REASON_END_OBJECT:
-            // Reset last_path for sortedness check of objects in arrays.
-            if (data->array)
+            if (data->enforce_format)
             {
-                free(last_path);
-                last_path = NULL;
+                // Reset last_path for sortedness check of objects in arrays.
+                if (data->array)
+                {
+                    free(last_path);
+                    last_path = NULL;
+                }
             }
             break;
         case JSON_REASON_BEGIN_ARRAY:
@@ -399,14 +403,17 @@ static json_result_t json_read_callback(
             break;
         case JSON_REASON_VALUE:
         {
-            char* cur_path = make_path(parser);
-            if (last_path)
+            if (data->enforce_format)
             {
-                if (strcmp(last_path, cur_path) > 0)
-                    FAIL("unsorted json: %s >= %s\n", last_path, cur_path);
-                free(last_path);
+                char* cur_path = make_path(parser);
+                if (last_path)
+                {
+                    if (strcmp(last_path, cur_path) > 0)
+                        FAIL("unsorted json: %s >= %s\n", last_path, cur_path);
+                    free(last_path);
+                }
+                last_path = cur_path;
             }
-            last_path = cur_path;
 
             JPATHT("format_version", JSON_TYPE_STRING, {
                 uint64_t format_version = strtoul(un->string, NULL, 10);
@@ -623,7 +630,10 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     }
 }
 
-int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
+int sgxlkl_read_enclave_config(
+    const char* from,
+    sgxlkl_enclave_config_t* to,
+    bool enforce_format)
 {
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
@@ -634,24 +644,18 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
     if (!from || !to)
         return 1;
 
-    if (!*to)
-    {
-        *to = calloc(1, sizeof(sgxlkl_enclave_config_t));
-        if (!*to)
-            FAIL("out of memory\n");
-    }
-
-    **to = sgxlkl_default_enclave_config;
+    *to = sgxlkl_default_enclave_config;
 
     json_parser_t parser;
     json_result_t r = JSON_UNEXPECTED;
-    json_callback_data_t callback_data = {.config = *to,
+    json_callback_data_t callback_data = {.config = to,
                                           .buffer_sz = 0,
                                           .index = 0,
                                           .seen = NULL,
                                           .array = NULL,
                                           .array_count = 0,
-                                          .auxc = 0};
+                                          .auxc = 0,
+                                          .enforce_format = enforce_format};
 
     // parser destroys `from`, so we copy it first.
     size_t json_len = strlen(from);
@@ -683,7 +687,7 @@ int sgxlkl_read_enclave_config(const char* from, sgxlkl_enclave_config_t** to)
 
     free(json_copy);
 
-    check_config(*to);
+    check_config(to);
     string_list_free(callback_data.seen);
 
     return 0;

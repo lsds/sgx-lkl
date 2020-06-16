@@ -36,7 +36,7 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .kernel_verbose = false,
     .kernel_cmd = "mem=32M",
     .sysctl = NULL,
-    .swiotlb = false,
+    .swiotlb = true,
 
     /* Application */
     .run = NULL,

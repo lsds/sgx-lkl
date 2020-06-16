@@ -134,6 +134,11 @@ typedef struct sgxlkl_enclave_config
 
 extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;
 
+int sgxlkl_read_enclave_config(
+    const char* from,
+    sgxlkl_enclave_config_t* to,
+    bool enforce_format);
+
 void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config);
 
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

@@ -6,7 +6,6 @@
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
 #include "shared/env.h"
-#include "shared/read_enclave_config.h"
 
 const sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
@@ -223,7 +222,7 @@ static int _read_eeid_config()
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
     sgxlkl_enclave_config_t* cfg = malloc(sizeof(sgxlkl_enclave_config_t));
-    sgxlkl_read_enclave_config(config_json, &cfg);
+    sgxlkl_read_enclave_config(config_json, cfg, true);
     sgxlkl_enclave_state.config = cfg;
     return 0;
 }

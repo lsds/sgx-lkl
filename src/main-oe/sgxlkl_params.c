@@ -65,7 +65,7 @@ struct sgxlkl_config_elem
 
 // clang-format off
 static struct sgxlkl_config_elem sgxlkl_config[] = {
-    {"SGXLKL_APP_CONFIG", "app_config", TYPE_JSON, {.def_char = NULL}, 0}, /* 0 */
+    {}, /* 0 */
     {"SGXLKL_CMDLINE", "cmdline", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_KERNEL_CMD}, 0}, /* 1 */ /* set LKL mem to 32MB (default is 64MB) */
     {"SGXLKL_CWD", "cwd", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_CWD}, 0}, /* 2 */
     {"SGXLKL_DEBUGMOUNT", "debugmount", TYPE_CHAR, {.def_char = NULL}, 0}, /* 3 */
