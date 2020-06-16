@@ -902,17 +902,25 @@ void get_signed_libsgxlkl_path(char* path_buf, size_t len)
     sgxlkl_host_fail("Unable to locate libsgxlkl.so.signed\n");
 }
 
-void set_clock_res()
+void mk_clock_res_string(int clock)
 {
     sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-    clock_getres(CLOCK_REALTIME, &econf->clock_res[CLOCK_REALTIME]);
-    clock_getres(CLOCK_MONOTONIC, &econf->clock_res[CLOCK_MONOTONIC]);
-    clock_getres(CLOCK_MONOTONIC_RAW, &econf->clock_res[CLOCK_MONOTONIC_RAW]);
-    clock_getres(
-        CLOCK_REALTIME_COARSE, &econf->clock_res[CLOCK_REALTIME_COARSE]);
-    clock_getres(
-        CLOCK_MONOTONIC_COARSE, &econf->clock_res[CLOCK_MONOTONIC_COARSE]);
-    clock_getres(CLOCK_BOOTTIME, &econf->clock_res[CLOCK_BOOTTIME]);
+    size_t sz = sizeof(sgxlkl_clock_res_config_t);
+    struct timespec tmpt;
+    char tmps[8 * 2 * 2 + 1];
+    clock_getres(clock, &tmpt);
+    snprintf(tmps, sizeof(tmps), "%08lx%08lx", tmpt.tv_sec, tmpt.tv_nsec);
+    memcpy(econf->clock_res[clock].resolution, tmps, sz);
+}
+
+void set_clock_res()
+{
+    mk_clock_res_string(CLOCK_REALTIME);
+    mk_clock_res_string(CLOCK_MONOTONIC);
+    mk_clock_res_string(CLOCK_MONOTONIC_RAW);
+    mk_clock_res_string(CLOCK_REALTIME_COARSE);
+    mk_clock_res_string(CLOCK_MONOTONIC_COARSE);
+    mk_clock_res_string(CLOCK_BOOTTIME);
 }
 
 static void* register_shm(char* path, size_t len)

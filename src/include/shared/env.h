@@ -1,6 +1,10 @@
 #ifndef _ENV_H
 #define _ENV_H
 
+#include <inttypes.h>
+
+uint64_t hex_to_int(const char* digits, size_t num_digits);
+
 uint64_t size_str_to_uint64(const char* str, uint64_t def, uint64_t max);
 
 void size_uint64_to_str(uint64_t size, char* buf, uint64_t len);

@@ -6,7 +6,6 @@
 #include <shared/vio_event_channel.h>
 #include "host/timer_dev.h"
 #include "mpmc_queue.h"
-#include "time.h"
 
 #define MAX_SGXLKL_ETHREADS 1024
 #define MAX_SGXLKL_MAX_USER_THREADS 65536
@@ -78,6 +77,11 @@ typedef struct sgxlkl_image_sizes_config
 
 #define SGXLKL_ENCLAVE_CONFIG_VERSION 1UL
 
+typedef struct sgxlkl_clock_res_config
+{
+    char resolution[17];
+} sgxlkl_clock_res_config_t;
+
 typedef struct sgxlkl_enclave_config
 {
     sgxlkl_enclave_mode_t mode;
@@ -96,7 +100,7 @@ typedef struct sgxlkl_enclave_config
     size_t max_user_threads;
     size_t espins;
     size_t esleep;
-    struct timespec clock_res[8];
+    sgxlkl_clock_res_config_t clock_res[8];
 
     /* Various */
     size_t stacksize;
@@ -117,7 +121,7 @@ typedef struct sgxlkl_enclave_config
     int envc;             /* Length of envp */
     char** envp;          /* Array of environment variables of length envc */
     int auxc;             /* Length of auxv */
-    Elf64_auxv_t** auxv;  /* Array of auxiliary ELF variables of length auxc */
+    Elf64_auxv_t* auxv;   /* Array of auxiliary ELF variables of length auxc */
     int host_import_envc; /* Length of host_import_envp */
     char** host_import_envp; /* Names of environment variables to import from
                                 the host */

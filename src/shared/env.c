@@ -5,6 +5,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+uint64_t hex_to_int(const char* digits, size_t num_digits)
+{
+    uint64_t r = 0;
+    for (size_t i = 0; i < num_digits; i++)
+    {
+        char c = digits[i];
+        r <<= 4;
+        if (c >= '0' && c <= '9')
+            r |= (c - '0') & 0xFF;
+        else if (c >= 'a' && c <= 'f')
+            r |= (0xA + (c - 'a')) & 0xFF;
+        else if (c >= 'A' && c <= 'F')
+            r |= (0xA + (c - 'A')) & 0xFF;
+    }
+    return r;
+}
+
 uint64_t size_str_to_uint64(const char* str, uint64_t def, uint64_t max)
 {
     uint64_t r;

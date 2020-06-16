@@ -115,8 +115,8 @@ static void prepare_elf_stack()
     stack->auxv = (Elf64_auxv_t**)(out + j);
     for (size_t i = 0; i < cfg->auxc; i++)
     {
-        out[j++] = (char*)cfg->auxv[i]->a_type;
-        out[j++] = (char*)cfg->auxv[i]->a_un.a_val;
+        out[j++] = (char*)cfg->auxv[i].a_type;
+        out[j++] = (char*)cfg->auxv[i].a_un.a_val;
     }
     out[j++] = NULL;
 

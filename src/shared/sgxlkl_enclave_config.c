@@ -23,6 +23,7 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <enclave/enclave_mem.h>
 #include <enclave/enclave_state.h>
 #include <json.h>
+#include <shared/env.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
 
@@ -144,23 +145,6 @@ static char* make_path(json_parser_t* parser)
             strdupz(&(DEST), un->string);         \
         return JSON_OK;                           \
     }
-
-static uint64_t hex2int(const char* digits, size_t num_digits)
-{
-    uint64_t r = 0;
-    for (size_t i = 0; i < num_digits; i++)
-    {
-        char c = digits[i];
-        r <<= 4;
-        if (c >= '0' && c <= '9')
-            r |= (c - '0') & 0xFF;
-        else if (c >= 'a' && c <= 'f')
-            r |= (0xA + (c - 'a')) & 0xFF;
-        else if (c >= 'A' && c <= 'F')
-            r |= (0xA + (c - 'A')) & 0xFF;
-    }
-    return r;
-}
 
 #define JINTDECLU(T, B)                                                   \
     static json_result_t decode_##T(                                      \
@@ -373,7 +357,7 @@ static json_result_t json_read_callback(
             else if (MATCH("auxv"))
             {
                 data->config->auxc = data->array_count;
-                data->config->auxv = (Elf64_auxv_t**)data->array;
+                data->config->auxv = (Elf64_auxv_t*)data->array;
             }
             else if (MATCH("disks"))
             {
@@ -489,11 +473,7 @@ static json_result_t json_read_callback(
             JPATHT("clock_res", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string);
                 if (len != 16)
-                    FAIL("invalid length of value for clock_res");
-                long tv_sec = hex2int(un->string, 8);
-                long tv_nsec = hex2int(un->string + 8, 8);
-                data->config->clock_res[i].tv_sec = tv_sec;
-                data->config->clock_res[i].tv_nsec = tv_nsec;
+                    FAIL("invalid length of value for clock_res item");
                 data->array_count++;
             });
 
@@ -573,7 +553,7 @@ static json_result_t json_read_callback(
                     if (!disk->key)
                         FAIL("out of memory\n");
                     for (size_t i = 0; i < disk->key_len; i++)
-                        disk->key[i] = hex2int(un->string + 2 * i, 2);
+                        disk->key[i] = hex_to_int(un->string + 2 * i, 2);
                 }
                 return JSON_OK;
             }
@@ -638,7 +618,7 @@ int sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 464,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from || !to)
@@ -725,8 +705,7 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
         free(config->envp[i]);
     NONDEFAULT_FREE(envp);
 
-    for (size_t i = 0; i < config->auxc; i++)
-        free(config->auxv[i]);
+    free(config->auxv);
     NONDEFAULT_FREE(auxv);
 
     for (size_t i = 0; i < config->host_import_envc; i++)

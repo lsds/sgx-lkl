@@ -1,7 +1,7 @@
 #include <shared/sgxlkl_enclave_config.h>
 
 _Static_assert(
-    sizeof(sgxlkl_enclave_config_t) == 456,
+    sizeof(sgxlkl_enclave_config_t) == 464,
     "size of sgxlkl_enclave_config_t changed");
 
 const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
@@ -25,7 +25,14 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .espins = 500,
     .esleep = 16000,
     .ethreads = 1,
-    .clock_res = {{0}, {0}, {0}, {0}, {0}, {0}, {0}, {0}},
+    .clock_res = {{"0000000000000001"},
+                  {"0000000000000001"},
+                  {"0000000000000000"},
+                  {"0000000000000000"},
+                  {"0000000000000001"},
+                  {"00000000003d0900"},
+                  {"00000000003d0900"},
+                  {"0000000000000001"}},
 
     /* Various */
     .stacksize = 512 * 1024,

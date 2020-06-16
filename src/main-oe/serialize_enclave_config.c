@@ -153,19 +153,12 @@ static json_obj_t* mk_json_string_array(
 
 static json_obj_t* mk_json_string_clock_res(
     const char* key,
-    const struct timespec clock_res[8])
+    const sgxlkl_clock_res_config_t* clock_res)
 {
     json_obj_t* res = mk_json_array(key, 8);
-    char tmp[8 * 2 * 2 + 1];
     for (size_t i = 0; i < 8; i++)
     {
-        snprintf(
-            tmp,
-            sizeof(tmp),
-            "%08lx%08lx",
-            clock_res[i].tv_sec,
-            clock_res[i].tv_nsec);
-        res->array[i] = mk_json_string(NULL, tmp);
+        res->array[i] = mk_json_string(NULL, clock_res[i].resolution);
     }
     return res;
 }
@@ -243,7 +236,7 @@ static json_obj_t* mk_json_wg(
 
 static json_obj_t* mk_json_auxv(
     const char* key,
-    Elf64_auxv_t* const* auxv,
+    const Elf64_auxv_t* auxv,
     size_t auxc)
 {
     _Static_assert(sizeof(Elf64_auxv_t) == 16, "Elf64_auxv_t size has changed");
@@ -254,8 +247,8 @@ static json_obj_t* mk_json_auxv(
     for (size_t i = 0; i < auxc; i++)
     {
         r->objects[i] = mk_json_objects(NULL, 2);
-        r->objects[i]->objects[0] = mk_json_u64("a_type", (*auxv)[i].a_type);
-        r->objects[i]->objects[1] = mk_json_u64("a_val", (*auxv)[i].a_un.a_val);
+        r->objects[i]->objects[0] = mk_json_u64("a_type", auxv[i].a_type);
+        r->objects[i]->objects[1] = mk_json_u64("a_val", auxv[i].a_un.a_val);
     }
     return r;
 }
@@ -456,7 +449,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 464,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)

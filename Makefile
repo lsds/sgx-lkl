@@ -168,6 +168,7 @@ install:
 	cp $(TOOLS)/gdb/sgx-lkl-gdb.py $(PREFIX)/lib/gdb
 	cp -r $(OE_SDK_ROOT)/lib/openenclave/debugger/* $(PREFIX)/lib/gdb/openenclave
 	cp ${TOOLS}/schemas/app-config.schema.json $(PREFIX)/share/schemas
+	cp ${TOOLS}/schemas/enclave-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/schemas/host-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko $(PREFIX)/tools/kmod-set-fsgsbase/
 

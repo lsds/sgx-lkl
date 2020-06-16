@@ -186,7 +186,15 @@ int __libc_init_enclave(int argc, char** argv)
         sgxlkl_in_sw_debug_mode() ? 1 : sgxlkl_enclave->fsgsbase;
 
     init_sysconf(sgxlkl_enclave->ethreads, sgxlkl_enclave->ethreads);
-    init_clock_res(sgxlkl_enclave->clock_res);
+
+    struct timespec tmp[8] = {0};
+    for (size_t i = 0; i < 8; i++)
+    {
+        tmp[i].tv_sec = hex_to_int(sgxlkl_enclave->clock_res[i].resolution, 8);
+        tmp[i].tv_nsec =
+            hex_to_int(sgxlkl_enclave->clock_res[i].resolution + 8, 8);
+    }
+    init_clock_res(tmp);
 
     size_t max_lthreads =
         sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
