@@ -197,10 +197,18 @@ def _validate(app_cfg_path=None, host_cfg_path=None):
         jsonschema.validate(instance=cfg, schema=cfg_schema)
     print('No errors found.')
 
+def convert_int_to_str(ordered_pairs):
+    d = {}
+    for k, v in ordered_pairs:
+        if type(v) == int:
+            v = str(v)
+        d[k] = v
+    return d
+
 def finalize(args):
     _validate(args.app_cfg)
     with open(args.app_cfg) as f:
-        cfg = json.load(f)
+        cfg = json.load(f, object_pairs_hook=convert_int_to_str)
     with open(args.app_cfg_final, 'w') as f:
         json.dump(cfg, f, separators=(',', ':'), sort_keys=True)
     print('Finalized app configuration successfully created.')

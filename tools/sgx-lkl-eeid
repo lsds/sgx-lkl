@@ -1,0 +1,649 @@
+#!/usr/bin/env python3
+
+import argparse
+from pathlib import Path
+
+THIS_DIR = Path(__file__).parent
+
+if (THIS_DIR.parent / 'share').exists():
+    EEID_PATH = THIS_DIR.parent / 'share' / 'eeid.json'
+else:
+    EEID_PATH = THIS_DIR.parent / 'build' / 'eeid.json'
+
+def cli_main():
+    parser = argparse.ArgumentParser(description='Tool that predicts EEID MRENCLAVEs')
+    parser.set_defaults(func=lambda _: parser.print_help())
+    subparsers = parser.add_subparsers()
+
+    parser_predict = subparsers.add_parser(
+        'predict', help='Create host and app config files')
+    parser_predict.add_argument(
+        '--app-cfg', metavar='PATH', type=Path, required=True, 
+        help='Path to app config file')
+    parser_predict.add_argument(
+        '--eeid-path', metavar='PATH', type=Path, default=EEID_PATH, 
+        help='Path to EEID metadata file')
+    parser_predict.set_defaults(func=cli_predict)
+
+def cli_predict(args):
+    # TODO decide on eeid metadata format
+    # TODO dump eeid metadata from build process
+    # TODO predict MRENCLAVE and dump to console
+    # TODO fix measurement code
+    pass
+
+
+
+### EEID functions ###
+
+from typing import NamedTuple, Sequence, List, Tuple, Union, Optional
+import struct
+
+OE_PAGE_SIZE = 4096
+
+# Flags
+# https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/sgx/sgxtypes.h#L42
+SGX_SECINFO_R = 0x0000000000000000001
+SGX_SECINFO_W = 0x0000000000000000002
+SGX_SECINFO_X = 0x0000000000000000004
+SGX_SECINFO_SECS = 0x0000000000000000000
+SGX_SECINFO_TCS  = 0x0000000000000000100
+SGX_SECINFO_REG  = 0x0000000000000000200
+
+class EEIDMetadata(NamedTuple):
+    # Note that this specific serialization is arbitrary but has to match
+    # what some tool outputs based on a given enclave image.
+
+    # Hash state and vaddr are exactly before OE data pages get added.
+    # sigstruct is the original before EEID.
+    H: Sequence[int] # uint32_t[8]
+    N: Sequence[int] # uint32_t[2]
+    sigstruct: bytes # uint8_t[1808]
+    vaddr: int # uint64_t
+    entry_point: int # uint64_t
+
+    FMT = '<8I2I1808s1QQ'
+
+    @classmethod
+    def get_size(cls):
+        return struct.calcsize(cls.FMT)
+
+    @classmethod
+    def deserialise(cls, blob: bytes):
+        assert len(blob) == cls.get_size(), f'{len(blob)} != {cls.get_size()}'
+        u = struct.unpack(cls.FMT, blob)
+        return cls(H=u[:8], N=u[8:10], sigstruct=u[10], vaddr=u[11], entry_point=u[12])
+    
+    def serialise(self) -> bytes:
+        p = struct.pack(self.FMT, *self.H, *self.N, self.sigstruct, self.vaddr, self.entry_point)
+        return p
+
+class oe_enclave_size_settings_t(NamedTuple):
+    # https://github.com/wintersteiger/openenclave/blob/8cd81189d3/include/openenclave/bits/properties.h#L29
+    num_heap_pages: int # uint64_t
+    num_stack_pages: int # uint64_t
+    num_tcs: int # uint64_t
+
+    FMT = '<QQQ'
+
+    @classmethod
+    def get_size(cls) -> int:
+        return struct.calcsize(cls.FMT)
+
+    @classmethod
+    def unpack(cls, packed: bytes):
+        u = struct.unpack(cls.FMT, packed)
+        return cls(num_heap_pages=u[0], num_stack_pages=u[1], num_tcs=u[2])
+
+    def pack(self) -> bytes:
+        p = struct.pack(self.FMT, self.num_heap_pages, self.num_stack_pages, self.num_tcs)
+        return p
+
+class oe_eeid_t(NamedTuple):
+    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/eeid.h#L25
+    hash_state_H: Sequence[int] # uint32_t[8]
+    hash_state_N: Sequence[int] # uint32_t[2]
+    sigstruct: bytes # uint8_t[1808]
+    size_settings: oe_enclave_size_settings_t
+    vaddr: int # uint64_t
+    entry_point: int # uint64_t
+    data_size: int # uint64_t
+    data: bytes # uint8_t[]
+
+    # This is used for replaying the SGX pages and has to match the C struct representation.
+    # See reference link above.
+    FMT = '<8I2I1808s{}sQQQ'.format(oe_enclave_size_settings_t.get_size()) # without data
+
+    @classmethod
+    def get_size(cls, data_size: int) -> int:
+        return struct.calcsize(cls.FMT) + data_size
+
+    @classmethod
+    def unpack(cls, packed: bytes):
+        size_without_data = cls.get_size(0)
+        u = struct.unpack(cls.FMT, packed[:size_without_data])
+
+        data_size = u[14]
+        data = packed[-data_size:]
+        assert len(data) == data_size, f'{len(data)} != {data_size}'
+
+        return cls(
+            hash_state_H=u[0:8], hash_state_N=u[8:10], sigstruct=u[10],
+            size_settings=oe_enclave_size_settings_t.unpack(u[11]),
+            vaddr=u[12], entry_point=u[13], data_size=data_size,
+            data=data)
+
+    def pack(self) -> bytes:
+        p_mem = self.size_settings.pack()
+        p = struct.pack(self.FMT, 
+            *self.hash_state_H, *self.hash_state_N, self.sigstruct,
+            p_mem, self.vaddr, self.entry_point, self.data_size) + self.data
+        return p
+
+class sgx_tcs_t(NamedTuple):
+    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/internal/sgxtypes.h#L442
+    state: int # uint64_t
+    flags: int # uint64_t
+    ossa: int # uint64_t
+    cssa: int # uint32_t
+    nssa: int # uint32_t
+    oentry: int # uint64_t 
+    aep: int # uint64_t 
+    fsbase: int # uint64_t
+    gsbase: int # uint64_t
+    fslimit: int # uint32_t
+    gslimit: int # uint32_t
+    # reserved: uint8_t[4024]
+
+    FMT = '<QQQIIQQQQII4024s'
+
+    def pack(self) -> bytes:
+        p = struct.pack(self.FMT,
+            self.state, self.flags, self.ossa, self.cssa, self.nssa, self.oentry,
+            self.aep, self.fsbase, self.gsbase, self.fslimit, self.gslimit, bytes(4024))
+        assert len(p) == OE_PAGE_SIZE
+        return p
+
+class Enclave(object):
+    sha = sha256()
+    vaddr = 0
+    num_measures = 0
+
+    def __init__(self, verbose: bool=False, expected_measured_data: Optional[Sequence[bytes]]=None):
+        self.verbose = verbose
+        self.expected_measured_data = expected_measured_data
+    
+    def restore(self, h: Sequence[int], n: Sequence[int], vaddr: int) -> None:
+        self.sha._sha['digest'] = list(h)
+        self.sha._sha['count_lo'] = n[0]
+        self.sha._sha['count_hi'] = n[1]
+        self.vaddr = vaddr
+
+    @property
+    def hash_state(self) -> Tuple[List[int],List[int]]:
+        h = self.sha._sha['digest']
+        n = [self.sha._sha['count_lo'], self.sha._sha['count_hi']]
+        return h, n
+
+    def _measure(self, data: Union[str,bytes]) -> None:
+        if isinstance(data, str):
+            data = data.encode('ascii')
+        if self.verbose:
+            print(f'measure: {data}')
+        self.sha.update(data)
+        if self.expected_measured_data is not None:
+            expected = self.expected_measured_data[self.num_measures]
+            assert data == expected, f'{data} != {expected}'
+        self.num_measures += 1
+
+    @property
+    def mrenclave(self) -> str:
+        return self.sha.hexdigest()
+
+    def add_page(self, data: bytes, flags: int, extend: bool) -> None:
+        # https://github.com/openenclave/openenclave/blob/master/host/sgx/sgxmeasure.c#L75
+        assert len(data) == OE_PAGE_SIZE
+        self._measure('EADD\0\0\0\0')
+        self._measure(struct.pack('<Q', self.vaddr))
+        self._measure(struct.pack('<Q', flags))
+        self._measure_zeros(40)
+        if extend:
+            self._measure_eextend(data)
+        self.vaddr += OE_PAGE_SIZE
+
+    def add_guard_page(self) -> None:
+        self.vaddr += OE_PAGE_SIZE
+
+    def _measure_eextend(self, data: bytes) -> None:
+        # https://github.com/openenclave/openenclave/blob/master/host/sgx/sgxmeasure.c#L29
+        assert len(data) == OE_PAGE_SIZE
+        chunk_size = 256
+        for pgoff in range(0, OE_PAGE_SIZE, chunk_size):
+            moffset = self.vaddr + pgoff
+            self._measure('EEXTEND\0')
+            self._measure(struct.pack('<Q', moffset))
+            self._measure_zeros(48)
+            self._measure(data[pgoff:pgoff + chunk_size])
+
+    def _measure_zeros(self, size: int) -> None:
+        # https://github.com/openenclave/openenclave/blob/master/host/sgx/sgxmeasure.c#L10
+        zeros = bytes(size)
+        self._measure(zeros)
+
+def add_heap_pages(e: Enclave, num_heap_pages: int) -> None:
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L150
+    add_filled_pages(e, num_heap_pages, filler=0, extend=False)
+
+def add_stack_pages(e: Enclave, num_stack_pages: int) -> None:
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L139
+    add_filled_pages(e, num_stack_pages, filler=0xcc, extend=True)
+
+def add_filled_pages(e: Enclave, npages: int, filler: int, extend: bool) -> None:
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L86
+    flags = SGX_SECINFO_REG | SGX_SECINFO_R | SGX_SECINFO_W
+    assert 0 <= filler <= 0xff
+    page = bytes([filler] * OE_PAGE_SIZE)
+    for _ in range(npages):
+        e.add_page(page, flags, extend)
+
+def add_control_pages(e: Enclave, entry_point: int) -> None:
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L161
+    fsgsbase = e.vaddr + (5 * OE_PAGE_SIZE)
+    tcs = sgx_tcs_t(
+        state=0,
+        flags=0,
+        ossa=e.vaddr + OE_PAGE_SIZE,
+        cssa=0,
+        nssa=2,
+        oentry=entry_point,
+        aep=0,
+        fsbase=fsgsbase,
+        gsbase=fsgsbase,
+        fslimit=0xFFFFFFFF,
+        gslimit=0xFFFFFFFF
+    )
+    tcs_page = tcs.pack()
+    
+    e.add_page(tcs_page, flags=SGX_SECINFO_TCS, extend=True)
+    add_filled_pages(e, npages=2, filler=0, extend=True)
+    e.add_guard_page()
+    add_filled_pages(e, npages=2, filler=0, extend=True)    
+
+def add_data_pages(e: Enclave, num_heap_pages: int, num_stack_pages: int, num_tcs: int, entry_point: int) -> None:
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L323
+    add_heap_pages(e, num_heap_pages)
+    for _ in range(num_tcs):
+        e.add_guard_page()
+        add_stack_pages(e, num_stack_pages)
+        e.add_guard_page()
+        add_control_pages(e, entry_point)
+    
+def add_eeid_pages(e: Enclave, eeid: oe_eeid_t) -> None:
+    # https://github.com/wintersteiger/openenclave/blob/55d6a23c11cc8/common/sgx/eeid.c#L194
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L646
+
+    # Add EEID pages as literal copy of oe_eeid_t:
+    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/eeid.h#L25
+    eeid_packed = eeid.pack()
+
+    for i in range(0, len(eeid_packed), OE_PAGE_SIZE):
+        page = eeid_packed[i:i + OE_PAGE_SIZE]
+        if len(page) < OE_PAGE_SIZE:
+            page += bytes(OE_PAGE_SIZE - len(page))
+        e.add_page(page, flags=SGX_SECINFO_REG | SGX_SECINFO_R, extend=True)
+
+def predict_eeid_mrenclave(eeid_metadata: bytes,
+                           num_heap_pages: int, num_stack_pages: int, num_tcs: int,
+                           data: bytes, enclave: Optional[Enclave]=None) -> str:
+
+    # Each enclave binary comes with EEID metadata dumped out
+    # by `sgx-lkl-oe --dump-eeid-metadata`. 
+    # This metadata together with memory settings and user data is used
+    # to compute the extended MRENCLAVE.
+
+    e = EEIDMetadata.deserialise(eeid_metadata)
+
+    if enclave is None:
+        enclave = Enclave()
+
+    # We start from an existing state, just before adding the memory and EEID pages.
+    # This allows to compute the dynamic MRENCLAVE without the enclave image.
+    enclave.restore(e.H, e.N, e.vaddr)
+
+    # The following replicates oe_replay_eeid_pages from
+    # https://github.com/openenclave/openenclave/blob/master/common/sgx/eeid.c#L126
+    # However, for clarity, instead of a single big function it uses the structure from
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c.
+
+    add_data_pages(enclave, num_heap_pages, num_stack_pages, num_tcs, e.entry_point)
+    
+    size_settings = oe_enclave_size_settings_t(
+        num_heap_pages=num_heap_pages,
+        num_stack_pages=num_stack_pages,
+        num_tcs=num_tcs)
+    eeid = oe_eeid_t(
+        hash_state_H=e.H,
+        hash_state_N=e.N,
+        sigstruct=e.sigstruct,
+        size_settings=size_settings,
+        vaddr=e.vaddr,
+        entry_point=e.entry_point,
+        data_size=len(data),
+        data=data)
+    
+    add_eeid_pages(enclave, eeid)
+
+    mrenclave = enclave.mrenclave    
+    return mrenclave
+
+
+def test_predict_eeid_mrenclave():
+    # TODO this should be the metadata only, but for now the C test case dumps out the whole oe_eeid_t
+    eeid = bytes.fromhex('56342fc0bcd50167fcf99c88d215bf91fc553621f51cdbae8ae794a0e47ab7a3007654010000000006000000e1000000000001000000000000000000020420200101000060000000600000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000875010b3a315da1f3584e982051f46cf436ddac4b463e2fc42794c6ca6a6d11cb39a4945db657301b2986e6df73e71d8e0ec8a293addcb58413fe1960d4b5914ce94b3864383c987518a612f1e50e897f6f55d1bd35b46b9f1799261d2e56781dfc7bd4bbfda24b218fa772ddcd2a35367eb9c415a9b02434e4c11a6a90a6858c7982b3244f3085ad1f4d2bd115bb77f79105a7bfbc7f6918f86b17c4cd16d72bb81b3e072d25d4292496a2e6bd450951f4c2d7e035cc4408ff869bec2232f4bbc38910e3e0d7271eb6036a27ec937f834520f4c24f0266830a7d7a873e5835e8be70f3cdb5d740ae5cda589ce4b2be80a8caa7e9a647e5a486b7e208f1b494a967f522b1fc4cd813f541b7832fd1a2e45b95e701a6e18eb702b94294fbed16654494ae94db0aa6acd7a6a90be193290412452bd6b0e7ffaaa7c0518327a6f305b819acaabe52814598e8de9bc58c18e8135b57db452dad3b9b9d85a71691274cda0bb2562c11888cda754795cf4f7d98c474cc925cd8e44b77c60e1f041cfed030000007633816168ba3314af6c2d4471fb2c1ed778ab71b9ac43cb8153907460df8367acfd3da3358b2f6eb4fd7c976952288fc5884d9cb17e699acb1defeb086e0e7298f045ad75bdfba1af82919d6165cef0a73c113b5ef331fae059dd3240c26da0b5039a0f30141352038f854f98e813aadd1ed3ecda18094101c578da619bc1c95ed49e81ddda664e3b8a0aa6fe6c0ef49d2e4231364d9ccaaec601e205a302c827ccb4747b6e6f728289ab3494b5e26de47bc12602538b9f8d1710348904cd62e1fb73c272387e37ea045d421853d771321345a11ccd0d6ac53e56fe3d3e30606a8810c6e776f43bf973c459762b14c959ac984bee29ace466d850bfcd8674bab47b0197632d537639eb6e2491438dfb638ab3eb2e4906cbd3d31f9e753997231e6a56f92a71318faea638a23b12c29630e4874cb30dcc8ffec5ffc7a1365c75c763242a4b4f479ce396ca42adf26ebba4ce4868bdcd91707af93fdbfeac4fcde0a84328bed810a1abe147821c086565769c772cfa118d546995419a1685c4e300000000ffffffff000000000000000000000000000000000000000006000000000000000300000000000000f9ffffffffffffff000000000000000039d95be01e06070cf91929f77bf9e9b6fcb884da7d527c0b108b16deef1effc1000000000000000000000000000000000000000000000000000000000000000001000100000000000000000000000000cfb12742328543f25fc22d8b28aa75374be0c2754928c09275487e38a279f2bd6248d263ac9e5b994138f59e1041d06f26fc01f1d6a2019406357bb53def4800c23d19260cecfa7da7ec23b17de25174361a28ceb249d5369433a2d532178d1b8880af3c88e8431af46eb07404faee5688281df2f35c4f092882e2f36f5ac377e60c30c3b99a6ade328d16e5a95e15edcaa7887a51e0aee6a293549b1c783d14cf2baff44d693a55272d2f784d88e8900803b453ea6d2393856114387b767096a6675342c3c99852c853c71b2eec858d459d766829b54b25de7350feb7735a76c08bc525976934568a2eec80c6fc62001c6b4b4151be0b1d41851e03ed50d21c59c6947923f80d43e4e666d98f28a05e9713438cdfcfb61ddb0c2c40ce68acaf7b6a78307248d07907c53ca4371c4e2a34f4851dfb7703d5723ce6f79a66f4d2a6a050b634dffa7f8ef65c590f1acf29377a163d8c9ac66711f21384b0b86af2f3201477309ba5063a92238e3f7bccca8a3dd72c95abe76d82027c1b155626da87735cd7cda63f8ce5e4775d0799ddaab1470d076aa0e634437674e6ec1101fbf60fab5ce25fa9d76fedffd14e5b31ec72a1169d67de9fc2773386def2075ac5bef8a12797193a2bae7d8fa2c4f8e924bb5833ee0ed8f4bee7f2e67e227bc84e60cc1e1beba8969bc5018c5672d30cf2440714a7560630a93329c5a7a30e454b1de92b24a5a2ce50dbedd909fdeaaecc7e8489b97b37d0106862d612aa8535a9d81e30f0d28387e0cb0c7ba8f9e30139800d57cbbcb6c9085d066d0642f09427004c343a783b7bd9c917f938f2af5d2a98fa7ade003c20ebda301e0739c25a507ac3904239fe3e7d4b792a2909771dd6f5499b25bec05bd2c6ad445e7ee84b966a5328b5cb812f54b9163b1fba29f0e29457c27747945a1f16ad6960b5db0d7f7ec5cde2028508ea8133380da2c3ab7a14de22d2b833bc8ce6c35252a68b3ef37d8f8c4ef28c9539c1377d082a344144e5d7d787b92e0ee9701617303553dcc0133d3e623f8fa46d317f6ef1976160800a6c66cfcb53b1e083a58f434315eaad25000000000000000a0000000000000002000000000000000090410000000000d0e70000000000002000000000000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f')
+    eeid = oe_eeid_t.unpack(eeid)
+
+    eeid_metadata = EEIDMetadata(
+        H=eeid.hash_state_H, N=eeid.hash_state_N, sigstruct=eeid.sigstruct,
+        entry_point=eeid.entry_point, vaddr=eeid.vaddr)
+    eeid_metadata_bytes = eeid_metadata.serialise()
+    #print(f'EEID metadata: {eeid_metadata_bytes.hex()}')
+
+    num_heap_pages = 37
+    num_stack_pages = 10
+    num_tcs = 2
+    data = bytes.fromhex('000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f')
+
+    expected_mrenclave = '38d8e3f895d6074a85af7117a91389c724950711b5815916545c75310800ffc0'
+    #expected_mrenclave = 'a40490cc79ee74383a6afbc93cd92df5bbcae5eb1b24c760da50c61c930b8c8c'
+
+    mrenclave = predict_eeid_mrenclave(
+        eeid_metadata_bytes, num_heap_pages, num_stack_pages, num_tcs, data)
+    
+    #if mrenclave != expected_mrenclave:
+    #    # Predict again, this time checking against reference measured data so that
+    #    # an assert can be raised at the point of failure for easy debugging.
+    #    ref_measured_data = []
+    #    with open(os.path.join(THIS_DIR, 'eeid_sample.txt')) as f:
+    #        line = f.readline()
+    #        while line:
+    #            if line.startswith('HASH '):
+    #                measured_data = line.replace('HASH ', '')
+    #                ref_measured_data.append(bytes.fromhex(measured_data))
+    #            if line.startswith('EXTENDED MRENCLAVE:'):
+    #                # Ignore any HASH lines after MRENCLAVE was computed
+    #                break
+    #            line = f.readline()
+    #
+    #    enclave = Enclave(expected_measured_data=ref_measured_data, verbose=True)
+    #    predict_eeid_mrenclave(eeid_metadata_bytes, num_heap_pages, num_stack_pages, num_tcs, data,
+    #        enclave=enclave)
+
+    assert mrenclave == expected_mrenclave, f'{mrenclave} != {expected_mrenclave}'
+
+
+### SHA-256 hashing ###
+
+# The following code was adapted from:
+# https://foss.heptapod.net/pypy/pypy/blob/branch/default/lib_pypy/_sha256.py
+# The reason we cannot use Python's hashing module is that we need to initialise
+# the hash state with custom values.
+
+# The MIT License
+# 
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
+import struct
+
+SHA_BLOCKSIZE = 64
+SHA_DIGESTSIZE = 32
+
+
+def new_shaobject():
+    return {
+        'digest': [0]*8,
+        'count_lo': 0,
+        'count_hi': 0,
+        'data': [0]* SHA_BLOCKSIZE,
+        'local': 0,
+        'digestsize': 0
+    }
+
+ROR = lambda x, y: (((x & 0xffffffff) >> (y & 31)) | (x << (32 - (y & 31)))) & 0xffffffff
+Ch = lambda x, y, z: (z ^ (x & (y ^ z)))
+Maj = lambda x, y, z: (((x | y) & z) | (x & y))
+S = lambda x, n: ROR(x, n)
+R = lambda x, n: (x & 0xffffffff) >> n
+Sigma0 = lambda x: (S(x, 2) ^ S(x, 13) ^ S(x, 22))
+Sigma1 = lambda x: (S(x, 6) ^ S(x, 11) ^ S(x, 25))
+Gamma0 = lambda x: (S(x, 7) ^ S(x, 18) ^ R(x, 3))
+Gamma1 = lambda x: (S(x, 17) ^ S(x, 19) ^ R(x, 10))
+
+def sha_transform(sha_info):
+    W = []
+    
+    d = sha_info['data']
+    for i in range(0,16):
+        W.append( (d[4*i]<<24) + (d[4*i+1]<<16) + (d[4*i+2]<<8) + d[4*i+3])
+    
+    for i in range(16,64):
+        W.append( (Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]) & 0xffffffff )
+    
+    ss = sha_info['digest'][:]
+    
+    def RND(a,b,c,d,e,f,g,h,i,ki):
+        t0 = h + Sigma1(e) + Ch(e, f, g) + ki + W[i];
+        t1 = Sigma0(a) + Maj(a, b, c);
+        d += t0;
+        h  = t0 + t1;
+        return d & 0xffffffff, h & 0xffffffff
+    
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],0,0x428a2f98);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],1,0x71374491);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],2,0xb5c0fbcf);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],3,0xe9b5dba5);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],4,0x3956c25b);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],5,0x59f111f1);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],6,0x923f82a4);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],7,0xab1c5ed5);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],8,0xd807aa98);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],9,0x12835b01);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],10,0x243185be);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],11,0x550c7dc3);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],12,0x72be5d74);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],13,0x80deb1fe);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],14,0x9bdc06a7);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],15,0xc19bf174);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],16,0xe49b69c1);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],17,0xefbe4786);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],18,0x0fc19dc6);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],19,0x240ca1cc);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],20,0x2de92c6f);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],21,0x4a7484aa);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],22,0x5cb0a9dc);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],23,0x76f988da);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],24,0x983e5152);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],25,0xa831c66d);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],26,0xb00327c8);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],27,0xbf597fc7);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],28,0xc6e00bf3);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],29,0xd5a79147);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],30,0x06ca6351);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],31,0x14292967);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],32,0x27b70a85);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],33,0x2e1b2138);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],34,0x4d2c6dfc);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],35,0x53380d13);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],36,0x650a7354);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],37,0x766a0abb);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],38,0x81c2c92e);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],39,0x92722c85);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],40,0xa2bfe8a1);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],41,0xa81a664b);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],42,0xc24b8b70);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],43,0xc76c51a3);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],44,0xd192e819);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],45,0xd6990624);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],46,0xf40e3585);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],47,0x106aa070);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],48,0x19a4c116);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],49,0x1e376c08);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],50,0x2748774c);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],51,0x34b0bcb5);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],52,0x391c0cb3);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],53,0x4ed8aa4a);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],54,0x5b9cca4f);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],55,0x682e6ff3);
+    ss[3], ss[7] = RND(ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],56,0x748f82ee);
+    ss[2], ss[6] = RND(ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],57,0x78a5636f);
+    ss[1], ss[5] = RND(ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],ss[5],58,0x84c87814);
+    ss[0], ss[4] = RND(ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],ss[4],59,0x8cc70208);
+    ss[7], ss[3] = RND(ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],ss[3],60,0x90befffa);
+    ss[6], ss[2] = RND(ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],ss[2],61,0xa4506ceb);
+    ss[5], ss[1] = RND(ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],ss[1],62,0xbef9a3f7);
+    ss[4], ss[0] = RND(ss[1],ss[2],ss[3],ss[4],ss[5],ss[6],ss[7],ss[0],63,0xc67178f2);
+    
+    dig = []
+    for i, x in enumerate(sha_info['digest']):
+        dig.append( (x + ss[i]) & 0xffffffff )
+    sha_info['digest'] = dig
+
+def sha_init():
+    sha_info = new_shaobject()
+    sha_info['digest'] = [0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19]
+    sha_info['count_lo'] = 0
+    sha_info['count_hi'] = 0
+    sha_info['local'] = 0
+    sha_info['digestsize'] = 32
+    return sha_info
+
+def getbuf(s):
+    if isinstance(s, str):
+        return bytearray(s, 'ascii')
+    else:
+        return s
+
+def sha_update(sha_info, buffer):
+    count = len(buffer)
+    buffer_idx = 0
+    clo = (sha_info['count_lo'] + (count << 3)) & 0xffffffff
+    if clo < sha_info['count_lo']:
+        sha_info['count_hi'] += 1
+    sha_info['count_lo'] = clo
+    
+    sha_info['count_hi'] += (count >> 29)
+    
+    if sha_info['local']:
+        i = SHA_BLOCKSIZE - sha_info['local']
+        if i > count:
+            i = count
+        
+        # copy buffer
+        for x in enumerate(buffer[buffer_idx:buffer_idx+i]):
+            sha_info['data'][sha_info['local']+x[0]] = x[1]
+        
+        count -= i
+        buffer_idx += i
+        
+        sha_info['local'] += i
+        if sha_info['local'] == SHA_BLOCKSIZE:
+            sha_transform(sha_info)
+            sha_info['local'] = 0
+        else:
+            return
+    
+    while count >= SHA_BLOCKSIZE:
+        # copy buffer
+        #print(buffer[0:0+64][0])
+        #print(struct.unpack('B',bytes([buffer[0:0+64][0]]))[0])
+        sha_info['data'] = [c for c in buffer[buffer_idx:buffer_idx + SHA_BLOCKSIZE]]
+        count -= SHA_BLOCKSIZE
+        buffer_idx += SHA_BLOCKSIZE
+        sha_transform(sha_info)
+        
+    
+    # copy buffer
+    pos = sha_info['local']
+    sha_info['data'][pos:pos+count] = [c for c in buffer[buffer_idx:buffer_idx + count]]
+    sha_info['local'] = count
+
+def sha_final(sha_info):
+    lo_bit_count = sha_info['count_lo']
+    hi_bit_count = sha_info['count_hi']
+    count = (lo_bit_count >> 3) & 0x3f
+    sha_info['data'][count] = 0x80;
+    count += 1
+    if count > SHA_BLOCKSIZE - 8:
+        # zero the bytes in data after the count
+        sha_info['data'] = sha_info['data'][:count] + ([0] * (SHA_BLOCKSIZE - count))
+        sha_transform(sha_info)
+        # zero bytes in data
+        sha_info['data'] = [0] * SHA_BLOCKSIZE
+    else:
+        sha_info['data'] = sha_info['data'][:count] + ([0] * (SHA_BLOCKSIZE - count))
+    
+    sha_info['data'][56] = (hi_bit_count >> 24) & 0xff
+    sha_info['data'][57] = (hi_bit_count >> 16) & 0xff
+    sha_info['data'][58] = (hi_bit_count >>  8) & 0xff
+    sha_info['data'][59] = (hi_bit_count >>  0) & 0xff
+    sha_info['data'][60] = (lo_bit_count >> 24) & 0xff
+    sha_info['data'][61] = (lo_bit_count >> 16) & 0xff
+    sha_info['data'][62] = (lo_bit_count >>  8) & 0xff
+    sha_info['data'][63] = (lo_bit_count >>  0) & 0xff
+    
+    sha_transform(sha_info)
+    
+    dig = []
+    for i in sha_info['digest']:
+        dig.extend([ ((i>>24) & 0xff), ((i>>16) & 0xff), ((i>>8) & 0xff), (i & 0xff) ])
+    return ''.join([chr(i) for i in dig])
+
+class sha256(object):
+    digest_size = digestsize = SHA_DIGESTSIZE
+    block_size = SHA_BLOCKSIZE
+
+    def __init__(self, s=None):
+        self._sha = sha_init()
+        if s:
+            sha_update(self._sha, getbuf(s))
+    
+    def update(self, s):
+        sha_update(self._sha, getbuf(s))
+    
+    def digest(self):
+        return sha_final(self._sha.copy())[:self._sha['digestsize']]
+    
+    def hexdigest(self):
+        return ''.join(['%.2x' % ord(i) for i in self.digest()])
+
+    def copy(self):
+        new = sha256.__new__(sha256)
+        new._sha = self._sha.copy()
+        return new
+
+def test_sha256():
+    a_str = "just a test string"
+    
+    assert 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' == sha256().hexdigest()
+    assert 'd7b553c6f09ac85d142415f857c5310f3bbbe7cdd787cce4b985acedd585266f' == sha256(a_str).hexdigest()
+    assert '8113ebf33c97daa9998762aacafe750c7cefc2b2f173c90c59663a57fe626f21' == sha256(a_str*7).hexdigest()
+    
+    s = sha256(a_str)
+    s.update(a_str)
+    assert '03d9963e05a094593190b6fc794cb1a3e1ac7d7883f0b5855268afeccc70d461' == s.hexdigest()
+
