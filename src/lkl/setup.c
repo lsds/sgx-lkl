@@ -1219,12 +1219,12 @@ static void* lkl_termination_thread(void* args)
             continue;
 
         SGXLKL_VERBOSE("calling lkl_umount_timeout(%s)\n", disks[i].mnt);
-        res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
+        /*res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
         if (res < 0)
         {
             sgxlkl_warn(
                 "Could not unmount disk %d, %s\n", i, lkl_strerror(res));
-        }
+        }*/
 
         // Root disk, no need to remove mount point ("/").
         if (i == 0)
