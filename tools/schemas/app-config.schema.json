@@ -54,9 +54,7 @@
                 "additionalProperties": false,
                 "dependencies": {
                     "roothash": ["roothash_offset"],
-                    "roothash_offset": ["roothash"],
-                    "create": ["size"],
-                    "size": ["create"]
+                    "roothash_offset": ["roothash"]
                 },
                 "properties": {
                     "disk": {
