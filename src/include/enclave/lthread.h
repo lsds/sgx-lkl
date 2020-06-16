@@ -139,7 +139,6 @@ struct lthread
     void** lt_exit_ptr;           /* exit ptr for lthread_join */
     uint32_t ops;                 /* num of ops since yield */
     uint64_t sleep_usecs;         /* how long lthread is sleeping */
-    FILE* stdio_locks;            /* locked files */
     struct lthread_tls_l tls;     /* pointer to TLS */
     uint8_t* itls;                /* image TLS */
     size_t itlssz;                /* size of TLS image */
@@ -154,12 +153,6 @@ struct lthread
     void (*yield_cb)(void*);
     void* yield_cbarg;
     struct futex_q fq;
-    struct
-    {
-        volatile void* volatile head;
-        long off;
-        volatile void* volatile pending;
-    } robust_list;
 };
 
 struct lthread_queue
@@ -213,16 +206,9 @@ struct schedctx {
 	void *result;
 	struct __ptcb *cancelbuf;
 	void **tsd;
-	struct {
-		volatile void *volatile head;
-		long off;
-		volatile void *volatile pending;
-	} robust_list;
 	volatile int timer_id;
-	//locale_t locale;
 	volatile int killlock[1];
 	char *dlerror_buf;
-	void *stdio_locks;
 
 	/* Part 3 -- the positions of these fields relative to
 	 * the end of the structure is external and internal ABI. */
