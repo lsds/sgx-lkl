@@ -1,7 +1,5 @@
 {
-  "argv": [
-    "app/helloworld"
-  ],
+  "run": "app/helloworld",
   "disks": [
     {
       "mnt": "/",

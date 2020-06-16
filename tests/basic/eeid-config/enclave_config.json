@@ -1,6 +1,6 @@
 {
+  "run": "hello-eeid",
   "argv": [
-    "hello-eeid",
     "arg"
   ],
   "envp": [
