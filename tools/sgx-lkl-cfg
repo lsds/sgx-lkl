@@ -18,6 +18,8 @@ else:
 APP_CFG_SCHEMA_PATH = SCHEMAS_DIR / 'app-config.schema.json'
 HOST_CFG_SCHEMA_PATH = SCHEMAS_DIR / 'host-config.schema.json'
 
+INDENT = 2
+
 def main():
     parser = argparse.ArgumentParser(description='Tool that helps creating SGX-LKL configuration files')
     parser.set_defaults(func=lambda _: parser.print_help())
@@ -34,7 +36,26 @@ def main():
     parser_create.add_argument(
         '--app-cfg', metavar='PATH', type=Path, default=Path('app-config.json'),
         help='Path to app config file to be created')
+    parser_create.add_argument(
+        '--with-optional', action='store_true',
+        help='Whether to add optional fields (using default values)')
     parser_create.set_defaults(func=create)
+
+    parser_add_optional = subparsers.add_parser(
+        'add-optional', help='Add/replace optional fields with default values')
+    parser_add_optional.add_argument(
+        '--host-cfg', metavar='PATH', type=Path,
+        help='Path to host config file to be modified')
+    parser_add_optional.add_argument(
+        '--app-cfg', metavar='PATH', type=Path,
+        help='Path to app config file to be modified')
+    parser_add_optional.add_argument(
+        '--override', action='store_true',
+        help='Whether to override existing values (default is to only add missing fields)')
+    parser_add_optional.add_argument(
+        '--dry-run', action='store_true',
+        help='Print what would happen without doing it')
+    parser_add_optional.set_defaults(func=add_optional)
 
     parser_validate = subparsers.add_parser(
         'validate', help='Validate host and app config files')
@@ -79,11 +100,9 @@ def create(args):
     app_cfg = {
         'run': 'PATH/TO/EXECUTABLE',
         'args': [],
-        'exit_status': 'full',
         'environment': {},
         'disk_config': []
     }
-    found_docker_meta = False
     for i, img_path in enumerate(args.img_paths):
         img_folder = img_path.parent
         img_filename = img_path.name
@@ -146,11 +165,19 @@ def create(args):
                 name, val = entry.split('=', maxsplit=1)
                 app_cfg['environment'][name] = val
 
+    if args.with_optional:
+        with open(APP_CFG_SCHEMA_PATH) as f:
+            app_cfg_schema = json.load(f)
+        with open(HOST_CFG_SCHEMA_PATH) as f:
+            host_cfg_schema = json.load(f)
+        _add_optional(app_cfg, app_cfg_schema, quiet=True)
+        _add_optional(host_cfg, host_cfg_schema, quiet=True)
+
     with open(args.host_cfg, 'w') as f:
-        json.dump(host_cfg, f, indent=2)
+        json.dump(host_cfg, f, indent=INDENT)
     
     with open(args.app_cfg, 'w') as f:
-        json.dump(app_cfg, f, indent=2)
+        json.dump(app_cfg, f, indent=INDENT)
 
     print('Host and application configuration files successfully created.')
     print()
@@ -165,6 +192,49 @@ def create(args):
         print( '        It is also implicitly used in the \'shell\' form of CMD or ENTRYPOINT.')
         print( '        Please modify "run" in the app configuration if needed.')
     print('- Change any additional fields if needed (see documentation).')
+
+def add_optional(args):
+    items = [
+        (args.app_cfg, APP_CFG_SCHEMA_PATH),
+        (args.host_cfg, HOST_CFG_SCHEMA_PATH)
+    ]
+    for cfg_path, schema_path in items:
+        if not cfg_path:
+            continue
+        override_text = '/overriding' if args.override else ''
+        dry_run_text = ' (dry run)' if args.dry_run else ''
+        print(f'Adding{override_text} optional fields in {cfg_path}{dry_run_text}')
+        print()
+        with open(cfg_path) as f:
+            cfg = json.load(f, object_pairs_hook=dict_raise_on_duplicates)
+        with open(schema_path) as f:
+            cfg_schema = json.load(f)
+
+        _add_optional(cfg, cfg_schema, override=args.override)
+
+        if not args.dry_run:
+            with open(cfg_path, 'w') as f:
+                json.dump(cfg, f, indent=INDENT)
+
+def _add_optional(obj, obj_schema, obj_key_path='$', override=False, quiet=False):
+    for key, field_schema in obj_schema['properties'].items():
+        field_key_path = f'{obj_key_path}.{key}'
+        if 'default' in field_schema:
+            default_value = field_schema['default']
+            if key in obj:
+                if override and default_value != obj[key]:
+                    if not quiet:
+                        print(f'Overriding {field_key_path}: {json.dumps(default_value)} (old: {json.dumps(obj[key])})')
+                    obj[key] = default_value
+            else:
+                if not quiet:
+                    print(f'Added {field_key_path}: {json.dumps(default_value)}')
+                obj[key] = default_value
+        item_schema = field_schema.get('items')
+        if item_schema and 'properties' in item_schema:
+            for i, item_obj in enumerate(obj[key]):
+                item_key_path = f'{field_key_path}[{i}]'
+                _add_optional(item_obj, item_schema, item_key_path)
 
 def dict_raise_on_duplicates(ordered_pairs):
     # https://stackoverflow.com/a/14902564
@@ -231,7 +301,7 @@ def dockerize(args):
         cfg['hds'] = hds
         
     with open(args.host_cfg_docker, 'w') as f:
-        json.dump(cfg, f, indent=2)
+        json.dump(cfg, f, indent=INDENT)
     
     if not args.print_disk_paths:
         print('Host config successfully patched.')
