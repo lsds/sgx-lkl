@@ -674,7 +674,7 @@
 #/ltp/testcases/kernel/syscalls/preadv/preadv02
 /ltp/testcases/kernel/syscalls/preadv/preadv03
 #/ltp/testcases/kernel/syscalls/preadv2/preadv201
-/ltp/testcases/kernel/syscalls/preadv2/preadv202
+#/ltp/testcases/kernel/syscalls/preadv2/preadv202
 /ltp/testcases/kernel/syscalls/preadv2/preadv203
 /ltp/testcases/kernel/syscalls/profil/profil01
 #/ltp/testcases/kernel/syscalls/pselect/pselect01
@@ -694,7 +694,7 @@
 #/ltp/testcases/kernel/syscalls/pwritev/pwritev02
 /ltp/testcases/kernel/syscalls/pwritev/pwritev03
 #/ltp/testcases/kernel/syscalls/pwritev2/pwritev201
-/ltp/testcases/kernel/syscalls/pwritev2/pwritev202
+#/ltp/testcases/kernel/syscalls/pwritev2/pwritev202
 /ltp/testcases/kernel/syscalls/quotactl/quotactl01
 /ltp/testcases/kernel/syscalls/quotactl/quotactl02
 /ltp/testcases/kernel/syscalls/quotactl/quotactl03
@@ -748,7 +748,7 @@
 /ltp/testcases/kernel/syscalls/request_key/request_key04
 /ltp/testcases/kernel/syscalls/request_key/request_key05
 #/ltp/testcases/kernel/syscalls/rmdir/rmdir01
-/ltp/testcases/kernel/syscalls/rmdir/rmdir02
+#/ltp/testcases/kernel/syscalls/rmdir/rmdir02
 #/ltp/testcases/kernel/syscalls/rmdir/rmdir03
 #/ltp/testcases/kernel/syscalls/rt_sigaction/rt_sigaction01
 /ltp/testcases/kernel/syscalls/rt_sigaction/rt_sigaction02
@@ -916,7 +916,7 @@
 /ltp/testcases/kernel/syscalls/ssetmask/ssetmask01
 #/ltp/testcases/kernel/syscalls/stat/stat01
 #/ltp/testcases/kernel/syscalls/stat/stat02
-/ltp/testcases/kernel/syscalls/stat/stat03
+#/ltp/testcases/kernel/syscalls/stat/stat03
 #/ltp/testcases/kernel/syscalls/statfs/statfs01
 /ltp/testcases/kernel/syscalls/statfs/statfs02
 #/ltp/testcases/kernel/syscalls/statfs/statfs03
@@ -924,7 +924,7 @@
 /ltp/testcases/kernel/syscalls/statvfs/statvfs02
 #/ltp/testcases/kernel/syscalls/statx/statx01
 #/ltp/testcases/kernel/syscalls/statx/statx02
-/ltp/testcases/kernel/syscalls/statx/statx03
+#/ltp/testcases/kernel/syscalls/statx/statx03
 /ltp/testcases/kernel/syscalls/statx/statx04
 /ltp/testcases/kernel/syscalls/statx/statx05
 /ltp/testcases/kernel/syscalls/statx/statx06
@@ -1005,7 +1005,7 @@
 #/ltp/testcases/kernel/syscalls/uname/uname03
 #/ltp/testcases/kernel/syscalls/uname/uname04
 #/ltp/testcases/kernel/syscalls/unlink/unlink05
-/ltp/testcases/kernel/syscalls/unlink/unlink07
+#/ltp/testcases/kernel/syscalls/unlink/unlink07
 #/ltp/testcases/kernel/syscalls/unlink/unlink08
 #/ltp/testcases/kernel/syscalls/unlinkat/unlinkat01
 /ltp/testcases/kernel/syscalls/unshare/unshare01
