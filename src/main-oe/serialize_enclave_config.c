@@ -113,16 +113,6 @@ static json_obj_t* mk_json_int(const char* key, uint64_t value, const char* fmt)
     return mk_json_string(key, tmp);
 }
 
-static json_obj_t* mk_json_u16(const char* key, uint32_t value)
-{
-    return mk_json_int(key, value, "%" PRIu16);
-}
-
-static json_obj_t* mk_json_s32(const char* key, uint32_t value)
-{
-    return mk_json_int(key, value, "%" PRId32);
-}
-
 static json_obj_t* mk_json_u32(const char* key, uint32_t value)
 {
     return mk_json_int(key, value, "%" PRIu32);
@@ -131,11 +121,6 @@ static json_obj_t* mk_json_u32(const char* key, uint32_t value)
 static json_obj_t* mk_json_u64(const char* key, uint64_t value)
 {
     return mk_json_int(key, value, "%" PRIu64);
-}
-
-static json_obj_t* mk_json_s64(const char* key, uint64_t value)
-{
-    return mk_json_int(key, value, "%" PRId64);
 }
 
 static json_obj_t* mk_json_string_array(
@@ -227,7 +212,7 @@ static json_obj_t* mk_json_wg(
 
     json_obj_t* r = mk_json_objects(key, 4);
     r->objects[0] = mk_json_string("ip", wg->ip);
-    r->objects[1] = mk_json_u16("listen_port", wg->listen_port);
+    r->objects[1] = mk_json_u32("listen_port", wg->listen_port);
     r->objects[2] = mk_json_string("key", wg->key);
     r->objects[3] = mk_json_wg_peers("peers", wg->peers, wg->num_peers);
 
@@ -455,7 +440,6 @@ void serialize_enclave_config(
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
 #define FPFS32(N) root->objects[cnt++] = mk_json_s32(#N, config->N)
 #define FPFU32(N) root->objects[cnt++] = mk_json_u32(#N, config->N)
-#define FPFS64(N) root->objects[cnt++] = mk_json_s64(#N, config->N)
 #define FPFU64(N) root->objects[cnt++] = mk_json_u64(#N, config->N)
 #define FPFS(N) root->objects[cnt++] = mk_json_string(#N, config->N)
 #define FPFSS(N, S) root->objects[cnt++] = mk_json_string(#N, S)
@@ -490,14 +474,14 @@ void serialize_enclave_config(
     FPFS(net_gw4);
     FPFU32(net_mask4);
     FPFS(hostname);
-    FPFS32(tap_mtu);
+    FPFU32(tap_mtu);
     FPFBOOL(hostnet);
     root->objects[cnt++] = mk_json_wg("wg", &config->wg);
 
     FPFU64(max_user_threads);
     FPFU64(espins);
     FPFU64(esleep);
-    FPFS64(ethreads);
+    FPFU64(ethreads);
     root->objects[cnt++] =
         mk_json_string_clock_res("clock_res", config->clock_res);
 

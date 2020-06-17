@@ -61,7 +61,7 @@ typedef struct sgxlkl_enclave_wg_peer_config
 typedef struct sgxlkl_enclave_wg_config
 {
     char* ip;
-    uint16_t listen_port;
+    uint32_t listen_port;
     char* key;
     size_t num_peers; /* Length of peers */
     sgxlkl_enclave_wg_peer_config_t*
@@ -89,10 +89,10 @@ typedef struct sgxlkl_enclave_config
     /* Network */
     char* net_ip4;
     char* net_gw4;
-    int net_mask4;
+    uint32_t net_mask4;
     char hostname[32];
     bool hostnet;
-    int tap_mtu;
+    uint32_t tap_mtu;
     sgxlkl_enclave_wg_config_t wg;
 
     /* Scheduling */
@@ -114,17 +114,17 @@ typedef struct sgxlkl_enclave_config
     bool swiotlb; /* Option to toggle swiotlb in SW mode */
 
     /* Application */
-    char* run;            /* Command to run (argv[0]) */
-    char* cwd;            /* Working directory */
-    int argc;             /* Length of argv */
-    char** argv;          /* Array of application arguments of length argc */
-    int envc;             /* Length of envp */
-    char** envp;          /* Array of environment variables of length envc */
-    int auxc;             /* Length of auxv */
-    Elf64_auxv_t* auxv;   /* Array of auxiliary ELF variables of length auxc */
-    int host_import_envc; /* Length of host_import_envp */
-    char** host_import_envp; /* Names of environment variables to import from
-                                the host */
+    char* run;          /* Command to run (argv[0]) */
+    char* cwd;          /* Working directory */
+    uint32_t argc;      /* Length of argv */
+    char** argv;        /* Array of application arguments of length argc */
+    uint32_t envc;      /* Length of envp */
+    char** envp;        /* Array of environment variables of length envc */
+    uint32_t auxc;      /* Length of auxv */
+    Elf64_auxv_t* auxv; /* Array of auxiliary ELF variables of length auxc */
+    uint32_t host_import_envc; /* Length of host_import_envp */
+    char** host_import_envp;   /* Names of environment variables to import from
+                                  the host */
     sgxlkl_exit_status_mode_t exit_status; /* Enclave exit status behaviour */
 
     /* Disks */

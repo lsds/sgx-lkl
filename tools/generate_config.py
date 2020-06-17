@@ -84,27 +84,40 @@ def print_type(file, typedef):
   else:
     file.write('unhandled: %s' % typedef)
 
-def generate(args):
-  filename = ENCLAVE_CFG_SCHEMA_PATH
-  with open(filename, "r") as file:
-    root = json.load(file)
-
+def generate_header(schema_file_name, root, args):
   with open(args.header, "w") as header:
     header.write('#ifndef SGXLKL_ENCLAVE_CONFIG_H\n');
     header.write('#define SGXLKL_ENCLAVE_CONFIG_H\n');
 
-    header.write('\n/* Automatically generated from %s; do not modify. */\n\n' % filename);
+    header.write('\n/* Automatically generated from %s; do not modify. */\n\n' % schema_file_name);
+
+    header.write('#include <inttypes.h>\n');
+    header.write('#include <stdbool.h>\n');
+    header.write('#include <elf.h>\n');
+    header.write('\n');
 
     for typename, typedef in root['definitions'].items():
       if (typename.startswith('sgxlkl_')):
-        header.write('typedef %s {\n' % typename[:-2])
+        ttype = 'enum' if 'enum' in typedef else 'struct'
+        header.write('typedef %s %s {\n' % (ttype, typename[:-2]))
         print_type(header, typedef)
         header.write('} %s;\n\n' % typename)
 
     header.write('\n#endif /* SGXLKL_ENCLAVE_CONFIG_H */');
 
+def generate_source(schema_file_name, root, args):
+  with open(args.source, "w") as source:
+    source.write('\n/* Automatically generated from %s; do not modify. */\n\n' % schema_file_name);
 
+    source.write('#include "%s"\n' % args.header);
 
+def generate(args):
+  schema_file_name = ENCLAVE_CFG_SCHEMA_PATH
+  with open(schema_file_name, "r") as schema_file:
+    root = json.load(schema_file)
+
+  generate_header(schema_file_name, root, args)
+  generate_source(schema_file_name, root, args)
 
 def main():
     parser = argparse.ArgumentParser(description='Generator for SGX-LKL configuration sources')

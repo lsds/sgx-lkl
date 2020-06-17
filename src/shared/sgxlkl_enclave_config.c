@@ -146,69 +146,45 @@ static char* make_path(json_parser_t* parser)
         return JSON_OK;                           \
     }
 
-#define JINTDECLU(T, B)                                                   \
-    static json_result_t decode_##T(                                      \
-        json_parser_t* parser,                                            \
-        json_type_t type,                                                 \
-        const json_union_t* value,                                        \
-        char* path,                                                       \
-        T* to)                                                            \
-    {                                                                     \
-        if (!to)                                                          \
-            return JSON_BAD_PARAMETER;                                    \
-                                                                          \
-        if (MATCH(path))                                                  \
-        {                                                                 \
-            if (type != JSON_TYPE_STRING)                                 \
-                FAIL("invalid value type for '%s'\n", make_path(parser)); \
-            _Static_assert(                                               \
-                sizeof(unsigned long) == 8,                               \
-                "unexpected size of unsigned long");                      \
-            uint64_t tmp = strtoul(value->string, NULL, 10);              \
-            if (!(B))                                                     \
-                return JSON_UNKNOWN_VALUE;                                \
-            else                                                          \
-            {                                                             \
-                *to = tmp;                                                \
-                return JSON_OK;                                           \
-            }                                                             \
-        }                                                                 \
-        return JSON_NO_MATCH;                                             \
-    }
+static json_result_t decode_uint64_t(
+    json_parser_t* parser,
+    json_type_t type,
+    const json_union_t* value,
+    char* path,
+    uint64_t* to)
+{
+    if (!to)
+        return JSON_BAD_PARAMETER;
 
-#define JINTDECLS(T, B)                                                   \
-    static json_result_t decode_##T(                                      \
-        json_parser_t* parser,                                            \
-        json_type_t type,                                                 \
-        const json_union_t* value,                                        \
-        char* path,                                                       \
-        T* to)                                                            \
-    {                                                                     \
-        if (!to)                                                          \
-            return JSON_BAD_PARAMETER;                                    \
-                                                                          \
-        if (MATCH(path))                                                  \
-        {                                                                 \
-            if (type != JSON_TYPE_STRING)                                 \
-                FAIL("invalid value type for '%s'\n", make_path(parser)); \
-            _Static_assert(                                               \
-                sizeof(unsigned long) == 8,                               \
-                "unexpected size of unsigned long");                      \
-            int64_t tmp = strtol(value->string, NULL, 10);                \
-            if (!(B))                                                     \
-                return JSON_UNKNOWN_VALUE;                                \
-            else                                                          \
-            {                                                             \
-                *to = tmp;                                                \
-                return JSON_OK;                                           \
-            }                                                             \
-        }                                                                 \
-        return JSON_NO_MATCH;                                             \
+    if (MATCH(path))
+    {
+        if (type != JSON_TYPE_STRING)
+            FAIL("invalid value type for '%s'\n", make_path(parser));
+        _Static_assert(
+            sizeof(unsigned long) == 8, "unexpected size of unsigned long");
+        uint64_t tmp = strtoul(value->string, NULL, 10);
+        *to = tmp;
+        return JSON_OK;
     }
+    return JSON_NO_MATCH;
+}
 
-JINTDECLU(uint64_t, tmp <= UINT64_MAX);
-JINTDECLS(int32_t, INT32_MIN <= tmp && tmp <= INT32_MAX);
-JINTDECLU(uint16_t, tmp <= UINT16_MAX);
+static json_result_t decode_uint32_t(
+    json_parser_t* parser,
+    json_type_t type,
+    const json_union_t* value,
+    char* path,
+    uint32_t* to)
+{
+    uint64_t tmp = 0;
+    json_result_t r = decode_uint64_t(parser, type, value, path, &tmp);
+    if (r != JSON_OK)
+        return r;
+    if (tmp > UINT32_MAX)
+        return JSON_OUT_OF_BOUNDS;
+    *to = (uint32_t)tmp;
+    return JSON_OK;
+}
 
 #define JNULL(PATH)                     \
     do                                  \
@@ -233,11 +209,8 @@ JINTDECLU(uint16_t, tmp <= UINT16_MAX);
 #define JU64(P, D)                                          \
     if (decode_uint64_t(parser, type, un, P, D) == JSON_OK) \
         return JSON_OK;
-#define JS32(P, D)                                         \
-    if (decode_int32_t(parser, type, un, P, D) == JSON_OK) \
-        return JSON_OK;
-#define JU16(P, D)                                          \
-    if (decode_uint16_t(parser, type, un, P, D) == JSON_OK) \
+#define JU32(P, D)                                          \
+    if (decode_uint32_t(parser, type, un, P, D) == JSON_OK) \
         return JSON_OK;
 
 void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)
@@ -427,18 +400,18 @@ static json_result_t json_read_callback(
             JU64("oe_heap_pagecount", &data->config->oe_heap_pagecount);
             JSTRING("net_ip4", data->config->net_ip4);
             JSTRING("net_gw4", data->config->net_gw4);
-            JS32("net_mask4", &data->config->net_mask4);
+            JU32("net_mask4", &data->config->net_mask4);
             JPATHT("hostname", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string) + 1;
                 if (len > sizeof(data->config->hostname))
                     FAIL("hostname too long");
                 memcpy(data->config->hostname, un->string, len);
             });
-            JS32("tap_mtu", &data->config->tap_mtu);
+            JU32("tap_mtu", &data->config->tap_mtu);
             JBOOL("hostnet", &data->config->hostnet);
 
             JSTRING("wg.ip", data->config->wg.ip);
-            JU16("wg.listen_port", &data->config->wg.listen_port);
+            JU32("wg.listen_port", &data->config->wg.listen_port);
             JSTRING("wg.key", data->config->wg.key);
 
 #define WGPEER() \
@@ -471,8 +444,7 @@ static json_result_t json_read_callback(
             JU64("esleep", &data->config->esleep);
 
             JPATHT("clock_res", JSON_TYPE_STRING, {
-                size_t len = strlen(un->string);
-                if (len != 16)
+                if (strlen(un->string) != 16)
                     FAIL("invalid length of value for clock_res item");
                 data->array_count++;
             });
@@ -584,30 +556,31 @@ static json_result_t json_read_callback(
 
 void check_config(const sgxlkl_enclave_config_t* cfg)
 {
-#define CONFCHECK(C, M) \
-    if (C)              \
+#define CC(C, M) \
+    if (C)       \
         FAIL("rejecting enclave configuration: " M "\n");
 
-    CONFCHECK(cfg->run == NULL && cfg->argv == NULL, "missing run/argv");
-    CONFCHECK(cfg->run == NULL && cfg->argc == 0, "argc == 0");
-    CONFCHECK(cfg->argc < 0, "negative argc");
-    CONFCHECK(cfg->envc < 0, "negative envc");
-    CONFCHECK(cfg->auxc < 0, "negative auxc");
-    CONFCHECK(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "invalid net_mask4");
-    CONFCHECK(cfg->ethreads > MAX_SGXLKL_ETHREADS, "too many ethreads");
-    CONFCHECK(
-        cfg->max_user_threads > MAX_SGXLKL_MAX_USER_THREADS,
-        "max_user_threads too large");
+    CC(cfg->run == NULL && cfg->argv == NULL, "missing run/argv");
+    CC(cfg->run == NULL && cfg->argc == 0, "no run and argc == 0");
+    CC(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "net_mask4 out of range");
+    CC(cfg->ethreads > MAX_SGXLKL_ETHREADS, "too many ethreads");
+    CC(cfg->max_user_threads > MAX_SGXLKL_MAX_USER_THREADS,
+       "max_user_threads too large");
 
     for (size_t i = 0; i < cfg->num_disks; i++)
     {
-        CONFCHECK(
-            cfg->disks[i].overlay && strcmp(cfg->disks[i].mnt, "/") != 0,
-            "overlay only allowed for root disk\n");
-        CONFCHECK(
-            cfg->disks[i].overlay && !cfg->disks[i].readonly,
-            "overlay only allowed for read-only root disk\n");
+        CC(cfg->disks[i].overlay && strcmp(cfg->disks[i].mnt, "/") != 0,
+           "overlay only allowed for root disk\n");
+        CC(cfg->disks[i].overlay && !cfg->disks[i].readonly,
+           "overlay only allowed for read-only root disk\n");
     }
+
+    // These are cast to (signed) int later.
+    CC(cfg->tap_mtu > INT32_MAX, "tap_mtu out of range");
+    CC(cfg->argc > INT32_MAX, "argc out of range");
+    CC(cfg->envc > INT32_MAX, "envc out of range");
+    CC(cfg->auxc > INT32_MAX, "auxv out of range");
+    CC(cfg->host_import_envc > INT32_MAX, "auxv out of range");
 }
 
 int sgxlkl_read_enclave_config(
