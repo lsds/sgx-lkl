@@ -1,4 +1,5 @@
 + Patch Description: Modified the tests without using mmap.
++ Issue 297: Sgx enclave is getting aborted while test is trying to access invalid address
 diff --git a/testcases/kernel/syscalls/clock_adjtime/clock_adjtime02.c b/testcases/kernel/syscalls/clock_adjtime/clock_adjtime02.c
 index ba8eae54f..e24ff7b24 100644
 --- a/testcases/kernel/syscalls/clock_adjtime/clock_adjtime02.c

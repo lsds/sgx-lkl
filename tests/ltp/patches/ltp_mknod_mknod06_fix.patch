@@ -1,4 +1,5 @@
 + Patch Description: Modified the tests without using mmap.
++ Issue 297: Sgx enclave is getting aborted while test is trying to access invalid address
 diff --git a/testcases/kernel/syscalls/mknod/mknod06.c b/testcases/kernel/syscalls/mknod/mknod06.c
 index 8f70cf07a..901a5aff1 100644
 --- a/testcases/kernel/syscalls/mknod/mknod06.c
