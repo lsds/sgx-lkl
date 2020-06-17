@@ -4,6 +4,7 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
+#include "shared/timer_dev.h"
 
 _Atomic(uint64_t) internal_counter = 0;
 

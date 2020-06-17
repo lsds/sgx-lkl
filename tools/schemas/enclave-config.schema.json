@@ -8,9 +8,25 @@
   ],
   "additionalProperties": false,
   "definitions": {
-    "safe_number": {
+    "safe_uint8_t": {
       "type": "string",
-      "pattern": "^0$|^[1-9][0-9]*$"
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 3
+    },
+    "safe_uint32_t": {
+      "type": "string",
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 10
+    },
+    "safe_uint64_t": {
+      "type": "string",
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 20
+    },
+    "safe_size_t": {
+      "type": "string",
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 20
     },
     "sgxlkl_enclave_mode_t": {
       "enum": [
@@ -85,12 +101,12 @@
           "maxLength": 255
         },
         "key": {
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": "array",
           "description": "Disk encryption key (hex-encoded).",
-          "pattern": "^[0-9A-Fa-f]$"
+          "pattern": "^[0-9A-Fa-f]$",
+          "items": {
+            "$ref": "#/definitions/safe_uint8_t"
+          }
         },
         "key_id": {
           "type": [
@@ -111,7 +127,7 @@
           "description": "dm-verity hash."
         },
         "roothash_offset": {
-          "$ref": "#/definitions/safe_number",
+          "$ref": "#/definitions/safe_size_t",
           "description": "dm-verity hash offset."
         },
         "readonly": {
@@ -125,7 +141,7 @@
           "default": false
         },
         "size": {
-          "$ref": "#/definitions/safe_number",
+          "$ref": "#/definitions/safe_size_t",
           "description": "Size of the ext4 filesystem in the dynamically created disk when \"create\": true."
         },
         "overlay": {
@@ -156,7 +172,7 @@
           "type": "string"
         },
         "listen_port": {
-          "$ref": "#/definitions/safe_number"
+          "$ref": "#/definitions/safe_uint32_t"
         },
         "key": {
           "type": [
@@ -176,163 +192,165 @@
       "type": "object",
       "properties": {
         "num_heap_pages": {
-          "$ref": "#/definitions/safe_number",
+          "$ref": "#/definitions/safe_uint64_t",
           "default": "262144"
         },
         "num_stack_pages": {
-          "$ref": "#/definitions/safe_number",
+          "$ref": "#/definitions/safe_uint64_t",
           "default": "1024"
         },
         "num_tcs": {
-          "$ref": "#/definitions/safe_number",
+          "$ref": "#/definitions/safe_uint64_t",
           "default": "8"
         }
       }
     },
     "sgxlkl_enclave_config_t": {
-      "format_version": {
-        "$ref": "#/definitions/safe_number",
-        "description": "Version number of the enclave config type."
-      },
-      "mode": {
-        "type": "string",
-        "description": "Enclave execution mode.",
-        "pattern": "^sw_debug|hw_debug|hw_release$"
-      },
-      "net_ip4": {
-        "type": "string",
-        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
-        "description": "IPv4 address."
-      },
-      "net_gw4": {
-        "type": "string",
-        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
-        "description": "IPv4 gateway address."
-      },
-      "net_mask4": {
-        "type": "string",
-        "description": "IPv4 netmask.",
-        "pattern": "1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32"
-      },
-      "hostname": {
-        "type": "string",
-        "maxLength": 31
-      },
-      "hostnet": {
-        "type": "boolean"
-      },
-      "tap_mtu": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "wg": {
-        "$ref": "#/definitions/sgxlkl_enclave_wg_config_t"
-      },
-      "ethreads": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "max_user_threads": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "espins": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "esleep": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "clock_res": {
-        "type": "array",
-        "minLength": 8,
-        "maxLength": 8,
-        "items": {
-          "$ref": "#/definitions/sgxlkl_clock_res_config_t"
-        }
-      },
-      "stacksize": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "mmap_files": {
-        "$ref": "#/definitions/sgxlkl_enclave_mmap_files_t",
-        "default": "none"
-      },
-      "oe_heap_pagecount": {
-        "$ref": "#/definitions/safe_number"
-      },
-      "fsgsbase": {
-        "type": "boolean"
-      },
-      "verbose": {
-        "type": "boolean"
-      },
-      "kernel_verbose": {
-        "type": "boolean"
-      },
-      "kernel_cmd": {
-        "type": "string"
-      },
-      "sysctl": {
-        "type": [
-          "string",
-          "null"
-        ]
-      },
-      "swiotlb": {
-        "type": "boolean"
-      },
-      "run": {
-        "type": "string",
-        "description": "Path to the application"
-      },
-      "cwd": {
-        "type": "string",
-        "description": "Path to the working directory",
-        "default": "/"
-      },
-      "argv": {
-        "type": "array",
-        "description": "Application arguments",
-        "default": [],
-        "items": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Version number of the enclave config type."
+        },
+        "mode": {
+          "$ref": "#/definitions/sgxlkl_enclave_mode_t",
+          "description": "Enclave execution mode."
+        },
+        "net_ip4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "IPv4 address."
+        },
+        "net_gw4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "IPv4 gateway address."
+        },
+        "net_mask4": {
+          "type": "string",
+          "description": "IPv4 netmask.",
+          "pattern": "1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32"
+        },
+        "hostname": {
+          "type": "string",
+          "maxLength": 31
+        },
+        "hostnet": {
+          "type": "boolean"
+        },
+        "tap_mtu": {
+          "$ref": "#/definitions/safe_uint32_t"
+        },
+        "wg": {
+          "$ref": "#/definitions/sgxlkl_enclave_wg_config_t"
+        },
+        "ethreads": {
+          "$ref": "#/definitions/safe_size_t"
+        },
+        "max_user_threads": {
+          "$ref": "#/definitions/safe_size_t"
+        },
+        "espins": {
+          "$ref": "#/definitions/safe_size_t"
+        },
+        "esleep": {
+          "$ref": "#/definitions/safe_size_t"
+        },
+        "clock_res": {
+          "type": "array",
+          "minLength": 8,
+          "maxLength": 8,
+          "items": {
+            "$ref": "#/definitions/sgxlkl_clock_res_config_t"
+          }
+        },
+        "stacksize": {
+          "$ref": "#/definitions/safe_size_t"
+        },
+        "mmap_files": {
+          "$ref": "#/definitions/sgxlkl_enclave_mmap_files_t",
+          "default": "none"
+        },
+        "oe_heap_pagecount": {
+          "$ref": "#/definitions/safe_size_t"
+        },
+        "fsgsbase": {
+          "type": "boolean"
+        },
+        "verbose": {
+          "type": "boolean"
+        },
+        "kernel_verbose": {
+          "type": "boolean"
+        },
+        "kernel_cmd": {
           "type": "string"
+        },
+        "sysctl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "swiotlb": {
+          "type": "boolean"
+        },
+        "run": {
+          "type": "string",
+          "description": "Path to the application"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Path to the working directory",
+          "default": "/"
+        },
+        "argv": {
+          "type": "array",
+          "description": "Application arguments",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "envp": {
+          "type": "array",
+          "description": "Environment variables",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "auxv": {
+          "type": "array",
+          "description": "ELF64 Aux vector",
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/Elf64_auxv_t"
+          }
+        },
+        "host_import_envp": {
+          "type": "array",
+          "description": "List of environment variables to be imported from the host",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "exit_status": {
+          "$ref": "#/definitions/sgxlkl_exit_status_mode_t",
+          "description": "Whether and how the enclave exit code is reported to the host",
+          "default": "full"
+        },
+        "disks": {
+          "type": "array",
+          "description": "Disks to mount",
+          "items": {
+            "$ref": "#/definitions/sgxlkl_enclave_disk_config_t"
+          }
+        },
+        "image_sizes": {
+          "$ref": "#/definitions/sgxlkl_image_sizes_config_t"
         }
-      },
-      "envp": {
-        "type": "array",
-        "description": "Environment variables",
-        "default": [],
-        "items": {
-          "type": "string"
-        }
-      },
-      "auxv": {
-        "type": "array",
-        "description": "ELF64 Aux vector",
-        "default": [],
-        "items": {
-          "$ref": "#/definitions/Elf64_auxv_t"
-        }
-      },
-      "host_import_envp": {
-        "type": "array",
-        "description": "List of environment variables to be imported from the host",
-        "default": [],
-        "items": {
-          "type": "string"
-        }
-      },
-      "exit_status": {
-        "$ref": "#/definitions/sgxlkl_exit_status_mode_t",
-        "description": "Whether and how the enclave exit code is reported to the host",
-        "default": "full"
-      },
-      "disks": {
-        "type": "array",
-        "description": "Disks to mount",
-        "items": {
-          "$ref": "#/definitions/sgxlkl_enclave_disk_config_t"
-        }
-      },
-      "image_sizes": {
-        "$ref": "#/definitions/sgxlkl_image_sizes_config_t"
       }
     }
   },

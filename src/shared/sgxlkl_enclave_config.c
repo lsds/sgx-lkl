@@ -215,13 +215,13 @@ static json_result_t decode_uint32_t(
 
 void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)
 {
-    if (strcmp(value, "unknown") == 0)
+    if (strcmp(value, "UNKNOWN_MODE") == 0)
         *dest = UNKNOWN_MODE;
-    else if (strcmp(value, "sw_debug") == 0)
+    else if (strcmp(value, "SW_DEBUG_MODE") == 0)
         *dest = SW_DEBUG_MODE;
-    else if (strcmp(value, "hw_debug") == 0)
+    else if (strcmp(value, "HW_DEBUG_MODE") == 0)
         *dest = HW_DEBUG_MODE;
-    else if (strcmp(value, "hw_release") == 0)
+    else if (strcmp(value, "HW_RELEASE_MODE") == 0)
         *dest = HW_RELEASE_MODE;
     else
         FAIL("Invalid mode value: %s\n", value);
@@ -229,11 +229,11 @@ void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)
 
 void parse_exit_status(sgxlkl_exit_status_mode_t* dest, const char* value)
 {
-    if (strcmp(value, "full") == 0)
+    if (strcmp(value, "EXIT_STATUS_FULL") == 0)
         *dest = EXIT_STATUS_FULL;
-    else if (strcmp(value, "binary") == 0)
+    else if (strcmp(value, "EXIT_STATUS_BINARY") == 0)
         *dest = EXIT_STATUS_BINARY;
-    else if (strcmp(value, "none") == 0)
+    else if (strcmp(value, "EXIT_STATUS_NONE") == 0)
         *dest = EXIT_STATUS_NONE;
     else
         FAIL("Invalid exit_status value: %s\n", value);
@@ -241,11 +241,11 @@ void parse_exit_status(sgxlkl_exit_status_mode_t* dest, const char* value)
 
 void parse_mmap_files(sgxlkl_enclave_mmap_files_t* dest, const char* value)
 {
-    if (strcmp(value, "shared") == 0)
+    if (strcmp(value, "ENCLAVE_MMAP_FILES_SHARED") == 0)
         *dest = ENCLAVE_MMAP_FILES_SHARED;
-    else if (strcmp(value, "private") == 0)
+    else if (strcmp(value, "ENCLAVE_MMAP_FILES_PRIVATE") == 0)
         *dest = ENCLAVE_MMAP_FILES_PRIVATE;
-    else if (strcmp(value, "none") == 0)
+    else if (strcmp(value, "ENCLAVE_MMAP_FILES_NONE") == 0)
         *dest = ENCLAVE_MMAP_FILES_NONE;
     else
         FAIL("Invalid mmap_files value: %s\n", value);
@@ -319,17 +319,17 @@ static json_result_t json_read_callback(
         case JSON_REASON_END_ARRAY:
             if (MATCH("argv"))
             {
-                data->config->argc = data->array_count;
+                data->config->num_argv = data->array_count;
                 data->config->argv = (char**)data->array;
             }
             else if (MATCH("envp"))
             {
-                data->config->envc = data->array_count;
+                data->config->num_envp = data->array_count;
                 data->config->envp = (char**)data->array;
             }
             else if (MATCH("auxv"))
             {
-                data->config->auxc = data->array_count;
+                data->config->num_auxv = data->array_count;
                 data->config->auxv = (Elf64_auxv_t*)data->array;
             }
             else if (MATCH("disks"))
@@ -340,7 +340,7 @@ static json_result_t json_read_callback(
             }
             else if (MATCH("host_import_envp"))
             {
-                data->config->host_import_envc = data->array_count;
+                data->config->num_host_import_envp = data->array_count;
                 data->config->host_import_envp = (char**)data->array;
             }
             else if (MATCH("wg.peers"))
@@ -400,7 +400,7 @@ static json_result_t json_read_callback(
             JU64("oe_heap_pagecount", &data->config->oe_heap_pagecount);
             JSTRING("net_ip4", data->config->net_ip4);
             JSTRING("net_gw4", data->config->net_gw4);
-            JU32("net_mask4", &data->config->net_mask4);
+            JSTRING("net_mask4", data->config->net_mask4);
             JPATHT("hostname", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string) + 1;
                 if (len > sizeof(data->config->hostname))
@@ -561,8 +561,8 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
         FAIL("rejecting enclave configuration: " M "\n");
 
     CC(cfg->run == NULL && cfg->argv == NULL, "missing run/argv");
-    CC(cfg->run == NULL && cfg->argc == 0, "no run and argc == 0");
-    CC(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "net_mask4 out of range");
+    CC(cfg->run == NULL && cfg->num_argv == 0, "no run and argc == 0");
+    // CC(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "net_mask4 out of range");
     CC(cfg->ethreads > MAX_SGXLKL_ETHREADS, "too many ethreads");
     CC(cfg->max_user_threads > MAX_SGXLKL_MAX_USER_THREADS,
        "max_user_threads too large");
@@ -577,10 +577,11 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
 
     // These are cast to (signed) int later.
     CC(cfg->tap_mtu > INT32_MAX, "tap_mtu out of range");
-    CC(cfg->argc > INT32_MAX, "argc out of range");
-    CC(cfg->envc > INT32_MAX, "envc out of range");
-    CC(cfg->auxc > INT32_MAX, "auxv out of range");
-    CC(cfg->host_import_envc > INT32_MAX, "auxv out of range");
+    CC(cfg->num_argv > INT32_MAX, "size of argv out of range");
+    CC(cfg->num_envp > INT32_MAX, "size of envp out of range");
+    CC(cfg->num_auxv > INT32_MAX, "size of auxv out of range");
+    CC(cfg->num_host_import_envp > INT32_MAX,
+       "size of host_import_envp out of range");
 }
 
 int sgxlkl_read_enclave_config(
@@ -670,18 +671,18 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
     NONDEFAULT_FREE(kernel_cmd);
     NONDEFAULT_FREE(sysctl);
 
-    for (size_t i = 0; i < config->argc; i++)
+    for (size_t i = 0; i < config->num_argv; i++)
         free(config->argv[i]);
     NONDEFAULT_FREE(argv);
 
-    for (size_t i = 0; i < config->envc; i++)
+    for (size_t i = 0; i < config->num_envp; i++)
         free(config->envp[i]);
     NONDEFAULT_FREE(envp);
 
     free(config->auxv);
     NONDEFAULT_FREE(auxv);
 
-    for (size_t i = 0; i < config->host_import_envc; i++)
+    for (size_t i = 0; i < config->num_host_import_envp; i++)
         free(config->host_import_envp[i]);
     NONDEFAULT_FREE(host_import_envp);
 

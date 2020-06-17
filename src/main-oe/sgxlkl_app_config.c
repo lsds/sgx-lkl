@@ -70,12 +70,12 @@ static int parse_args(
     if (json_object_get_type(args_val) != json_type_array)
         return 1;
 
-    config->argc = json_object_array_length(args_val);
+    config->num_argv = json_object_array_length(args_val);
 
     // Allocate space for argv[] + NULL element at argv[argc]
-    config->argv = malloc(sizeof(char*) * (config->argc + 1));
+    config->argv = malloc(sizeof(char*) * (config->num_argv + 1));
 
-    for (size_t i = 0; i < config->argc; i++)
+    for (size_t i = 0; i < config->num_argv; i++)
     {
         json_object* val = json_object_array_get_idx(args_val, i);
         if (json_object_get_type(val) != json_type_string)
@@ -83,7 +83,7 @@ static int parse_args(
         config->argv[i] = strdup(json_object_get_string(val));
     }
 
-    config->argv[config->argc] = NULL;
+    config->argv[config->num_argv] = NULL;
 
     return 0;
 }
@@ -128,7 +128,7 @@ static int parse_host_import_envp(
         return 1;
 
     int len = json_object_array_length(env_val);
-    config->host_import_envc = len;
+    config->num_host_import_envp = len;
     config->host_import_envp = malloc(sizeof(char*) * (len + 1));
     config->host_import_envp[len] = NULL;
 

@@ -54,6 +54,13 @@ builddirs:
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
               $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
 
+# Auto-generated config
+include/shared/sgxlkl_enclave_config_gen.h: ../tools/generate_config.py ../tools/schemas/enclave-config.schema.json
+	cd include; python3 ../../tools/generate_config.py generate --header shared/sgxlkl_enclave_config_gen.h --source ../shared/sgxlkl_enclave_config_gen.c
+shared/sgxlkl_enclave_config.c: include/shared/sgxlkl_enclave_config_gen.h
+shared/sgxlkl_enclave_config_gen.c: include/shared/sgxlkl_enclave_config_gen.h
+SGXLKL_SRCS += shared/sgxlkl_enclave_config_gen.c
+
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
   SGXLKL_SRCS += ${OE_ENCLAVE_CALLS}

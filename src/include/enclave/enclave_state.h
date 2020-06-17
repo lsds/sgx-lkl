@@ -2,6 +2,7 @@
 #define ENCLAVE_STATE_H
 
 #include <shared/sgxlkl_enclave_config.h>
+#include <shared/shared_memory.h>
 
 /* Indicates different states during sgxlkl startup sequence */
 typedef enum sgxlkl_libc_state
@@ -33,7 +34,7 @@ typedef struct sgxlkl_enclave_state
 
     // Imported environment variables
     char** imported_envp;
-    size_t imported_envc;
+    size_t num_imported_envp;
 
     /* Flattened ELF64 process stack */
     elf64_stack_t elf64_stack;

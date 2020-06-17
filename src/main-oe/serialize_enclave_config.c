@@ -454,25 +454,26 @@ void serialize_enclave_config(
     FPFSS(
         mode,
         config->mode == SW_DEBUG_MODE
-            ? "sw_debug"
+            ? "SW_DEBUG_MODE"
             : config->mode == HW_DEBUG_MODE
-                  ? "hw_debug"
-                  : config->mode == HW_RELEASE_MODE ? "hw_release" : "unknown");
+                  ? "HW_DEBUG_MODE"
+                  : config->mode == HW_RELEASE_MODE ? "HW_RELEASE_MODE"
+                                                    : "UNKNOWN_MODE");
     FPFU64(stacksize);
     FPFSS(
         mmap_files,
         config->mmap_files == ENCLAVE_MMAP_FILES_NONE
-            ? "none"
+            ? "ENCLAVE_MMAP_FILES_NONE"
             : config->mmap_files == ENCLAVE_MMAP_FILES_SHARED
-                  ? "shared"
+                  ? "ENCLAVE_MMAP_FILES_SHARED"
                   : config->mmap_files == ENCLAVE_MMAP_FILES_PRIVATE
-                        ? "private"
+                        ? "ENCLAVE_MMAP_FILES_PRIVATE"
                         : "unknown");
     FPFU64(oe_heap_pagecount);
 
     FPFS(net_ip4);
     FPFS(net_gw4);
-    FPFU32(net_mask4);
+    FPFS(net_mask4);
     FPFS(hostname);
     FPFU32(tap_mtu);
     FPFBOOL(hostnet);
@@ -495,22 +496,24 @@ void serialize_enclave_config(
     FPFS(run);
     FPFS(cwd);
     root->objects[cnt++] =
-        mk_json_string_array("argv", config->argv, config->argc);
+        mk_json_string_array("argv", config->argv, config->num_argv);
     root->objects[cnt++] =
-        mk_json_string_array("envp", config->envp, config->envc);
+        mk_json_string_array("envp", config->envp, config->num_envp);
     root->objects[cnt++] = mk_json_string_array(
-        "host_import_envp", config->host_import_envp, config->host_import_envc);
-    root->objects[cnt++] = mk_json_auxv("auxv", config->auxv, config->auxc);
+        "host_import_envp",
+        config->host_import_envp,
+        config->num_host_import_envp);
+    root->objects[cnt++] = mk_json_auxv("auxv", config->auxv, config->num_auxv);
     root->objects[cnt++] =
         mk_json_disks("disks", config->disks, config->num_disks);
 
     root->objects[cnt++] = mk_json_string(
         "exit_status",
         config->exit_status == EXIT_STATUS_FULL
-            ? "full"
+            ? "EXIT_STATUS_FULL"
             : config->exit_status == EXIT_STATUS_BINARY
-                  ? "binary"
-                  : config->exit_status == EXIT_STATUS_NONE ? "none"
+                  ? "EXIT_STATUS_BINARY"
+                  : config->exit_status == EXIT_STATUS_NONE ? "EXIT_STATUS_NONE"
                                                             : "unknown");
 
     root->objects[cnt++] =

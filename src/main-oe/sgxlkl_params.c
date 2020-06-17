@@ -49,7 +49,7 @@ struct sgxlkl_config_elem
 #define DEFAULT_SGXLKL_HEAP_SIZE 200 * 1024 * 1024
 #define DEFAULT_SGXLKL_HOSTNAME "lkl"
 #define DEFAULT_SGXLKL_IP4 "10.0.1.1"
-#define DEFAULT_SGXLKL_MASK4 24
+#define DEFAULT_SGXLKL_MASK4 "24"
 #define DEFAULT_SGXLKL_MAX_USER_THREADS 256
 #define DEFAULT_SGXLKL_ESLEEP 16000
 #define DEFAULT_SGXLKL_ETHREADS 1
@@ -88,7 +88,7 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
     {"SGXLKL_IP4", "ip4", TYPE_CHAR, {.def_char = DEFAULT_SGXLKL_IP4}, 0}, /* 20 */
     {"SGXLKL_KERNEL_VERBOSE", "kernel_verbose", TYPE_BOOL, {.def_bool = 0}, 0}, /* 21 */
     {}, /* 22 */
-    {"SGXLKL_MASK4", "mask4", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_MASK4, 32}}, 0}, /* 23 */
+    {"SGXLKL_MASK4", "mask4", TYPE_UINT, {.def_char = DEFAULT_SGXLKL_MASK4}, 0}, /* 23 */
     {"SGXLKL_MAX_USER_THREADS", "max_user_threads", TYPE_UINT, {.def_uint = {DEFAULT_SGXLKL_MAX_USER_THREADS, MAX_SGXLKL_MAX_USER_THREADS}}, 0}, /* 24 */
     {"SGXLKL_MMAP_FILES", "mmap_files", TYPE_CHAR, {.def_char = "None"}, 0}, /* 25 */
     {}, /* 26 */

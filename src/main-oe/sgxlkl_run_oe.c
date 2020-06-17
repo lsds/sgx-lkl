@@ -292,7 +292,7 @@ static void help_config()
         "IPv4 gateway to assign to LKL.",
         sgxlkl_default_enclave_config.net_gw4);
     printf(
-        "%-35s %s (default: %d)\n",
+        "%-35s %s (default: %s)\n",
         "  SGXLKL_MASK4",
         "CIDR mask for LKL to use.",
         sgxlkl_default_enclave_config.net_mask4);
@@ -1205,8 +1205,6 @@ static void register_hds(char* root_hd)
 
 static void register_net()
 {
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
-
     if (host_state.net_fd != 0)
         sgxlkl_host_fail("Multiple network interfaces not supported yet\n");
 
@@ -1253,9 +1251,6 @@ static void register_net()
     if (ioctl(host_state.net_fd, TUNSETOFFLOAD, offload_flags) != 0)
         sgxlkl_host_fail(
             "Failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
-
-    if (econf->net_mask4 < 1 || econf->net_mask4 > 32)
-        sgxlkl_host_fail("Invalid IPv4 mask %d\n", econf->net_mask4);
 }
 
 static void sgxlkl_cleanup(void)
@@ -1665,7 +1660,7 @@ void override_enclave_config(sgxlkl_enclave_mode_t enclave_mode_cmdline)
         econf->net_gw4 = sgxlkl_config_str(SGXLKL_GW4);
 
     if (sgxlkl_configured(SGXLKL_MASK4))
-        econf->net_mask4 = sgxlkl_config_uint64(SGXLKL_MASK4);
+        econf->net_mask4 = sgxlkl_config_str(SGXLKL_MASK4);
 
     if (sgxlkl_configured(SGXLKL_HOSTNAME))
         strcpy(econf->hostname, sgxlkl_config_str(SGXLKL_HOSTNAME));

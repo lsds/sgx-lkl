@@ -44,6 +44,7 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 #include "shared/sgxlkl_enclave_config.h"
+#include "shared/timer_dev.h"
 
 #include "openenclave/corelibc/oestring.h"
 
@@ -964,7 +965,7 @@ void lkl_poststart_net(int net_dev_id)
     {
         int ifidx = lkl_netdev_get_ifindex(net_dev_id);
         uint32_t ip4 = _parse_ip4(sgxlkl_enclave->net_ip4);
-        res = lkl_if_set_ipv4(ifidx, ip4, sgxlkl_enclave->net_mask4);
+        res = lkl_if_set_ipv4(ifidx, ip4, atoi(sgxlkl_enclave->net_mask4));
         if (res < 0)
         {
             sgxlkl_fail("Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
