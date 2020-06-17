@@ -12,11 +12,16 @@ CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
 # Note: OE_LOG_LEVEL=INFO also enables Azure DCAP Client logging.
-CC_DOCKER_ARGS=\
-	--rm --privileged --network=host \
+
+CC_DOCKER_ARGS_COMMON=\
+	--rm \
+	--device /dev/net/tun --cap-add=NET_ADMIN \
 	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
-	-e OE_LOG_LEVEL=INFO
+	-e OE_LOG_LEVEL=INFO -u 0
+
+CC_DOCKER_ARGS_HW=\
+	--device /dev/sgx
 
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
@@ -41,11 +46,11 @@ run-sw:
 	@echo SGXLKL_PREFIX missing, skipping test
 else
 run-hw: $(CC_stamp)
-	docker run $(CC_DOCKER_ARGS) $(CC) --hw-debug
+	docker run $(CC_DOCKER_ARGS_COMMON) $(CC_DOCKER_ARGS_HW) $(CC) --hw-debug
 
 run-sw: $(CC_stamp)
 	# TODO -t as work-around for https://github.com/lsds/sgx-lkl/issues/158
-	docker run -t $(CC_DOCKER_ARGS) $(CC) --sw-debug
+	docker run -t $(CC_DOCKER_ARGS_COMMON) $(CC) --sw-debug
 endif
 
 clean:
