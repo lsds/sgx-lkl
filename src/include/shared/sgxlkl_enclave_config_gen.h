@@ -115,4 +115,6 @@ typedef struct sgxlkl_enclave_config
     sgxlkl_image_sizes_config_t image_sizes;
 } sgxlkl_enclave_config_t;
 
+extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;
+
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

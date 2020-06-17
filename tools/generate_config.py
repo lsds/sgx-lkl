@@ -58,7 +58,7 @@ def pre_type(jtype):
     elif jtt == 'string' or (isinstance(jtt, list) and 'string' in jtt and 'null' in jtt):
       return 'char' if 'maxLength' in jtype else 'char*'
     else:
-        print('unhandled typed: %s' % jtype)
+        print('unhandled json type: %s' % jtype)
   elif '$ref' in jtype:
     rtype = jtype['$ref'][jtype['$ref'].rfind('/')+1:]
     if rtype.startswith('safe_'):
@@ -66,12 +66,8 @@ def pre_type(jtype):
     else:
       return rtype
   else:
-    print('unhandled: %s' % jtype)
+    print('unknown json type: %s' % jtype)
     return jtype
-
-def write_member(file, name, jtype):
-  # print('%s := %s' % (name, jtype))
-  file.write('    %s %s%s;\n' % (pre_type(jtype), name, post_type(jtype)))
 
 def need_size_var(jtype):
   return 'type' in jtype and jtype['type'] == 'array' and 'maxLength' not in jtype
@@ -99,6 +95,8 @@ def generate_header(schema_file_name, root, args):
           for value in typedef['enum']:
               header.write('    %s = %d' % (value.upper(), i))
               if i < num_vals - 1: header.write(',')
+              if 'description' in typedef:
+                header.write(' /* %s */' % typedef['description'])
               header.write('\n')
               i += 1
           header.write('} %s;\n\n' % typename)
@@ -114,8 +112,10 @@ def generate_header(schema_file_name, root, args):
               if name == 'key':
                 var_name = 'key_len'
               header.write('    size_t %s;\n' % var_name)
-            write_member(header, name, jtype)
+            header.write('    %s %s%s;\n' % (pre_type(jtype), name, post_type(jtype)))
           header.write('} %s;\n\n' % typename)
+
+    header.write('extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;\n\n');
 
     header.write('#endif /* SGXLKL_ENCLAVE_CONFIG_H */');
 
@@ -123,7 +123,112 @@ def generate_source(schema_file_name, root, args):
   with open(str(args.source), "w") as source:
     source.write('\n/* Automatically generated from %s; do not modify. */\n\n' % schema_file_name);
 
-    source.write('#include "%s"\n' % args.header);
+    source.write('#include "%s"\n\n' % args.header);
+
+    source.write('const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {\n')
+    scope = []
+    def initialize(scope, elem):
+      indent = '    ' * (len(scope) + 1)
+      typedef = root['definitions'][elem]
+      if 'enum' not in typedef:
+        for name, jtype in typedef['properties'].items():
+          if name == 'format_version':
+            continue
+          tname = pre_type(jtype)
+          if tname.startswith('sgxlkl_'):
+            if tname.endswith('*'):
+              source.write('%s.%s=NULL,\n' % (indent, name))
+            else:
+              tdef = root['definitions'][tname]
+              if 'type' in jtype and jtype['type'] == 'array':
+                if 'default' in jtype:
+                  dflt = jtype['default']
+                  source.write('%s.%s = %s,\n' % (indent, name, dflt))
+                else:
+                  source.write('%s.%s = {0},\n' % (indent, name))
+              elif 'enum' not in tdef:
+                scope.append(name)
+                source.write('%s.%s = {\n' % (indent, name))
+                initialize(scope, tname)
+                source.write('%s},\n' % indent)
+                scope = scope[:-1]
+          else:
+            scope.append(name)
+            sname = '.'.join(scope)
+            ctype = pre_type(jtype) + post_type(jtype)
+            dflt = jtype['default'] if 'default' in jtype else ''
+            if dflt == '':
+              raise Exception("ERROR: no default provided for %s" % sname)
+            if ctype == 'bool':
+              dflt = "true" if dflt else "false"
+            elif ctype == 'char*' or ctype.startswith('char['):
+              if dflt is None or dflt == []:
+                source.write('%s.%s=NULL,\n' % (indent, name))
+              else:
+                source.write('%s.%s="%s",\n' % (indent, name, dflt))
+            else:
+              if need_size_var(jtype):
+                size_var_name = 'num_' + name;
+                if name == 'key':
+                  size_var_name = 'key_len'
+                source.write('%s.%s=%s,\n' % (indent, size_var_name, 0))
+              if dflt == []:
+                dflt = 'NULL'
+              source.write('%s.%s=%s,\n' % (indent, name, dflt))
+          scope = scope[:-1]
+      scope = scope[:-1]
+    initialize(scope, 'sgxlkl_enclave_config_t')
+    source.write('};\n\n')
+
+    source.write(
+      "typedef struct {\n"
+      "  char* scope;\n"
+      "  char* type;\n"
+      "  char* description;\n"
+      "  char* default_value;\n"
+      "  char* override_var;\n"
+      "} sgxlkl_enclave_setting_t;\n\n");
+
+    source.write('// clang-format off\n')
+    source.write('static sgxlkl_enclave_setting_t sgxlkl_enclave_settings[] = {\n')
+
+    scope = []
+    def describe(scope, elem):
+      typedef = root['definitions'][elem]
+      if 'enum' not in typedef:
+        for name, jtype in typedef['properties'].items():
+          if name == 'format_version':
+            continue
+          tname = pre_type(jtype)
+          if (tname.endswith('*')):
+            tname = tname[:-1]
+          if tname.startswith('sgxlkl_'):
+            scope.append(name)
+            describe(scope, tname)
+            scope = scope[:-1]
+          else:
+            scope.append(name)
+            sname = '.'.join(scope)
+            ctype = pre_type(jtype) + post_type(jtype)
+            desc = jtype['description'] if 'description' in jtype else ''
+            desc = desc.replace("\"", "\\\"")
+            dflt = 'NULL'
+            if 'default' in jtype:
+              dflt = jtype['default'];
+            if dflt == []:
+                dflt = 'NULL'
+            if ctype == 'bool':
+              dflt = "true" if dflt else "false"
+            override_var = 'NULL'
+            if 'overridable' in jtype:
+                override_var = '"' + jtype['overridable'] + '"'
+            source.write('    {"%s", "%s", "%s", "%s", %s},\n' % (sname, ctype, desc, dflt, override_var))
+          scope = scope[:-1]
+      scope = scope[:-1]
+    describe(scope, 'sgxlkl_enclave_config_t')
+
+    source.write('};\n\n')
+    source.write('// clang-format on\n')
 
 def generate(args):
   schema_file_name = str(ENCLAVE_CFG_SCHEMA_PATH)

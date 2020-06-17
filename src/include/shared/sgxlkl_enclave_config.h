@@ -10,8 +10,6 @@
 
 #include "shared/sgxlkl_enclave_config_gen.h"
 
-extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;
-
 int sgxlkl_read_enclave_config(
     const char* from,
     sgxlkl_enclave_config_t* to,
