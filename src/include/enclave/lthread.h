@@ -145,8 +145,6 @@ struct lthread
     int err;                      /* errno value */
     char* dlerror_buf;
     int dlerror_flag;
-    uintptr_t* dtv;
-    uintptr_t* dtv_copy;
     /* yield_cb_* are a callback to call after yield finished and it's arg */
     /* they are required to release futex lock on FUTEX_WAIT operation */
     /* and in sched_yield (see comment there) to avoid race among schedulers */
@@ -182,7 +180,6 @@ struct schedctx {
 	/* Part 1 -- these fields may be external or
 	 * internal (accessed via asm) ABI. Do not change. */
 	struct schedctx *self;
-	uintptr_t *dtv;
 	void *unused1, *unused2;
 	uintptr_t sysinfo;
 	uintptr_t canary, canary2;
@@ -213,7 +210,6 @@ struct schedctx {
 	/* Part 3 -- the positions of these fields relative to
 	 * the end of the structure is external and internal ABI. */
 	uintptr_t canary_at_end;
-	uintptr_t *dtv_copy;
     struct lthread_sched sched;
 };
 
