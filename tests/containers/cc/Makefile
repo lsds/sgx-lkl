@@ -36,22 +36,10 @@ run: run-hw run-sw
 
 ifeq (${SGXLKL_PREFIX},)
 run-hw:
-	@echo SGXLKL_PREFIX missing, skipping test.
-	@echo For local testing, run the following first:
-	@echo "> cd $$SGXLKL_ROOT"
-	@echo "> export SGXLKL_PREFIX=$$SGXLKL_ROOT/build/install"
-	@echo "> make install PREFIX=\$$SGXLKL_PREFIX"
-	@echo "> tools/make_self_contained.sh"
-	@echo "Then re-run the test with SGXLKL_PREFIX still set."
+	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 
 run-sw:
-	@echo SGXLKL_PREFIX missing, skipping test.
-	@echo For local testing, run the following first:
-	@echo "> cd $$SGXLKL_ROOT"
-	@echo "> export SGXLKL_PREFIX=$$SGXLKL_ROOT/build/install"
-	@echo "> make install PREFIX=\$$SGXLKL_PREFIX"
-	@echo "> tools/make_self_contained.sh"
-	@echo "Then re-run the test with SGXLKL_PREFIX still set."
+	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 else
 run-hw: $(CC_stamp)
 	docker run $(CC_DOCKER_ARGS) $(CC) --hw-debug
