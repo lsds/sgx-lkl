@@ -79,7 +79,7 @@ class EEIDMetadata(NamedTuple):
         return p
 
 class oe_enclave_size_settings_t(NamedTuple):
-    # https://github.com/wintersteiger/openenclave/blob/8cd81189d3/include/openenclave/bits/properties.h#L29
+    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/properties.h#L29
     num_heap_pages: int # uint64_t
     num_stack_pages: int # uint64_t
     num_tcs: int # uint64_t
@@ -101,9 +101,10 @@ class oe_enclave_size_settings_t(NamedTuple):
 
 class oe_eeid_t(NamedTuple):
     # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/eeid.h#L25
+    version: int # uint32_t
     hash_state_H: Sequence[int] # uint32_t[8]
     hash_state_N: Sequence[int] # uint32_t[2]
-    sigstruct: bytes # uint8_t[1808]
+    signature_size: int # uint64_t
     size_settings: oe_enclave_size_settings_t
     vaddr: int # uint64_t
     entry_point: int # uint64_t
@@ -112,15 +113,16 @@ class oe_eeid_t(NamedTuple):
 
     # This is used for replaying the SGX pages and has to match the C struct representation.
     # See reference link above.
-    FMT = '<8I2I1808s{}sQQQ'.format(oe_enclave_size_settings_t.get_size()) # without data
+    FMT = '<I8I2IQ{}sQQQ'.format(oe_enclave_size_settings_t.get_size()) # without data
 
     @classmethod
-    def get_size(cls, data_size: int) -> int:
-        return struct.calcsize(cls.FMT) + data_size
+    def get_size(cls, data_size: int, signature_size: int) -> int:
+        return struct.calcsize(cls.FMT) + data_size + signature_size
 
+    # TODO remove unpack?
     @classmethod
     def unpack(cls, packed: bytes):
-        size_without_data = cls.get_size(0)
+        size_without_data = cls.get_size(0, 0)
         u = struct.unpack(cls.FMT, packed[:size_without_data])
 
         data_size = u[14]
@@ -136,12 +138,13 @@ class oe_eeid_t(NamedTuple):
     def pack(self) -> bytes:
         p_mem = self.size_settings.pack()
         p = struct.pack(self.FMT, 
-            *self.hash_state_H, *self.hash_state_N, self.sigstruct,
+            self.version,
+            *self.hash_state_H, *self.hash_state_N, self.signature_size,
             p_mem, self.vaddr, self.entry_point, self.data_size) + self.data
         return p
 
 class sgx_tcs_t(NamedTuple):
-    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/internal/sgxtypes.h#L442
+    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/sgx/sgxtypes.h#L442
     state: int # uint64_t
     flags: int # uint64_t
     ossa: int # uint64_t
@@ -165,11 +168,10 @@ class sgx_tcs_t(NamedTuple):
         return p
 
 class Enclave(object):
-    sha = sha256()
-    vaddr = 0
-    num_measures = 0
-
     def __init__(self, verbose: bool=False, expected_measured_data: Optional[Sequence[bytes]]=None):
+        self.sha = sha256()
+        self.vaddr = 0
+        self.num_measures = 0
         self.verbose = verbose
         self.expected_measured_data = expected_measured_data
     
@@ -231,15 +233,15 @@ class Enclave(object):
         self._measure(zeros)
 
 def add_heap_pages(e: Enclave, num_heap_pages: int) -> None:
-    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L150
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L156
     add_filled_pages(e, num_heap_pages, filler=0, extend=False)
 
 def add_stack_pages(e: Enclave, num_stack_pages: int) -> None:
-    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L139
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L145
     add_filled_pages(e, num_stack_pages, filler=0xcc, extend=True)
 
 def add_filled_pages(e: Enclave, npages: int, filler: int, extend: bool) -> None:
-    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L86
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L92
     flags = SGX_SECINFO_REG | SGX_SECINFO_R | SGX_SECINFO_W
     assert 0 <= filler <= 0xff
     page = bytes([filler] * OE_PAGE_SIZE)
@@ -247,7 +249,7 @@ def add_filled_pages(e: Enclave, npages: int, filler: int, extend: bool) -> None
         e.add_page(page, flags, extend)
 
 def add_control_pages(e: Enclave, entry_point: int) -> None:
-    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L161
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L167
     fsgsbase = e.vaddr + (5 * OE_PAGE_SIZE)
     tcs = sgx_tcs_t(
         state=0,
@@ -270,7 +272,7 @@ def add_control_pages(e: Enclave, entry_point: int) -> None:
     add_filled_pages(e, npages=2, filler=0, extend=True)    
 
 def add_data_pages(e: Enclave, num_heap_pages: int, num_stack_pages: int, num_tcs: int, entry_point: int) -> None:
-    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L323
+    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L343
     add_heap_pages(e, num_heap_pages)
     for _ in range(num_tcs):
         e.add_guard_page()
@@ -279,18 +281,18 @@ def add_data_pages(e: Enclave, num_heap_pages: int, num_stack_pages: int, num_tc
         add_control_pages(e, entry_point)
     
 def add_eeid_pages(e: Enclave, eeid: oe_eeid_t) -> None:
-    # https://github.com/wintersteiger/openenclave/blob/55d6a23c11cc8/common/sgx/eeid.c#L194
-    # https://github.com/openenclave/openenclave/blob/master/host/sgx/create.c#L646
+    # https://github.com/openenclave/openenclave/blob/master/common/sgx/eeid.c#L357
 
     # Add EEID pages as literal copy of oe_eeid_t:
-    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/eeid.h#L25
+    # https://github.com/openenclave/openenclave/blob/master/include/openenclave/bits/eeid.h#L26
     eeid_packed = eeid.pack()
 
     for i in range(0, len(eeid_packed), OE_PAGE_SIZE):
         page = eeid_packed[i:i + OE_PAGE_SIZE]
         if len(page) < OE_PAGE_SIZE:
             page += bytes(OE_PAGE_SIZE - len(page))
-        e.add_page(page, flags=SGX_SECINFO_REG | SGX_SECINFO_R, extend=True)
+        # FIXME in private fork there was no SGX_SECINFO_W for eeid pages, why now??
+        e.add_page(page, flags=SGX_SECINFO_REG | SGX_SECINFO_R | SGX_SECINFO_W, extend=True)
 
 def predict_eeid_mrenclave(eeid_metadata: bytes,
                            num_heap_pages: int, num_stack_pages: int, num_tcs: int,
