@@ -835,7 +835,7 @@
 #/ltp/testcases/kernel/syscalls/setitimer/setitimer03
 #/ltp/testcases/kernel/syscalls/setns/setns01
 /ltp/testcases/kernel/syscalls/setns/setns02
-/ltp/testcases/kernel/syscalls/setpgid/setpgid01
+#/ltp/testcases/kernel/syscalls/setpgid/setpgid01
 #/ltp/testcases/kernel/syscalls/setpgid/setpgid02
 /ltp/testcases/kernel/syscalls/setpgid/setpgid03
 /ltp/testcases/kernel/syscalls/setpgid/setpgid03_child
