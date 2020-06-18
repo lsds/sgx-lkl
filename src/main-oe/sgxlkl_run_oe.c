@@ -48,7 +48,7 @@
 
 #if defined(DEBUG)
 #define BUILD_INFO "[DEBUG build (-O0)]"
-#elif defined(RELEASE)
+#elif defined(SGXLKL_RELEASE)
 #define BUILD_INFO "[RELEASE build (-O3)]"
 #else
 #define BUILD_INFO "[NON-RELEASE build (-O3)]"
@@ -123,7 +123,7 @@ static void usage()
 
     printf("\n");
     printf("Usage:\n");
-#ifdef RELEASE
+#ifdef SGXLKL_RELEASE
     printf(
         "%s <--hw-release> [--enclave-image={libsgxlkl.so}] "
         "[--host-config={host_state_file}] "
@@ -265,7 +265,7 @@ static void help_config()
         "Size of the file to be used for shared memory between the enclave and "
         "the outside.\n");
 
-#ifdef DEBUG
+#ifndef SGXLKL_RELEASE
     printf("\n");
     printf("Variables to override enclave/app settings [DEBUG/NON-RELEASE "
            "build only]\n");
@@ -1772,17 +1772,18 @@ int main(int argc, char* argv[], char* envp[])
         LKL_VERSION,
         BUILD_INFO);
 
-#ifndef DEBUG
+    argc -= optind;
+    argv += optind;
+    find_root_disk_file(&argc, &argv, &root_hd);
+
+#ifdef SGXLKL_RELEASE
+    (void)(enclave_mode_cmdline);
     if (!enclave_config_path)
         sgxlkl_host_fail("no enclave configuration provided\n");
     enclave_config_from_file(enclave_config_path);
 #else
     if (enclave_config_path)
         enclave_config_from_file(enclave_config_path);
-
-    argc -= optind;
-    argv += optind;
-    find_root_disk_file(&argc, &argv, &root_hd);
 
     /* Environment variables override enclave config */
     override_enclave_config(argc, argv, root_hd, enclave_mode_cmdline);
