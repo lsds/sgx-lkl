@@ -1772,10 +1772,14 @@ int main(int argc, char* argv[], char* envp[])
         LKL_VERSION,
         BUILD_INFO);
 
+#ifndef DEBUG
+    if (!enclave_config_path)
+        sgxlkl_host_fail("no enclave configuration provided\n");
+    enclave_config_from_file(enclave_config_path);
+#else
     if (enclave_config_path)
         enclave_config_from_file(enclave_config_path);
 
-#ifdef DEBUG
     argc -= optind;
     argv += optind;
     find_root_disk_file(&argc, &argv, &root_hd);
