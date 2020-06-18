@@ -189,6 +189,10 @@ static void usage()
         "Print help on environment configuration variables\n");
     printf(
         "%-35s %s",
+        "  --help-enclave-config",
+        "Print help on variables used in enclave configuration files\n");
+    printf(
+        "%-35s %s",
         "  --help-tls",
         "Print help on how to enable thread-local storage support in hardware "
         "mode\n");
@@ -216,6 +220,11 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_TAP",
         "Tap network device to use as a network interface.\n");
+    printf(
+        "%-35s %s",
+        "  SGXLKL_TAP_OFFLOAD",
+        "Set to 1 to enable partial checksum support, TSOv4, TSOv6, and "
+        "mergeable receive buffers for the TAP interface.\n");
     printf("## Disk ##\n");
     printf(
         "%-35s %s",
@@ -227,102 +236,6 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_HD_RO",
         "Set to 1 to mount the root file system as read-only.\n");
-    printf("\n");
-    printf("Enclave/app options [included in attestation]\n");
-    printf("=============================================\n");
-    printf("## General ##\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_KERNEL_VERBOSE",
-        "Set to 1 to print kernel messages.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_CWD",
-        "Change the working directory to given value.\n");
-    printf(
-        "%-35s %s", "  SGXLKL_CMDLINE", "Linux kernel command line for LKL.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_SYSCTL",
-        "'sysctl' configurations. Semicolon-separated list of key value pairs "
-        "in the form 'key1=value1;key2=value2;[...]'.\n");
-    printf(
-        "%-35s %s (default: %d)\n",
-        "  SGXLKL_ENABLE_SWIOTLB",
-        "Enable DMA bounce buffer support, even in sw mode.",
-        sgxlkl_default_enclave_config.swiotlb);
-    printf(
-        "%-35s %s\n",
-        "  SGXLKL_HOST_IMPORT_ENV",
-        "Comma-separated list of environment variables to import from the "
-        "host.");
-    printf("## Scheduling ##\n");
-    printf("%-35s %s", "  SGXLKL_ETHREADS", "Number of enclave threads.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_ESLEEP",
-        "Sleep timeout in the scheduler (in ns).\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_ESPINS",
-        "Number of spins inside scheduler before sleeping begins.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_MAX_USER_THREADS",
-        "Max. number of user-level thread inside the enclave.\n");
-    printf("## Network ##\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_TAP_OFFLOAD",
-        "Set to 1 to enable partial checksum support, TSOv4, TSOv6, and "
-        "mergeable receive buffers for the TAP interface.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_TAP_MTU",
-        "Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the "
-        "host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).\n");
-    printf(
-        "%-35s %s (default: %s)\n",
-        "  SGXLKL_IP4",
-        "IPv4 address to assign to LKL.",
-        sgxlkl_default_enclave_config.net_ip4);
-    printf(
-        "%-35s %s (default: %s)\n",
-        "  SGXLKL_GW4",
-        "IPv4 gateway to assign to LKL.",
-        sgxlkl_default_enclave_config.net_gw4);
-    printf(
-        "%-35s %s (default: %s)\n",
-        "  SGXLKL_MASK4",
-        "CIDR mask for LKL to use.",
-        sgxlkl_default_enclave_config.net_mask4);
-    printf(
-        "%-35s %s (default: %s)\n",
-        "  SGXLKL_HOSTNAME",
-        "Host name for LKL to use.",
-        sgxlkl_default_enclave_config.hostname);
-    printf(
-        "%-35s %s (default: %s)\n",
-        "  SGXLKL_WG_IP",
-        "IPv4 address to assign to Wireguard interface.",
-        sgxlkl_default_enclave_config.wg.ip);
-    printf(
-        "%-35s %s (default: %d)\n",
-        "  SGXLKL_WG_PORT",
-        "Port to use on eth0 interface for the Wireguard endpoint.",
-        sgxlkl_default_enclave_config.wg.listen_port);
-    printf(
-        "%-35s %s",
-        "  SGXLKL_WG_KEY",
-        "Private Wireguard key. Will be ignored in release mode in which a new "
-        "key pair is generated inside the enclave on startup.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_WG_PEERS",
-        "Comma-separated list of Wireguard peers in the format "
-        "\"{key 1}:{allowed IPs 1}:{endpoint host 1}:{port 1}, {key "
-        "2}:{allowed IPs 2}, {key 3}:...\".\n");
-    printf("## Disk ##\n");
     printf(
         "%-35s %s",
         "  SGXLKL_HD_VERITY",
@@ -340,28 +253,7 @@ static void help_config()
         "  SGXLKL_HD_KEY",
         "Encryption key as passphrase or file path to a key file for the root "
         "file system image (Debug only).\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HD_OVERLAY",
-        "Set to 1 to create an in-memory writable overlay for a read-only root "
-        "file system.\n");
     printf("## Memory ##\n");
-    printf(
-        "%-35s %s%ld\n",
-        "  SGXLKL_OE_HEAP_PAGE_COUNT",
-        "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=",
-        sgxlkl_default_enclave_config.oe_heap_pagecount);
-    printf(
-        "%-35s %s",
-        "  SGXLKL_STACK_SIZE",
-        "Stack size of in-enclave user-level threads.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_MMAP_FILES",
-        "Set to \"Private\" to allow mmaping files with private copy-on-write "
-        "mapping ('MAP_PRIVATE'). Set to \"Shared\" to mmap files with "
-        "'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'. (Default: not "
-        "supported)\n");
     printf(
         "%-35s %s",
         "  SGXLKL_SHMEM_FILE",
@@ -372,7 +264,34 @@ static void help_config()
         "  SGXLKL_SHMEM_SIZE",
         "Size of the file to be used for shared memory between the enclave and "
         "the outside.\n");
+
 #ifdef DEBUG
+    printf("\n");
+    printf("Variables to override enclave/app settings [DEBUG/NON-RELEASE "
+           "build only]\n");
+    printf("==================================================================="
+           "======\n");
+
+    printf(
+        "  %-35s %s",
+        "SGXLKL_WG_PEERS",
+        "Comma-separated list of Wireguard peers in the format "
+        "\"key1:allowedips1:endpointhost1:port1, key2:allowedips2:...\".\n");
+
+    size_t n =
+        sizeof(sgxlkl_enclave_settings) / sizeof(sgxlkl_enclave_setting_t);
+    for (size_t i = 0; i < n; i++)
+    {
+        const sgxlkl_enclave_setting_t* s = &sgxlkl_enclave_settings[i];
+        if (s->override_var)
+            printf(
+                "  %-35s %s (default: %s, overrides: %s)\n",
+                s->override_var,
+                s->description,
+                s->default_value,
+                s->scope);
+    }
+
     printf("\n");
     printf("Debugging options [DEBUG/NON-RELEASE build only]\n");
     printf("================================================\n");
@@ -428,6 +347,24 @@ static void help_config()
     virtio_debug_help();
 #endif // VIRTIO_TEST_HOOK
 #endif // DEBUG
+}
+
+static void help_enclave_config()
+{
+    printf("Enclave configuration settings (attested)\n");
+    printf("=========================================\n");
+    size_t n =
+        sizeof(sgxlkl_enclave_settings) / sizeof(sgxlkl_enclave_setting_t);
+    for (size_t i = 0; i < n; i++)
+    {
+        const sgxlkl_enclave_setting_t* s = &sgxlkl_enclave_settings[i];
+        if (s->scope)
+            printf(
+                "%-35s %s (default: %s)\n",
+                s->scope,
+                s->description,
+                s->default_value);
+    }
 }
 
 static void help_tls()
@@ -676,10 +613,10 @@ static void override_enclave_disk_config(
     }
 }
 
-void disk_config_from_cmdline(
-    const char* root_disk_path,
-    sgxlkl_enclave_config_t* config)
+void override_disk_config(const char* root_disk_path)
 {
+    sgxlkl_enclave_config_t* config = &host_state.enclave_config;
+
     /* Count disks to add */
     config->num_disks = 1; // Root disk
     const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
@@ -1602,7 +1539,9 @@ void enclave_config_from_file(const char* filename)
         sgxlkl_host_fail("Failed to parse enclave config '%s'\n", filename);
 }
 
-void override_enclave_config(sgxlkl_enclave_mode_t enclave_mode_cmdline)
+void override_enclave_config(
+    const char* root_disk_file,
+    sgxlkl_enclave_mode_t enclave_mode_cmdline)
 {
     sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
@@ -1672,6 +1611,13 @@ void override_enclave_config(sgxlkl_enclave_mode_t enclave_mode_cmdline)
         econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
 
     override_enclave_wg_config();
+
+    if (sgxlkl_configured(SGXLKL_HDS) || sgxlkl_configured(SGXLKL_HD_RO) ||
+        sgxlkl_configured(SGXLKL_HD_OVERLAY) ||
+        sgxlkl_configured(SGXLKL_HD_KEY) ||
+        sgxlkl_configured(SGXLKL_HD_VERITY) ||
+        sgxlkl_configured(SGXLKL_HD_VERITY_OFFSET))
+        override_disk_config(root_disk_file);
 }
 
 void host_config_from_cmdline(char* root_disk_path)
@@ -1755,6 +1701,7 @@ int main(int argc, char* argv[], char* envp[])
         {"hw-release", no_argument, 0, HW_RELEASE_MODE},
         {"version", no_argument, 0, 'v'},
         {"help-config", no_argument, 0, 'C'},
+        {"help-enclave-config", no_argument, 0, 'E'},
         {"help-tls", no_argument, 0, 't'},
         {"help", no_argument, 0, 'h'},
         {"enclave-image", required_argument, 0, 'e'},
@@ -1791,6 +1738,9 @@ int main(int argc, char* argv[], char* envp[])
             case 'C':
                 help_config();
                 exit(EXIT_SUCCESS);
+            case 'E':
+                help_enclave_config();
+                exit(EXIT_SUCCESS);
             case 't':
                 help_tls();
                 exit(EXIT_SUCCESS);
@@ -1822,7 +1772,7 @@ int main(int argc, char* argv[], char* envp[])
 
 #ifdef DEBUG
     /* Environment variables override enclave config */
-    override_enclave_config(enclave_mode_cmdline);
+    override_enclave_config(root_hd, enclave_mode_cmdline);
 #endif
 
     const sgxlkl_enclave_mode_t enclave_mode = econf->mode;

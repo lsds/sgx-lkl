@@ -119,7 +119,8 @@
         },
         "fresh_key": {
           "type": "boolean",
-          "default": false
+          "default": false,
+          "description": "Whether to generate a fresh key for encryption of newly created disks."
         },
         "roothash": {
           "type": [
@@ -151,8 +152,9 @@
         },
         "overlay": {
           "type": "boolean",
-          "description": "Whether to create an in-memory writable overlay for a read-only root disk",
-          "default": false
+          "description": "Set to 1 to create an in-memory writable overlay for a read-only root file system.",
+          "default": false,
+          "overridable": "SGXLKL_HD_OVERLAY"
         }
       }
     },
@@ -160,13 +162,16 @@
       "type": "object",
       "properties": {
         "key": {
-          "type": "string"
+          "type": "string",
+          "description": "WG peer public key."
         },
         "allowed_ips": {
-          "type": "string"
+          "type": "string",
+          "description": "Allowed IPs for a WG peer."
         },
         "endpoint": {
-          "type": "string"
+          "type": "string",
+          "description": "WG peer endpoint."
         }
       }
     },
@@ -175,25 +180,33 @@
       "properties": {
         "ip": {
           "type": "string",
-          "default": "10.0.2.1"
+          "description": "IPv4 address to assign to Wireguard interface.",
+          "default": "10.0.2.1",
+          "overridable": "SGXLKL_WG_IP"
         },
         "listen_port": {
           "$ref": "#/definitions/safe_uint32_t",
-          "default": "56002"
+          "description": "Port to use on eth0 interface for the Wireguard endpoint.",
+          "default": "56002",
+          "overridable": "SGXLKL_WG_PORT"
         },
         "key": {
           "type": [
             "string",
             "null"
           ],
-          "default": null
+          "description": "Private Wireguard key. Will be ignored in release mode in which a new key pair is generated inside the enclave on startup.",
+          "default": null,
+          "overridable": "SGXLKL_WG_KEY"
         },
         "peers": {
           "type": "array",
+          "description": "Array of wireguard peer configurations.",
           "items": {
             "$ref": "#/definitions/sgxlkl_enclave_wg_peer_config_t"
           },
-          "default": "[]"
+          "default": "[]",
+          "overridable": "SGXLKL_WG_PEERS"
         }
       }
     },
@@ -202,14 +215,17 @@
       "properties": {
         "num_heap_pages": {
           "$ref": "#/definitions/safe_uint64_t",
+          "description": "Number of heap pages of the enclave.",
           "default": "262144"
         },
         "num_stack_pages": {
           "$ref": "#/definitions/safe_uint64_t",
+          "description": "Number of stack pages of the enclave.",
           "default": "1024"
         },
         "num_tcs": {
           "$ref": "#/definitions/safe_uint64_t",
+          "description": "Number of thread control structures for the enclave.",
           "default": "8"
         }
       }
@@ -229,55 +245,74 @@
         "net_ip4": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "IPv4 address.",
-          "default": "10.0.1.1"
+          "description": "IPv4 address to assign to LKL.",
+          "default": "10.0.1.1",
+          "overridable": "SGXLKL_IP4"
         },
         "net_gw4": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "IPv4 gateway address.",
-          "default": "10.0.1.254"
+          "description": "IPv4 gateway to assign to LKL.",
+          "default": "10.0.1.254",
+          "overridable": "SGXLKL_GW4"
         },
         "net_mask4": {
           "type": "string",
-          "description": "IPv4 netmask.",
+          "description": "CIDR mask for LKL to use.",
           "pattern": "1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32",
-          "default": "24"
+          "default": "24",
+          "overridable": "SGXLKL_MASK4"
         },
         "hostname": {
           "type": "string",
+          "description": "Host name for LKL to use.",
           "maxLength": 31,
-          "default": "lkl"
+          "default": "lkl",
+          "overridable": "SGXLKL_HOSTNAME"
         },
         "hostnet": {
           "type": "boolean",
-          "default": false
+          "description": "Hostnet",
+          "default": false,
+          "overridable": "SGXLKL_HOSTNET"
         },
         "tap_mtu": {
           "$ref": "#/definitions/safe_uint32_t",
-          "default": "0"
+          "description": "Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).",
+          "default": "0",
+          "overridable": "SGXLKL_TAP_MTU"
         },
         "wg": {
-          "$ref": "#/definitions/sgxlkl_enclave_wg_config_t"
+          "$ref": "#/definitions/sgxlkl_enclave_wg_config_t",
+          "description": "Wireguard configuration."
         },
         "ethreads": {
           "$ref": "#/definitions/safe_size_t",
-          "default": "1"
+          "description": "Number of enclave threads.",
+          "default": "1",
+          "overridable": "SGXLKL_ETHREADS"
         },
         "max_user_threads": {
           "$ref": "#/definitions/safe_size_t",
-          "default": "256"
+          "description": "Max. number of user-level thread inside the enclave.",
+          "default": "256",
+          "overridable": "SGXLKL_MAX_USER_THREADS"
         },
         "espins": {
           "$ref": "#/definitions/safe_size_t",
-          "default": "500"
+          "description": "Number of spins inside scheduler before sleeping begins.",
+          "default": "500",
+          "overridable": "SGXLKL_ESPINS"
         },
         "esleep": {
           "$ref": "#/definitions/safe_size_t",
-          "default": "16000"
+          "description": "Sleep timeout in the scheduler (in ns).",
+          "default": "16000",
+          "overridable": "SGXLKL_ESLEEP"
         },
         "clock_res": {
           "type": "array",
+          "description": "",
           "minLength": 8,
           "maxLength": 8,
           "items": {
@@ -287,30 +322,42 @@
         },
         "stacksize": {
           "$ref": "#/definitions/safe_size_t",
-          "default": "524288"
+          "description": "Stack size of in-enclave user-level threads.",
+          "default": "524288",
+          "overridable": "SGXLKL_STACK_SIZE"
         },
         "mmap_files": {
           "$ref": "#/definitions/sgxlkl_enclave_mmap_files_t",
-          "default": "ENCLAVE_MMAP_FILES_NONE"
+          "description": "Set to \"Private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"Shared\" to mmap files with 'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'. (Default: not supported)",
+          "default": "ENCLAVE_MMAP_FILES_NONE",
+          "overridable": "SGXLKL_MMAP_FILES"
         },
         "oe_heap_pagecount": {
           "$ref": "#/definitions/safe_size_t",
-          "default": "8192"
+          "description": "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=<n>",
+          "default": "8192",
+          "overridable": "SGXLKL_OE_HEAP_PAGE_COUNT"
         },
         "fsgsbase": {
           "type": "boolean",
+          "description": "",
           "default": true
         },
         "verbose": {
           "type": "boolean",
-          "default": false
+          "description": "",
+          "default": false,
+          "overridable": "SGXLKL_VERBOSE"
         },
         "kernel_verbose": {
           "type": "boolean",
-          "default": false
+          "description": "Set to 1 to print kernel messages.",
+          "default": false,
+          "overridable": "SGXLKL_KERNEL_VERBOSE"
         },
         "kernel_cmd": {
           "type": "string",
+          "description": "",
           "default": "mem=32M"
         },
         "sysctl": {
@@ -318,26 +365,31 @@
             "string",
             "null"
           ],
-          "default": null
+          "description": "'sysctl' configurations. Semicolon-separated list of key value pairs in the form 'key1=value1;key2=value2;[...]'.",
+          "default": null,
+          "overridable": "SGXLKL_SYSCTL"
         },
         "swiotlb": {
           "type": "boolean",
-          "default": true
+          "description": "Enable DMA bounce buffer support, even in sw mode.",
+          "default": true,
+          "overridable": "SGXLKL_ENABLE_SWIOTLB"
         },
         "run": {
           "type": "string",
-          "description": "Path to the application",
-          "default": null
+          "description": "Path to the application.",
+          "default": null,
+          "overridable": "SGXLKL_CMDLINE"
         },
         "cwd": {
           "type": "string",
-          "description": "Path to the working directory",
+          "description": "The working directory.",
           "default": "/",
           "overridable": "SGXLKL_CWD"
         },
         "argv": {
           "type": "array",
-          "description": "Application arguments",
+          "description": "Application arguments.",
           "default": [],
           "items": {
             "type": "string"
@@ -345,7 +397,7 @@
         },
         "envp": {
           "type": "array",
-          "description": "Environment variables",
+          "description": "Environment variables.",
           "default": [],
           "items": {
             "type": "string"
@@ -353,7 +405,7 @@
         },
         "auxv": {
           "type": "array",
-          "description": "ELF64 Aux vector",
+          "description": "ELF64 Aux vector.",
           "default": [],
           "items": {
             "$ref": "#/definitions/Elf64_auxv_t"
@@ -361,29 +413,32 @@
         },
         "host_import_envp": {
           "type": "array",
-          "description": "List of environment variables to be imported from the host",
+          "description": "Comma-separated list of environment variables to import from the host.",
           "default": [],
           "items": {
             "type": "string"
-          }
+          },
+          "overridable": "SGXLKL_HOST_IMPORT_ENV"
         },
         "exit_status": {
           "$ref": "#/definitions/sgxlkl_exit_status_mode_t",
-          "description": "Whether and how the enclave exit code is reported to the host",
+          "description": "Whether and how the enclave exit code is reported to the host.",
           "default": "EXIT_STATUS_FULL"
         },
         "disks": {
           "type": "array",
-          "description": "Disks to mount",
+          "description": "Disks to mount.",
           "items": {
             "$ref": "#/definitions/sgxlkl_enclave_disk_config_t"
           }
         },
         "image_sizes": {
-          "$ref": "#/definitions/sgxlkl_image_sizes_config_t"
+          "$ref": "#/definitions/sgxlkl_image_sizes_config_t",
+          "description": "Image memory size configuration."
         }
       }
     }
   },
-  "$ref": "#/definitions/sgxlkl_enclave_config_t"
+  "$ref": "#/definitions/sgxlkl_enclave_config_t",
+  "description": "SGX-LKL enclave configuration."
 }

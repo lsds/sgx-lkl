@@ -72,7 +72,11 @@ def pre_type(jtype):
 def need_size_var(jtype):
   return 'type' in jtype and jtype['type'] == 'array' and 'maxLength' not in jtype
 
+num_settings = 0
+
 def generate_header(schema_file_name, root, args):
+  global num_settings
+
   with open(str(args.header), "w") as header:
     header.write('#ifndef SGXLKL_ENCLAVE_CONFIG_GEN_H\n');
     header.write('#define SGXLKL_ENCLAVE_CONFIG_GEN_H\n');
@@ -86,6 +90,7 @@ def generate_header(schema_file_name, root, args):
 
     header.write('#define SGXLKL_ENCLAVE_CONFIG_VERSION 1UL\n\n');
 
+    num_settings = 0
     for typename, typedef in root['definitions'].items():
       if (typename.startswith('sgxlkl_')):
         if 'enum' in typedef:
@@ -93,16 +98,14 @@ def generate_header(schema_file_name, root, args):
           i = 0
           num_vals = len(typedef['enum'])
           for value in typedef['enum']:
-              header.write('    %s = %d' % (value.upper(), i))
-              if i < num_vals - 1: header.write(',')
-              if 'description' in typedef:
-                header.write(' /* %s */' % typedef['description'])
-              header.write('\n')
-              i += 1
+            header.write('    %s = %d' % (value.upper(), i))
+            if i < num_vals - 1: header.write(',')
+            if 'description' in typedef:
+              header.write(' /* %s */' % typedef['description'])
+            header.write('\n')
+            i += 1
           header.write('} %s;\n\n' % typename)
         else:
-          # print('%s ==> %s' % (typename, typedef))
-          # print(typedef['properties'])
           header.write('typedef struct %s\n{\n' % (typename[:-2]))
           for name, jtype in typedef['properties'].items():
             if name == 'format_version':
@@ -113,9 +116,22 @@ def generate_header(schema_file_name, root, args):
                 var_name = 'key_len'
               header.write('    size_t %s;\n' % var_name)
             header.write('    %s %s%s;\n' % (pre_type(jtype), name, post_type(jtype)))
+            num_settings += 1
+          num_settings -= 1
           header.write('} %s;\n\n' % typename)
 
     header.write('extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;\n\n');
+
+    header.write(
+      "typedef struct {\n"
+      "    char* scope;\n"
+      "    char* type;\n"
+      "    char* description;\n"
+      "    char* default_value;\n"
+      "    char* override_var;\n"
+      "} sgxlkl_enclave_setting_t;\n\n");
+
+    header.write("extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[%d];\n\n" % num_settings);
 
     header.write('#endif /* SGXLKL_ENCLAVE_CONFIG_H */');
 
@@ -161,7 +177,7 @@ def generate_source(schema_file_name, root, args):
               raise Exception("ERROR: no default provided for %s" % sname)
             if ctype == 'bool':
               dflt = "true" if dflt else "false"
-            elif ctype == 'char*' or ctype.startswith('char['):
+            if ctype == 'char*' or ctype.startswith('char['):
               if dflt is None or dflt == []:
                 source.write('%s.%s=NULL,\n' % (indent, name))
               else:
@@ -180,18 +196,8 @@ def generate_source(schema_file_name, root, args):
     initialize(scope, 'sgxlkl_enclave_config_t')
     source.write('};\n\n')
 
-    source.write(
-      "typedef struct {\n"
-      "  char* scope;\n"
-      "  char* type;\n"
-      "  char* description;\n"
-      "  char* default_value;\n"
-      "  char* override_var;\n"
-      "} sgxlkl_enclave_setting_t;\n\n");
-
     source.write('// clang-format off\n')
-    source.write('static sgxlkl_enclave_setting_t sgxlkl_enclave_settings[] = {\n')
-
+    source.write('const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[%s] = {\n' % num_settings)
     scope = []
     def describe(scope, elem):
       typedef = root['definitions'][elem]
@@ -227,7 +233,7 @@ def generate_source(schema_file_name, root, args):
       scope = scope[:-1]
     describe(scope, 'sgxlkl_enclave_config_t')
 
-    source.write('};\n\n')
+    source.write('};\n')
     source.write('// clang-format on\n')
 
 def generate(args):

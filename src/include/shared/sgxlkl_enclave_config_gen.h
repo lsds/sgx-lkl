@@ -117,4 +117,14 @@ typedef struct sgxlkl_enclave_config
 
 extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;
 
+typedef struct {
+    char* scope;
+    char* type;
+    char* description;
+    char* default_value;
+    char* override_var;
+} sgxlkl_enclave_setting_t;
+
+extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[46];
+
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */
