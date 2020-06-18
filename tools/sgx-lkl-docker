@@ -63,6 +63,11 @@ RUN mkdir /prep && \
     cp /etc/ssl/certs/ca-certificates.crt etc/ssl/certs && \
     ls -al etc/ssl/certs
 
+COPY . /prep/home/sgxlkl
+
+# Allows container to be run with arbitrary user while supporting writable disk images.
+RUN chmod -R 777 /prep/home/sgxlkl
+
 FROM scratch
 
 ENV HOME=/home/sgxlkl
@@ -71,7 +76,6 @@ ENV TMPDIR=/tmp
 ENV AZDCAP_CACHE=\${TMPDIR}
 
 COPY --from=0 /prep /
-COPY --chown=sgxlkl . \${HOME}
 
 USER sgxlkl
 WORKDIR \${HOME}
