@@ -1540,6 +1540,8 @@ void enclave_config_from_file(const char* filename)
 }
 
 void override_enclave_config(
+    int argc,
+    char** argv,
     const char* root_disk_file,
     sgxlkl_enclave_mode_t enclave_mode_cmdline)
 {
@@ -1618,6 +1620,13 @@ void override_enclave_config(
         sgxlkl_configured(SGXLKL_HD_VERITY) ||
         sgxlkl_configured(SGXLKL_HD_VERITY_OFFSET))
         override_disk_config(root_disk_file);
+
+    if (econf->run == NULL)
+    {
+        econf->run = argv[0];
+        econf->num_argv = argc - 1;
+        econf->argv = &argv[1];
+    }
 }
 
 void host_config_from_cmdline(char* root_disk_path)
@@ -1763,16 +1772,16 @@ int main(int argc, char* argv[], char* envp[])
         LKL_VERSION,
         BUILD_INFO);
 
-    argc -= optind;
-    argv += optind;
-    find_root_disk_file(&argc, &argv, &root_hd);
-
     if (enclave_config_path)
         enclave_config_from_file(enclave_config_path);
 
 #ifdef DEBUG
+    argc -= optind;
+    argv += optind;
+    find_root_disk_file(&argc, &argv, &root_hd);
+
     /* Environment variables override enclave config */
-    override_enclave_config(root_hd, enclave_mode_cmdline);
+    override_enclave_config(argc, argv, root_hd, enclave_mode_cmdline);
 #endif
 
     const sgxlkl_enclave_mode_t enclave_mode = econf->mode;
