@@ -251,6 +251,13 @@ void parse_mmap_files(sgxlkl_enclave_mmap_files_t* dest, const char* value)
         FAIL("Invalid mmap_files value: %s\n", value);
 }
 
+#define ALLOC_ARRAY(N, A, T)                                                   \
+    do                                                                         \
+    {                                                                          \
+        data->array_count = data->config->N = un->integer;                     \
+        data->array = data->config->A = calloc(data->array_count, sizeof(#T)); \
+    } while (0)
+
 static json_result_t json_read_callback(
     json_parser_t* parser,
     json_reason_t reason,
@@ -270,34 +277,6 @@ static json_result_t json_read_callback(
         case JSON_REASON_NAME:
             break;
         case JSON_REASON_BEGIN_OBJECT:
-            if (MATCH("disks"))
-            {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(
-                    data->array,
-                    new_count * sizeof(sgxlkl_enclave_disk_config_t));
-                if (!data->array)
-                    FAIL("out of memory\n");
-                sgxlkl_enclave_disk_config_t* disks =
-                    (sgxlkl_enclave_disk_config_t*)data->array;
-                for (size_t i = data->array_count; i < new_count; i++)
-                    memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
-                data->array_count = new_count;
-            }
-            else if (MATCH("disks"))
-            {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(
-                    data->array,
-                    new_count * sizeof(sgxlkl_enclave_disk_config_t));
-                if (!data->array)
-                    FAIL("out of memory\n");
-                sgxlkl_enclave_disk_config_t* disks =
-                    (sgxlkl_enclave_disk_config_t*)data->array;
-                for (size_t i = data->array_count; i < new_count; i++)
-                    memset(&disks[i], 0, sizeof(sgxlkl_enclave_disk_config_t));
-                data->array_count = new_count;
-            }
             break;
         case JSON_REASON_END_OBJECT:
             if (data->enforce_format)
@@ -313,48 +292,25 @@ static json_result_t json_read_callback(
         case JSON_REASON_BEGIN_ARRAY:
             if (data->array || data->array_count != 0)
                 FAIL("json: nested arrays not supported.");
-            data->array = NULL;
-            data->array_count = 0;
-            break;
-        case JSON_REASON_END_ARRAY:
-            if (MATCH("argv"))
-            {
-                data->config->num_argv = data->array_count;
-                data->config->argv = (char**)data->array;
-            }
+            else if (MATCH("argv"))
+                ALLOC_ARRAY(num_argv, argv, char*);
             else if (MATCH("envp"))
-            {
-                data->config->num_envp = data->array_count;
-                data->config->envp = (char**)data->array;
-            }
+                ALLOC_ARRAY(num_envp, envp, char*);
             else if (MATCH("auxv"))
-            {
-                data->config->num_auxv = data->array_count;
-                data->config->auxv = (Elf64_auxv_t*)data->array;
-            }
+                ALLOC_ARRAY(num_auxv, auxv, Elf64_auxv_t);
             else if (MATCH("disks"))
-            {
-                data->config->num_disks = data->array_count;
-                data->config->disks =
-                    (sgxlkl_enclave_disk_config_t*)data->array;
-            }
+                ALLOC_ARRAY(num_disks, disks, sgxlkl_enclave_disk_config_t);
             else if (MATCH("host_import_envp"))
-            {
-                data->config->num_host_import_envp = data->array_count;
-                data->config->host_import_envp = (char**)data->array;
-            }
+                ALLOC_ARRAY(num_host_import_envp, host_import_envp, char*);
             else if (MATCH("wg.peers"))
-            {
-                data->config->wg.num_peers = data->array_count;
-                data->config->wg.peers =
-                    (sgxlkl_enclave_wg_peer_config_t*)data->array;
-            }
+                ALLOC_ARRAY(
+                    wg.num_peers, wg.peers, sgxlkl_enclave_wg_peer_config_t);
             else if (MATCH("clock_res"))
-            {
-                /* OK */
-            }
+                data->array = data->config->clock_res;
             else
                 FAIL("unknown json array '%s'\n", make_path(parser));
+            break;
+        case JSON_REASON_END_ARRAY:
             data->array = NULL;
             data->array_count = 0;
             break;
@@ -380,19 +336,6 @@ static json_result_t json_read_callback(
                         un->integer);
             });
 
-#define HOSTDISK() \
-    (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
-
-            JBOOL("disks.create", &HOSTDISK()->create);
-            JU64("disks.size", &HOSTDISK()->size);
-            JPATHT("disks.mnt", JSON_TYPE_STRING, {
-                size_t len = strlen(un->string);
-                if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
-                    FAIL("invalid length of 'mnt' for disk %d\n", i);
-                sgxlkl_enclave_disk_config_t* disk = HOSTDISK();
-                memcpy(disk->mnt, un->string, len + 1);
-            });
-
             JU64("stacksize", &data->config->stacksize);
             JPATHT("mmap_files", JSON_TYPE_STRING, {
                 parse_mmap_files(&data->config->mmap_files, un->string);
@@ -414,28 +357,16 @@ static json_result_t json_read_callback(
             JU32("wg.listen_port", &data->config->wg.listen_port);
             JSTRING("wg.key", data->config->wg.key);
 
-#define WGPEER() \
-    (&((sgxlkl_enclave_wg_peer_config_t*)data->array)[data->array_count - 1])
-
+#define WGPEER() (&((sgxlkl_enclave_wg_peer_config_t*)data->array)[i])
             JSTRING("wg.peers.key", WGPEER()->key);
             JSTRING("wg.peers.allowed_ips", WGPEER()->allowed_ips);
             JSTRING("wg.peers.endpoint", WGPEER()->endpoint);
 
             JPATHT("argv", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
+                strdupz(&((char**)data->array)[i], un->string);
             });
             JPATHT("envp", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
+                strdupz(&((char**)data->array)[i], un->string);
             });
 
             JU64("max_user_threads", &data->config->max_user_threads);
@@ -446,7 +377,11 @@ static json_result_t json_read_callback(
             JPATHT("clock_res", JSON_TYPE_STRING, {
                 if (strlen(un->string) != 16)
                     FAIL("invalid length of value for clock_res item");
-                data->array_count++;
+                if (i >= 8)
+                    FAIL("too many values for clock_res");
+                sgxlkl_clock_res_config_t* cri =
+                    &((sgxlkl_clock_res_config_t*)data->array)[i];
+                memcpy(&cri->resolution, un->string, 17);
             });
 
             JPATHT("mode", JSON_TYPE_STRING, {
@@ -461,32 +396,11 @@ static json_result_t json_read_callback(
 
             JSTRING("run", data->config->run);
             JSTRING("cwd", data->config->cwd);
-            JPATHT("argv", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
-            });
-            JPATHT("envp", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
-            });
             JPATHT("host_import_envp", JSON_TYPE_STRING, {
-                size_t new_count = data->array_count + 1;
-                data->array = realloc(data->array, new_count * sizeof(char*));
-                for (size_t i = data->array_count; i < new_count; i++)
-                    ((char**)data->array)[i] = NULL;
-                strdupz((char**)data->array + data->array_count, un->string);
-                data->array_count = new_count;
+                strdupz(&((char**)data->array)[i], un->string);
             });
 
-#define AUXV() (&((Elf64_auxv_t*)data->array)[data->array_count - 1])
+#define AUXV() (&((Elf64_auxv_t*)data->array)[i])
             JU64("auxv.a_type", &AUXV()->a_type);
             JU64("auxv.a_val", &AUXV()->a_un.a_val);
 
@@ -494,9 +408,7 @@ static json_result_t json_read_callback(
                 parse_exit_status(&data->config->exit_status, un->string);
             });
 
-#define DISK() \
-    (&((sgxlkl_enclave_disk_config_t*)data->array)[data->array_count - 1])
-
+#define DISK() (&((sgxlkl_enclave_disk_config_t*)data->array)[i])
             JBOOL("disks.create", &DISK()->create);
             JU64("disks.size", &DISK()->size);
             if (MATCH("disks.mnt"))
@@ -510,7 +422,7 @@ static json_result_t json_read_callback(
                 return JSON_OK;
             }
             JBOOL("disks.readonly", &DISK()->readonly);
-            if (json_match(parser, "disks.key") == JSON_OK)
+            if (MATCH("disks.key"))
             {
                 SEEN(parser);
                 CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
@@ -543,8 +455,9 @@ static json_result_t json_read_callback(
                 &data->config->image_sizes.num_stack_pages);
             JU64("image_sizes.num_tcs", &data->config->image_sizes.num_tcs);
 
-            // Else element is unknown. We ignore this to allow newer launchers
-            // to support options that older enclave images don't know about.
+            // Else element is unknown. We ignore this to allow newer
+            // launchers to support options that older enclave images
+            // don't know about.
             WARN("Ignoring unknown json element '%s'.\n", make_path(parser));
         }
     }
