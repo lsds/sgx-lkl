@@ -619,11 +619,8 @@ int lthread_create_primitive(
         return -1;
     }
 
-    // FIXME: Once lthread / pthread layering is fixed, just use the tls
-    // argument as fs base.  We can't do that now because _lthread_free
-    // attempts to unmap this area.
     lt->itls = tls;
-
+    lt->itlssz = libc.tls_size; // not setting this causes problems in set_tls_tp
     LIST_INIT(&lt->tls);
     lt->attr.state = BIT(LT_ST_READY);
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
