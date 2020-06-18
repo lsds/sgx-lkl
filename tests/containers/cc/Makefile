@@ -11,12 +11,13 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# Note: OE_LOG_LEVEL=INFO also enables Azure DCAP Client logging.
+# Due to the use of the Azure DCAP Client on the host,
+# it also implicitly verifies host-side networking (not using the TAP device).
 CC_DOCKER_ARGS=\
 	--rm --privileged --network=host \
 	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
-	-e OE_LOG_LEVEL=INFO
+	-e AZDCAP_DEBUG_LOG_LEVEL=INFO
 
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
@@ -35,10 +36,10 @@ run: run-hw run-sw
 
 ifeq (${SGXLKL_PREFIX},)
 run-hw:
-	@echo SGXLKL_PREFIX missing, skipping test
+	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 
 run-sw:
-	@echo SGXLKL_PREFIX missing, skipping test
+	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 else
 run-hw: $(CC_stamp)
 	docker run $(CC_DOCKER_ARGS) $(CC) --hw-debug
