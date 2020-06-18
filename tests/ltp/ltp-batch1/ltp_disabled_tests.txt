@@ -649,7 +649,7 @@
 /ltp/testcases/kernel/syscalls/pipe/pipe06
 /ltp/testcases/kernel/syscalls/pipe/pipe07
 /ltp/testcases/kernel/syscalls/pipe/pipe08
-/ltp/testcases/kernel/syscalls/pipe/pipe09
+#/ltp/testcases/kernel/syscalls/pipe/pipe09
 /ltp/testcases/kernel/syscalls/pipe/pipe10
 /ltp/testcases/kernel/syscalls/pipe/pipe11
 /ltp/testcases/kernel/syscalls/pipe2/pipe2_01
