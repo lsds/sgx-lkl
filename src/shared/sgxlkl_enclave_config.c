@@ -58,8 +58,6 @@ typedef struct json_callback_data
     size_t buffer_sz;
     unsigned long index;
     string_list_t* seen;
-    void* array;
-    size_t array_count;
     char** envp;
     size_t envc, auxc;
     bool enforce_format;
@@ -88,6 +86,7 @@ static char* make_path(json_parser_t* parser)
 
     char* r = NULL;
     strdupz(&r, tmp);
+    // INFO("%s\n", r);
     return r;
 }
 
@@ -251,11 +250,11 @@ void parse_mmap_files(sgxlkl_enclave_mmap_files_t* dest, const char* value)
         FAIL("Invalid mmap_files value: %s\n", value);
 }
 
-#define ALLOC_ARRAY(N, A, T)                                                   \
-    do                                                                         \
-    {                                                                          \
-        data->array_count = data->config->N = un->integer;                     \
-        data->array = data->config->A = calloc(data->array_count, sizeof(#T)); \
+#define ALLOC_ARRAY(N, A, T)                               \
+    do                                                     \
+    {                                                      \
+        data->config->N = un->integer;                     \
+        data->config->A = calloc(un->integer, sizeof(#T)); \
     } while (0)
 
 static json_result_t json_read_callback(
@@ -269,6 +268,7 @@ static json_result_t json_read_callback(
     json_result_t result = JSON_UNEXPECTED;
     json_callback_data_t* data = (json_callback_data_t*)callback_data;
     size_t i = parser->path[parser->depth - 1].index;
+    sgxlkl_enclave_config_t* cfg = data->config;
 
     switch (reason)
     {
@@ -282,17 +282,12 @@ static json_result_t json_read_callback(
             if (data->enforce_format)
             {
                 // Reset last_path for sortedness check of objects in arrays.
-                if (data->array)
-                {
-                    free(last_path);
-                    last_path = NULL;
-                }
+                free(last_path);
+                last_path = NULL;
             }
             break;
         case JSON_REASON_BEGIN_ARRAY:
-            if (data->array || data->array_count != 0)
-                FAIL("json: nested arrays not supported.");
-            else if (MATCH("argv"))
+            if (MATCH("argv"))
                 ALLOC_ARRAY(num_argv, argv, char*);
             else if (MATCH("envp"))
                 ALLOC_ARRAY(num_envp, envp, char*);
@@ -305,14 +300,10 @@ static json_result_t json_read_callback(
             else if (MATCH("wg.peers"))
                 ALLOC_ARRAY(
                     wg.num_peers, wg.peers, sgxlkl_enclave_wg_peer_config_t);
-            else if (MATCH("clock_res"))
-                data->array = data->config->clock_res;
-            else
+            else if (!(MATCH("clock_res")))
                 FAIL("unknown json array '%s'\n", make_path(parser));
             break;
         case JSON_REASON_END_ARRAY:
-            data->array = NULL;
-            data->array_count = 0;
             break;
         case JSON_REASON_VALUE:
         {
@@ -336,92 +327,74 @@ static json_result_t json_read_callback(
                         un->integer);
             });
 
-            JU64("stacksize", &data->config->stacksize);
+            JU64("stacksize", &cfg->stacksize);
             JPATHT("mmap_files", JSON_TYPE_STRING, {
-                parse_mmap_files(&data->config->mmap_files, un->string);
+                parse_mmap_files(&cfg->mmap_files, un->string);
             });
-            JU64("oe_heap_pagecount", &data->config->oe_heap_pagecount);
-            JSTRING("net_ip4", data->config->net_ip4);
-            JSTRING("net_gw4", data->config->net_gw4);
-            JSTRING("net_mask4", data->config->net_mask4);
+            JU64("oe_heap_pagecount", &cfg->oe_heap_pagecount);
+            JSTRING("net_ip4", cfg->net_ip4);
+            JSTRING("net_gw4", cfg->net_gw4);
+            JSTRING("net_mask4", cfg->net_mask4);
             JPATHT("hostname", JSON_TYPE_STRING, {
                 size_t len = strlen(un->string) + 1;
-                if (len > sizeof(data->config->hostname))
+                if (len > sizeof(cfg->hostname))
                     FAIL("hostname too long");
-                memcpy(data->config->hostname, un->string, len);
+                memcpy(cfg->hostname, un->string, len);
             });
-            JU32("tap_mtu", &data->config->tap_mtu);
-            JBOOL("hostnet", &data->config->hostnet);
+            JU32("tap_mtu", &cfg->tap_mtu);
+            JBOOL("hostnet", &cfg->hostnet);
 
-            JSTRING("wg.ip", data->config->wg.ip);
-            JU32("wg.listen_port", &data->config->wg.listen_port);
-            JSTRING("wg.key", data->config->wg.key);
+            JSTRING("wg.ip", cfg->wg.ip);
+            JU32("wg.listen_port", &cfg->wg.listen_port);
+            JSTRING("wg.key", cfg->wg.key);
+            JSTRING("wg.peers.key", cfg->wg.peers[i].key);
+            JSTRING("wg.peers.allowed_ips", cfg->wg.peers[i].allowed_ips);
+            JSTRING("wg.peers.endpoint", cfg->wg.peers[i].endpoint);
 
-#define WGPEER() (&((sgxlkl_enclave_wg_peer_config_t*)data->array)[i])
-            JSTRING("wg.peers.key", WGPEER()->key);
-            JSTRING("wg.peers.allowed_ips", WGPEER()->allowed_ips);
-            JSTRING("wg.peers.endpoint", WGPEER()->endpoint);
-
-            JPATHT("argv", JSON_TYPE_STRING, {
-                strdupz(&((char**)data->array)[i], un->string);
-            });
-            JPATHT("envp", JSON_TYPE_STRING, {
-                strdupz(&((char**)data->array)[i], un->string);
-            });
-
-            JU64("max_user_threads", &data->config->max_user_threads);
-            JU64("ethreads", &data->config->ethreads);
-            JU64("espins", &data->config->espins);
-            JU64("esleep", &data->config->esleep);
+            JU64("max_user_threads", &cfg->max_user_threads);
+            JU64("ethreads", &cfg->ethreads);
+            JU64("espins", &cfg->espins);
+            JU64("esleep", &cfg->esleep);
 
             JPATHT("clock_res", JSON_TYPE_STRING, {
                 if (strlen(un->string) != 16)
                     FAIL("invalid length of value for clock_res item");
                 if (i >= 8)
                     FAIL("too many values for clock_res");
-                sgxlkl_clock_res_config_t* cri =
-                    &((sgxlkl_clock_res_config_t*)data->array)[i];
-                memcpy(&cri->resolution, un->string, 17);
+                memcpy(&cfg->clock_res[i].resolution, un->string, 17);
             });
 
             JPATHT("mode", JSON_TYPE_STRING, {
-                parse_mode(&data->config->mode, un->string);
+                parse_mode(&cfg->mode, un->string);
             });
-            JBOOL("fsgsbase", &data->config->fsgsbase);
-            JBOOL("verbose", &data->config->verbose);
-            JBOOL("kernel_verbose", &data->config->kernel_verbose);
-            JSTRING("kernel_cmd", data->config->kernel_cmd);
-            JSTRING("sysctl", data->config->sysctl);
-            JBOOL("swiotlb", &data->config->swiotlb);
+            JBOOL("fsgsbase", &cfg->fsgsbase);
+            JBOOL("verbose", &cfg->verbose);
+            JBOOL("kernel_verbose", &cfg->kernel_verbose);
+            JSTRING("kernel_cmd", cfg->kernel_cmd);
+            JSTRING("sysctl", cfg->sysctl);
+            JBOOL("swiotlb", &cfg->swiotlb);
 
-            JSTRING("run", data->config->run);
-            JSTRING("cwd", data->config->cwd);
+            JSTRING("run", cfg->run);
+            JSTRING("cwd", cfg->cwd);
+            JPATHT("argv", JSON_TYPE_STRING, {
+                strdupz(&cfg->argv[i], un->string);
+            });
+            JPATHT("envp", JSON_TYPE_STRING, {
+                strdupz(&cfg->envp[i], un->string);
+            });
+            JU64("auxv.a_type", &cfg->auxv[i].a_type);
+            JU64("auxv.a_val", &cfg->auxv[i].a_un.a_val);
             JPATHT("host_import_envp", JSON_TYPE_STRING, {
-                strdupz(&((char**)data->array)[i], un->string);
+                strdupz(&cfg->host_import_envp[i], un->string);
             });
-
-#define AUXV() (&((Elf64_auxv_t*)data->array)[i])
-            JU64("auxv.a_type", &AUXV()->a_type);
-            JU64("auxv.a_val", &AUXV()->a_un.a_val);
 
             JPATHT("exit_status", JSON_TYPE_STRING, {
-                parse_exit_status(&data->config->exit_status, un->string);
+                parse_exit_status(&cfg->exit_status, un->string);
             });
 
-#define DISK() (&((sgxlkl_enclave_disk_config_t*)data->array)[i])
+#define DISK() (&(cfg->disks[i]))
             JBOOL("disks.create", &DISK()->create);
-            JU64("disks.size", &DISK()->size);
-            if (MATCH("disks.mnt"))
-            {
-                SEEN(parser);
-                size_t len = strlen(un->string);
-                if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
-                    FAIL("invalid length of 'mnt' for disk %d\n", i);
-                sgxlkl_enclave_disk_config_t* disk = DISK();
-                memcpy(disk->mnt, un->string, len + 1);
-                return JSON_OK;
-            }
-            JBOOL("disks.readonly", &DISK()->readonly);
+            JBOOL("disks.fresh_key", &DISK()->fresh_key);
             if (MATCH("disks.key"))
             {
                 SEEN(parser);
@@ -442,18 +415,26 @@ static json_result_t json_read_callback(
                 return JSON_OK;
             }
             JSTRING("disks.key_id", DISK()->key_id);
-            JBOOL("disks.fresh_key", &DISK()->fresh_key);
+            if (MATCH("disks.mnt"))
+            {
+                SEEN(parser);
+                size_t len = strlen(un->string);
+                if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
+                    FAIL("invalid length of 'mnt' for disk %d\n", i);
+                sgxlkl_enclave_disk_config_t* disk = DISK();
+                memcpy(disk->mnt, un->string, len + 1);
+                return JSON_OK;
+            }
+            JBOOL("disks.overlay", &DISK()->overlay);
+            JBOOL("disks.readonly", &DISK()->readonly);
             JSTRING("disks.roothash", DISK()->roothash);
             JU64("disks.roothash_offset", &DISK()->roothash_offset);
-            JBOOL("disks.overlay", &DISK()->overlay);
+            JU64("disks.size", &DISK()->size);
 
-            JU64(
-                "image_sizes.num_heap_pages",
-                &data->config->image_sizes.num_heap_pages);
-            JU64(
-                "image_sizes.num_stack_pages",
-                &data->config->image_sizes.num_stack_pages);
-            JU64("image_sizes.num_tcs", &data->config->image_sizes.num_tcs);
+            sgxlkl_image_sizes_config_t* sizes = &cfg->image_sizes;
+            JU64("image_sizes.num_heap_pages", &sizes->num_heap_pages);
+            JU64("image_sizes.num_stack_pages", &sizes->num_stack_pages);
+            JU64("image_sizes.num_tcs", &sizes->num_tcs);
 
             // Else element is unknown. We ignore this to allow newer
             // launchers to support options that older enclave images
@@ -519,8 +500,6 @@ int sgxlkl_read_enclave_config(
                                           .buffer_sz = 0,
                                           .index = 0,
                                           .seen = NULL,
-                                          .array = NULL,
-                                          .array_count = 0,
                                           .auxc = 0,
                                           .enforce_format = enforce_format};
 
