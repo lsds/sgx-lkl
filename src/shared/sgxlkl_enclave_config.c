@@ -571,8 +571,6 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
         free(config->envp[i]);
     NONDEFAULT_FREE(envp);
 
-    for (size_t i = 0; i < config->num_auxv; i++)
-        free(config->auxv);
     NONDEFAULT_FREE(auxv);
 
     for (size_t i = 0; i < config->num_host_import_envp; i++)
