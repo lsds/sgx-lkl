@@ -272,7 +272,7 @@
 /ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue02
 #/ltp/testcases/kernel/syscalls/futex/futex_wait01
 /ltp/testcases/kernel/syscalls/futex/futex_wait02
-/ltp/testcases/kernel/syscalls/futex/futex_wait03
+#/ltp/testcases/kernel/syscalls/futex/futex_wait03
 /ltp/testcases/kernel/syscalls/futex/futex_wait04
 #/ltp/testcases/kernel/syscalls/futex/futex_wait05
 #/ltp/testcases/kernel/syscalls/futex/futex_wait_bitset01
