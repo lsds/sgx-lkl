@@ -9,6 +9,5 @@ tests/virtio/ping_test/Makefile
 tests/virtio/python_read/Makefile
 tests/languages/java/network/Makefile
 tests/languages/java/hello_world/Makefile
-tests/languages/java/read_file/Makefile
 tests/languages/python/Makefile
 tests/containers/cc/Makefile
