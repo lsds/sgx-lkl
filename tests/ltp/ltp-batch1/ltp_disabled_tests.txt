@@ -278,7 +278,7 @@
 #/ltp/testcases/kernel/syscalls/futex/futex_wait_bitset01
 #/ltp/testcases/kernel/syscalls/futex/futex_wait_bitset02
 #/ltp/testcases/kernel/syscalls/futex/futex_wake01
-/ltp/testcases/kernel/syscalls/futex/futex_wake02
+#/ltp/testcases/kernel/syscalls/futex/futex_wake02
 /ltp/testcases/kernel/syscalls/futex/futex_wake03
 /ltp/testcases/kernel/syscalls/futex/futex_wake04
 /ltp/testcases/kernel/syscalls/futimesat/futimesat01
