@@ -100,6 +100,7 @@ cd sgx-lkl
 
 3. Install the Open Enclave build dependencies:
 ```
+git submodule update --recursive --progress --init openenclave
 cd openenclave
 sudo scripts/ansible/install-ansible.sh
 sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
