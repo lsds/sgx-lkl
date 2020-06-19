@@ -602,7 +602,7 @@
 /ltp/testcases/kernel/syscalls/munlockall/munlockall01
 /ltp/testcases/kernel/syscalls/munmap/munmap01
 /ltp/testcases/kernel/syscalls/munmap/munmap02
-/ltp/testcases/kernel/syscalls/munmap/munmap03
+#/ltp/testcases/kernel/syscalls/munmap/munmap03
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep01
 #/ltp/testcases/kernel/syscalls/nanosleep/nanosleep02
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep04
