@@ -5,6 +5,7 @@
 + So modified the test to run with root user, as testcase does not depends on user and others running with nobody
 + Also modified the tests without using mmap.
 + Issue 297: Sgx enclave is getting aborted while test is trying to access invalid address.
++ https://github.com/lsds/sgx-lkl/issues/297
 diff --git a/testcases/kernel/syscalls/open/open08.c b/testcases/kernel/syscalls/open/open08.c
 index 29a23c2f7..67689638a 100644
 --- a/testcases/kernel/syscalls/open/open08.c
