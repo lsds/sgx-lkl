@@ -24,24 +24,24 @@ extern void init_sysconf(long nproc_conf, long nproc_onln);
 static void find_and_mount_disks()
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+    size_t n = cfg->num_disks;
 
-    if (cfg->num_disks == 0)
+    if (n == 0)
         sgxlkl_fail("bug: no disks\n");
 
-    size_t n = cfg->num_disks;
     sgxlkl_enclave_state_t* estate = &sgxlkl_enclave_state;
-    sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
+    const sgxlkl_shared_memory_t* shm = &estate->shared_memory;
 
     estate->disk_state = oe_calloc(n, sizeof(sgxlkl_enclave_disk_state_t));
     estate->num_disk_state = n;
 
     for (int i = 0; i < n; i++)
     {
-        sgxlkl_enclave_disk_config_t* app_disk = &cfg->disks[i];
+        const sgxlkl_enclave_disk_config_t* cfg_disk = &cfg->disks[i];
         bool found = false;
         for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
         {
-            if (strcmp(app_disk->mnt, shm->virtio_blk_dev_names[j]) == 0)
+            if (strcmp(cfg_disk->mnt, shm->virtio_blk_dev_names[j]) == 0)
             {
                 estate->disk_state[i].host_disk_index = j;
                 found = true;
@@ -51,10 +51,10 @@ static void find_and_mount_disks()
             sgxlkl_fail(
                 "Disk image for mount point '%s' has not been provided by "
                 "host.\n",
-                app_disk->mnt);
+                cfg_disk->mnt);
     }
 
-    lkl_mount_disks(cfg->disks, cfg->num_disks, cfg->cwd);
+    lkl_mount_disks(cfg->disks, n, cfg->cwd);
 }
 
 // In internal OE header openenclave/internal/sgx/eeid_plugin.h

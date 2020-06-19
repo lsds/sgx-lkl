@@ -115,7 +115,8 @@
             "string",
             "null"
           ],
-          "description": "Name/identifier of disk encryption key."
+          "description": "Name/identifier of disk encryption key.",
+          "default": null
         },
         "fresh_key": {
           "type": "boolean",

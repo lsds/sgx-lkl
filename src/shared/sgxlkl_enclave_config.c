@@ -27,7 +27,7 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
 
-// Duplicate a string
+// Duplicate a string (including NULL)
 static int strdupz(char** to, const char* from)
 {
     if (!to)
@@ -44,7 +44,7 @@ static int strdupz(char** to, const char* from)
         if (!*to)
         {
             *to = NULL;
-            return 1;
+            FAIL("out of memory\n");
         }
         else
             memcpy(*to, from, l + 1);
@@ -58,8 +58,6 @@ typedef struct json_callback_data
     size_t buffer_sz;
     unsigned long index;
     string_list_t* seen;
-    char** envp;
-    size_t envc, auxc;
     bool enforce_format;
 } json_callback_data_t;
 
@@ -133,16 +131,14 @@ static char* make_path(json_parser_t* parser)
         return JSON_OK;          \
     }
 
-#define JSTRING(PATH, DEST)                       \
-    if (MATCH(PATH))                              \
-    {                                             \
-        SEEN(parser);                             \
-        CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL); \
-        if (type == JSON_TYPE_NULL)               \
-            DEST = NULL;                          \
-        else                                      \
-            strdupz(&(DEST), un->string);         \
-        return JSON_OK;                           \
+#define JSTRING(PATH, DEST)                           \
+    if (MATCH(PATH))                                  \
+    {                                                 \
+        SEEN(parser);                                 \
+        CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);     \
+        if (strdupz(&(DEST), un ? un->string : NULL)) \
+            return JSON_FAILED;                       \
+        return JSON_OK;                               \
     }
 
 static json_result_t decode_uint64_t(
@@ -195,21 +191,21 @@ static json_result_t decode_uint32_t(
         }                               \
     } while (0);
 
-#define JBOOL(PATH, DEST)          \
-    do                             \
-    {                              \
-        if (MATCH(PATH))           \
-        {                          \
-            *(DEST) = un->boolean; \
-            return JSON_OK;        \
-        }                          \
+#define JBOOL(PATH, DEST)         \
+    do                            \
+    {                             \
+        if (MATCH(PATH))          \
+        {                         \
+            (DEST) = un->boolean; \
+            return JSON_OK;       \
+        }                         \
     } while (0);
 
-#define JU64(P, D)                                          \
-    if (decode_uint64_t(parser, type, un, P, D) == JSON_OK) \
+#define JU64(P, D)                                             \
+    if (decode_uint64_t(parser, type, un, P, &(D)) == JSON_OK) \
         return JSON_OK;
-#define JU32(P, D)                                          \
-    if (decode_uint32_t(parser, type, un, P, D) == JSON_OK) \
+#define JU32(P, D)                                             \
+    if (decode_uint32_t(parser, type, un, P, &(D)) == JSON_OK) \
         return JSON_OK;
 
 void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)
@@ -250,11 +246,13 @@ void parse_mmap_files(sgxlkl_enclave_mmap_files_t* dest, const char* value)
         FAIL("Invalid mmap_files value: %s\n", value);
 }
 
-#define ALLOC_ARRAY(N, A, T)                               \
-    do                                                     \
-    {                                                      \
-        data->config->N = un->integer;                     \
-        data->config->A = calloc(un->integer, sizeof(#T)); \
+#define ALLOC_ARRAY(N, A, T)                              \
+    do                                                    \
+    {                                                     \
+        data->config->N = un->integer;                    \
+        data->config->A = calloc(un->integer, sizeof(T)); \
+        if (!data->config->A)                             \
+            FAIL("out of memory\n");                      \
     } while (0)
 
 static json_result_t json_read_callback(
@@ -282,6 +280,7 @@ static json_result_t json_read_callback(
             if (data->enforce_format)
             {
                 // Reset last_path for sortedness check of objects in arrays.
+                // TODO: This is incorrect.
                 free(last_path);
                 last_path = NULL;
             }
@@ -327,11 +326,11 @@ static json_result_t json_read_callback(
                         un->integer);
             });
 
-            JU64("stacksize", &cfg->stacksize);
+            JU64("stacksize", cfg->stacksize);
             JPATHT("mmap_files", JSON_TYPE_STRING, {
                 parse_mmap_files(&cfg->mmap_files, un->string);
             });
-            JU64("oe_heap_pagecount", &cfg->oe_heap_pagecount);
+            JU64("oe_heap_pagecount", cfg->oe_heap_pagecount);
             JSTRING("net_ip4", cfg->net_ip4);
             JSTRING("net_gw4", cfg->net_gw4);
             JSTRING("net_mask4", cfg->net_mask4);
@@ -341,20 +340,20 @@ static json_result_t json_read_callback(
                     FAIL("hostname too long");
                 memcpy(cfg->hostname, un->string, len);
             });
-            JU32("tap_mtu", &cfg->tap_mtu);
-            JBOOL("hostnet", &cfg->hostnet);
+            JU32("tap_mtu", cfg->tap_mtu);
+            JBOOL("hostnet", cfg->hostnet);
 
             JSTRING("wg.ip", cfg->wg.ip);
-            JU32("wg.listen_port", &cfg->wg.listen_port);
+            JU32("wg.listen_port", cfg->wg.listen_port);
             JSTRING("wg.key", cfg->wg.key);
             JSTRING("wg.peers.key", cfg->wg.peers[i].key);
             JSTRING("wg.peers.allowed_ips", cfg->wg.peers[i].allowed_ips);
             JSTRING("wg.peers.endpoint", cfg->wg.peers[i].endpoint);
 
-            JU64("max_user_threads", &cfg->max_user_threads);
-            JU64("ethreads", &cfg->ethreads);
-            JU64("espins", &cfg->espins);
-            JU64("esleep", &cfg->esleep);
+            JU64("max_user_threads", cfg->max_user_threads);
+            JU64("ethreads", cfg->ethreads);
+            JU64("espins", cfg->espins);
+            JU64("esleep", cfg->esleep);
 
             JPATHT("clock_res", JSON_TYPE_STRING, {
                 if (strlen(un->string) != 16)
@@ -367,12 +366,12 @@ static json_result_t json_read_callback(
             JPATHT("mode", JSON_TYPE_STRING, {
                 parse_mode(&cfg->mode, un->string);
             });
-            JBOOL("fsgsbase", &cfg->fsgsbase);
-            JBOOL("verbose", &cfg->verbose);
-            JBOOL("kernel_verbose", &cfg->kernel_verbose);
+            JBOOL("fsgsbase", cfg->fsgsbase);
+            JBOOL("verbose", cfg->verbose);
+            JBOOL("kernel_verbose", cfg->kernel_verbose);
             JSTRING("kernel_cmd", cfg->kernel_cmd);
             JSTRING("sysctl", cfg->sysctl);
-            JBOOL("swiotlb", &cfg->swiotlb);
+            JBOOL("swiotlb", cfg->swiotlb);
 
             JSTRING("run", cfg->run);
             JSTRING("cwd", cfg->cwd);
@@ -382,8 +381,8 @@ static json_result_t json_read_callback(
             JPATHT("envp", JSON_TYPE_STRING, {
                 strdupz(&cfg->envp[i], un->string);
             });
-            JU64("auxv.a_type", &cfg->auxv[i].a_type);
-            JU64("auxv.a_val", &cfg->auxv[i].a_un.a_val);
+            JU64("auxv.a_type", cfg->auxv[i].a_type);
+            JU64("auxv.a_val", cfg->auxv[i].a_un.a_val);
             JPATHT("host_import_envp", JSON_TYPE_STRING, {
                 strdupz(&cfg->host_import_envp[i], un->string);
             });
@@ -392,9 +391,9 @@ static json_result_t json_read_callback(
                 parse_exit_status(&cfg->exit_status, un->string);
             });
 
-#define DISK() (&(cfg->disks[i]))
-            JBOOL("disks.create", &DISK()->create);
-            JBOOL("disks.fresh_key", &DISK()->fresh_key);
+#define DISK() (&(cfg->disks[parser->path[parser->depth - 2].index]))
+            JBOOL("disks.create", DISK()->create);
+            JBOOL("disks.fresh_key", DISK()->fresh_key);
             if (MATCH("disks.key"))
             {
                 SEEN(parser);
@@ -425,16 +424,16 @@ static json_result_t json_read_callback(
                 memcpy(disk->mnt, un->string, len + 1);
                 return JSON_OK;
             }
-            JBOOL("disks.overlay", &DISK()->overlay);
-            JBOOL("disks.readonly", &DISK()->readonly);
+            JBOOL("disks.overlay", DISK()->overlay);
+            JBOOL("disks.readonly", DISK()->readonly);
             JSTRING("disks.roothash", DISK()->roothash);
-            JU64("disks.roothash_offset", &DISK()->roothash_offset);
-            JU64("disks.size", &DISK()->size);
+            JU64("disks.roothash_offset", DISK()->roothash_offset);
+            JU64("disks.size", DISK()->size);
 
             sgxlkl_image_sizes_config_t* sizes = &cfg->image_sizes;
-            JU64("image_sizes.num_heap_pages", &sizes->num_heap_pages);
-            JU64("image_sizes.num_stack_pages", &sizes->num_stack_pages);
-            JU64("image_sizes.num_tcs", &sizes->num_tcs);
+            JU64("image_sizes.num_heap_pages", sizes->num_heap_pages);
+            JU64("image_sizes.num_stack_pages", sizes->num_stack_pages);
+            JU64("image_sizes.num_tcs", sizes->num_tcs);
 
             // Else element is unknown. We ignore this to allow newer
             // launchers to support options that older enclave images
@@ -494,13 +493,14 @@ int sgxlkl_read_enclave_config(
 
     *to = sgxlkl_default_enclave_config;
 
+    enforce_format = false;
+
     json_parser_t parser;
     json_result_t r = JSON_UNEXPECTED;
     json_callback_data_t callback_data = {.config = to,
                                           .buffer_sz = 0,
                                           .index = 0,
                                           .seen = NULL,
-                                          .auxc = 0,
                                           .enforce_format = enforce_format};
 
     // parser destroys `from`, so we copy it first.

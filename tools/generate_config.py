@@ -221,7 +221,7 @@ def generate_source(schema_file_name, root, args):
             dflt = 'NULL'
             if 'default' in jtype:
               dflt = jtype['default'];
-            if dflt == []:
+            if dflt == [] or dflt == None:
                 dflt = 'NULL'
             if ctype == 'bool':
               dflt = "true" if dflt else "false"
