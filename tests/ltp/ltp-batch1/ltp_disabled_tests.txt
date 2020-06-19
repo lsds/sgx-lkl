@@ -280,7 +280,7 @@
 #/ltp/testcases/kernel/syscalls/futex/futex_wake01
 #/ltp/testcases/kernel/syscalls/futex/futex_wake02
 #/ltp/testcases/kernel/syscalls/futex/futex_wake03
-/ltp/testcases/kernel/syscalls/futex/futex_wake04
+#/ltp/testcases/kernel/syscalls/futex/futex_wake04
 /ltp/testcases/kernel/syscalls/futimesat/futimesat01
 /ltp/testcases/kernel/syscalls/get_mempolicy/get_mempolicy01
 /ltp/testcases/kernel/syscalls/get_robust_list/get_robust_list01
