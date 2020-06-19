@@ -1,5 +1,6 @@
 
 APP_ROOT=app
+PROG=${APP_ROOT}/helloworld
 PROG_NONPIE=${APP_ROOT}/helloworld-nonpie
 PROG_C=helloworld.c
 

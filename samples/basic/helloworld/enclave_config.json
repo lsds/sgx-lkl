@@ -1,5 +1,5 @@
 {
-  "run": "app/helloworld",
+  "args": [ "app/helloworld" ],
   "disks": [
     {
       "mnt": "/",

@@ -99,10 +99,9 @@ typedef struct sgxlkl_enclave_config
     char* kernel_cmd;
     char* sysctl;
     bool swiotlb;
-    char* run;
     char* cwd;
-    size_t num_argv;
-    char** argv;
+    size_t num_args;
+    char** args;
     size_t num_envp;
     char** envp;
     size_t num_auxv;
@@ -125,6 +124,6 @@ typedef struct {
     char* override_var;
 } sgxlkl_enclave_setting_t;
 
-extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[46];
+extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[45];
 
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

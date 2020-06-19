@@ -29,10 +29,9 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .kernel_cmd="mem=32M",
     .sysctl=NULL,
     .swiotlb=true,
-    .run=NULL,
     .cwd="/",
-    .num_argv=0,
-    .argv=NULL,
+    .num_args=0,
+    .args=NULL,
     .num_envp=0,
     .envp=NULL,
     .num_auxv=0,
@@ -48,7 +47,7 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
 };
 
 // clang-format off
-const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[46] = {
+const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[45] = {
     {"net_ip4", "char*", "IPv4 address to assign to LKL.", "10.0.1.1", "SGXLKL_IP4"},
     {"net_gw4", "char*", "IPv4 gateway to assign to LKL.", "10.0.1.254", "SGXLKL_GW4"},
     {"net_mask4", "char*", "CIDR mask for LKL to use.", "24", "SGXLKL_MASK4"},
@@ -74,9 +73,8 @@ const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[46] = {
     {"kernel_cmd", "char*", "", "mem=32M", NULL},
     {"sysctl", "char*", "'sysctl' configurations. Semicolon-separated list of key value pairs in the form 'key1=value1;key2=value2;[...]'.", "NULL", "SGXLKL_SYSCTL"},
     {"swiotlb", "bool", "Enable DMA bounce buffer support, even in sw mode.", "true", "SGXLKL_ENABLE_SWIOTLB"},
-    {"run", "char*", "Path to the application.", "NULL", "SGXLKL_CMDLINE"},
     {"cwd", "char*", "The working directory.", "/", "SGXLKL_CWD"},
-    {"argv", "char**", "Application arguments.", "NULL", NULL},
+    {"args", "char**", "Application arguments.", "NULL", NULL},
     {"envp", "char**", "Environment variables.", "NULL", NULL},
     {"auxv", "Elf64_auxv_t*", "ELF64 Aux vector.", "NULL", NULL},
     {"host_import_envp", "char**", "Comma-separated list of environment variables to import from the host.", "NULL", "SGXLKL_HOST_IMPORT_ENV"},

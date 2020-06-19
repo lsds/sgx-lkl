@@ -3,7 +3,7 @@
   "title": "SGX-LKL enclave config schema",
   "required": [
     "mode",
-    "run",
+    "args",
     "disks"
   ],
   "additionalProperties": false,
@@ -376,19 +376,13 @@
           "default": true,
           "overridable": "SGXLKL_ENABLE_SWIOTLB"
         },
-        "run": {
-          "type": "string",
-          "description": "Path to the application.",
-          "default": null,
-          "overridable": "SGXLKL_CMDLINE"
-        },
         "cwd": {
           "type": "string",
           "description": "The working directory.",
           "default": "/",
           "overridable": "SGXLKL_CWD"
         },
-        "argv": {
+        "args": {
           "type": "array",
           "description": "Application arguments.",
           "default": [],

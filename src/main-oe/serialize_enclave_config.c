@@ -434,7 +434,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
@@ -493,10 +493,9 @@ void serialize_enclave_config(
     FPFS(sysctl);
     FPFBOOL(swiotlb);
 
-    FPFS(run);
     FPFS(cwd);
     root->objects[cnt++] =
-        mk_json_string_array("argv", config->argv, config->num_argv);
+        mk_json_string_array("args", config->args, config->num_args);
     root->objects[cnt++] =
         mk_json_string_array("envp", config->envp, config->num_envp);
     root->objects[cnt++] = mk_json_string_array(

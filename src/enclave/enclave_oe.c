@@ -59,17 +59,11 @@ static void prepare_elf_stack()
         }
     }
 
-    int have_run = cfg->run != NULL;
     size_t total_size = 0;
     size_t total_count = 1;
-    if (have_run)
-    {
-        total_size += strlen(cfg->run) + 1;
-        total_count++;
-    }
-    for (size_t i = 0; i < cfg->num_argv; i++)
-        total_size += strlen(cfg->argv[i]) + 1;
-    total_count += cfg->num_argv + 1;
+    for (size_t i = 0; i < cfg->num_args; i++)
+        total_size += strlen(cfg->args[i]) + 1;
+    total_count += cfg->num_args + 1;
     for (size_t i = 0; i < cfg->num_envp; i++)
         total_size += strlen(cfg->envp[i]) + 1;
     total_count += cfg->num_envp + 1;
@@ -97,10 +91,8 @@ static void prepare_elf_stack()
 
     // argv
     stack->argv = out;
-    if (have_run)
-        ADD_STRING(cfg->run);
-    for (size_t i = 0; i < cfg->num_argv; i++)
-        ADD_STRING(cfg->argv[i]);
+    for (size_t i = 0; i < cfg->num_args; i++)
+        ADD_STRING(cfg->args[i]);
     stack->argc = j;
     out[j++] = NULL;
 

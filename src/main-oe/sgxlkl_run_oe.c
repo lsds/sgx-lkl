@@ -1621,11 +1621,10 @@ void override_enclave_config(
         sgxlkl_configured(SGXLKL_HD_VERITY_OFFSET))
         override_disk_config(root_disk_file);
 
-    if (econf->run == NULL)
+    if (argv && argc > 0)
     {
-        econf->run = argv[0];
-        econf->num_argv = argc - 1;
-        econf->argv = &argv[1];
+        econf->num_args = argc;
+        econf->args = argv;
     }
 }
 

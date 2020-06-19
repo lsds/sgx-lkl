@@ -181,16 +181,6 @@ static json_result_t decode_uint32_t(
     return JSON_OK;
 }
 
-#define JNULL(PATH)                     \
-    do                                  \
-    {                                   \
-        if (MATCH(PATH))                \
-        {                               \
-            if (type == JSON_TYPE_NULL) \
-                return JSON_OK;         \
-        }                               \
-    } while (0);
-
 #define JBOOL(PATH, DEST)         \
     do                            \
     {                             \
@@ -286,8 +276,8 @@ static json_result_t json_read_callback(
             }
             break;
         case JSON_REASON_BEGIN_ARRAY:
-            if (MATCH("argv"))
-                ALLOC_ARRAY(num_argv, argv, char*);
+            if (MATCH("args"))
+                ALLOC_ARRAY(num_args, args, char*);
             else if (MATCH("envp"))
                 ALLOC_ARRAY(num_envp, envp, char*);
             else if (MATCH("auxv"))
@@ -373,10 +363,9 @@ static json_result_t json_read_callback(
             JSTRING("sysctl", cfg->sysctl);
             JBOOL("swiotlb", cfg->swiotlb);
 
-            JSTRING("run", cfg->run);
             JSTRING("cwd", cfg->cwd);
-            JPATHT("argv", JSON_TYPE_STRING, {
-                strdupz(&cfg->argv[i], un->string);
+            JPATHT("args", JSON_TYPE_STRING, {
+                strdupz(&cfg->args[i], un->string);
             });
             JPATHT("envp", JSON_TYPE_STRING, {
                 strdupz(&cfg->envp[i], un->string);
@@ -453,9 +442,8 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     if (C)       \
         FAIL("rejecting enclave configuration: " M "\n");
 
-    CC(cfg->run == NULL && cfg->argv == NULL, "missing run/argv");
-    CC(cfg->run == NULL && cfg->num_argv == 0, "no run and argc == 0");
-    // CC(cfg->net_mask4 < 0 || cfg->net_mask4 > 32, "net_mask4 out of range");
+    CC(cfg->args == NULL, "missing args");
+    CC(cfg->num_args == 0, "num_args == 0");
     CC(cfg->ethreads > MAX_SGXLKL_ETHREADS, "too many ethreads");
     CC(cfg->max_user_threads > MAX_SGXLKL_MAX_USER_THREADS,
        "max_user_threads too large");
@@ -470,7 +458,7 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
 
     // These are cast to (signed) int later.
     CC(cfg->tap_mtu > INT32_MAX, "tap_mtu out of range");
-    CC(cfg->num_argv > INT32_MAX, "size of argv out of range");
+    CC(cfg->num_args > INT32_MAX, "size of args out of range");
     CC(cfg->num_envp > INT32_MAX, "size of envp out of range");
     CC(cfg->num_auxv > INT32_MAX, "size of auxv out of range");
     CC(cfg->num_host_import_envp > INT32_MAX,
@@ -485,7 +473,7 @@ int sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from || !to)
@@ -563,9 +551,9 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
     NONDEFAULT_FREE(kernel_cmd);
     NONDEFAULT_FREE(sysctl);
 
-    for (size_t i = 0; i < config->num_argv; i++)
-        free(config->argv[i]);
-    NONDEFAULT_FREE(argv);
+    for (size_t i = 0; i < config->num_args; i++)
+        free(config->args[i]);
+    NONDEFAULT_FREE(args);
 
     for (size_t i = 0; i < config->num_envp; i++)
         free(config->envp[i]);

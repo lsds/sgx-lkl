@@ -24,14 +24,8 @@
 #include "shared/json_util.h"
 #include "shared/sgxlkl_enclave_config.h"
 
-static const char* STRING_KEYS[] = {"run",
-                                    "cwd",
-                                    "disk",
-                                    "key",
-                                    "roothash",
-                                    "allowedips",
-                                    "endpoint",
-                                    "exit_status"};
+static const char* STRING_KEYS[] =
+    {"cwd", "disk", "key", "roothash", "allowedips", "endpoint", "exit_status"};
 static const char* BOOL_KEYS[] = {"readonly", "overlay", "create"};
 static const char* INT_KEYS[] = {"roothash_offset", "size"};
 static const char* ARRAY_KEYS[] = {"disk_config", "peers"};
@@ -70,20 +64,20 @@ static int parse_args(
     if (json_object_get_type(args_val) != json_type_array)
         return 1;
 
-    config->num_argv = json_object_array_length(args_val);
+    config->num_args = json_object_array_length(args_val);
 
     // Allocate space for argv[] + NULL element at argv[argc]
-    config->argv = malloc(sizeof(char*) * (config->num_argv + 1));
+    config->args = malloc(sizeof(char*) * (config->num_args + 1));
 
-    for (size_t i = 0; i < config->num_argv; i++)
+    for (size_t i = 0; i < config->num_args; i++)
     {
         json_object* val = json_object_array_get_idx(args_val, i);
         if (json_object_get_type(val) != json_type_string)
             return 1;
-        config->argv[i] = strdup(json_object_get_string(val));
+        config->args[i] = strdup(json_object_get_string(val));
     }
 
-    config->argv[config->num_argv] = NULL;
+    config->args[config->num_args] = NULL;
 
     return 0;
 }
@@ -395,16 +389,7 @@ static int parse_sgxlkl_app_config_entry(
     int err = 0;
     sgxlkl_enclave_config_t* config = (sgxlkl_enclave_config_t*)arg;
 
-    if (!strcmp("run", key))
-    {
-        if (json_object_get_type(value) != json_type_string)
-        {
-            FAIL("String expected for 'run' configuration.\n");
-            return 1;
-        }
-        config->run = strdup(json_object_get_string(value));
-    }
-    else if (!strcmp("cwd", key))
+    if (!strcmp("cwd", key))
     {
         if (json_object_get_type(value) != json_type_string)
         {
