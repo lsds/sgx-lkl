@@ -1,4 +1,4 @@
-This test case invokes “tst_process_state_wait2” in thread.
+This test case invokes “tst_process_state_wait2” in a thread.
 This function indefinitely wait for process state to be changed
 to “S” by monitoring the proc file (/proc/[pid]/state). In sgx-lkl
 process state is not updating properly in proc filesystem. Hence,
