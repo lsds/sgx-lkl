@@ -618,7 +618,7 @@
 #/ltp/testcases/kernel/syscalls/open/open05
 #/ltp/testcases/kernel/syscalls/open/open06
 #/ltp/testcases/kernel/syscalls/open/open07
-/ltp/testcases/kernel/syscalls/open/open08
+#/ltp/testcases/kernel/syscalls/open/open08
 #/ltp/testcases/kernel/syscalls/open/open09
 #/ltp/testcases/kernel/syscalls/open/open10
 #/ltp/testcases/kernel/syscalls/open/open11
@@ -894,7 +894,7 @@
 /ltp/testcases/kernel/syscalls/signalfd/signalfd01
 /ltp/testcases/kernel/syscalls/signalfd4/signalfd4_01
 /ltp/testcases/kernel/syscalls/signalfd4/signalfd4_02
-/ltp/testcases/kernel/syscalls/sigpending/sigpending02
+#/ltp/testcases/kernel/syscalls/sigpending/sigpending02
 #/ltp/testcases/kernel/syscalls/sigprocmask/sigprocmask01
 /ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
 /ltp/testcases/kernel/syscalls/sigsuspend/sigsuspend01
