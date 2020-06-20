@@ -225,6 +225,11 @@ static int startmain(void* args)
     if (app_config.num_peers && sgxlkl_verbose)
         wgu_list_devices();
 
+
+    //int ret = execve("/app/helloworld", app_config.argv, app_config.envp);
+
+    //SGXLKL_VERBOSE("execve ret=%i err=%s\n", ret, strerror(errno));
+
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
     __dls3(&app_config, __builtin_frame_address(0));
