@@ -94,13 +94,12 @@ sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-de
 
 2. Clone the SGX-LKL git repository:
 ```
-git clone --branch oe_port git@github.com:lsds/sgx-lkl.git
+git clone --branch oe_port --recursive --progress git@github.com:lsds/sgx-lkl.git
 cd sgx-lkl
 ```
 
 3. Install the Open Enclave build dependencies:
 ```
-git submodule update --recursive --progress --init openenclave
 cd openenclave
 sudo scripts/ansible/install-ansible.sh
 sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
