@@ -103,6 +103,10 @@ EOF
 # Assemble license files of all bundled libraries.
 pkgs=()
 for lib_path in $deb_install_prefix/$external_lib_dir/*; do
+    if [[ -L "$lib_path" ]]; then
+        # ignore symlinks, e.g. ld-linux-x86-64
+        continue
+    fi
     lib_name=${lib_path##*/}
     pkg=$(dpkg -S \*/$lib_name | grep -v -e sgx-lkl -e i386 | head -1 | cut -f1 -d":")
     if [[ -z $pkg ]]; then

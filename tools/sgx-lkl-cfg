@@ -272,7 +272,7 @@ def finalize(args):
     print('Finalized app configuration successfully created.')
 
 def dockerize(args):
-    patched_img_path_tmpl = '/disk_{i}.img'
+    patched_img_path_tmpl = 'disk_{i}.img'
 
     with open(args.host_cfg) as f:
         cfg = json.load(f)

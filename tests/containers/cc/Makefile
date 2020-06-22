@@ -11,13 +11,17 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# Due to the use of the Azure DCAP Client on the host,
-# it also implicitly verifies host-side networking (not using the TAP device).
-CC_DOCKER_ARGS=\
-	--rm --privileged --network=host \
+
+CC_DOCKER_ARGS_COMMON=\
+	--rm \
+	--user $(shell id -u) \
+	--device /dev/net/tun --network host \
 	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
 	-e AZDCAP_DEBUG_LOG_LEVEL=INFO
+
+CC_DOCKER_ARGS_HW=\
+	--device /dev/sgx
 
 .DELETE_ON_ERROR:
 .PHONY: run run-hw run-sw clean
@@ -42,11 +46,11 @@ run-sw:
 	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 else
 run-hw: $(CC_stamp)
-	docker run $(CC_DOCKER_ARGS) $(CC) --hw-debug
+	docker run $(CC_DOCKER_ARGS_COMMON) $(CC_DOCKER_ARGS_HW) $(CC) --hw-debug
 
 run-sw: $(CC_stamp)
 	# TODO -t as work-around for https://github.com/lsds/sgx-lkl/issues/158
-	docker run -t $(CC_DOCKER_ARGS) $(CC) --sw-debug
+	docker run -t $(CC_DOCKER_ARGS_COMMON) $(CC) --sw-debug
 endif
 
 clean:
