@@ -11,18 +11,14 @@ CC=python-helloworld-cc
 CC_stamp=$(CC).stamp
 
 # This test verifies in-enclave networking.
-# Note: OE_LOG_LEVEL=INFO also enables Azure DCAP Client logging.
 
-# The container is run with host user id in order to access the existing TAP device
-# without NET_ADMIN capability. The TAP device is created by sgx-lkl-setup.
-# There seems to be no way to create a TAP device that can be used by arbitrary users.
 CC_DOCKER_ARGS_COMMON=\
 	--rm \
 	--user $(shell id -u) \
 	--device /dev/net/tun --network host \
 	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1 -e SGXLKL_TAP=sgxlkl_tap0 \
-	-e OE_LOG_LEVEL=INFO
+	-e AZDCAP_DEBUG_LOG_LEVEL=INFO
 
 CC_DOCKER_ARGS_HW=\
 	--device /dev/sgx
@@ -44,10 +40,10 @@ run: run-hw run-sw
 
 ifeq (${SGXLKL_PREFIX},)
 run-hw:
-	@echo SGXLKL_PREFIX missing, skipping test
+	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 
 run-sw:
-	@echo SGXLKL_PREFIX missing, skipping test
+	@echo SGXLKL_PREFIX missing, skipping test. See README.md.
 else
 run-hw: $(CC_stamp)
 	docker run $(CC_DOCKER_ARGS_COMMON) $(CC_DOCKER_ARGS_HW) $(CC) --hw-debug

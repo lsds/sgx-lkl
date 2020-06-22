@@ -268,8 +268,8 @@
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate01
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate03
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate04
-/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue01
-/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue02
+#/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue01
+#/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue02
 /ltp/testcases/kernel/syscalls/futex/futex_wait01
 /ltp/testcases/kernel/syscalls/futex/futex_wait02
 /ltp/testcases/kernel/syscalls/futex/futex_wait03
@@ -602,7 +602,7 @@
 /ltp/testcases/kernel/syscalls/munlockall/munlockall01
 /ltp/testcases/kernel/syscalls/munmap/munmap01
 /ltp/testcases/kernel/syscalls/munmap/munmap02
-/ltp/testcases/kernel/syscalls/munmap/munmap03
+#/ltp/testcases/kernel/syscalls/munmap/munmap03
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep01
 #/ltp/testcases/kernel/syscalls/nanosleep/nanosleep02
 /ltp/testcases/kernel/syscalls/nanosleep/nanosleep04
@@ -618,7 +618,7 @@
 #/ltp/testcases/kernel/syscalls/open/open05
 #/ltp/testcases/kernel/syscalls/open/open06
 #/ltp/testcases/kernel/syscalls/open/open07
-/ltp/testcases/kernel/syscalls/open/open08
+#/ltp/testcases/kernel/syscalls/open/open08
 #/ltp/testcases/kernel/syscalls/open/open09
 #/ltp/testcases/kernel/syscalls/open/open10
 #/ltp/testcases/kernel/syscalls/open/open11
@@ -835,7 +835,7 @@
 #/ltp/testcases/kernel/syscalls/setitimer/setitimer03
 #/ltp/testcases/kernel/syscalls/setns/setns01
 /ltp/testcases/kernel/syscalls/setns/setns02
-/ltp/testcases/kernel/syscalls/setpgid/setpgid01
+#/ltp/testcases/kernel/syscalls/setpgid/setpgid01
 #/ltp/testcases/kernel/syscalls/setpgid/setpgid02
 /ltp/testcases/kernel/syscalls/setpgid/setpgid03
 /ltp/testcases/kernel/syscalls/setpgid/setpgid03_child
@@ -866,7 +866,7 @@
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit01
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit02
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit03
-/ltp/testcases/kernel/syscalls/setrlimit/setrlimit04
+#/ltp/testcases/kernel/syscalls/setrlimit/setrlimit04
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit05
 /ltp/testcases/kernel/syscalls/setrlimit/setrlimit06
 #/ltp/testcases/kernel/syscalls/setsid/setsid01
@@ -894,7 +894,7 @@
 /ltp/testcases/kernel/syscalls/signalfd/signalfd01
 /ltp/testcases/kernel/syscalls/signalfd4/signalfd4_01
 /ltp/testcases/kernel/syscalls/signalfd4/signalfd4_02
-/ltp/testcases/kernel/syscalls/sigpending/sigpending02
+#/ltp/testcases/kernel/syscalls/sigpending/sigpending02
 #/ltp/testcases/kernel/syscalls/sigprocmask/sigprocmask01
 /ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
 /ltp/testcases/kernel/syscalls/sigsuspend/sigsuspend01

@@ -692,7 +692,7 @@ function create() {
     # Check if we can detect the host DNS server when generating /etc/resolv.conf for the image
     if [[ "$d" = 1 ]] || [[ "$tar" = 1 ]] || [[ "$a" = 1 ]]; then
         if [[ -x "$(command -v systemd-resolve)" ]]; then
-            dns_server=$(systemd-resolve --status | grep -E -o "DNS Servers: ([0-9]{1,3}[\.]){3}[0-9]{1,3}" | cut -f2- -d: | cut -f2- -d' ')
+            dns_server=$(systemd-resolve --status | grep -E -o -m1 "DNS Servers: ([0-9]{1,3}[\.]){3}[0-9]{1,3}" | cut -f2- -d: | cut -f2- -d' ')
             echo "Using detected host DNS server in /etc/resolv.conf: ${dns_server}"
             IMG_BUILDENV_RESOLV="nameserver ${dns_server}"
         fi
