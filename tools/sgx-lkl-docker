@@ -80,7 +80,7 @@ COPY --from=0 /prep /
 USER sgxlkl
 WORKDIR \${HOME}
 
-ENTRYPOINT ["/opt/sgx-lkl/lib/external/loader", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
+ENTRYPOINT ["/opt/sgx-lkl/lib/external/ld-linux-x86-64", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
     "--enclave-image=/opt/sgx-lkl/lib/libsgxlkl.so.signed",\
     "--host-config=host-cfg.json",\
     "--app-config=app-cfg.json"]

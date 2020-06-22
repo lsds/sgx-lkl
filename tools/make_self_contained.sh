@@ -17,7 +17,7 @@ set -e
 #   lib/
 #     libsgxlkl.so.signed
 #     external/
-#       loader (symlink to file below)
+#       ld-linux-x86-64 (symlink to file below)
 #       ld-linux-x86-64.so.2
 #       libdcap_quoteprov.so
 #       libcurl.so.4
@@ -46,7 +46,7 @@ SGXLKL_PREFIX=$(realpath -s $SGXLKL_PREFIX)
 
 # Absolute prefix used for the location of the loader stored in the executable.
 # If this does not match at runtime, then the executable must be launched
-# with lib/external/loader bin/sgx-lkl-run-oe ...
+# with lib/external/ld-linux-x86-64 bin/sgx-lkl-run-oe ...
 SGXLKL_TARGET_PREFIX=${SGXLKL_TARGET_PREFIX:-$SGXLKL_PREFIX}
 
 patchelf_version=0.10
@@ -127,7 +127,7 @@ interp_install_path=$SGXLKL_TARGET_PREFIX/$external_lib_dir/$interp_filename
 patchelf --set-interpreter $interp_install_path $SGXLKL_PREFIX/bin/$exe_name
 
 # Add a well-known symlink to the loader so that it can be used if needed.
-ln -sf $interp_filename $SGXLKL_PREFIX/$external_lib_dir/loader
+ln -sf $interp_filename $SGXLKL_PREFIX/$external_lib_dir/ld-linux-x86-64
 
 # Copy extra data files into Debian package tree.
 cp "${libsgx_enclave_image_paths[@]}" $SGXLKL_PREFIX/$external_lib_dir
@@ -143,6 +143,6 @@ tar cv --files-from /dev/null | sudo docker import - empty
 echo "Running Docker test 1"
 sudo docker run --rm -v $SGXLKL_PREFIX:$SGXLKL_TARGET_PREFIX empty $SGXLKL_TARGET_PREFIX/bin/$exe_name --help
 echo "Running Docker test 2"
-sudo docker run --rm -v $SGXLKL_PREFIX:/foo empty /foo/lib/external/loader /foo/bin/$exe_name --help
+sudo docker run --rm -v $SGXLKL_PREFIX:/foo empty /foo/lib/external/ld-linux-x86-64 /foo/bin/$exe_name --help
 
 echo "Successfully made installation self-contained."
