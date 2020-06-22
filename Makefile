@@ -188,7 +188,7 @@ builddirs:
 clean:
 	@rm -rf $(BUILD_LINK_NAME) ${BUILD_DIR}
 	+${MAKE} -C ${SGXLKL_LIBC_SRC_DIR} distclean || true
-	+${MAKE} -C ${LKL} clean || true
+	+${MAKE} -C ${LKL} distclean || true
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party distclean || true
@@ -202,7 +202,7 @@ distclean:
 	@rm -rf $(BUILD_LINK_NAME) ${BUILD_DIR} $(OE_SUBMODULE)/build
 	+${MAKE} -C ${HOST_MUSL} distclean || true
 	+${MAKE} -C ${SGXLKL_LIBC_SRC_DIR} distclean || true
-	+${MAKE} -C ${LKL} clean || true
+	+${MAKE} -C ${LKL} distclean || true
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party distclean || true
