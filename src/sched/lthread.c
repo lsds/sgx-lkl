@@ -61,6 +61,8 @@ static void _lthread_init(struct lthread* lt);
 static void _lthread_lock(struct lthread* lt);
 static void lthread_rundestructors(struct lthread* lt);
 
+#define TLS_ALIGN 16
+
 static int spawned_ethreads = 1;
 
 void init_ethread_tp()
@@ -432,23 +434,29 @@ int __init_utp(void *p, int set_tp)
 void *__copy_utls(struct lthread *lt, unsigned char *mem, size_t sz)
 {
 	mem += sz - sizeof(struct lthread_tcb_base);
-	mem -= (uintptr_t)mem & (libc.tls_align - 1);
+	mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
 	return (void *)mem;
 }
 
 void set_tls_tp(struct lthread* lt)
 {
+    uintptr_t tp_unaligned, tp;
     if (!lt->itls)
         return;
-
-    uintptr_t tp_unaligned =
+    // pthread_create passes thread pointer for lt->itls
+    // no need to calculate offset of tp in tls region
+    if (lt->attr.stack_size == 0)
+    {
+        tp = lt->itls;
+    }
+    else
+    {
+        tp_unaligned =
         (uintptr_t)(lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
-    struct lthread_tcb_base* tp =
-        (struct
-         lthread_tcb_base*)(tp_unaligned - (tp_unaligned & (libc.tls_align - 1)));
-
-    tp->schedctx = __scheduler_self();
-
+        tp =
+            (struct
+            lthread_tcb_base*)(tp_unaligned - (tp_unaligned & (TLS_ALIGN - 1)));
+    }
     if (!sgxlkl_in_sw_debug_mode())
     {
         __asm__ volatile("wrfsbase %0" ::"r"(tp));
@@ -623,6 +631,7 @@ int lthread_create_primitive(
     lt->itlssz = libc.tls_size; // not setting this causes problems in set_tls_tp
     LIST_INIT(&lt->tls);
     lt->attr.state = BIT(LT_ST_READY);
+    lt->attr.stack_size = 0; // lthread doesn't manage userspace thread stacks
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
 
     static unsigned long long n = 0;
@@ -696,8 +705,8 @@ int lthread_create(
     lt->attr.stack_size = stack_size;
 
     /* mmap tls image */
-    lt->itlssz = libc.tls_size;
-    if (libc.tls_size)
+    lt->itlssz = (sizeof(lthread_tcb_base) + TLS_ALIGN - 1) & -TLS_ALIGN;
+    if (lt->itlssz)
     {
         if ((intptr_t)(
                 lt->itls = (uint8_t*)enclave_mmap(
