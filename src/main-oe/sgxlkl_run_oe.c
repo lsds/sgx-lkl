@@ -618,20 +618,24 @@ void override_disk_config(const char* root_disk_path)
     sgxlkl_enclave_config_t* config = &host_state.enclave_config;
 
     /* Count disks to add */
-    config->num_disks = 1; // Root disk
     const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
-    if (hds_str[0])
+    if (config->num_disks == 0)
     {
-        config->num_disks++;
-        for (int i = 0; hds_str[i]; i++)
+        config->num_disks = 1; // Root disk
+        if (hds_str[0])
         {
-            if (hds_str[i] == ',')
-                config->num_disks++;
+            config->num_disks++;
+            for (int i = 0; hds_str[i]; i++)
+            {
+                if (hds_str[i] == ',')
+                    config->num_disks++;
+            }
         }
     }
 
-    config->disks =
-        calloc(config->num_disks, sizeof(sgxlkl_enclave_disk_config_t));
+    if (!config->disks)
+        config->disks =
+            calloc(config->num_disks, sizeof(sgxlkl_enclave_disk_config_t));
     if (!config->disks)
         sgxlkl_host_fail("out of memory\n");
 
@@ -649,23 +653,26 @@ void override_disk_config(const char* root_disk_path)
         sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
 
     /* Secondary disks */
-    char* tmp = strdup(hds_str);
-    for (size_t i = 1; i < config->num_disks && *tmp; i++)
+    if (hds_str)
     {
-        char* hd_path = tmp;
-        char* hd_mnt = strchrnul(hd_path, ':');
-        *hd_mnt = '\0';
-        hd_mnt++;
-        char* hd_mnt_end = strchrnul(hd_mnt, ':');
-        *hd_mnt_end = '\0';
-        int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
+        char* tmp = strdup(hds_str);
+        for (size_t i = 1; i < config->num_disks && *tmp; i++)
+        {
+            char* hd_path = tmp;
+            char* hd_mnt = strchrnul(hd_path, ':');
+            *hd_mnt = '\0';
+            hd_mnt++;
+            char* hd_mnt_end = strchrnul(hd_mnt, ':');
+            *hd_mnt_end = '\0';
+            int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
 
-        strcpy(config->disks[i].mnt, hd_mnt);
-        config->disks[i].readonly = hd_ro;
+            strcpy(config->disks[i].mnt, hd_mnt);
+            config->disks[i].readonly = hd_ro;
 
-        tmp = strchrnul(hd_mnt_end + 1, ',');
-        while (*tmp == ' ' || *tmp == ',')
-            tmp++;
+            tmp = strchrnul(hd_mnt_end + 1, ',');
+            while (*tmp == ' ' || *tmp == ',')
+                tmp++;
+        }
     }
 }
 
