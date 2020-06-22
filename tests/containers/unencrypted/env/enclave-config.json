@@ -1,15 +1,15 @@
 {
-    "run": "/usr/bin/python3",
     "args": [
+      "/usr/bin/python3",
       "-c",
       "import os; assert os.environ['FOO'] == '42'"
     ],
-    "environment": {
-      "FOO": "42"
-    },
-    "disk_config": [
+    "envp": [ 
+      "FOO=42"
+    ],
+    "disks": [
       {
-        "disk": "/",
+        "mnt": "/",
         "readonly": false
       }
     ]
