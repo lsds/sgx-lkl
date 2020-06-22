@@ -15,6 +15,11 @@ bool sgxlkl_in_sw_debug_mode()
     return sgxlkl_enclave_state.config->mode == SW_DEBUG_MODE;
 }
 
+bool sgxlkl_in_hw_debug_mode()
+{
+    return sgxlkl_enclave_state.config->mode == HW_DEBUG_MODE;
+}
+
 bool sgxlkl_in_hw_release_mode()
 {
     return sgxlkl_enclave_state.config->mode == HW_RELEASE_MODE;
