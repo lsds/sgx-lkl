@@ -12,6 +12,9 @@
 
 #include "shared/bitops.h"
 
+#include <enclave/lthread.h>
+
+#include "enclave/lthread_int.h"
 #include "enclave/enclave_mem.h"
 #include "enclave/enclave_util.h"
 #include "enclave/ticketlock.h"
@@ -164,6 +167,21 @@ void* syscall_SYS_mremap(
 
 int syscall_SYS_munmap(void* addr, size_t length)
 {
+    // During thread teardown, libc unmaps the stack of the current thread
+    // before doing an exit system call.  This works on a conventional system
+    // because it's possible to do an exit system call without a stack.  With
+    // LKL, the kernel and userspace share a stack and so any system call needs
+    // a stack.  We work around this by deferring any attempt to unmap the
+    // current stack.
+    register void *rsp __asm__ ("rsp");
+    if ((rsp > addr) && ((char*)rsp < ((char*)addr + length)))
+    {
+        struct lthread *lt = lthread_self();
+        SGXLKL_ASSERT(lt->attr.stack == NULL);
+        lt->attr.stack = addr;
+        lt->attr.stack_size = length;
+        return 0;
+    }
     enclave_munmap(addr, length);
     return 0;
 }
