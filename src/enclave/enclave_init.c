@@ -190,7 +190,9 @@ static int startmain(void* args)
 
     init_wireguard();
     find_and_mount_disks();
-    get_attestation_evidence();
+
+    if (false)
+        get_attestation_evidence();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
