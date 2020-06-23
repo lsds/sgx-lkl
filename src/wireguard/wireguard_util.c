@@ -220,10 +220,10 @@ int wgu_add_peers(wg_device *dev, enclave_wg_peer_config_t *peers, size_t num_pe
             sgxlkl_warn("Unable to add wireguard peer due to missing allowed ips configuration.\n");
             continue;
         }
-        if (!peers[i].endpoint || !strlen(peers[i].endpoint)) {
+        /*if (!peers[i].endpoint || !strlen(peers[i].endpoint)) {
             sgxlkl_warn("Unable to add wireguard peer due to missing endpoint.\n");
             continue;
-        }
+        }*/
 
         memset(&new_peers[i], 0, sizeof(new_peers[i]));
         new_peers[i].flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS;
@@ -238,7 +238,7 @@ int wgu_add_peers(wg_device *dev, enclave_wg_peer_config_t *peers, size_t num_pe
             goto err;
         }
 
-        if (!wgu_parse_endpoint(&new_peers[i].endpoint.addr, peer_cfg.endpoint)) {
+	if (peers[i].endpoint && strlen(peers[i].endpoint) && !wgu_parse_endpoint(&new_peers[i].endpoint.addr, peer_cfg.endpoint)) {
             ret = -EINVAL;
             goto err;
         }

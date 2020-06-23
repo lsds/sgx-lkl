@@ -441,9 +441,9 @@ int main(int argc, char**argv) {
         if (!peer_key) {
             fprintf(stderr, "No peer key specified via --key.\n");
             usage(argv[0], EXIT_FAILURE);
-        } else if (!peer_endpoint) {
+        /*} else if (!peer_endpoint) {
             fprintf(stderr, "No peer endpoint specified via --endpoint.\n");
-            usage(argv[0], EXIT_FAILURE);
+            usage(argv[0], EXIT_FAILURE);*/
         } else if (!peer_allowedips) {
             fprintf(stderr, "No allowed IPs specified for peer via --allowedips.\n");
             usage(argv[0], EXIT_FAILURE);
