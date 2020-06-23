@@ -70,7 +70,10 @@ def pre_type(jtype):
     return jtype
 
 def need_size_var(jtype):
-  return 'type' in jtype and jtype['type'] == 'array' and 'maxLength' not in jtype
+  if 'type' not in jtype:
+    return False
+  jtt = jtype['type']
+  return (jtt == 'array' and 'maxLength' not in jtype) or (isinstance(jtt, list) and 'array' in jtt and 'null' in jtt)
 
 num_settings = 0
 
