@@ -337,13 +337,13 @@ static void lkl_mount_overlayfs(
 typedef struct
 {
     bool create;
-    char destination[256];
+    const char* destination;
     size_t key_len;
     uint8_t* key;
-    char* key_id;
+    const char* key_id;
     bool fresh_key;
     bool readonly;
-    char* roothash;
+    const char* roothash;
     size_t roothash_offset;
     size_t size;
     bool overlay;
@@ -929,45 +929,41 @@ void lkl_mount_disks(
 
     lkl_add_disks(root, mounts, num_mounts);
 
-    if (!root)
-        sgxlkl_fail("No root disk (mount point '/') provided.\n");
-
     lkl_mount_root_disk(root, 0);
 
-    for (size_t i = 0; i < num_mounts; ++i)
+    for (size_t mnt_inx = 0; mnt_inx < num_mounts; mnt_inx++)
     {
-        if (strcmp(mounts[i].destination, "/") == 0)
-            continue;
+        size_t dsk_inx = mnt_inx + 1;
+
+        if (strcmp(mounts[mnt_inx].destination, "/") == 0)
+            sgxlkl_fail("Bug: root disk should not be in mounts list.\n");
 
         // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
         // support for more than 26 disks.
-        if ('a' + i > 'z')
+        if ('a' + dsk_inx > 'z')
         {
             sgxlkl_warn(
                 "Too many disks (maximum is 26). Failed to mount disk %d at "
                 "%s.\n",
-                i,
-                mounts[i].destination);
+                dsk_inx,
+                mounts[mnt_inx].destination);
             // Adjust number to number of mounted disks.
-            num_mounts = 26;
+            num_mounts = 25;
             return;
         }
-        disk_config_t cfg = {.create = mounts[i].create,
-                             .destination = "",
-                             .key_len = mounts[i].key_len,
-                             .key = mounts[i].key,
-                             .key_id = mounts[i].key_id,
-                             .fresh_key = mounts[i].fresh_key,
-                             .readonly = mounts[i].readonly,
-                             .roothash = mounts[i].roothash,
-                             .roothash_offset = mounts[i].roothash_offset,
-                             .size = mounts[i].size,
+        disk_config_t cfg = {.create = mounts[mnt_inx].create,
+                             .destination = mounts[mnt_inx].destination,
+                             .key_len = mounts[mnt_inx].key_len,
+                             .key = mounts[mnt_inx].key,
+                             .key_id = mounts[mnt_inx].key_id,
+                             .fresh_key = mounts[mnt_inx].fresh_key,
+                             .readonly = mounts[mnt_inx].readonly,
+                             .roothash = mounts[mnt_inx].roothash,
+                             .roothash_offset = mounts[mnt_inx].roothash_offset,
+                             .size = mounts[mnt_inx].size,
                              .overlay = false};
-        memcpy(
-            cfg.destination,
-            mounts[i].destination,
-            sizeof(mounts[i].destination));
-        lkl_mount_disk(&cfg, 'a' + i, mounts[i].destination, i);
+        lkl_mount_disk(
+            &cfg, 'a' + dsk_inx, cfg.destination, dsk_inx);
     }
 
     if (cwd)
