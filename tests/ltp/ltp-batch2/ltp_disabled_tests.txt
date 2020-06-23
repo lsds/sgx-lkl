@@ -800,7 +800,7 @@
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile08
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile09
 #/ltp/testcases/kernel/syscalls/sendmmsg/sendmmsg01
-/ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
+#/ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
 /ltp/testcases/kernel/syscalls/sendmsg/sendmsg02
 #/ltp/testcases/kernel/syscalls/sendto/sendto01
 /ltp/testcases/kernel/syscalls/sendto/sendto02
