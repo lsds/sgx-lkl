@@ -7,24 +7,48 @@
   "additionalProperties": false,
   "definitions": {
     "safe_uint8_t": {
-      "type": "string",
+      "type": [
+        "string",
+        "number"
+      ],
       "pattern": "^0$|^[1-9][0-9]*$",
-      "maxLength": 3
+      "maxLength": 3,
+      "minimum": 0,
+      "maximum": 255,
+      "multipleOf": 1.0
     },
     "safe_uint32_t": {
-      "type": "string",
+      "type": [
+        "string",
+        "number"
+      ],
       "pattern": "^0$|^[1-9][0-9]*$",
-      "maxLength": 10
+      "maxLength": 10,
+      "minimum": 0,
+      "maximum": 4294967296,
+      "multipleOf": 1.0
     },
     "safe_uint64_t": {
-      "type": "string",
+      "type": [
+        "string",
+        "number"
+      ],
       "pattern": "^0$|^[1-9][0-9]*$",
-      "maxLength": 20
+      "maxLength": 20,
+      "minimum": 0,
+      "maximum": 9007199254740992,
+      "multipleOf": 1.0
     },
     "safe_size_t": {
-      "type": "string",
+      "type": [
+        "string",
+        "number"
+      ],
       "pattern": "^0$|^[1-9][0-9]*$",
-      "maxLength": 20
+      "maxLength": 20,
+      "minimum": 0,
+      "maximum": 9007199254740992,
+      "multipleOf": 1.0
     },
     "sgxlkl_enclave_mode_t": {
       "enum": [
