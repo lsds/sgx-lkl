@@ -94,10 +94,11 @@ def generate_header(schema_file_name, root, args):
     for typename, typedef in root['definitions'].items():
       if (typename.startswith('sgxlkl_')):
         if 'enum' in typedef:
+          names = typedef['c_enum'] if 'c_enum' in typedef else typedef['enum']
           header.write('typedef enum\n{\n')
           i = 0
-          num_vals = len(typedef['enum'])
-          for value in typedef['enum']:
+          num_vals = len(names)
+          for value in names:
             header.write('    %s = %d' % (value.upper(), i))
             if i < num_vals - 1: header.write(',')
             if 'description' in typedef:
@@ -105,6 +106,10 @@ def generate_header(schema_file_name, root, args):
             header.write('\n')
             i += 1
           header.write('} %s;\n\n' % typename)
+
+          if 'c_enum' in typedef:
+            header.write('const char* %s_to_string(%s e);\n' % (typename, typename))
+            header.write('%s string_to_%s(const char *e);\n\n' % (typename, typename))
         else:
           header.write('typedef struct %s\n{\n' % (typename[:-2]))
           for name, jtype in typedef['properties'].items():
@@ -135,12 +140,56 @@ def generate_header(schema_file_name, root, args):
 
     header.write('#endif /* SGXLKL_ENCLAVE_CONFIG_H */');
 
+source_includes = """
+#ifdef SGXLKL_ENCLAVE
+#include <enclave/enclave_util.h>
+#include <enclave/oe_compat.h>
+#define FAIL sgxlkl_fail
+#else
+#include <host/sgxlkl_util.h>
+#include <string.h>
+#define FAIL sgxlkl_host_fail
+#endif
+"""
+
 def generate_source(schema_file_name, root, args):
   with open(str(args.source), "w") as source:
-    source.write('\n/* Automatically generated from %s; do not modify. */\n\n' % schema_file_name);
+    source.write('/* Automatically generated from %s; do not modify. */\n' % schema_file_name);
+
+    source.write(source_includes)
+    source.write('\n')
 
     source.write('#include "%s"\n\n' % args.header);
 
+    # enum conversions
+    for typename, typedef in root['definitions'].items():
+      if 'enum' in typedef:
+        print(typedef)
+        if 'c_enum' in typedef:
+          names = typedef['enum']
+          c_names = typedef['c_enum']
+          if len(names) != len(c_names):
+            raise Exception("ERROR: length of c_enum does not match enum in %s" % typename)
+          source.write('const char* %s_to_string(%s e)\n{\n' % (typename, typename))
+          source.write('  switch(e) {\n')
+          for i in range(len(names)):
+            name = names[i]
+            c_name = c_names[i]
+            source.write('    case %s: return "%s";\n' % (c_name, name))
+          source.write('    default: return ""; /* Unreachable */\n')
+          source.write('  }\n')
+          source.write('}\n\n')
+          source.write('%s string_to_%s(const char *e)\n{\n' % (typename, typename))
+          for i in range(len(names)):
+            name = names[i]
+            c_name = c_names[i]
+            source.write('  if (strcmp(e, "%s") == 0) return %s;\n' % (name, c_name))
+          source.write('  FAIL("unknown enum value \'%s\'\\n", e);\n')
+          source.write('  return %s;\n\n' % (c_names[0]))
+          source.write('}\n\n')
+
+
+    # default config
     source.write('const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {\n')
     scope = []
     def initialize(scope, elem):

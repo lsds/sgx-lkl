@@ -451,24 +451,10 @@ void serialize_enclave_config(
     size_t cnt = 0;
     root->objects[cnt++] =
         mk_json_u64("format_version", SGXLKL_ENCLAVE_CONFIG_VERSION);
-    FPFSS(
-        mode,
-        config->mode == SW_DEBUG_MODE
-            ? "SW_DEBUG_MODE"
-            : config->mode == HW_DEBUG_MODE
-                  ? "HW_DEBUG_MODE"
-                  : config->mode == HW_RELEASE_MODE ? "HW_RELEASE_MODE"
-                                                    : "UNKNOWN_MODE");
+    FPFSS(mode, sgxlkl_enclave_mode_t_to_string(config->mode));
     FPFU64(stacksize);
     FPFSS(
-        mmap_files,
-        config->mmap_files == ENCLAVE_MMAP_FILES_NONE
-            ? "ENCLAVE_MMAP_FILES_NONE"
-            : config->mmap_files == ENCLAVE_MMAP_FILES_SHARED
-                  ? "ENCLAVE_MMAP_FILES_SHARED"
-                  : config->mmap_files == ENCLAVE_MMAP_FILES_PRIVATE
-                        ? "ENCLAVE_MMAP_FILES_PRIVATE"
-                        : "unknown");
+        mmap_files, sgxlkl_enclave_mmap_files_t_to_string(config->mmap_files));
     FPFU64(oe_heap_pagecount);
 
     FPFS(net_ip4);
@@ -506,14 +492,8 @@ void serialize_enclave_config(
     root->objects[cnt++] =
         mk_json_disks("disks", config->disks, config->num_disks);
 
-    root->objects[cnt++] = mk_json_string(
-        "exit_status",
-        config->exit_status == EXIT_STATUS_FULL
-            ? "EXIT_STATUS_FULL"
-            : config->exit_status == EXIT_STATUS_BINARY
-                  ? "EXIT_STATUS_BINARY"
-                  : config->exit_status == EXIT_STATUS_NONE ? "EXIT_STATUS_NONE"
-                                                            : "unknown");
+    FPFSS(
+        exit_status, sgxlkl_exit_status_mode_t_to_string(config->exit_status));
 
     root->objects[cnt++] =
         mk_json_image_sizes("image_sizes", &config->image_sizes);

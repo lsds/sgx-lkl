@@ -30,6 +30,12 @@
     },
     "sgxlkl_enclave_mode_t": {
       "enum": [
+        "unknown",
+        "sw_debug",
+        "hw_debug",
+        "hw_release"
+      ],
+      "c_enum": [
         "UNKNOWN_MODE",
         "SW_DEBUG_MODE",
         "HW_DEBUG_MODE",
@@ -38,6 +44,11 @@
     },
     "sgxlkl_enclave_mmap_files_t": {
       "enum": [
+        "none",
+        "private",
+        "shared"
+      ],
+      "c_enum": [
         "ENCLAVE_MMAP_FILES_NONE",
         "ENCLAVE_MMAP_FILES_PRIVATE",
         "ENCLAVE_MMAP_FILES_SHARED"
@@ -45,6 +56,11 @@
     },
     "sgxlkl_exit_status_mode_t": {
       "enum": [
+        "full",
+        "binary",
+        "none"
+      ],
+      "c_enum": [
         "EXIT_STATUS_FULL",
         "EXIT_STATUS_BINARY",
         "EXIT_STATUS_NONE"

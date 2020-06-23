@@ -18,6 +18,9 @@ typedef enum
     HW_RELEASE_MODE = 3
 } sgxlkl_enclave_mode_t;
 
+const char* sgxlkl_enclave_mode_t_to_string(sgxlkl_enclave_mode_t e);
+sgxlkl_enclave_mode_t string_to_sgxlkl_enclave_mode_t(const char *e);
+
 typedef enum
 {
     ENCLAVE_MMAP_FILES_NONE = 0,
@@ -25,12 +28,18 @@ typedef enum
     ENCLAVE_MMAP_FILES_SHARED = 2
 } sgxlkl_enclave_mmap_files_t;
 
+const char* sgxlkl_enclave_mmap_files_t_to_string(sgxlkl_enclave_mmap_files_t e);
+sgxlkl_enclave_mmap_files_t string_to_sgxlkl_enclave_mmap_files_t(const char *e);
+
 typedef enum
 {
     EXIT_STATUS_FULL = 0,
     EXIT_STATUS_BINARY = 1,
     EXIT_STATUS_NONE = 2
 } sgxlkl_exit_status_mode_t;
+
+const char* sgxlkl_exit_status_mode_t_to_string(sgxlkl_exit_status_mode_t e);
+sgxlkl_exit_status_mode_t string_to_sgxlkl_exit_status_mode_t(const char *e);
 
 typedef struct sgxlkl_clock_res_config
 {

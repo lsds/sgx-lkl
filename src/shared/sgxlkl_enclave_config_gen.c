@@ -1,7 +1,78 @@
-
 /* Automatically generated from ../../tools/schemas/enclave-config.schema.json; do not modify. */
 
+#ifdef SGXLKL_ENCLAVE
+#include <enclave/enclave_util.h>
+#include <enclave/oe_compat.h>
+#define FAIL sgxlkl_fail
+#else
+#include <host/sgxlkl_util.h>
+#include <string.h>
+#define FAIL sgxlkl_host_fail
+#endif
+
 #include "shared/sgxlkl_enclave_config_gen.h"
+
+const char* sgxlkl_enclave_mode_t_to_string(sgxlkl_enclave_mode_t e)
+{
+  switch(e) {
+    case UNKNOWN_MODE: return "unknown";
+    case SW_DEBUG_MODE: return "sw_debug";
+    case HW_DEBUG_MODE: return "hw_debug";
+    case HW_RELEASE_MODE: return "hw_release";
+    default: return ""; /* Unreachable */
+  }
+}
+
+sgxlkl_enclave_mode_t string_to_sgxlkl_enclave_mode_t(const char *e)
+{
+  if (strcmp(e, "unknown") == 0) return UNKNOWN_MODE;
+  if (strcmp(e, "sw_debug") == 0) return SW_DEBUG_MODE;
+  if (strcmp(e, "hw_debug") == 0) return HW_DEBUG_MODE;
+  if (strcmp(e, "hw_release") == 0) return HW_RELEASE_MODE;
+  FAIL("unknown enum value '%s'\n", e);
+  return UNKNOWN_MODE;
+
+}
+
+const char* sgxlkl_enclave_mmap_files_t_to_string(sgxlkl_enclave_mmap_files_t e)
+{
+  switch(e) {
+    case ENCLAVE_MMAP_FILES_NONE: return "none";
+    case ENCLAVE_MMAP_FILES_PRIVATE: return "private";
+    case ENCLAVE_MMAP_FILES_SHARED: return "shared";
+    default: return ""; /* Unreachable */
+  }
+}
+
+sgxlkl_enclave_mmap_files_t string_to_sgxlkl_enclave_mmap_files_t(const char *e)
+{
+  if (strcmp(e, "none") == 0) return ENCLAVE_MMAP_FILES_NONE;
+  if (strcmp(e, "private") == 0) return ENCLAVE_MMAP_FILES_PRIVATE;
+  if (strcmp(e, "shared") == 0) return ENCLAVE_MMAP_FILES_SHARED;
+  FAIL("unknown enum value '%s'\n", e);
+  return ENCLAVE_MMAP_FILES_NONE;
+
+}
+
+const char* sgxlkl_exit_status_mode_t_to_string(sgxlkl_exit_status_mode_t e)
+{
+  switch(e) {
+    case EXIT_STATUS_FULL: return "full";
+    case EXIT_STATUS_BINARY: return "binary";
+    case EXIT_STATUS_NONE: return "none";
+    default: return ""; /* Unreachable */
+  }
+}
+
+sgxlkl_exit_status_mode_t string_to_sgxlkl_exit_status_mode_t(const char *e)
+{
+  if (strcmp(e, "full") == 0) return EXIT_STATUS_FULL;
+  if (strcmp(e, "binary") == 0) return EXIT_STATUS_BINARY;
+  if (strcmp(e, "none") == 0) return EXIT_STATUS_NONE;
+  FAIL("unknown enum value '%s'\n", e);
+  return EXIT_STATUS_FULL;
+
+}
 
 const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .net_ip4="10.0.1.1",

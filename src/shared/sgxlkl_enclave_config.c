@@ -198,44 +198,6 @@ static json_result_t decode_uint32_t(
     if (decode_uint32_t(parser, type, un, P, &(D)) == JSON_OK) \
         return JSON_OK;
 
-void parse_mode(sgxlkl_enclave_mode_t* dest, const char* value)
-{
-    if (strcmp(value, "UNKNOWN_MODE") == 0)
-        *dest = UNKNOWN_MODE;
-    else if (strcmp(value, "SW_DEBUG_MODE") == 0)
-        *dest = SW_DEBUG_MODE;
-    else if (strcmp(value, "HW_DEBUG_MODE") == 0)
-        *dest = HW_DEBUG_MODE;
-    else if (strcmp(value, "HW_RELEASE_MODE") == 0)
-        *dest = HW_RELEASE_MODE;
-    else
-        FAIL("Invalid mode value: %s\n", value);
-}
-
-void parse_exit_status(sgxlkl_exit_status_mode_t* dest, const char* value)
-{
-    if (strcmp(value, "EXIT_STATUS_FULL") == 0)
-        *dest = EXIT_STATUS_FULL;
-    else if (strcmp(value, "EXIT_STATUS_BINARY") == 0)
-        *dest = EXIT_STATUS_BINARY;
-    else if (strcmp(value, "EXIT_STATUS_NONE") == 0)
-        *dest = EXIT_STATUS_NONE;
-    else
-        FAIL("Invalid exit_status value: %s\n", value);
-}
-
-void parse_mmap_files(sgxlkl_enclave_mmap_files_t* dest, const char* value)
-{
-    if (strcmp(value, "ENCLAVE_MMAP_FILES_SHARED") == 0)
-        *dest = ENCLAVE_MMAP_FILES_SHARED;
-    else if (strcmp(value, "ENCLAVE_MMAP_FILES_PRIVATE") == 0)
-        *dest = ENCLAVE_MMAP_FILES_PRIVATE;
-    else if (strcmp(value, "ENCLAVE_MMAP_FILES_NONE") == 0)
-        *dest = ENCLAVE_MMAP_FILES_NONE;
-    else
-        FAIL("Invalid mmap_files value: %s\n", value);
-}
-
 #define ALLOC_ARRAY(N, A, T)                              \
     do                                                    \
     {                                                     \
@@ -318,7 +280,8 @@ static json_result_t json_read_callback(
 
             JU64("stacksize", cfg->stacksize);
             JPATHT("mmap_files", JSON_TYPE_STRING, {
-                parse_mmap_files(&cfg->mmap_files, un->string);
+                cfg->mmap_files =
+                    string_to_sgxlkl_enclave_mmap_files_t(un->string);
             });
             JU64("oe_heap_pagecount", cfg->oe_heap_pagecount);
             JSTRING("net_ip4", cfg->net_ip4);
@@ -354,7 +317,7 @@ static json_result_t json_read_callback(
             });
 
             JPATHT("mode", JSON_TYPE_STRING, {
-                parse_mode(&cfg->mode, un->string);
+                cfg->mode = string_to_sgxlkl_enclave_mode_t(un->string);
             });
             JBOOL("fsgsbase", cfg->fsgsbase);
             JBOOL("verbose", cfg->verbose);
@@ -377,7 +340,8 @@ static json_result_t json_read_callback(
             });
 
             JPATHT("exit_status", JSON_TYPE_STRING, {
-                parse_exit_status(&cfg->exit_status, un->string);
+                cfg->exit_status =
+                    string_to_sgxlkl_exit_status_mode_t(un->string);
             });
 
 #define DISK() (&(cfg->disks[parser->path[parser->depth - 2].index]))
