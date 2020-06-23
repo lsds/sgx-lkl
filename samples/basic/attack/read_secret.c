@@ -14,7 +14,6 @@ int main(int argc, char** argv)
     {
         fprintf(
             stderr, "Could not open file %s: %s\n", HW_FILE, strerror(errno));
-        fprintf(stderr, "TEST_FAILED");
         exit(1);
     }
 
@@ -28,6 +27,9 @@ int main(int argc, char** argv)
         exit(1);
     }
     printf("Ready to be attacked...\n");
-    sleep(30);
+    
+    printf("Press any key to exit\n");
+    getchar();
+    
     return 0;
 }

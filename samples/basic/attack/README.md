@@ -8,8 +8,9 @@ in regular Docker but are protected in hardware enclaves.
 Build the Docker image and run the `read_secret` program in the container:
 ```sh
 docker build -t attackme .
-docker run --rm attackme /read_secret
+docker run --rm -it attackme /read_secret
 # Ready to be attacked...
+# Press any key to exit
 ```
 
 In a separate terminal, run:
@@ -30,6 +31,8 @@ Build the SGX-LKL rootfs disk image and run the `read_secret` program inside an 
 ```sh
 sgx-lkl-disk create --docker=attackme --size 5M --encrypt --key-file rootfs.img
 SGXLKL_HD_KEY=rootfs.img.key sgx-lkl-run-oe --hw-debug rootfs.img /read_secret
+# Ready to be attacked...
+# Press any key to exit
 ```
 
 In a separate terminal, run:
