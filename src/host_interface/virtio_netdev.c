@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 
 /* We always have 2 queues on a netdev: one for tx, one for rx. */
 #define RX_QUEUE_IDX 0
@@ -517,7 +518,21 @@ int netdev_init(sgxlkl_config_t* config)
 {
     void* netdev_vq_mem = NULL;
     struct virtio_net_dev* net_dev = NULL;
-    char mac[6] = {0xCA, 0xFE, 0x00, 0x00, 0x00, 0x01};
+    char mac[6];
+    // Generate a completely random MAC address
+    size_t b = 0;
+    while (b < sizeof(mac)) {
+        ssize_t ret = getrandom(&mac[b], sizeof(mac) - b, GRND_RANDOM);
+        if (ret < 0) {
+            sgxlkl_host_fail("%s: get random MAC address failed: %s\n", __func__, strerror(errno));
+            return -1;
+        }
+        b += ret;
+    }
+    // Set the locally administered bit:
+    mac[0] |= 2;
+    // Clear the multicast bit (give a unicast MAC address)
+    mac[0] &= 0xfe;
 
     size_t host_netdev_size = next_pow2(sizeof(struct virtio_net_dev));
     size_t netdev_vq_size = NUM_QUEUES * sizeof(struct virtq);
