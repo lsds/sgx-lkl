@@ -227,15 +227,14 @@ static void virtio_net_fd_net_poll_hup(uint8_t netdev_id)
     close(nd_fd->pipe[1]);
 }
 
-// FIXME not called from anywhere
 /*
  * Function to close the net device
  */
-//static void virtio_net_fd_net_free(uint8_t netdev_id)
-//{
-//    struct netdev_fd* nd_fd = get_netdev_fd_instance(netdev_id);
-//    close(nd_fd->fd);
-//}
+static void virtio_net_fd_net_free(uint8_t netdev_id)
+{
+    struct netdev_fd* nd_fd = get_netdev_fd_instance(netdev_id);
+    close(nd_fd->fd);
+}
 
 /*
  * Function to perform tx operation
@@ -653,5 +652,6 @@ void net_dev_remove(uint8_t netdev_id)
 {
     struct virtio_net_dev* net_dev = get_virtio_netdev_instance(netdev_id);
     virtio_net_fd_net_poll_hup(netdev_id);
+    virtio_net_fd_net_free(netdev_id);
     pthread_join(net_dev->poll_tid, NULL);
 }
