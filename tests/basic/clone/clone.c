@@ -10,9 +10,10 @@
 #include <sched.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <sys/mman.h>
 
-static char child_stack[8192];
-static char *child_stack_end = child_stack + 8192;
+static char *child_stack;
+static char *child_stack_end;
 static char child_tls[4069];
 static char child_tls1[4069];
 static char child_tls2[4069];
@@ -59,6 +60,9 @@ int newthr(void *arg)
 	fprintf(stderr, "New thread created.\n");
 	fprintf(stderr, "Arg: %p.\n", arg);
 	fprintf(stderr, "Stack: %p.\n", &x);
+	// This would normally crash, but SGX_LKL defers unmapping the child stack
+	// until the thread exits.
+	munmap(child_stack, child_stack_end - child_stack);
 	return 0;
 }
 
@@ -104,6 +108,9 @@ int main(int argc, char** argv)
 
 	pid_t ptid;
 	pid_t ctid = 0;
+	child_stack = mmap(0, 8192, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	child_stack_end = child_stack + 8192;
+	assert(child_stack != MAP_FAILED, "Failed to map child stack");
 	fprintf(stderr, "Clone syscall number: %d\n", SYS_clone);
 	fprintf(stderr, "lkl_syscall: %p\n", lkl_syscall);
 	fprintf(stderr, "fn: %p \n", newthr);
