@@ -383,7 +383,6 @@ static json_result_t json_read_callback(
             sgxlkl_image_sizes_config_t* sizes = &cfg->image_sizes;
             JU64("image_sizes.num_heap_pages", sizes->num_heap_pages);
             JU64("image_sizes.num_stack_pages", sizes->num_stack_pages);
-            JU64("image_sizes.num_tcs", sizes->num_tcs);
 
             // Else element is unknown. We ignore this to allow newer
             // launchers to support options that older enclave images
@@ -434,7 +433,7 @@ int sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 448,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from || !to)

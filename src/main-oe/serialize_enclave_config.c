@@ -245,13 +245,12 @@ static json_obj_t* mk_json_image_sizes(
     const sgxlkl_image_sizes_config_t* sizes)
 {
     _Static_assert(
-        sizeof(sgxlkl_image_sizes_config_t) == 24,
+        sizeof(sgxlkl_image_sizes_config_t) == 16,
         "sgxlkl_image_sizes_config_t size has changed");
 
-    json_obj_t* r = mk_json_objects(key, 3);
+    json_obj_t* r = mk_json_objects(key, 2);
     r->objects[0] = mk_json_u64("num_heap_pages", sizes->num_heap_pages);
     r->objects[1] = mk_json_u64("num_stack_pages", sizes->num_stack_pages);
-    r->objects[2] = mk_json_u64("num_tcs", sizes->num_tcs);
     return r;
 }
 
@@ -436,7 +435,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 448,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)

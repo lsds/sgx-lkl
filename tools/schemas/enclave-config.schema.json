@@ -239,11 +239,6 @@
           "$ref": "#/definitions/safe_uint64_t",
           "description": "Number of stack pages of the enclave.",
           "default": "1024"
-        },
-        "num_tcs": {
-          "$ref": "#/definitions/safe_uint64_t",
-          "description": "Number of thread control structures for the enclave.",
-          "default": "8"
         }
       }
     },

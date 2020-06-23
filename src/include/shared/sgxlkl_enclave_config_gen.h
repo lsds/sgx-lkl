@@ -81,7 +81,6 @@ typedef struct sgxlkl_image_sizes_config
 {
     uint64_t num_heap_pages;
     uint64_t num_stack_pages;
-    uint64_t num_tcs;
 } sgxlkl_image_sizes_config_t;
 
 typedef struct sgxlkl_enclave_config
@@ -133,6 +132,6 @@ typedef struct {
     char* override_var;
 } sgxlkl_enclave_setting_t;
 
-extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[45];
+extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[44];
 
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

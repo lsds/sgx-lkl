@@ -1404,7 +1404,7 @@ void _create_enclave(
     oe_enclave_size_settings_t oe_sizes = {
         .num_heap_pages = econf->image_sizes.num_heap_pages,
         .num_stack_pages = econf->image_sizes.num_stack_pages,
-        .num_tcs = econf->image_sizes.num_tcs,
+        .num_tcs = econf->ethreads,
     };
 
     eeid->size_settings = oe_sizes;
@@ -1761,7 +1761,7 @@ int main(int argc, char* argv[], char* envp[])
         econf->kernel_cmd);
 
     set_clock_res();
-    host_state.shared_memory.envp = envp;
+    host_state.shared_memory.env = envp;
     set_tls();
     register_hds(root_hd);
     register_net();

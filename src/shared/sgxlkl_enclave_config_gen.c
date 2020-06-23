@@ -113,12 +113,11 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .image_sizes = {
         .num_heap_pages=262144,
         .num_stack_pages=1024,
-        .num_tcs=8,
     },
 };
 
 // clang-format off
-const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[45] = {
+const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[44] = {
     {"net_ip4", "char*", "IPv4 address to assign to LKL.", "10.0.1.1", "SGXLKL_IP4"},
     {"net_gw4", "char*", "IPv4 gateway to assign to LKL.", "10.0.1.254", "SGXLKL_GW4"},
     {"net_mask4", "char*", "CIDR mask for LKL to use.", "24", "SGXLKL_MASK4"},
@@ -161,6 +160,5 @@ const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[45] = {
     {"disks.overlay", "bool", "Set to 1 to create an in-memory writable overlay for a read-only root file system.", "false", "SGXLKL_HD_OVERLAY"},
     {"image_sizes.num_heap_pages", "uint64_t", "Number of heap pages of the enclave.", "262144", NULL},
     {"image_sizes.num_stack_pages", "uint64_t", "Number of stack pages of the enclave.", "1024", NULL},
-    {"image_sizes.num_tcs", "uint64_t", "Number of thread control structures for the enclave.", "8", NULL},
 };
 // clang-format on
