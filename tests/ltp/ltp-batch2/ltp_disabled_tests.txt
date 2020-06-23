@@ -824,7 +824,7 @@
 #/ltp/testcases/kernel/syscalls/setfsuid/setfsuid03
 #/ltp/testcases/kernel/syscalls/setfsuid/setfsuid04
 #/ltp/testcases/kernel/syscalls/setgid/setgid01
-/ltp/testcases/kernel/syscalls/setgid/setgid02
+#/ltp/testcases/kernel/syscalls/setgid/setgid02
 #/ltp/testcases/kernel/syscalls/setgid/setgid03
 #/ltp/testcases/kernel/syscalls/setgroups/setgroups01
 #/ltp/testcases/kernel/syscalls/setgroups/setgroups02
