@@ -109,7 +109,16 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .auxv=NULL,
     .num_host_import_env=0,
     .host_import_env=NULL,
-    .disks=NULL,
+    .root = {
+        .key_len=0,
+        .key=NULL,
+        .key_id=NULL,
+        .roothash=NULL,
+        .roothash_offset=0,
+        .readonly=false,
+        .overlay=false,
+    },
+    .mounts=NULL,
     .image_sizes = {
         .num_heap_pages=262144,
         .num_stack_pages=1024,
@@ -117,7 +126,7 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
 };
 
 // clang-format off
-const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[44] = {
+const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[49] = {
     {"net_ip4", "char*", "IPv4 address to assign to LKL.", "10.0.1.1", "SGXLKL_IP4"},
     {"net_gw4", "char*", "IPv4 gateway to assign to LKL.", "10.0.1.254", "SGXLKL_GW4"},
     {"net_mask4", "char*", "CIDR mask for LKL to use.", "24", "SGXLKL_MASK4"},
@@ -148,16 +157,21 @@ const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[44] = {
     {"env", "char**", "Environment variables (VAR=VALUE).", "NULL", NULL},
     {"auxv", "Elf64_auxv_t*", "ELF64 Aux vector.", "NULL", NULL},
     {"host_import_env", "char**", "Comma-separated list of environment variables to import from the host.", "NULL", "SGXLKL_HOST_IMPORT_ENV"},
-    {"disks.mnt", "char[256]", "Mount point", "NULL", NULL},
-    {"disks.key", "uint8_t*", "Disk encryption key (hex-encoded).", "NULL", NULL},
-    {"disks.key_id", "char*", "Name/identifier of disk encryption key.", "NULL", NULL},
-    {"disks.fresh_key", "bool", "Whether to generate a fresh key for encryption of newly created disks.", "false", NULL},
-    {"disks.roothash", "char*", "dm-verity hash.", "NULL", NULL},
-    {"disks.roothash_offset", "size_t", "dm-verity hash offset.", "0", NULL},
-    {"disks.readonly", "bool", "Whether to mount the disk read-only", "false", NULL},
-    {"disks.create", "bool", "Whether to dynamically create the disk (note that an empty image file must exist).", "false", NULL},
-    {"disks.size", "size_t", "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.", "0", NULL},
-    {"disks.overlay", "bool", "Set to 1 to create an in-memory writable overlay for a read-only root file system.", "false", "SGXLKL_HD_OVERLAY"},
+    {"root.key", "uint8_t*", "Disk encryption key (hex-encoded).", "NULL", NULL},
+    {"root.key_id", "char*", "Name/identifier of disk encryption key.", "NULL", NULL},
+    {"root.roothash", "char*", "dm-verity hash.", "NULL", NULL},
+    {"root.roothash_offset", "size_t", "dm-verity hash offset.", "0", NULL},
+    {"root.readonly", "bool", "Whether to mount the disk read-only", "false", NULL},
+    {"root.overlay", "bool", "Set to 1 to create an in-memory writable overlay for a read-only root file system.", "false", "SGXLKL_HD_OVERLAY"},
+    {"mounts.create", "bool", "Whether to dynamically create the disk (note that an empty image file must exist).", "false", NULL},
+    {"mounts.destination", "char[256]", "Mount point", "NULL", NULL},
+    {"mounts.key", "uint8_t*", "Disk encryption key (hex-encoded).", "NULL", NULL},
+    {"mounts.key_id", "char*", "Name/identifier of disk encryption key.", "NULL", NULL},
+    {"mounts.fresh_key", "bool", "Whether to generate a fresh key for encryption of newly created disks.", "false", NULL},
+    {"mounts.readonly", "bool", "Whether to mount the disk read-only", "false", NULL},
+    {"mounts.roothash", "char*", "dm-verity hash.", "NULL", NULL},
+    {"mounts.roothash_offset", "size_t", "dm-verity hash offset.", "0", NULL},
+    {"mounts.size", "size_t", "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.", "0", NULL},
     {"image_sizes.num_heap_pages", "uint64_t", "Number of heap pages of the enclave.", "262144", NULL},
     {"image_sizes.num_stack_pages", "uint64_t", "Number of stack pages of the enclave.", "1024", NULL},
 };

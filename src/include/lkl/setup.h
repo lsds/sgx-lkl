@@ -10,8 +10,9 @@ void lkl_start_init();
 
 /* Mount all LKL disks */
 void lkl_mount_disks(
-    sgxlkl_enclave_disk_config_t* disks,
-    size_t num_disks,
+    const sgxlkl_enclave_root_config_t* root,
+    const sgxlkl_enclave_mount_config_t* mounts,
+    size_t num_mounts,
     const char* cwd);
 
 /* Shutdown the running LKL kernel */

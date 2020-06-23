@@ -238,8 +238,8 @@ static json_result_t json_read_callback(
                 ALLOC_ARRAY(num_env, env, char*);
             else if (MATCH("auxv"))
                 ALLOC_ARRAY(num_auxv, auxv, Elf64_auxv_t);
-            else if (MATCH("disks"))
-                ALLOC_ARRAY(num_disks, disks, sgxlkl_enclave_disk_config_t);
+            else if (MATCH("mounts"))
+                ALLOC_ARRAY(num_mounts, mounts, sgxlkl_enclave_mount_config_t);
             else if (MATCH("host_import_env"))
                 ALLOC_ARRAY(num_host_import_env, host_import_env, char*);
             else if (MATCH("wg.peers"))
@@ -341,44 +341,67 @@ static json_result_t json_read_callback(
                     string_to_sgxlkl_exit_status_mode_t(un->string);
             });
 
-#define DISK() (&(cfg->disks[parser->path[parser->depth - 2].index]))
-            JBOOL("disks.create", DISK()->create);
-            JBOOL("disks.fresh_key", DISK()->fresh_key);
-            if (MATCH("disks.key"))
+            if (MATCH("root.key"))
             {
                 SEEN(parser);
                 CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
-                sgxlkl_enclave_disk_config_t* disk = DISK();
+                sgxlkl_enclave_root_config_t* root = &data->config->root;
                 if (type == JSON_TYPE_NULL)
-                    disk->key = NULL;
+                    root->key = NULL;
                 else
                 {
                     size_t l = strlen(un->string);
-                    disk->key_len = l / 2;
-                    disk->key = calloc(1, disk->key_len);
-                    if (!disk->key)
+                    root->key_len = l / 2;
+                    root->key = calloc(1, root->key_len);
+                    if (!root->key)
                         FAIL("out of memory\n");
-                    for (size_t i = 0; i < disk->key_len; i++)
-                        disk->key[i] = hex_to_int(un->string + 2 * i, 2);
+                    for (size_t i = 0; i < root->key_len; i++)
+                        root->key[i] = hex_to_int(un->string + 2 * i, 2);
                 }
                 return JSON_OK;
             }
-            JSTRING("disks.key_id", DISK()->key_id);
-            if (MATCH("disks.mnt"))
+            JSTRING("root.key_id", data->config->root.key_id);
+            JBOOL("root.readonly", data->config->root.readonly);
+            JSTRING("root.roothash", data->config->root.roothash);
+            JU64("root.roothash_offset", data->config->root.roothash_offset);
+            JBOOL("root.overlay", data->config->root.overlay);
+
+#define MOUNT() (&(cfg->mounts[parser->path[parser->depth - 2].index]))
+            JBOOL("mounts.create", MOUNT()->create);
+            JBOOL("mounts.fresh_key", MOUNT()->fresh_key);
+            if (MATCH("mounts.key"))
+            {
+                SEEN(parser);
+                CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
+                sgxlkl_enclave_mount_config_t* mount = MOUNT();
+                if (type == JSON_TYPE_NULL)
+                    mount->key = NULL;
+                else
+                {
+                    size_t l = strlen(un->string);
+                    mount->key_len = l / 2;
+                    mount->key = calloc(1, mount->key_len);
+                    if (!mount->key)
+                        FAIL("out of memory\n");
+                    for (size_t i = 0; i < mount->key_len; i++)
+                        mount->key[i] = hex_to_int(un->string + 2 * i, 2);
+                }
+                return JSON_OK;
+            }
+            JSTRING("mounts.key_id", MOUNT()->key_id);
+            if (MATCH("mounts.destination"))
             {
                 SEEN(parser);
                 size_t len = strlen(un->string);
                 if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
                     FAIL("invalid length of 'mnt' for disk %d\n", i);
-                sgxlkl_enclave_disk_config_t* disk = DISK();
-                memcpy(disk->mnt, un->string, len + 1);
+                memcpy(MOUNT()->destination, un->string, len + 1);
                 return JSON_OK;
             }
-            JBOOL("disks.overlay", DISK()->overlay);
-            JBOOL("disks.readonly", DISK()->readonly);
-            JSTRING("disks.roothash", DISK()->roothash);
-            JU64("disks.roothash_offset", DISK()->roothash_offset);
-            JU64("disks.size", DISK()->size);
+            JBOOL("mounts.readonly", MOUNT()->readonly);
+            JSTRING("mounts.roothash", MOUNT()->roothash);
+            JU64("mounts.roothash_offset", MOUNT()->roothash_offset);
+            JU64("mounts.size", MOUNT()->size);
 
             sgxlkl_image_sizes_config_t* sizes = &cfg->image_sizes;
             JU64("image_sizes.num_heap_pages", sizes->num_heap_pages);
@@ -408,14 +431,6 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     CC(cfg->max_user_threads > MAX_SGXLKL_MAX_USER_THREADS,
        "max_user_threads too large");
 
-    for (size_t i = 0; i < cfg->num_disks; i++)
-    {
-        CC(cfg->disks[i].overlay && strcmp(cfg->disks[i].mnt, "/") != 0,
-           "overlay only allowed for root disk\n");
-        CC(cfg->disks[i].overlay && !cfg->disks[i].readonly,
-           "overlay only allowed for read-only root disk\n");
-    }
-
     // These are cast to (signed) int later.
     CC(cfg->tap_mtu > INT32_MAX, "tap_mtu out of range");
     CC(cfg->num_args > INT32_MAX, "size of args out of range");
@@ -433,7 +448,7 @@ int sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 448,
+        sizeof(sgxlkl_enclave_config_t) == 496,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from || !to)
@@ -525,12 +540,16 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
         free(config->host_import_env[i]);
     NONDEFAULT_FREE(host_import_env);
 
-    for (size_t i = 0; i < config->num_disks; i++)
+    NONDEFAULT_FREE(root.key);
+    NONDEFAULT_FREE(root.key_id);
+    NONDEFAULT_FREE(root.roothash);
+
+    for (size_t i = 0; i < config->num_mounts; i++)
     {
-        free(config->disks[i].key);
-        free(config->disks[i].key_id);
-        free(config->disks[i].roothash);
+        free(config->mounts[i].key);
+        free(config->mounts[i].key_id);
+        free(config->mounts[i].roothash);
     }
-    NONDEFAULT_FREE(disks);
+    NONDEFAULT_FREE(mounts);
     free(config);
 }

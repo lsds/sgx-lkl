@@ -2,9 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SGX-LKL enclave config schema",
   "required": [
-    "mode",
-    "args",
-    "disks"
+    "args"
   ],
   "additionalProperties": false,
   "definitions": {
@@ -89,11 +87,11 @@
         }
       }
     },
-    "sgxlkl_enclave_disk_config_t": {
+    "sgxlkl_enclave_mount_config_t": {
       "type": "object",
       "description": "Disk configuration",
       "required": [
-        "mnt"
+        "destination"
       ],
       "additionalProperties": false,
       "dependencies": {
@@ -111,14 +109,22 @@
         ]
       },
       "properties": {
-        "mnt": {
+        "create": {
+          "type": "boolean",
+          "description": "Whether to dynamically create the disk (note that an empty image file must exist).",
+          "default": false
+        },
+        "destination": {
           "type": "string",
           "description": "Mount point",
           "pattern": "^/.*$",
           "maxLength": 255
         },
         "key": {
-          "type": "array",
+          "type": [
+            "array",
+            "null"
+          ],
           "description": "Disk encryption key (hex-encoded).",
           "pattern": "^[0-9A-Fa-f]$",
           "items": {
@@ -139,6 +145,70 @@
           "default": false,
           "description": "Whether to generate a fresh key for encryption of newly created disks."
         },
+        "readonly": {
+          "type": "boolean",
+          "description": "Whether to mount the disk read-only",
+          "default": false
+        },
+        "roothash": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "dm-verity hash.",
+          "default": null
+        },
+        "roothash_offset": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "dm-verity hash offset.",
+          "default": "0"
+        },
+        "size": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.",
+          "default": "0"
+        }
+      }
+    },
+    "sgxlkl_enclave_root_config_t": {
+      "type": "object",
+      "description": "Disk configuration",
+      "additionalProperties": false,
+      "dependencies": {
+        "roothash": [
+          "roothash_offset"
+        ],
+        "roothash_offset": [
+          "roothash"
+        ],
+        "create": [
+          "size"
+        ],
+        "size": [
+          "create"
+        ]
+      },
+      "properties": {
+        "key": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Disk encryption key (hex-encoded).",
+          "pattern": "^[0-9A-Fa-f]$",
+          "items": {
+            "$ref": "#/definitions/safe_uint8_t"
+          },
+          "default": null
+        },
+        "key_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name/identifier of disk encryption key.",
+          "default": null
+        },
         "roothash": {
           "type": [
             "string",
@@ -156,16 +226,6 @@
           "type": "boolean",
           "description": "Whether to mount the disk read-only",
           "default": false
-        },
-        "create": {
-          "type": "boolean",
-          "description": "Whether to dynamically create the disk (note that an empty image file must exist).",
-          "default": false
-        },
-        "size": {
-          "$ref": "#/definitions/safe_size_t",
-          "description": "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.",
-          "default": "0"
         },
         "overlay": {
           "type": "boolean",
@@ -252,7 +312,7 @@
         "mode": {
           "$ref": "#/definitions/sgxlkl_enclave_mode_t",
           "description": "Enclave execution mode.",
-          "default": "HW_RELEASE_MODE"
+          "default": "hw_release"
         },
         "net_ip4": {
           "type": "string",
@@ -340,8 +400,8 @@
         },
         "mmap_files": {
           "$ref": "#/definitions/sgxlkl_enclave_mmap_files_t",
-          "description": "Set to \"Private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"Shared\" to mmap files with 'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'. (Default: not supported)",
-          "default": "ENCLAVE_MMAP_FILES_NONE",
+          "description": "Set to \"private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"shared\" to mmap files with 'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'. (Default: not supported)",
+          "default": "none",
           "overridable": "SGXLKL_MMAP_FILES"
         },
         "oe_heap_pagecount": {
@@ -430,13 +490,17 @@
         "exit_status": {
           "$ref": "#/definitions/sgxlkl_exit_status_mode_t",
           "description": "Whether and how the enclave exit code is reported to the host.",
-          "default": "EXIT_STATUS_FULL"
+          "default": "full"
         },
-        "disks": {
+        "root": {
+          "$ref": "#/definitions/sgxlkl_enclave_root_config_t",
+          "description": "Root disk configuration."
+        },
+        "mounts": {
           "type": "array",
           "description": "Disks to mount.",
           "items": {
-            "$ref": "#/definitions/sgxlkl_enclave_disk_config_t"
+            "$ref": "#/definitions/sgxlkl_enclave_mount_config_t"
           }
         },
         "image_sizes": {

@@ -24,11 +24,16 @@
 #include "shared/json_util.h"
 #include "shared/sgxlkl_enclave_config.h"
 
-static const char* STRING_KEYS[] =
-    {"cwd", "disk", "key", "roothash", "allowedips", "endpoint", "exit_status"};
+static const char* STRING_KEYS[] = {"cwd",
+                                    "destination",
+                                    "key",
+                                    "roothash",
+                                    "allowedips",
+                                    "endpoint",
+                                    "exit_status"};
 static const char* BOOL_KEYS[] = {"readonly", "overlay", "create"};
 static const char* INT_KEYS[] = {"roothash_offset", "size"};
-static const char* ARRAY_KEYS[] = {"disk_config", "peers"};
+static const char* ARRAY_KEYS[] = {"mounts", "peers"};
 
 static int assert_entry_type(const char* key, struct json_object* value)
 {
@@ -90,8 +95,8 @@ static int parse_env(
         return 1;
 
     int env_len = json_object_object_length(env_val);
-    config->envp = malloc(sizeof(char*) * (env_len + 1));
-    config->envp[env_len] = NULL;
+    config->env = malloc(sizeof(char*) * (env_len + 1));
+    config->env[env_len] = NULL;
 
     struct json_object_iterator it;
     const char* key;
@@ -108,7 +113,7 @@ static int parse_env(
         if (!env_kv)
             FAIL("Failed to allocate memory for environment key value pair.\n");
         snprintf(env_kv, kv_len, "%s=%s", key, str_val);
-        config->envp[i++] = env_kv;
+        config->env[i++] = env_kv;
     }
 
     return 0;
@@ -122,9 +127,9 @@ static int parse_host_import_envp(
         return 1;
 
     int len = json_object_array_length(env_val);
-    config->num_host_import_envp = len;
-    config->host_import_envp = malloc(sizeof(char*) * (len + 1));
-    config->host_import_envp[len] = NULL;
+    config->num_host_import_env = len;
+    config->host_import_env = malloc(sizeof(char*) * (len + 1));
+    config->host_import_env[len] = NULL;
 
     for (size_t i = 0; i < len; i++)
     {
@@ -132,10 +137,57 @@ static int parse_host_import_envp(
         if (json_object_get_type(val) != json_type_string)
             return 1;
         const char* str_val = json_object_get_string(val);
-        config->host_import_envp[i++] = strdup(str_val);
+        config->host_import_env[i++] = strdup(str_val);
     }
 
     return 0;
+}
+
+static int parse_enclave_root_config_entry(
+    const char* key,
+    struct json_object* value,
+    void* arg)
+{
+    int err = 0;
+    sgxlkl_enclave_root_config_t* disk = (sgxlkl_enclave_root_config_t*)arg;
+
+    if (assert_entry_type(key, value))
+        return 1;
+
+    if (!strcmp("key", key))
+    {
+        const char* enc_key = json_object_get_string(value);
+        ssize_t key_len = hex_to_bytes(enc_key, &disk->key);
+        if (key_len < 0)
+            FAIL("Error parsing hex-encoded key\n");
+        else
+        {
+            disk->key_len = key_len;
+        }
+    }
+    else if (!strcmp("roothash", key))
+    {
+        disk->roothash = strdup(json_object_get_string(value));
+    }
+    else if (!strcmp("roothash_offset", key))
+    {
+        disk->roothash_offset = json_object_get_int64(value);
+    }
+    else if (!strcmp("readonly", key))
+    {
+        disk->readonly = json_object_get_boolean(value);
+    }
+    else if (!strcmp("overlay", key))
+    {
+        disk->overlay = json_object_get_boolean(value);
+    }
+    else
+    {
+        FAIL("Unknown configuration entry: %s\n", key);
+        return 1;
+    }
+
+    return err;
 }
 
 static int parse_enclave_disk_config_entry(
@@ -144,12 +196,12 @@ static int parse_enclave_disk_config_entry(
     void* arg)
 {
     int err = 0;
-    sgxlkl_enclave_disk_config_t* disk = (sgxlkl_enclave_disk_config_t*)arg;
+    sgxlkl_enclave_mount_config_t* disk = (sgxlkl_enclave_mount_config_t*)arg;
 
     if (assert_entry_type(key, value))
         return 1;
 
-    if (!strcmp("disk", key))
+    if (!strcmp("destination", key))
     {
         const char* mnt_point = json_object_get_string(value);
 
@@ -158,7 +210,7 @@ static int parse_enclave_disk_config_entry(
                                                                  // back to
                                                                  // client.
 
-        strncpy(disk->mnt, mnt_point, SGXLKL_DISK_MNT_MAX_PATH_LEN);
+        strncpy(disk->destination, mnt_point, SGXLKL_DISK_MNT_MAX_PATH_LEN);
     }
     else if (!strcmp("key", key))
     {
@@ -187,10 +239,6 @@ static int parse_enclave_disk_config_entry(
     {
         disk->readonly = json_object_get_boolean(value);
     }
-    else if (!strcmp("overlay", key))
-    {
-        disk->overlay = json_object_get_boolean(value);
-    }
     else if (!strcmp("create", key))
     {
         disk->create = json_object_get_boolean(value);
@@ -208,38 +256,37 @@ static int parse_enclave_disk_config_entry(
     return err;
 }
 
-static int parse_disks(
+static int parse_mounts(
     sgxlkl_enclave_config_t* config,
     struct json_object* disks_val)
 {
     if (json_object_get_type(disks_val) != json_type_array)
         return 1;
 
-    int num_disks = json_object_array_length(disks_val);
-    sgxlkl_enclave_disk_config_t* disks =
-        malloc(sizeof(sgxlkl_enclave_disk_config_t) * num_disks);
-    memset(disks, 0, sizeof(sgxlkl_enclave_disk_config_t) * num_disks);
+    int num_mounts = json_object_array_length(disks_val);
+    sgxlkl_enclave_mount_config_t* mounts =
+        calloc(num_mounts, sizeof(sgxlkl_enclave_mount_config_t));
 
     int i, j, ret;
-    for (i = 0; i < num_disks; i++)
+    for (i = 0; i < num_mounts; i++)
     {
         json_object* val = json_object_array_get_idx(disks_val, i);
-        ret = parse_json(val, parse_enclave_disk_config_entry, &disks[i]);
+        ret = parse_json(val, parse_enclave_disk_config_entry, &mounts[i]);
         if (ret)
         {
             for (j = 0; j <= i; j++)
             {
-                free(disks[j].key);
-                free(disks[j].key_id);
-                free(disks[j].roothash);
+                free(mounts[j].key);
+                free(mounts[j].key_id);
+                free(mounts[j].roothash);
             }
-            free(disks);
+            free(mounts);
             return ret;
         }
     }
 
-    config->num_disks = num_disks;
-    config->disks = disks;
+    config->num_mounts = num_mounts;
+    config->mounts = mounts;
 
     return 0;
 }
@@ -369,8 +416,6 @@ static int parse_sizes(
             config->image_sizes.num_heap_pages = parse_uint64(key, value);
         else if (!strcmp("num_stack_pages", key))
             config->image_sizes.num_stack_pages = parse_uint64(key, value);
-        else if (!strcmp("num_tcs", key))
-            config->image_sizes.num_tcs = parse_uint64(key, value);
         else
         {
             FAIL("Unknown configuration entry: %s\n", key);
@@ -435,9 +480,13 @@ static int parse_sgxlkl_app_config_entry(
                  "\"full\"|\"binary\"|\"none\".\n");
         }
     }
-    else if (!strcmp("disk_config", key))
+    else if (!strcmp("root", key))
     {
-        err = parse_disks(config, value);
+        err = parse_json(value, parse_enclave_root_config_entry, &config->root);
+    }
+    else if (!strcmp("mounts", key))
+    {
+        err = parse_mounts(config, value);
     }
     else if (!strcmp("network_config", key))
     {

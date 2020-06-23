@@ -236,7 +236,7 @@ def generate_source(schema_file_name, root, args):
                 if name == 'key':
                   size_var_name = 'key_len'
                 source.write('%s.%s=%s,\n' % (indent, size_var_name, 0))
-              if dflt == []:
+              if dflt is None or dflt == []:
                 dflt = 'NULL'
               source.write('%s.%s=%s,\n' % (indent, name, dflt))
           scope = scope[:-1]

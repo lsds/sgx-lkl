@@ -46,20 +46,30 @@ typedef struct sgxlkl_clock_res_config
     char resolution[17];
 } sgxlkl_clock_res_config_t;
 
-typedef struct sgxlkl_enclave_disk_config
+typedef struct sgxlkl_enclave_mount_config
 {
-    char mnt[256];
+    bool create;
+    char destination[256];
     size_t key_len;
     uint8_t* key;
     char* key_id;
     bool fresh_key;
+    bool readonly;
+    char* roothash;
+    size_t roothash_offset;
+    size_t size;
+} sgxlkl_enclave_mount_config_t;
+
+typedef struct sgxlkl_enclave_root_config
+{
+    size_t key_len;
+    uint8_t* key;
+    char* key_id;
     char* roothash;
     size_t roothash_offset;
     bool readonly;
-    bool create;
-    size_t size;
     bool overlay;
-} sgxlkl_enclave_disk_config_t;
+} sgxlkl_enclave_root_config_t;
 
 typedef struct sgxlkl_enclave_wg_peer_config
 {
@@ -117,8 +127,9 @@ typedef struct sgxlkl_enclave_config
     size_t num_host_import_env;
     char** host_import_env;
     sgxlkl_exit_status_mode_t exit_status;
-    size_t num_disks;
-    sgxlkl_enclave_disk_config_t* disks;
+    sgxlkl_enclave_root_config_t root;
+    size_t num_mounts;
+    sgxlkl_enclave_mount_config_t* mounts;
     sgxlkl_image_sizes_config_t image_sizes;
 } sgxlkl_enclave_config_t;
 
@@ -132,6 +143,6 @@ typedef struct {
     char* override_var;
 } sgxlkl_enclave_setting_t;
 
-extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[44];
+extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[49];
 
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

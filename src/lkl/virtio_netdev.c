@@ -83,7 +83,7 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev)
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
 
     if (!_netdev_base_id)
-        _netdev_base_id = sgxlkl_enclave_state.config->num_disks;
+        _netdev_base_id = sgxlkl_enclave_state.config->num_mounts + 1;
 
     registered_devs[registered_dev_idx] = netdev;
     lkl_virtio_dev_setup(netdev, mmio_size, &lkl_deliver_irq);

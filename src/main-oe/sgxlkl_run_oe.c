@@ -441,7 +441,7 @@ static void sgxlkl_loader_signal_handler(int signo)
 #endif // DEBUG && VIRTIO_TEST_HOOK
 
 static void prepare_verity(
-    sgxlkl_enclave_disk_config_t* disk,
+    sgxlkl_enclave_root_config_t* disk,
     const char* disk_path,
     char* verity_file_or_roothash,
     char* verity_file_or_hashoffset)
@@ -543,7 +543,7 @@ static void prepare_verity(
 }
 
 static void override_enclave_disk_config(
-    sgxlkl_enclave_disk_config_t* disk,
+    sgxlkl_enclave_root_config_t* disk,
     const char* image_path,
     char* keyfile_or_passphrase,
     char* verity_file_or_roothash,
@@ -608,29 +608,29 @@ void override_disk_config(const char* root_disk_path)
 
     /* Count disks to add */
     const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
-    if (config->num_disks == 0)
+    if (config->num_mounts == 0)
     {
-        config->num_disks = 1; // Root disk
         if (hds_str[0])
         {
-            config->num_disks++;
+            config->num_mounts++;
             for (int i = 0; hds_str[i]; i++)
             {
                 if (hds_str[i] == ',')
-                    config->num_disks++;
+                    config->num_mounts++;
             }
         }
     }
 
-    if (!config->disks)
-        config->disks =
-            calloc(config->num_disks, sizeof(sgxlkl_enclave_disk_config_t));
-    if (!config->disks)
-        sgxlkl_host_fail("out of memory\n");
+    if (!config->mounts)
+    {
+        config->mounts =
+            calloc(config->num_mounts, sizeof(sgxlkl_enclave_mount_config_t));
+        if (!config->mounts)
+            sgxlkl_host_fail("out of memory\n");
+    }
 
     /* Add root disk */
-    sgxlkl_enclave_disk_config_t* root_disk = &config->disks[0];
-    strcpy(root_disk->mnt, "/");
+    sgxlkl_enclave_root_config_t* root_disk = &config->root;
     root_disk->readonly = sgxlkl_config_bool(SGXLKL_HD_RO);
     root_disk->overlay = sgxlkl_config_bool(SGXLKL_HD_OVERLAY);
 
@@ -645,7 +645,7 @@ void override_disk_config(const char* root_disk_path)
     if (hds_str)
     {
         char* tmp = strdup(hds_str);
-        for (size_t i = 1; i < config->num_disks && *tmp; i++)
+        for (size_t i = 0; i < config->num_mounts && *tmp; i++)
         {
             char* hd_path = tmp;
             char* hd_mnt = strchrnul(hd_path, ':');
@@ -655,8 +655,8 @@ void override_disk_config(const char* root_disk_path)
             *hd_mnt_end = '\0';
             int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
 
-            strcpy(config->disks[i].mnt, hd_mnt);
-            config->disks[i].readonly = hd_ro;
+            strcpy(config->mounts[i].destination, hd_mnt);
+            config->mounts[i].readonly = hd_ro;
 
             tmp = strchrnul(hd_mnt_end + 1, ',');
             while (*tmp == ' ' || *tmp == ',')
@@ -1061,9 +1061,9 @@ static void register_hds(char* root_hd)
         sgxlkl_host_fail("no disks in host config");
 
     sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
-    shm->num_virtio_blk_dev = num_disks;
-    shm->virtio_blk_dev_mem = calloc(num_disks, sizeof(void*));
-    shm->virtio_blk_dev_names = calloc(num_disks, sizeof(char*));
+    shm->num_virtio_blk_dev = host_state.num_disks;
+    shm->virtio_blk_dev_mem = calloc(host_state.num_disks, sizeof(void*));
+    shm->virtio_blk_dev_names = calloc(host_state.num_disks, sizeof(char*));
 
     if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
         sgxlkl_host_fail("out of memory\n");

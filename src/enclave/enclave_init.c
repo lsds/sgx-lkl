@@ -25,10 +25,7 @@ extern void init_sysconf(long nproc_conf, long nproc_onln);
 static void find_and_mount_disks()
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
-    size_t n = cfg->num_disks;
-
-    if (n == 0)
-        sgxlkl_fail("bug: no disks\n");
+    size_t n = cfg->num_mounts + 1;
 
     sgxlkl_enclave_state_t* estate = &sgxlkl_enclave_state;
     const sgxlkl_shared_memory_t* shm = &estate->shared_memory;
@@ -36,15 +33,23 @@ static void find_and_mount_disks()
     estate->disk_state = oe_calloc(n, sizeof(sgxlkl_enclave_disk_state_t));
     estate->num_disk_state = n;
 
-    for (int i = 0; i < n; i++)
+    // root disk index
+    estate->disk_state[0].host_disk_index = 0;
+
+    for (int i = 0; i < cfg->num_mounts; i++)
     {
-        const sgxlkl_enclave_disk_config_t* cfg_disk = &cfg->disks[i];
+        const sgxlkl_enclave_mount_config_t* cfg_disk = &cfg->mounts[i];
+
+        if (strcmp(cfg_disk->destination, "/") == 0)
+            sgxlkl_fail("Error: root disk should not be in 'mounts'.\n");
+
         bool found = false;
         for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
         {
-            if (strcmp(cfg_disk->mnt, shm->virtio_blk_dev_names[j]) == 0)
+            if (strcmp(cfg_disk->destination, shm->virtio_blk_dev_names[j]) ==
+                0)
             {
-                estate->disk_state[i].host_disk_index = j;
+                estate->disk_state[i + 1].host_disk_index = j;
                 found = true;
             }
         }
@@ -52,10 +57,10 @@ static void find_and_mount_disks()
             sgxlkl_fail(
                 "Disk image for mount point '%s' has not been provided by "
                 "host.\n",
-                cfg_disk->mnt);
+                cfg_disk->destination);
     }
 
-    lkl_mount_disks(cfg->disks, n, cfg->cwd);
+    lkl_mount_disks(&cfg->root, cfg->mounts, cfg->num_mounts, cfg->cwd);
 }
 
 // In internal OE header openenclave/internal/sgx/eeid_plugin.h

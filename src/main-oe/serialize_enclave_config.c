@@ -150,33 +150,52 @@ static json_obj_t* mk_json_string_clock_res(
     return res;
 }
 
-static json_obj_t* mk_json_disks(
+static json_obj_t* mk_json_root(
     const char* key,
-    sgxlkl_enclave_disk_config_t* disks,
-    size_t num_disks)
+    const sgxlkl_enclave_root_config_t* root)
 {
-    json_obj_t* r = mk_json_array(key, num_disks);
-    for (size_t i = 0; i < num_disks; i++)
+    _Static_assert(
+        sizeof(sgxlkl_enclave_root_config_t) == 48,
+        "sgxlkl_enclave_root_config_t size has changed");
+
+    json_obj_t* r = mk_json_objects(key, 6);
+    r->objects[0] = mk_json_hex_string("key", root->key, root->key_len);
+    r->objects[1] = mk_json_string("key_id", root->key_id);
+    r->objects[2] = mk_json_string("roothash", root->roothash);
+    r->objects[3] = mk_json_u64("roothash_offset", root->roothash_offset);
+    r->objects[4] = mk_json_boolean("readonly", root->readonly);
+    r->objects[5] = mk_json_boolean("overlay", root->overlay);
+    return r;
+}
+
+static json_obj_t* mk_json_mounts(
+    const char* key,
+    const sgxlkl_enclave_mount_config_t* mounts,
+    size_t num_mounts)
+{
+    json_obj_t* r = mk_json_array(key, num_mounts);
+    for (size_t i = 0; i < num_mounts; i++)
     {
         _Static_assert(
-            sizeof(sgxlkl_enclave_disk_config_t) == 328,
+            sizeof(sgxlkl_enclave_mount_config_t) == 320,
             "sgxlkl_enclave_disk_config_t size has changed");
 
-        r->array[i] = mk_json_objects(NULL, 10);
-        r->array[i]->objects[0] = mk_json_string("mnt", disks[i].mnt);
+        r->array[i] = mk_json_objects(NULL, 9);
+        r->array[i]->objects[0] =
+            mk_json_string("destination", mounts[i].destination);
         r->array[i]->objects[1] =
-            mk_json_hex_string("key", disks[i].key, disks[i].key_len);
-        r->array[i]->objects[2] = mk_json_string("key_id", disks[i].key_id);
+            mk_json_hex_string("key", mounts[i].key, mounts[i].key_len);
+        r->array[i]->objects[2] = mk_json_string("key_id", mounts[i].key_id);
         r->array[i]->objects[3] =
-            mk_json_boolean("fresh_key", disks[i].fresh_key);
-        r->array[i]->objects[4] = mk_json_string("roothash", disks[i].roothash);
+            mk_json_boolean("fresh_key", mounts[i].fresh_key);
+        r->array[i]->objects[4] =
+            mk_json_string("roothash", mounts[i].roothash);
         r->array[i]->objects[5] =
-            mk_json_u64("roothash_offset", disks[i].roothash_offset);
+            mk_json_u64("roothash_offset", mounts[i].roothash_offset);
         r->array[i]->objects[6] =
-            mk_json_boolean("readonly", disks[i].readonly);
-        r->array[i]->objects[7] = mk_json_boolean("create", disks[i].create);
-        r->array[i]->objects[8] = mk_json_u64("size", disks[i].size);
-        r->array[i]->objects[9] = mk_json_boolean("overlay", disks[i].overlay);
+            mk_json_boolean("readonly", mounts[i].readonly);
+        r->array[i]->objects[7] = mk_json_boolean("create", mounts[i].create);
+        r->array[i]->objects[8] = mk_json_u64("size", mounts[i].size);
     }
     return r;
 }
@@ -435,7 +454,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 448,
+        sizeof(sgxlkl_enclave_config_t) == 496,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
@@ -490,8 +509,9 @@ void serialize_enclave_config(
         config->host_import_env,
         config->num_host_import_env);
     root->objects[cnt++] = mk_json_auxv("auxv", config->auxv, config->num_auxv);
+    root->objects[cnt++] = mk_json_root("root", &config->root);
     root->objects[cnt++] =
-        mk_json_disks("disks", config->disks, config->num_disks);
+        mk_json_mounts("mounts", config->mounts, config->num_mounts);
 
     FPFSS(
         exit_status, sgxlkl_exit_status_mode_t_to_string(config->exit_status));

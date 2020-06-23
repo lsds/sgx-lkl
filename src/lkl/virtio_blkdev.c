@@ -31,10 +31,20 @@ static void lkl_deliver_irq(uint8_t dev_id)
 /*
  * Function to perform virtio device setup
  */
-void lkl_add_disks(sgxlkl_enclave_disk_config_t* disks, size_t num_disks)
+void lkl_add_disks(
+    const sgxlkl_enclave_root_config_t* root,
+    const sgxlkl_enclave_mount_config_t* disks,
+    size_t num_disks)
 {
     memset(&__vio_event_notifier_lock, 0, sizeof(struct ticketlock));
-    for (size_t i = 0; i < num_disks; ++i)
+
+    struct virtio_dev* root_dev =
+        sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem
+            [sgxlkl_enclave_state.disk_state[0].host_disk_index];
+    int mmio_size = VIRTIO_MMIO_CONFIG + root_dev->config_len;
+    lkl_virtio_dev_setup(root_dev, mmio_size, lkl_deliver_irq);
+
+    for (size_t i = 1; i < num_disks; ++i)
     {
         struct virtio_dev* dev =
             sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem

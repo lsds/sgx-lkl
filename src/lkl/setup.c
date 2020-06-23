@@ -11,8 +11,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/types.h>
 #include <sys/mount.h>
+#include <sys/types.h>
 #include <syscall.h>
 #include <time.h>
 
@@ -334,11 +334,26 @@ static void lkl_mount_overlayfs(
     }
 }
 
+typedef struct
+{
+    bool create;
+    char destination[256];
+    size_t key_len;
+    uint8_t* key;
+    char* key_id;
+    bool fresh_key;
+    bool readonly;
+    char* roothash;
+    size_t roothash_offset;
+    size_t size;
+    bool overlay;
+} disk_config_t;
+
 struct lkl_crypt_device
 {
     char* disk_path;
     int readonly;
-    sgxlkl_enclave_disk_config_t* disk_config;
+    disk_config_t disk_config;
     char* crypt_name;
 };
 
@@ -361,29 +376,29 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_load(): %s (%d)\n", strerror(-err), err);
     }
 
-    uint8_t* key_outside = lkl_cd->disk_config->key;
-    lkl_cd->disk_config->key = (uint8_t*)lkl_sys_mmap(
+    uint8_t* key_outside = lkl_cd->disk_config.key;
+    lkl_cd->disk_config.key = (uint8_t*)lkl_sys_mmap(
         NULL,
-        lkl_cd->disk_config->key_len,
+        lkl_cd->disk_config.key_len,
         PROT_READ | PROT_WRITE,
         MAP_SHARED | MAP_ANONYMOUS,
         -1,
         0);
-    if ((int64_t)lkl_cd->disk_config->key <= 0)
+    if ((int64_t)lkl_cd->disk_config.key <= 0)
     {
         sgxlkl_fail(
             "Unable to allocate memory for disk encryption key inside the "
             "enclave: %s\n",
-            lkl_strerror((intptr_t)lkl_cd->disk_config->key));
+            lkl_strerror((intptr_t)lkl_cd->disk_config.key));
     }
-    memcpy(lkl_cd->disk_config->key, key_outside, lkl_cd->disk_config->key_len);
+    memcpy(lkl_cd->disk_config.key, key_outside, lkl_cd->disk_config.key_len);
 
     err = crypt_activate_by_passphrase(
         cd,
         lkl_cd->crypt_name,
         CRYPT_ANY_SLOT,
-        (char*)lkl_cd->disk_config->key,
-        lkl_cd->disk_config->key_len,
+        (char*)lkl_cd->disk_config.key,
+        lkl_cd->disk_config.key_len,
         lkl_cd->readonly ? CRYPT_ACTIVATE_READONLY : 0);
     if (err == -1)
     {
@@ -403,19 +418,19 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     // The key is only needed during activation, so don't keep it around
     // afterwards and free up space.
-    memset(lkl_cd->disk_config->key, 0, lkl_cd->disk_config->key_len);
+    memset(lkl_cd->disk_config.key, 0, lkl_cd->disk_config.key_len);
 
     unsigned long munmap_ret;
     if ((munmap_ret = lkl_sys_munmap(
-             (unsigned long)lkl_cd->disk_config->key,
-             lkl_cd->disk_config->key_len)))
+             (unsigned long)lkl_cd->disk_config.key,
+             lkl_cd->disk_config.key_len)))
     {
         sgxlkl_fail(
             "Unable to unmap memory for disk encryption key: %s\n",
             lkl_strerror((int)munmap_ret));
     }
-    lkl_cd->disk_config->key = NULL;
-    lkl_cd->disk_config->key_len = 0;
+    lkl_cd->disk_config.key = NULL;
+    lkl_cd->disk_config.key_len = 0;
 
     return 0;
 }
@@ -491,10 +506,10 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail("crypt_format(): %s (%d)\n", strerror(-err), err);
 
     // Key must be copied from userspace memory to LKL visible memory.
-    uint8_t* key_outside = lkl_cd->disk_config->key;
+    uint8_t* key_outside = lkl_cd->disk_config.key;
     uint8_t* key_kernel = (uint8_t*)lkl_sys_mmap(
         NULL,
-        lkl_cd->disk_config->key_len,
+        lkl_cd->disk_config.key_len,
         PROT_READ | PROT_WRITE,
         MAP_SHARED | MAP_ANONYMOUS,
         -1,
@@ -504,7 +519,7 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
             "Unable to allocate memory for disk encryption key inside the "
             "enclave: %s\n",
             lkl_strerror((intptr_t)key_kernel));
-    memcpy(key_kernel, key_outside, lkl_cd->disk_config->key_len);
+    memcpy(key_kernel, key_outside, lkl_cd->disk_config.key_len);
 
     err = crypt_keyslot_add_by_key(
         cd,
@@ -512,7 +527,7 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         NULL,
         0,
         (char*)key_kernel,
-        lkl_cd->disk_config->key_len,
+        lkl_cd->disk_config.key_len,
         0);
     if (err != 0)
         sgxlkl_fail(
@@ -522,7 +537,7 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     unsigned long munmap_ret;
     if ((munmap_ret = lkl_sys_munmap(
-             (unsigned long)key_kernel, lkl_cd->disk_config->key_len)))
+             (unsigned long)key_kernel, lkl_cd->disk_config.key_len)))
         sgxlkl_fail(
             "Unable to unmap memory for disk encryption key: %s\n",
             lkl_strerror((int)munmap_ret));
@@ -553,8 +568,8 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
     struct crypt_params_verity verity_params = {
         .data_device = disk_path,
         .hash_device = disk_path,
-        .hash_area_offset = lkl_cd->disk_config->roothash_offset,
-        .data_size = lkl_cd->disk_config->roothash_offset /
+        .hash_area_offset = lkl_cd->disk_config.roothash_offset,
+        .data_size = lkl_cd->disk_config.roothash_offset /
                      512, // In blocks, divide by block size
         .data_block_size = 512,
         .hash_block_size = 512,
@@ -568,7 +583,7 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     uint8_t* volume_hash_bytes = NULL;
     ssize_t hash_size = crypt_get_volume_key_size(cd);
-    if (hex_to_bytes(lkl_cd->disk_config->roothash, &volume_hash_bytes) !=
+    if (hex_to_bytes(lkl_cd->disk_config.roothash, &volume_hash_bytes) !=
         hash_size)
     {
         sgxlkl_fail("Invalid root hash string specified!\n");
@@ -635,9 +650,14 @@ static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
     }
 }
 
-static bool is_encrypted(const sgxlkl_enclave_disk_config_t* disk)
+static bool is_encrypted_cfg(disk_config_t* cfg)
 {
-    return disk->key || disk->key_id || disk->fresh_key;
+    return cfg->key || cfg->key_id || cfg->fresh_key;
+}
+
+static bool is_encrypted(sgxlkl_enclave_mount_config_t* cfg)
+{
+    return cfg->key || cfg->key_id || cfg->fresh_key;
 }
 
 static void lkl_mount_virtual()
@@ -653,7 +673,7 @@ static void lkl_mount_virtual()
 }
 
 static void lkl_mount_disk(
-    sgxlkl_enclave_disk_config_t* disk,
+    disk_config_t* disk,
     char device,
     const char* mnt_point,
     size_t disk_index)
@@ -675,7 +695,7 @@ static void lkl_mount_disk(
     struct lkl_crypt_device lkl_cd;
     lkl_cd.disk_path = dev_str;
     lkl_cd.readonly = disk->readonly;
-    lkl_cd.disk_config = disk;
+    lkl_cd.disk_config = *disk;
 
     if (disk->create && disk->fresh_key)
     {
@@ -694,7 +714,7 @@ static void lkl_mount_disk(
     int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
 
     if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) &&
-        (disk->roothash || is_encrypted(disk)))
+        (disk->roothash || is_encrypted_cfg(disk)))
     {
         sgxlkl_trace_lkl_syscall = 0;
         sgxlkl_trace_internal_syscall = 0;
@@ -718,7 +738,8 @@ static void lkl_mount_disk(
         disk->readonly = 1;
         lkl_cd.readonly = 1;
     }
-    if (is_encrypted(disk))
+
+    if (is_encrypted_cfg(disk))
     {
         dev_str_enc[sizeof dev_str_enc - 2] = device;
         lkl_cd.crypt_name = dev_str_enc + offset_dev_str_crypt_name;
@@ -752,7 +773,7 @@ static void lkl_mount_disk(
     {
         size_t fs_size = disk->size;
 
-        if (is_encrypted(disk))
+        if (is_encrypted_cfg(disk))
         {
             SGXLKL_VERBOSE(
                 "Assuming a disk encryption/integrity overhead of %d %%\n",
@@ -787,7 +808,7 @@ static void lkl_mount_disk(
 }
 
 static void lkl_mount_root_disk(
-    sgxlkl_enclave_disk_config_t* disk,
+    const sgxlkl_enclave_root_config_t* root,
     size_t disk_index)
 {
     int err = 0;
@@ -811,7 +832,7 @@ static void lkl_mount_root_disk(
             {
                 sgxlkl_fail("bytes_to_hex() failed.\n");
             }
-            if (disk->roothash == NULL || strcmp(disk->roothash, buf) != 0)
+            if (root->roothash == NULL || strcmp(root->roothash, buf) != 0)
             {
                 sgxlkl_fail(
                     "The root hash does not match with embedded one.\n");
@@ -820,9 +841,20 @@ static void lkl_mount_root_disk(
         }
     }
 
-    lkl_mount_disk(disk, 'a', mnt_point, disk_index);
+    disk_config_t cfg = {.create = false,
+                         .destination = "/",
+                         .key_len = root->key_len,
+                         .key = root->key,
+                         .key_id = root->key_id,
+                         .fresh_key = false,
+                         .readonly = root->readonly,
+                         .roothash = root->roothash,
+                         .roothash_offset = root->roothash_offset,
+                         .size = 0,
+                         .overlay = root->overlay};
+    lkl_mount_disk(&cfg, 'a', mnt_point, 0);
 
-    if (disk->overlay)
+    if (root->overlay)
     {
         SGXLKL_VERBOSE("Creating writable in-memory overlay for rootfs.\n");
         const char mnt_point_overlay[] = "/mnt/oda";
@@ -880,8 +912,9 @@ static void lkl_mount_root_disk(
 }
 
 void lkl_mount_disks(
-    sgxlkl_enclave_disk_config_t* disks,
-    size_t num_disks,
+    const sgxlkl_enclave_root_config_t* root,
+    const sgxlkl_enclave_mount_config_t* mounts,
+    size_t num_mounts,
     const char* cwd)
 {
 #ifdef DEBUG
@@ -889,34 +922,19 @@ void lkl_mount_disks(
         crypt_set_debug_level(CRYPT_LOG_DEBUG);
 #endif
 
-    if (num_disks <= 0)
+    if (!root)
         sgxlkl_fail("No root disk provided. Aborting...\n");
 
-    lkl_add_disks(disks, num_disks);
+    lkl_add_disks(root, mounts, num_mounts);
 
-    // Find root disk
-    sgxlkl_enclave_disk_config_t* root_disk = NULL;
-    size_t root_disk_index;
-    for (size_t i = 0; i < num_disks; ++i)
-    {
-        if (!strcmp(disks[i].mnt, "/"))
-        {
-            root_disk = &disks[i];
-            root_disk_index = i;
-            break;
-        }
-    }
-
-    if (!root_disk)
-    {
+    if (!root)
         sgxlkl_fail("No root disk (mount point '/') provided.\n");
-    }
 
-    lkl_mount_root_disk(root_disk, root_disk_index);
+    lkl_mount_root_disk(root, 0);
 
-    for (size_t i = 0; i < num_disks; ++i)
+    for (size_t i = 0; i < num_mounts; ++i)
     {
-        if (root_disk == &disks[i]) // || disks[i].fd == -1)
+        if (strcmp(mounts[i].destination, "/") == 0)
             continue;
 
         // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
@@ -927,12 +945,27 @@ void lkl_mount_disks(
                 "Too many disks (maximum is 26). Failed to mount disk %d at "
                 "%s.\n",
                 i,
-                disks[i].mnt);
+                mounts[i].destination);
             // Adjust number to number of mounted disks.
-            num_disks = 26;
+            num_mounts = 26;
             return;
         }
-        lkl_mount_disk(&disks[i], 'a' + i, disks[i].mnt, i);
+        disk_config_t cfg = {.create = mounts[i].create,
+                             .destination = "",
+                             .key_len = mounts[i].key_len,
+                             .key = mounts[i].key,
+                             .key_id = mounts[i].key_id,
+                             .fresh_key = mounts[i].fresh_key,
+                             .readonly = mounts[i].readonly,
+                             .roothash = mounts[i].roothash,
+                             .roothash_offset = mounts[i].roothash_offset,
+                             .size = mounts[i].size,
+                             .overlay = false};
+        memcpy(
+            cfg.destination,
+            mounts[i].destination,
+            sizeof(mounts[i].destination));
+        lkl_mount_disk(&cfg, 'a' + i, mounts[i].destination, i);
     }
 
     if (cwd)
@@ -1255,43 +1288,36 @@ static void* lkl_termination_thread(void* args)
     display_mount_table();
 #endif
 
-    // Unmount disks (assumes i==0 is the root disk)
+    // Unmount mounts
     long res;
-    for (int i = sgxlkl_enclave_state.num_disk_state - 1; i >= 0; --i)
+    for (int i = sgxlkl_enclave_state.num_disk_state - 1; i > 0; --i)
     {
         if (!sgxlkl_enclave_state.disk_state[i].mounted)
             continue;
 
-        /*
-         * We are calling umount with the MNT_DETACH flag for the root
-         * file system, otherwise the call fails to unmount the file
-         * system or sometimes blocks indefinitely. (We should still
-         * check that the file system was unmounted cleanly.)
-         */
-        sgxlkl_enclave_disk_config_t* disk_i = &cfg->disks[i];
-        SGXLKL_VERBOSE("calling lkl_umount_timeout(\"%s\", %s, %i)\n", disk_i->mnt, i == 0 ? "MNT_DETACH" : "0", UMOUNT_DISK_TIMEOUT);        
-        res = lkl_umount_timeout(disk_i->mnt, i == 0 ? MNT_DETACH : 0, UMOUNT_DISK_TIMEOUT);
+        sgxlkl_enclave_mount_config_t* disk_i = &cfg->mounts[i];
+        SGXLKL_VERBOSE(
+            "calling lkl_umount_timeout(\"%s\", 0, %i)\n",
+            disk_i->destination,
+            UMOUNT_DISK_TIMEOUT);
+        res = lkl_umount_timeout(disk_i->destination, 0, UMOUNT_DISK_TIMEOUT);
         if (res < 0)
         {
             sgxlkl_warn(
                 "Could not unmount disk %d, %s\n", i, lkl_strerror(res));
         }
 
-        // Root disk, no need to remove mount point ("/").
-        if (strcmp(disk_i->mnt, "/") == 0)
-            continue;
-
         // Not really necessary for mounts in /mnt since /mnt is
         // mounted as tmpfs itself, but it is also possible to mount
         // secondary images at any place in the root file system,
         // including persistent storage, if the root file system is
         // writeable. For simplicity, remove all mount points here.
-        res = lkl_sys_rmdir(disk_i->mnt);
+        res = lkl_sys_rmdir(disk_i->destination);
         if (res < 0)
         {
             sgxlkl_warn(
                 "Could not remove mount point %s\n",
-                disk_i->mnt,
+                disk_i->destination,
                 lkl_strerror(res));
         }
     }
@@ -1299,6 +1325,18 @@ static void* lkl_termination_thread(void* args)
 #ifdef DEBUG
     display_mount_table();
 #endif
+
+    /* Unmount root.
+     * We are calling umount with the MNT_DETACH flag for the root
+     * file system, otherwise the call fails to unmount the file
+     * system or sometimes blocks indefinitely. (We should still
+     * check that the file system was unmounted cleanly.) */
+    SGXLKL_VERBOSE(
+        "calling lkl_umount_timeout(\"/\", MNT_DETACH, %i)\n",
+        UMOUNT_DISK_TIMEOUT);
+    res = lkl_umount_timeout("/", MNT_DETACH, UMOUNT_DISK_TIMEOUT);
+    if (res < 0)
+        sgxlkl_warn("Could not unmount root disk, %s\n", lkl_strerror(res));
 
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
@@ -1496,17 +1534,23 @@ void lkl_start_init()
     const char* lkl_cmdline = bootargs;
     SGXLKL_VERBOSE("kernel command line: \'%s\'\n", lkl_cmdline);
 
-    size_t num_disks = cfg->num_disks;
+    SGXLKL_VERBOSE(
+        "Disk 0: Disk encryption: %s\n",
+        (cfg->root.key || cfg->root.key_id ? "ON" : "off"));
+    SGXLKL_VERBOSE(
+        "Disk 0: Disk is writable: %s\n", (!cfg->root.readonly ? "YES" : "no"));
+
+    size_t num_disks = cfg->num_mounts;
     for (i = 0; i < num_disks; ++i)
     {
         SGXLKL_VERBOSE(
             "Disk %zu: Disk encryption: %s\n",
             i,
-            (is_encrypted(&cfg->disks[i]) ? "ON" : "off"));
+            (is_encrypted(&cfg->mounts[i]) ? "ON" : "off"));
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
             i,
-            (!cfg->disks[i].readonly ? "YES" : "no"));
+            (!cfg->mounts[i].readonly ? "YES" : "no"));
     }
 
     /* Setup bounce buffer for virtio */
