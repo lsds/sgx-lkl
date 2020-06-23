@@ -97,8 +97,8 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
     {}, /* 29 */
     {}, /* 30 */
     {}, /* 31 */
-    {"SGXLKL_SHMEM_FILE", "shmem_file", TYPE_CHAR, {.def_char = NULL}, 0}, /* 32 */
-    {"SGXLKL_SHMEM_SIZE", "shmem_size", TYPE_UINT, {.def_uint = {0, 1024 * 1024 * 1024}}, 0}, /* 33 */
+    {}, /* 32 */
+    {}, /* 33 */
     {}, /* 34 */
     {}, /* 35 */
     {}, /* 36 */

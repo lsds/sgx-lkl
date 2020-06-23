@@ -253,17 +253,6 @@ static void help_config()
         "  SGXLKL_HD_KEY",
         "Encryption key as passphrase or file path to a key file for the root "
         "file system image (Debug only).\n");
-    printf("## Memory ##\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_SHMEM_FILE",
-        "Name of the file to be used for shared memory between the enclave and "
-        "the outside.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_SHMEM_SIZE",
-        "Size of the file to be used for shared memory between the enclave and "
-        "the outside.\n");
 
 #ifndef SGXLKL_RELEASE
     printf("\n");
@@ -867,62 +856,10 @@ void set_clock_res()
     mk_clock_res_string(CLOCK_BOOTTIME);
 }
 
-static void* register_shm(char* path, size_t len)
-{
-    if (path == NULL || strlen(path) == 0)
-        exit(EXIT_FAILURE);
-
-    int fd = shm_open(
-        path,
-        O_TRUNC | O_RDWR | O_CREAT,
-        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    if (fd == -1)
-        sgxlkl_host_fail(
-            "Unable to access shared memory %s (%s)\n", path, strerror(errno));
-
-    int flags = fcntl(fd, F_GETFL);
-    if (flags == -1)
-        sgxlkl_host_fail("fcntl(shmem_fd, F_GETFL)");
-
-    int res = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    if (res == -1)
-        sgxlkl_host_fail("fcntl(shmem_fd, F_SETFL)");
-
-    if (len <= 0)
-        sgxlkl_host_fail("Invalid memory size length %zu\n", len);
-
-    if (ftruncate(fd, len) == -1)
-        sgxlkl_host_fail("ftruncate: %s\n", strerror(errno));
-
-    void* addr;
-    if ((addr = mmap(0, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) ==
-        MAP_FAILED)
-        sgxlkl_host_fail(
-            "Could not mmap shared memory region: %s\n", strerror(errno));
-
-    close(fd);
-    return addr;
-}
-
 /* Sets up shared memory with the outside */
 void set_shared_mem(char* const* envp)
 {
     sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
-
-    char* shm_file = host_state.config.shm_file;
-    size_t shm_len = host_state.config.shm_len;
-    if (!(shm_file == 0 || strlen(shm_file) <= 0 || shm_len <= 0))
-    {
-        char shm_file_enc_to_out[strlen(shm_file) + 4];
-        char shm_file_out_to_enc[strlen(shm_file) + 4];
-
-        snprintf(shm_file_enc_to_out, strlen(shm_file) + 4, "%s-eo", shm_file);
-        snprintf(shm_file_out_to_enc, strlen(shm_file) + 4, "%s-oe", shm_file);
-
-        shm->shm_common = register_shm(shm_file, shm_len);
-        shm->shm_enc_to_out = register_shm(shm_file_enc_to_out, shm_len);
-        shm->shm_out_to_enc = register_shm(shm_file_out_to_enc, shm_len);
-    }
 
     shm->envp = envp;
 }
@@ -1637,8 +1574,6 @@ void override_enclave_config(
 
 void host_config_from_cmdline(char* root_disk_path)
 {
-    host_state.config.shm_file = sgxlkl_config_str(SGXLKL_SHMEM_FILE);
-    host_state.config.shm_len = sgxlkl_config_uint64(SGXLKL_SHMEM_SIZE);
     host_state.config.tap_device = sgxlkl_config_str(SGXLKL_TAP);
     host_state.config.thread_affinity =
         sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY);

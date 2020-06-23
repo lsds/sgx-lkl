@@ -215,7 +215,6 @@ int __libc_init_enclave(int argc, char** argv)
         sgxlkl_heap_size / PAGESIZE,
         sgxlkl_enclave->mmap_files);
 
-    libc.vvar_base = sgxlkl_enclave_state.shared_memory.vvar;
     libc.user_tls_enabled =
         sgxlkl_in_sw_debug_mode() ? 1 : sgxlkl_enclave->fsgsbase;
 
@@ -239,7 +238,7 @@ int __libc_init_enclave(int argc, char** argv)
     __init_libc(envp, argv[0]);
     __init_tls();
 
-    size_t futex_wake_spins = sgxlkl_enclave_state.shared_memory.vvar ? 1 : 500;
+    size_t futex_wake_spins = 1;
     size_t espins = sgxlkl_enclave->espins;
     size_t esleep = sgxlkl_enclave->esleep;
     lthread_sched_global_init(espins, esleep, futex_wake_spins);
