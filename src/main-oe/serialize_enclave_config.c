@@ -143,7 +143,9 @@ static json_obj_t* mk_json_string_clock_res(
     json_obj_t* res = mk_json_array(key, 8);
     for (size_t i = 0; i < 8; i++)
     {
-        res->array[i] = mk_json_string(NULL, clock_res[i].resolution);
+        res->array[i] = mk_json_objects(NULL, 1);
+        res->array[i]->objects[0] =
+            mk_json_string("resolution", clock_res[i].resolution);
     }
     return res;
 }
@@ -483,11 +485,11 @@ void serialize_enclave_config(
     root->objects[cnt++] =
         mk_json_string_array("args", config->args, config->num_args);
     root->objects[cnt++] =
-        mk_json_string_array("envp", config->envp, config->num_envp);
+        mk_json_string_array("env", config->env, config->num_env);
     root->objects[cnt++] = mk_json_string_array(
-        "host_import_envp",
-        config->host_import_envp,
-        config->num_host_import_envp);
+        "host_import_env",
+        config->host_import_env,
+        config->num_host_import_env);
     root->objects[cnt++] = mk_json_auxv("auxv", config->auxv, config->num_auxv);
     root->objects[cnt++] =
         mk_json_disks("disks", config->disks, config->num_disks);

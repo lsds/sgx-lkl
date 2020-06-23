@@ -111,12 +111,12 @@ typedef struct sgxlkl_enclave_config
     char* cwd;
     size_t num_args;
     char** args;
-    size_t num_envp;
-    char** envp;
+    size_t num_env;
+    char** env;
     size_t num_auxv;
     Elf64_auxv_t* auxv;
-    size_t num_host_import_envp;
-    char** host_import_envp;
+    size_t num_host_import_env;
+    char** host_import_env;
     sgxlkl_exit_status_mode_t exit_status;
     size_t num_disks;
     sgxlkl_enclave_disk_config_t* disks;

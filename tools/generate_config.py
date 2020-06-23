@@ -164,7 +164,6 @@ def generate_source(schema_file_name, root, args):
     # enum conversions
     for typename, typedef in root['definitions'].items():
       if 'enum' in typedef:
-        print(typedef)
         if 'c_enum' in typedef:
           names = typedef['enum']
           c_names = typedef['c_enum']

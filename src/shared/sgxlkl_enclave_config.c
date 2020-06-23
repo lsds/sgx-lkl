@@ -84,7 +84,6 @@ static char* make_path(json_parser_t* parser)
 
     char* r = NULL;
     strdupz(&r, tmp);
-    // INFO("%s\n", r);
     return r;
 }
 
@@ -227,27 +226,22 @@ static json_result_t json_read_callback(
         case JSON_REASON_NAME:
             break;
         case JSON_REASON_BEGIN_OBJECT:
+            if (data->enforce_format)
+                last_path = make_path(parser);
             break;
         case JSON_REASON_END_OBJECT:
-            if (data->enforce_format)
-            {
-                // Reset last_path for sortedness check of objects in arrays.
-                // TODO: This is incorrect.
-                free(last_path);
-                last_path = NULL;
-            }
             break;
         case JSON_REASON_BEGIN_ARRAY:
             if (MATCH("args"))
                 ALLOC_ARRAY(num_args, args, char*);
-            else if (MATCH("envp"))
-                ALLOC_ARRAY(num_envp, envp, char*);
+            else if (MATCH("env"))
+                ALLOC_ARRAY(num_env, env, char*);
             else if (MATCH("auxv"))
                 ALLOC_ARRAY(num_auxv, auxv, Elf64_auxv_t);
             else if (MATCH("disks"))
                 ALLOC_ARRAY(num_disks, disks, sgxlkl_enclave_disk_config_t);
-            else if (MATCH("host_import_envp"))
-                ALLOC_ARRAY(num_host_import_envp, host_import_envp, char*);
+            else if (MATCH("host_import_env"))
+                ALLOC_ARRAY(num_host_import_env, host_import_env, char*);
             else if (MATCH("wg.peers"))
                 ALLOC_ARRAY(
                     wg.num_peers, wg.peers, sgxlkl_enclave_wg_peer_config_t);
@@ -255,6 +249,8 @@ static json_result_t json_read_callback(
                 FAIL("unknown json array '%s'\n", make_path(parser));
             break;
         case JSON_REASON_END_ARRAY:
+            if (data->enforce_format)
+                last_path = make_path(parser);
             break;
         case JSON_REASON_VALUE:
         {
@@ -308,9 +304,10 @@ static json_result_t json_read_callback(
             JU64("espins", cfg->espins);
             JU64("esleep", cfg->esleep);
 
-            JPATHT("clock_res", JSON_TYPE_STRING, {
+            JPATHT("clock_res.resolution", JSON_TYPE_STRING, {
                 if (strlen(un->string) != 16)
                     FAIL("invalid length of value for clock_res item");
+                i = parser->path[parser->depth - 2].index;
                 if (i >= 8)
                     FAIL("too many values for clock_res");
                 memcpy(&cfg->clock_res[i].resolution, un->string, 17);
@@ -330,13 +327,13 @@ static json_result_t json_read_callback(
             JPATHT("args", JSON_TYPE_STRING, {
                 strdupz(&cfg->args[i], un->string);
             });
-            JPATHT("envp", JSON_TYPE_STRING, {
-                strdupz(&cfg->envp[i], un->string);
+            JPATHT("env", JSON_TYPE_STRING, {
+                strdupz(&cfg->env[i], un->string);
             });
             JU64("auxv.a_type", cfg->auxv[i].a_type);
             JU64("auxv.a_val", cfg->auxv[i].a_un.a_val);
-            JPATHT("host_import_envp", JSON_TYPE_STRING, {
-                strdupz(&cfg->host_import_envp[i], un->string);
+            JPATHT("host_import_env", JSON_TYPE_STRING, {
+                strdupz(&cfg->host_import_env[i], un->string);
             });
 
             JPATHT("exit_status", JSON_TYPE_STRING, {
@@ -423,10 +420,10 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     // These are cast to (signed) int later.
     CC(cfg->tap_mtu > INT32_MAX, "tap_mtu out of range");
     CC(cfg->num_args > INT32_MAX, "size of args out of range");
-    CC(cfg->num_envp > INT32_MAX, "size of envp out of range");
+    CC(cfg->num_env > INT32_MAX, "size of env out of range");
     CC(cfg->num_auxv > INT32_MAX, "size of auxv out of range");
-    CC(cfg->num_host_import_envp > INT32_MAX,
-       "size of host_import_envp out of range");
+    CC(cfg->num_host_import_env > INT32_MAX,
+       "size of host_import_env out of range");
 }
 
 int sgxlkl_read_enclave_config(
@@ -519,15 +516,15 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
         free(config->args[i]);
     NONDEFAULT_FREE(args);
 
-    for (size_t i = 0; i < config->num_envp; i++)
-        free(config->envp[i]);
-    NONDEFAULT_FREE(envp);
+    for (size_t i = 0; i < config->num_env; i++)
+        free(config->env[i]);
+    NONDEFAULT_FREE(env);
 
     NONDEFAULT_FREE(auxv);
 
-    for (size_t i = 0; i < config->num_host_import_envp; i++)
-        free(config->host_import_envp[i]);
-    NONDEFAULT_FREE(host_import_envp);
+    for (size_t i = 0; i < config->num_host_import_env; i++)
+        free(config->host_import_env[i]);
+    NONDEFAULT_FREE(host_import_env);
 
     for (size_t i = 0; i < config->num_disks; i++)
     {

@@ -33,8 +33,8 @@ typedef struct sgxlkl_enclave_state
     const sgxlkl_enclave_config_t* config;
 
     // Imported environment variables
-    char** imported_envp;
-    size_t num_imported_envp;
+    char** imported_env;
+    size_t num_imported_env;
 
     /* Flattened ELF64 process stack */
     elf64_stack_t elf64_stack;

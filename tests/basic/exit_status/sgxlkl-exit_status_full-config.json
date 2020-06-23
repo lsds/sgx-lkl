@@ -1,14 +1,14 @@
 {
-    "run": "/bin/bash",
     "args": [
+      "/bin/bash",
       "-c",
       "echo \"Exit status from app: 42\"; exit 42"
     ],
-    "environment": {},
+    "envp": {},
     "exit_status" : "full",
-    "disk_config": [
+    "disks": [
       {
-        "disk": "/",
+        "mnt": "/",
         "readonly": false
       }
     ]

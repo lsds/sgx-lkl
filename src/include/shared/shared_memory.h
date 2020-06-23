@@ -25,7 +25,7 @@ typedef struct sgxlkl_enclave_config_shared_memory
     char** virtio_blk_dev_names;
 
     /* Host environment variables for optional import */
-    char* const* envp;
+    char* const* env;
 } sgxlkl_shared_memory_t;
 
 #endif /* SGXLKL_SHARED_MEMORY_H */

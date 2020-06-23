@@ -404,11 +404,12 @@
           "default": [],
           "items": {
             "type": "string"
-          }
+          },
+          "minItems": 1
         },
-        "envp": {
+        "env": {
           "type": "array",
-          "description": "Environment variables.",
+          "description": "Environment variables (VAR=VALUE).",
           "default": [],
           "items": {
             "type": "string"
@@ -422,7 +423,7 @@
             "$ref": "#/definitions/Elf64_auxv_t"
           }
         },
-        "host_import_envp": {
+        "host_import_env": {
           "type": "array",
           "description": "Comma-separated list of environment variables to import from the host.",
           "default": [],

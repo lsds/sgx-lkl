@@ -3,10 +3,10 @@
     "hello-eeid",
     "arg"
   ],
-  "envp": [
+  "env": [
     "ABC=DEF"
   ],
-  "host_import_envp": [
+  "host_import_env": [
     "HOSTNAME"
   ],
   "disks": [

@@ -31,21 +31,19 @@ static void prepare_elf_stack()
     const sgxlkl_enclave_config_t* cfg = state->config;
 
     // import host envp
-    state->num_imported_envp = 0;
-    state->imported_envp = NULL;
+    state->num_imported_env = 0;
+    state->imported_env = NULL;
 
-    if (sgxlkl_enclave_state.shared_memory.envp &&
-        cfg->num_host_import_envp > 0)
+    if (sgxlkl_enclave_state.shared_memory.env && cfg->num_host_import_env > 0)
     {
-        state->imported_envp =
-            malloc(sizeof(char*) * cfg->num_host_import_envp);
-        if (!state->imported_envp)
+        state->imported_env = malloc(sizeof(char*) * cfg->num_host_import_env);
+        if (!state->imported_env)
             sgxlkl_fail("out of memory\n");
 
-        for (size_t i = 0; i < cfg->num_host_import_envp; i++)
+        for (size_t i = 0; i < cfg->num_host_import_env; i++)
         {
-            const char* name = cfg->host_import_envp[i];
-            for (char* const* p = sgxlkl_enclave_state.shared_memory.envp;
+            const char* name = cfg->host_import_env[i];
+            for (char* const* p = sgxlkl_enclave_state.shared_memory.env;
                  p && *p != NULL;
                  p++)
             {
@@ -58,7 +56,7 @@ static void prepare_elf_stack()
                     if (!cpy)
                         sgxlkl_fail("out of memory\n");
                     memcpy(cpy, str, len + 1);
-                    state->imported_envp[state->num_imported_envp++] = cpy;
+                    state->imported_env[state->num_imported_env++] = cpy;
                 }
             }
         }
@@ -69,12 +67,12 @@ static void prepare_elf_stack()
     for (size_t i = 0; i < cfg->num_args; i++)
         total_size += strlen(cfg->args[i]) + 1;
     total_count += cfg->num_args + 1;
-    for (size_t i = 0; i < cfg->num_envp; i++)
-        total_size += strlen(cfg->envp[i]) + 1;
-    total_count += cfg->num_envp + 1;
-    for (size_t i = 0; i < state->num_imported_envp; i++)
-        total_size += strlen(state->imported_envp[i]) + 1;
-    total_count += state->num_imported_envp + 1;
+    for (size_t i = 0; i < cfg->num_env; i++)
+        total_size += strlen(cfg->env[i]) + 1;
+    total_count += cfg->num_env + 1;
+    for (size_t i = 0; i < state->num_imported_env; i++)
+        total_size += strlen(state->imported_env[i]) + 1;
+    total_count += state->num_imported_env + 1;
     total_count += 1; // auxv terminator
     total_count += 1; // platform-independent stuff terminator
 
@@ -103,11 +101,11 @@ static void prepare_elf_stack()
 
     // envp
     stack->envp = out + j;
-    for (size_t i = 0; i < cfg->num_envp; i++)
-        ADD_STRING(cfg->envp[i]);
-    for (size_t i = 0; i < state->num_imported_envp; i++)
+    for (size_t i = 0; i < cfg->num_env; i++)
+        ADD_STRING(cfg->env[i]);
+    for (size_t i = 0; i < state->num_imported_env; i++)
         // Is this the right order for imported vars?
-        ADD_STRING(state->imported_envp[i]);
+        ADD_STRING(state->imported_env[i]);
     out[j++] = NULL;
 
     // auxv
@@ -297,8 +295,8 @@ void sgxlkl_free_enclave_state()
     sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
     state->config = NULL;
 
-    state->num_imported_envp = 0;
-    free(state->imported_envp);
+    state->num_imported_env = 0;
+    free(state->imported_env);
 
     state->elf64_stack.argc = 0;
     free(state->elf64_stack.argv);
