@@ -113,14 +113,6 @@ static char* make_path(json_parser_t* parser)
 
 #define MATCH(PATH) json_match(parser, PATH) == JSON_OK
 
-#define JPATH(PATH, CODE) \
-    if (MATCH(PATH))      \
-    {                     \
-        SEEN(parser);     \
-        CODE;             \
-        return JSON_OK;   \
-    }
-
 #define JPATHT(PATH, TYPE, CODE) \
     if (MATCH(PATH))             \
     {                            \
@@ -180,15 +172,32 @@ static json_result_t decode_uint32_t(
     return JSON_OK;
 }
 
-#define JBOOL(PATH, DEST)         \
-    do                            \
-    {                             \
-        if (MATCH(PATH))          \
-        {                         \
-            (DEST) = un->boolean; \
-            return JSON_OK;       \
-        }                         \
-    } while (0);
+#define JHEXBUF(P, D)                                     \
+    if (MATCH(P))                                         \
+    {                                                     \
+        SEEN(parser);                                     \
+        CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);         \
+        if (type == JSON_TYPE_NULL)                       \
+            D = NULL;                                     \
+        else                                              \
+        {                                                 \
+            size_t l = strlen(un->string);                \
+            D##_len = l / 2;                              \
+            D = calloc(1, D##_len);                       \
+            if (!D)                                       \
+                FAIL("out of memory\n");                  \
+            for (size_t i = 0; i < D##_len; i++)          \
+                D[i] = hex_to_int(un->string + 2 * i, 2); \
+        }                                                 \
+        return JSON_OK;                                   \
+    }
+
+#define JBOOL(PATH, DEST)     \
+    if (MATCH(PATH))          \
+    {                         \
+        (DEST) = un->boolean; \
+        return JSON_OK;       \
+    }
 
 #define JU64(P, D)                                             \
     if (decode_uint64_t(parser, type, un, P, &(D)) == JSON_OK) \
@@ -341,25 +350,7 @@ static json_result_t json_read_callback(
                     string_to_sgxlkl_exit_status_mode_t(un->string);
             });
 
-            if (MATCH("root.key"))
-            {
-                SEEN(parser);
-                CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
-                sgxlkl_enclave_root_config_t* root = &data->config->root;
-                if (type == JSON_TYPE_NULL)
-                    root->key = NULL;
-                else
-                {
-                    size_t l = strlen(un->string);
-                    root->key_len = l / 2;
-                    root->key = calloc(1, root->key_len);
-                    if (!root->key)
-                        FAIL("out of memory\n");
-                    for (size_t i = 0; i < root->key_len; i++)
-                        root->key[i] = hex_to_int(un->string + 2 * i, 2);
-                }
-                return JSON_OK;
-            }
+            JHEXBUF("root.key", data->config->root.key);
             JSTRING("root.key_id", data->config->root.key_id);
             JBOOL("root.readonly", data->config->root.readonly);
             JSTRING("root.roothash", data->config->root.roothash);
@@ -369,25 +360,7 @@ static json_result_t json_read_callback(
 #define MOUNT() (&(cfg->mounts[parser->path[parser->depth - 2].index]))
             JBOOL("mounts.create", MOUNT()->create);
             JBOOL("mounts.fresh_key", MOUNT()->fresh_key);
-            if (MATCH("mounts.key"))
-            {
-                SEEN(parser);
-                CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);
-                sgxlkl_enclave_mount_config_t* mount = MOUNT();
-                if (type == JSON_TYPE_NULL)
-                    mount->key = NULL;
-                else
-                {
-                    size_t l = strlen(un->string);
-                    mount->key_len = l / 2;
-                    mount->key = calloc(1, mount->key_len);
-                    if (!mount->key)
-                        FAIL("out of memory\n");
-                    for (size_t i = 0; i < mount->key_len; i++)
-                        mount->key[i] = hex_to_int(un->string + 2 * i, 2);
-                }
-                return JSON_OK;
-            }
+            JHEXBUF("mounts.key", MOUNT()->key);
             JSTRING("mounts.key_id", MOUNT()->key_id);
             if (MATCH("mounts.destination"))
             {
@@ -480,19 +453,13 @@ int sgxlkl_read_enclave_config(
              json_read_callback,
              &callback_data,
              &allocator)) != JSON_OK)
-    {
         FAIL("json_parser_init() failed: %d\n", r);
-    }
 
     if ((r = json_parser_parse(&parser)) != JSON_OK)
-    {
         FAIL("json_parser_parse() failed: %d\n", r);
-    }
 
     if (parser.depth != 0)
-    {
         FAIL("unterminated json objects\n");
-    }
 
     free(json_copy);
 
