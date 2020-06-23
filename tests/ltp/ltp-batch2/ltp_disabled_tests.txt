@@ -965,7 +965,7 @@
 /ltp/testcases/kernel/syscalls/sysinfo/sysinfo02
 #/ltp/testcases/kernel/syscalls/syslog/syslog11
 #/ltp/testcases/kernel/syscalls/syslog/syslog12
-/ltp/testcases/kernel/syscalls/syslog/syslogtst
+#/ltp/testcases/kernel/syscalls/syslog/syslogtst
 #/ltp/testcases/kernel/syscalls/tee/tee01
 #/ltp/testcases/kernel/syscalls/tee/tee02
 /ltp/testcases/kernel/syscalls/tgkill/tgkill01
