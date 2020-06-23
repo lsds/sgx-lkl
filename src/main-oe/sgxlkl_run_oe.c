@@ -1562,6 +1562,28 @@ void override_enclave_config(
         econf->num_args = argc;
         econf->args = argv;
     }
+
+    if (sgxlkl_configured(SGXLKL_HOST_IMPORT_ENV))
+    {
+        char* import_vars = strdup(sgxlkl_config_str(SGXLKL_HOST_IMPORT_ENV));
+        econf->num_host_import_env = 0;
+        char* begin = import_vars;
+        bool end = import_vars == NULL;
+        for (char* p = import_vars; !end; p++)
+            if (*p == ',' || *p == 0)
+            {
+                econf->host_import_env = realloc(
+                    econf->host_import_env,
+                    sizeof(char*) * (econf->num_host_import_env + 1));
+                if (*p == 0)
+                    end = true;
+                *p = 0;
+                econf->host_import_env[econf->num_host_import_env++] =
+                    strdup(begin);
+                begin = p + 1;
+            }
+        free(import_vars);
+    }
 }
 
 void host_config_from_cmdline(char* root_disk_path)

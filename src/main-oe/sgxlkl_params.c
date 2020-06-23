@@ -132,7 +132,7 @@ static struct sgxlkl_config_elem sgxlkl_config[] = {
     {}, /* 64 */
     {"SGXLKL_ENABLE_SWIOTLB", "swiotlb", TYPE_BOOL, {.def_bool = DEFAULT_SGXLKL_SWIOTLB}, 0}, /* 65 */
     {"SGXLKL_HD_OVERLAY", "hd_overlay", TYPE_BOOL, {.def_bool = false}, 0}, /* 66 */
-    {"SGXLKL_HOST_IMPORT_ENV", "host_import_envp", TYPE_CHAR, {.def_char = NULL}, 0}, /* 67 */
+    {"SGXLKL_HOST_IMPORT_ENV", "host_import_env", TYPE_CHAR, {.def_char = NULL}, 0}, /* 67 */
 };
 // clang-format off
 
