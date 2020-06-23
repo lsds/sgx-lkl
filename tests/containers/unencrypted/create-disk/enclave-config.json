@@ -4,14 +4,13 @@
       "-c",
       "f = open('/data/test', 'w'); f.write('test'); f.close(); print('TEST PASSED !')"
     ],
-    "envp": {},
-    "disks": [
+    "env": {},
+    "root": {
+      "readonly": false
+    },
+    "mounts": [
       {
-        "mnt": "/",
-        "readonly": false
-      },
-      {
-        "mnt": "/data",
+        "destination": "/data",
         "readonly": false,
         "create": true,
         "size": "107374182400"

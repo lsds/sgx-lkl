@@ -4,12 +4,9 @@
       "-c",
       "echo \"Exit status from app: 42\"; exit 42"
     ],
-    "envp": {},
+    "env": {},
     "exit_status" : "binary",
-    "disks": [
-      {
-        "mnt": "/",
+    "root": {
         "readonly": false
-      }
-    ]
+    }
 }
