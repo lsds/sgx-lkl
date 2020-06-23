@@ -46,7 +46,7 @@ def post_type(jtype):
 def pre_type(jtype):
   if 'type' in jtype:
     jtt = jtype['type']
-    if jtt == 'array':
+    if jtt == 'array' or (isinstance(jtt, list) and 'array' in jtt and 'null' in jtt):
       items = jtype['items']
       item_type = pre_type(items)
       if 'maxLength' in jtype:

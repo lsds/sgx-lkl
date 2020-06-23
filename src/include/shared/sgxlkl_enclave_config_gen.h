@@ -50,7 +50,6 @@ typedef struct sgxlkl_enclave_mount_config
 {
     bool create;
     char destination[256];
-    size_t key_len;
     uint8_t* key;
     char* key_id;
     bool fresh_key;
@@ -62,7 +61,6 @@ typedef struct sgxlkl_enclave_mount_config
 
 typedef struct sgxlkl_enclave_root_config
 {
-    size_t key_len;
     uint8_t* key;
     char* key_id;
     char* roothash;

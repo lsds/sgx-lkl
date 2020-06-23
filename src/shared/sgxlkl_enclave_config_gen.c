@@ -110,7 +110,6 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
     .num_host_import_env=0,
     .host_import_env=NULL,
     .root = {
-        .key_len=0,
         .key=NULL,
         .key_id=NULL,
         .roothash=NULL,
