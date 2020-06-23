@@ -856,14 +856,6 @@ void set_clock_res()
     mk_clock_res_string(CLOCK_BOOTTIME);
 }
 
-/* Sets up shared memory with the outside */
-void set_shared_mem(char* const* envp)
-{
-    sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
-
-    shm->envp = envp;
-}
-
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
 {
     rdfsbase_caused_sigill = 1;
@@ -1769,7 +1761,7 @@ int main(int argc, char* argv[], char* envp[])
         econf->kernel_cmd);
 
     set_clock_res();
-    set_shared_mem(envp);
+    host_state.shared_memory.envp = envp;
     set_tls();
     register_hds(root_hd);
     register_net();

@@ -1545,35 +1545,6 @@ void lkl_start_init()
 
     init_enclave_clock();
 
-    // Set environment variable to export SHMEM address to the application.
-    // Note: Due to how putenv() works, we need to allocate the environment
-    // variable on the heap and we must _not_ free it (man putenv, section
-    // NOTES)
-    char* shm_common = malloc(64);
-    char* shm_enc_to_out_addr = malloc(64);
-    char* shm_out_to_enc_addr = malloc(64);
-
-    // Set address of ring buffer to env, so that enclave process can access it
-    // directly
-    oe_snprintf(
-        shm_common,
-        64,
-        "SGXLKL_SHMEM_COMMON=%p",
-        shm->shm_common);
-    oe_snprintf(
-        shm_enc_to_out_addr,
-        64,
-        "SGXLKL_SHMEM_ENC_TO_OUT=%p",
-        shm->shm_enc_to_out);
-    oe_snprintf(
-        shm_out_to_enc_addr,
-        64,
-        "SGXLKL_SHMEM_OUT_TO_ENC=%p",
-        shm->shm_out_to_enc);
-    putenv(shm_common);
-    putenv(shm_enc_to_out_addr);
-    putenv(shm_out_to_enc_addr);
-
     // Sysctl
     do_sysctl(sgxlkl_enclave);
 
