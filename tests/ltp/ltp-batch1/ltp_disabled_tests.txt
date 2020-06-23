@@ -129,7 +129,7 @@
 /ltp/testcases/kernel/syscalls/execv/execv01_child
 /ltp/testcases/kernel/syscalls/execve/execve01
 /ltp/testcases/kernel/syscalls/execve/execve01_child
-/ltp/testcases/kernel/syscalls/execve/execve02
+#/ltp/testcases/kernel/syscalls/execve/execve02
 /ltp/testcases/kernel/syscalls/execve/execve03
 /ltp/testcases/kernel/syscalls/execve/execve04
 /ltp/testcases/kernel/syscalls/execve/execve05
