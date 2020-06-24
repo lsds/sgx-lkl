@@ -53,8 +53,7 @@ typedef enum _json_result
     JSON_UNKNOWN_VALUE,
     JSON_OUT_OF_BOUNDS,
     JSON_NO_MATCH,
-}
-json_result_t;
+} json_result_t;
 
 typedef enum _json_type
 {
@@ -63,19 +62,16 @@ typedef enum _json_type
     JSON_TYPE_INTEGER,
     JSON_TYPE_REAL,
     JSON_TYPE_STRING,
-}
-json_type_t;
+} json_type_t;
 
 const char* json_result_string(json_result_t result);
 
-typedef union _json_union
-{
+typedef union _json_union {
     unsigned char boolean;
     int64_t integer;
     double real;
     char* string;
-}
-json_union_t;
+} json_union_t;
 
 typedef enum _json_reason
 {
@@ -86,8 +82,7 @@ typedef enum _json_reason
     JSON_REASON_BEGIN_ARRAY,
     JSON_REASON_END_ARRAY,
     JSON_REASON_VALUE
-}
-json_reason_t;
+} json_reason_t;
 
 typedef struct _json_parser json_parser_t;
 
@@ -101,9 +96,8 @@ typedef json_result_t (*json_parser_callback_t)(
 typedef struct _json_allocator
 {
     void* (*ja_malloc)(size_t size);
-    void (*ja_free)(void *ptr);
-}
-json_allocator_t;
+    void (*ja_free)(void* ptr);
+} json_allocator_t;
 
 typedef struct _json_node
 {
@@ -118,8 +112,7 @@ typedef struct _json_node
 
     /* The array index (if an array) */
     size_t index;
-}
-json_node_t;
+} json_node_t;
 
 struct _json_parser
 {
@@ -250,10 +243,7 @@ json_result_t json_parser_parse(json_parser_t* parser);
  */
 json_result_t json_match(json_parser_t* parser, const char* pattern);
 
-typedef void (*json_write_t)(
-    void* stream,
-    const void* buf,
-    size_t count);
+typedef void (*json_write_t)(void* stream, const void* buf, size_t count);
 
 /* This function prints the value contained in a JSON union.
  *     - write - callback responsible for writing the output.
@@ -292,9 +282,11 @@ json_result_t json_print(
  *
  *     widget.1.gadget.color
  */
-void json_dump_path(
-    json_write_t write,
-    void* stream,
-    json_parser_t* parser);
+void json_dump_path(json_write_t write, void* stream, json_parser_t* parser);
+
+/* Self-contained string conversion functions */
+long int _strtol(const char* nptr, char** endptr, int base);
+unsigned long int _strtoul(const char* nptr, char** endptr, int base);
+double _strtod(const char* nptr, char** endptr);
 
 #endif /* _JSON_H */

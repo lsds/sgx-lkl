@@ -63,8 +63,8 @@ static int _isdigit(int c)
 
 static int _isspace(int c)
 {
-    return c == ' ' || c == '\f' || c == '\n' ||
-        c == '\r' || c == '\t' || c == '\v';
+    return c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' ||
+           c == '\v';
 }
 
 static int _islower(int c)
@@ -167,8 +167,8 @@ static int _memcmp(const void* s1, const void* s2, size_t n)
 
 static void* _memmove(void* dest_, const void* src_, size_t n)
 {
-    char *dest = (char*)dest_;
-    const char *src = (const char*)src_;
+    char* dest = (char*)dest_;
+    const char* src = (const char*)src_;
 
     if (dest != src && n > 0)
     {
@@ -303,7 +303,7 @@ static int _isdigit2(char c, int base)
     return _digit[(unsigned char)c] < base;
 }
 
-static long int _strtol(const char* nptr, char** endptr, int base)
+long int _strtol(const char* nptr, char** endptr, int base)
 {
     const char* p;
     unsigned long x = 0;
@@ -424,12 +424,12 @@ static long int _strtol(const char* nptr, char** endptr, int base)
     return (long)x;
 }
 
-static unsigned long int _strtoul(const char* nptr, char** endptr, int base)
+unsigned long int _strtoul(const char* nptr, char** endptr, int base)
 {
     return (unsigned long)_strtol(nptr, endptr, base);
 }
 
-static double _strtod(const char* nptr, char** endptr)
+double _strtod(const char* nptr, char** endptr)
 {
     const char* p;
     int negative = 0;
@@ -555,7 +555,7 @@ static double _strtod(const char* nptr, char** endptr)
 **==============================================================================
 */
 
-#define STRLIT(STR) STR, sizeof(STR)-1
+#define STRLIT(STR) STR, sizeof(STR) - 1
 
 #define RAISE(RESULT)                                                 \
     do                                                                \
@@ -564,8 +564,7 @@ static double _strtod(const char* nptr, char** endptr)
         result = _r_;                                                 \
         _trace_result(parser, __FILE__, __LINE__, __FUNCTION__, _r_); \
         goto done;                                                    \
-    }                                                                 \
-    while (0)
+    } while (0)
 
 #define CHECK(RESULT)                                                     \
     do                                                                    \
@@ -577,8 +576,7 @@ static double _strtod(const char* nptr, char** endptr)
             _trace_result(parser, __FILE__, __LINE__, __FUNCTION__, _r_); \
             goto done;                                                    \
         }                                                                 \
-    }                                                                     \
-    while (0)
+    } while (0)
 
 static void _trace(
     json_parser_t* parser,
@@ -665,8 +663,8 @@ static unsigned char _char_to_nibble(char c)
 
 static int _is_number_char(char c)
 {
-    return
-        _isdigit(c) || c == '-' || c == '+' || c == 'e' || c == 'E' || c == '.';
+    return _isdigit(c) || c == '-' || c == '+' || c == 'e' || c == 'E' ||
+           c == '.';
 }
 
 static int _is_decimal_or_exponent(char c)
@@ -871,9 +869,7 @@ static int _expect(json_parser_t* parser, const char* str, size_t len)
 
 static json_result_t _get_value(json_parser_t* parser);
 
-static json_result_t _get_array(
-    json_parser_t* parser,
-    size_t* array_size)
+static json_result_t _get_array(json_parser_t* parser, size_t* array_size)
 {
     json_result_t result = JSON_OK;
     char c;
@@ -934,8 +930,8 @@ static json_result_t _get_object(json_parser_t* parser)
     json_result_t result = JSON_OK;
     char c;
 
-    CHECK(_invoke_callback(parser, JSON_REASON_BEGIN_OBJECT, JSON_TYPE_NULL,
-        NULL));
+    CHECK(_invoke_callback(
+        parser, JSON_REASON_BEGIN_OBJECT, JSON_TYPE_NULL, NULL));
 
     if (parser->depth++ == JSON_MAX_NESTING)
         RAISE(JSON_NESTING_OVERFLOW);
@@ -964,7 +960,7 @@ static json_result_t _get_object(json_parser_t* parser)
             /* Insert node */
             {
                 uint64_t n;
-                json_node_t node = { un.string, 0, 0, 0 };
+                json_node_t node = {un.string, 0, 0, 0};
 
                 if (_strtou64(&n, un.string) == 0)
                     node.number = n;
@@ -974,8 +970,8 @@ static json_result_t _get_object(json_parser_t* parser)
                 parser->path[parser->depth - 1] = node;
             }
 
-            CHECK(_invoke_callback(parser, JSON_REASON_NAME, JSON_TYPE_STRING,
-                &un));
+            CHECK(_invoke_callback(
+                parser, JSON_REASON_NAME, JSON_TYPE_STRING, &un));
 
             /* Expect: name-separator(':') */
             {
@@ -1006,8 +1002,8 @@ static json_result_t _get_object(json_parser_t* parser)
     if (parser->depth == 0)
         RAISE(JSON_NESTING_UNDERFLOW);
 
-    CHECK(_invoke_callback(
-        parser, JSON_REASON_END_OBJECT, JSON_TYPE_NULL, NULL));
+    CHECK(
+        _invoke_callback(parser, JSON_REASON_END_OBJECT, JSON_TYPE_NULL, NULL));
 
     parser->depth--;
 
@@ -1084,10 +1080,7 @@ static json_result_t _get_value(json_parser_t* parser)
             un.boolean = 0;
 
             CHECK(_invoke_callback(
-                parser,
-                JSON_REASON_VALUE,
-                JSON_TYPE_BOOLEAN,
-                &un));
+                parser, JSON_REASON_VALUE, JSON_TYPE_BOOLEAN, &un));
 
             break;
         }
@@ -1097,10 +1090,7 @@ static json_result_t _get_value(json_parser_t* parser)
                 RAISE(JSON_BAD_SYNTAX);
 
             CHECK(_invoke_callback(
-                parser,
-                JSON_REASON_VALUE,
-                JSON_TYPE_NULL,
-                NULL));
+                parser, JSON_REASON_VALUE, JSON_TYPE_NULL, NULL));
 
             break;
         }
@@ -1114,10 +1104,7 @@ static json_result_t _get_value(json_parser_t* parser)
             un.boolean = 1;
 
             CHECK(_invoke_callback(
-                parser,
-                JSON_REASON_VALUE,
-                JSON_TYPE_BOOLEAN,
-                &un));
+                parser, JSON_REASON_VALUE, JSON_TYPE_BOOLEAN, &un));
 
             break;
         }
@@ -1152,19 +1139,13 @@ static json_result_t _get_value(json_parser_t* parser)
             }
 
             CHECK(_invoke_callback(
-                parser,
-                JSON_REASON_BEGIN_ARRAY,
-                JSON_TYPE_INTEGER,
-                &un));
+                parser, JSON_REASON_BEGIN_ARRAY, JSON_TYPE_INTEGER, &un));
 
             if (_get_array(parser, NULL) != JSON_OK)
                 RAISE(JSON_BAD_SYNTAX);
 
             CHECK(_invoke_callback(
-                parser,
-                JSON_REASON_END_ARRAY,
-                JSON_TYPE_INTEGER,
-                &un));
+                parser, JSON_REASON_END_ARRAY, JSON_TYPE_INTEGER, &un));
 
             break;
         }
@@ -1176,10 +1157,7 @@ static json_result_t _get_value(json_parser_t* parser)
                 RAISE(JSON_BAD_SYNTAX);
 
             CHECK(_invoke_callback(
-                parser,
-                JSON_REASON_VALUE,
-                JSON_TYPE_STRING,
-                &un));
+                parser, JSON_REASON_VALUE, JSON_TYPE_STRING, &un));
             break;
         }
         default:
@@ -1289,8 +1267,8 @@ json_result_t json_match(json_parser_t* parser, const char* pattern)
     }
 
     /* Split the pattern into tokens */
-    if ((pattern_depth = _split(ptr, '.', pattern_path,
-        JSON_MAX_NESTING)) == (size_t)-1)
+    if ((pattern_depth = _split(ptr, '.', pattern_path, JSON_MAX_NESTING)) ==
+        (size_t)-1)
     {
         RAISE(JSON_NESTING_OVERFLOW);
     }
@@ -1377,19 +1355,19 @@ static void _Indent(json_write_t write, void* stream, size_t depth)
 
 static void _byte_to_hex_string(unsigned char c, char hex[3])
 {
-    const unsigned char hi = (c & 0xf0) >> 4;;
+    const unsigned char hi = (c & 0xf0) >> 4;
+    ;
     const unsigned char lo = c & 0x0f;
 
-    hex[0] = (hi >= 0xa) ?  (hi - 0xa + 'A') : (hi + '0');
-    hex[1] = (lo >= 0xa) ?  (lo - 0xa + 'A') : (lo + '0');
+    hex[0] = (hi >= 0xa) ? (hi - 0xa + 'A') : (hi + '0');
+    hex[1] = (lo >= 0xa) ? (lo - 0xa + 'A') : (lo + '0');
     hex[2] = '\0';
 }
 
 typedef struct _strbuf
 {
     char data[256];
-}
-strbuf_t;
+} strbuf_t;
 
 static const char* _i64tostr(strbuf_t* buf, int64_t x, size_t* size)
 {
@@ -1571,8 +1549,7 @@ typedef struct callback_data
     int comma;
     json_write_t write;
     void* stream;
-}
-callback_data_t;
+} callback_data_t;
 
 json_result_t _json_print_callback(
     json_parser_t* parser,
@@ -1588,8 +1565,7 @@ json_result_t _json_print_callback(
     (void)parser;
 
     /* Print commas */
-    if (reason != JSON_REASON_END_ARRAY &&
-        reason != JSON_REASON_END_OBJECT &&
+    if (reason != JSON_REASON_END_ARRAY && reason != JSON_REASON_END_OBJECT &&
         data->comma)
     {
         data->comma = 0;
@@ -1597,8 +1573,7 @@ json_result_t _json_print_callback(
     }
 
     /* Decrease depth */
-    if (reason == JSON_REASON_END_OBJECT ||
-        reason == JSON_REASON_END_ARRAY)
+    if (reason == JSON_REASON_END_OBJECT || reason == JSON_REASON_END_ARRAY)
     {
         data->depth--;
     }
@@ -1665,8 +1640,7 @@ json_result_t _json_print_callback(
     }
 
     /* Final newline */
-    if (reason == JSON_REASON_END_OBJECT ||
-        reason == JSON_REASON_END_ARRAY)
+    if (reason == JSON_REASON_END_OBJECT || reason == JSON_REASON_END_ARRAY)
     {
         if (data->depth == 0)
             (*write)(stream, STRLIT("\n"));
@@ -1686,7 +1660,7 @@ json_result_t json_print(
     char* data = NULL;
     json_parser_t parser_buf;
     json_parser_t* parser = &parser_buf;
-    callback_data_t callback_data = { 0, 0, 0, write, stream };
+    callback_data_t callback_data = {0, 0, 0, write, stream};
 
     _memset(&parser_buf, 0, sizeof(parser_buf));
 
@@ -1702,12 +1676,12 @@ json_result_t json_print(
     _memcpy(data, json_data, json_size);
 
     if (json_parser_init(
-        parser,
-        data,
-        json_size,
-        _json_print_callback,
-        &callback_data,
-        allocator) != JSON_OK)
+            parser,
+            data,
+            json_size,
+            _json_print_callback,
+            &callback_data,
+            allocator) != JSON_OK)
     {
         RAISE(JSON_FAILED);
     }
@@ -1732,10 +1706,7 @@ done:
     return result;
 }
 
-void json_dump_path(
-    json_write_t write,
-    void* stream,
-    json_parser_t* parser)
+void json_dump_path(json_write_t write, void* stream, json_parser_t* parser)
 {
     if (write && parser)
     {
@@ -1743,8 +1714,8 @@ void json_dump_path(
 
         for (size_t i = 0; i < depth; i++)
         {
-            (*write)(stream, parser->path[i].name,
-                _strlen(parser->path[i].name));
+            (*write)(
+                stream, parser->path[i].name, _strlen(parser->path[i].name));
 
             if (parser->path[i].size)
             {

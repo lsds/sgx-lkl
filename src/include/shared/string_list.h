@@ -9,7 +9,7 @@ typedef struct string_list_
 
 string_list_t* string_list_add(string_list_t* list, const char* str);
 
-int string_list_contains(const string_list_t* list, const char* str);
+bool string_list_contains(const string_list_t* list, const char* str);
 
 size_t string_list_len(string_list_t* list);
 

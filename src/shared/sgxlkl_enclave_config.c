@@ -5,8 +5,6 @@
 #define FAIL sgxlkl_fail
 #define WARN sgxlkl_warn
 #define INFO sgxlkl_info
-// oe_strtol missing
-long int strtol(const char* nptr, char** endptr, int base);
 #else
 #include <host/sgxlkl_util.h>
 #include <stdio.h>
@@ -27,6 +25,10 @@ long int strtol(const char* nptr, char** endptr, int base);
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
 
+#define CHECKMEM(C) \
+    if (!C)         \
+        FAIL("out of memory\n");
+
 // Duplicate a string (including NULL)
 static int strdupz(char** to, const char* from)
 {
@@ -41,13 +43,8 @@ static int strdupz(char** to, const char* from)
     {
         size_t l = strlen(from);
         *to = malloc(l + 1);
-        if (!*to)
-        {
-            *to = NULL;
-            FAIL("out of memory\n");
-        }
-        else
-            memcpy(*to, from, l + 1);
+        CHECKMEM(*to);
+        memcpy(*to, from, l + 1);
     }
     return 0;
 }
@@ -113,6 +110,14 @@ static char* make_path(json_parser_t* parser)
 
 #define MATCH(PATH) json_match(parser, PATH) == JSON_OK
 
+#define JPATH(PATH, CODE) \
+    if (MATCH(PATH))      \
+    {                     \
+        SEEN(parser);     \
+        CODE;             \
+        return JSON_OK;   \
+    }
+
 #define JPATHT(PATH, TYPE, CODE) \
     if (MATCH(PATH))             \
     {                            \
@@ -122,15 +127,70 @@ static char* make_path(json_parser_t* parser)
         return JSON_OK;          \
     }
 
+#define JPATH2T(PATH, TYPE1, TYPE2, CODE) \
+    if (MATCH(PATH))                      \
+    {                                     \
+        SEEN(parser);                     \
+        CHECK2(TYPE1, TYPE2);             \
+        CODE;                             \
+        return JSON_OK;                   \
+    }
+
 #define JSTRING(PATH, DEST)                           \
-    if (MATCH(PATH))                                  \
-    {                                                 \
-        SEEN(parser);                                 \
-        CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);     \
+    JPATH2T(PATH, JSON_TYPE_STRING, JSON_TYPE_NULL, { \
         if (strdupz(&(DEST), un ? un->string : NULL)) \
             return JSON_FAILED;                       \
-        return JSON_OK;                               \
+    });
+
+static json_result_t decode_safe_uint64_t(
+    json_parser_t* parser,
+    json_type_t type,
+    const json_union_t* value,
+    uint64_t* to)
+{
+    if (!to)
+        return JSON_BAD_PARAMETER;
+    if (type != JSON_TYPE_STRING)
+        FAIL("invalid value type for '%s'\n", make_path(parser));
+    _Static_assert(
+        sizeof(unsigned long) == 8, "unexpected size of unsigned long");
+    // Note: Can't use errno, because it depends on the scheduler, which isn't
+    // initialized yet. We use  _strtoul from libjson, which signals error
+    // by returning UINT64_MAX.
+    uint64_t tmp = _strtoul(value->string, NULL, 10);
+    if (tmp == UINT64_MAX)
+        return JSON_OUT_OF_BOUNDS;
+    *to = tmp;
+    return JSON_OK;
+}
+
+static json_result_t decode_any_uint64_t(
+    json_parser_t* parser,
+    json_type_t type,
+    const json_union_t* value,
+    uint64_t* to)
+{
+    if (!to)
+        return JSON_BAD_PARAMETER;
+    uint64_t tmp;
+    if (type == JSON_TYPE_STRING)
+    {
+        errno = 0;
+        tmp = _strtoul(value->string, NULL, 10);
+        if (errno != 0)
+            return JSON_UNKNOWN_VALUE;
     }
+    else if (type == JSON_TYPE_INTEGER)
+        tmp = value->integer;
+    else if (type == JSON_TYPE_REAL)
+        tmp = value->real;
+    else if (type == JSON_TYPE_NULL)
+        tmp = 0;
+    else
+        return JSON_UNKNOWN_VALUE;
+    *to = tmp;
+    return JSON_OK;
+}
 
 static json_result_t decode_uint64_t(
     json_parser_t* parser,
@@ -139,20 +199,10 @@ static json_result_t decode_uint64_t(
     char* path,
     uint64_t* to)
 {
-    if (!to)
-        return JSON_BAD_PARAMETER;
-
-    if (MATCH(path))
-    {
-        if (type != JSON_TYPE_STRING)
-            FAIL("invalid value type for '%s'\n", make_path(parser));
-        _Static_assert(
-            sizeof(unsigned long) == 8, "unexpected size of unsigned long");
-        uint64_t tmp = strtoul(value->string, NULL, 10);
-        *to = tmp;
-        return JSON_OK;
-    }
-    return JSON_NO_MATCH;
+    if (((json_callback_data_t*)parser->callback_data)->enforce_format)
+        return decode_safe_uint64_t(parser, type, value, to);
+    else
+        return decode_any_uint64_t(parser, type, value, to);
 }
 
 static json_result_t decode_uint32_t(
@@ -172,47 +222,33 @@ static json_result_t decode_uint32_t(
     return JSON_OK;
 }
 
-#define JHEXBUF(P, D)                                     \
-    if (MATCH(P))                                         \
-    {                                                     \
-        SEEN(parser);                                     \
-        CHECK2(JSON_TYPE_STRING, JSON_TYPE_NULL);         \
-        if (type == JSON_TYPE_NULL)                       \
-            D = NULL;                                     \
-        else                                              \
-        {                                                 \
-            size_t l = strlen(un->string);                \
-            D##_len = l / 2;                              \
-            D = calloc(1, D##_len);                       \
-            if (!D)                                       \
-                FAIL("out of memory\n");                  \
-            for (size_t i = 0; i < D##_len; i++)          \
-                D[i] = hex_to_int(un->string + 2 * i, 2); \
-        }                                                 \
-        return JSON_OK;                                   \
-    }
+#define JHEXBUF(PATH, DEST)                                  \
+    JPATH2T(PATH, JSON_TYPE_STRING, JSON_TYPE_NULL, {        \
+        if (type == JSON_TYPE_NULL)                          \
+            DEST = NULL;                                     \
+        else                                                 \
+        {                                                    \
+            size_t l = strlen(un->string);                   \
+            DEST##_len = l / 2;                              \
+            DEST = calloc(1, DEST##_len);                    \
+            CHECKMEM(DEST);                                  \
+            for (size_t i = 0; i < DEST##_len; i++)          \
+                DEST[i] = hex_to_int(un->string + 2 * i, 2); \
+        }                                                    \
+    });
 
-#define JBOOL(PATH, DEST)     \
-    if (MATCH(PATH))          \
-    {                         \
-        (DEST) = un->boolean; \
-        return JSON_OK;       \
-    }
+#define JBOOL(PATH, DEST) \
+    JPATHT(PATH, JSON_TYPE_BOOLEAN, (DEST) = un->boolean;);
 
-#define JU64(P, D)                                             \
-    if (decode_uint64_t(parser, type, un, P, &(D)) == JSON_OK) \
-        return JSON_OK;
-#define JU32(P, D)                                             \
-    if (decode_uint32_t(parser, type, un, P, &(D)) == JSON_OK) \
-        return JSON_OK;
+#define JU64(P, D) JPATH(P, return decode_uint64_t(parser, type, un, P, &D));
+#define JU32(P, D) JPATH(P, return decode_uint32_t(parser, type, un, P, &D));
 
 #define ALLOC_ARRAY(N, A, T)                              \
     do                                                    \
     {                                                     \
         data->config->N = un->integer;                    \
         data->config->A = calloc(un->integer, sizeof(T)); \
-        if (!data->config->A)                             \
-            FAIL("out of memory\n");                      \
+        CHECKMEM(data->config->A);                        \
     } while (0)
 
 static json_result_t json_read_callback(
@@ -276,7 +312,7 @@ static json_result_t json_read_callback(
             }
 
             JPATHT("format_version", JSON_TYPE_STRING, {
-                uint64_t format_version = strtoul(un->string, NULL, 10);
+                uint64_t format_version = _strtoul(un->string, NULL, 10);
                 if (format_version < SGXLKL_ENCLAVE_CONFIG_VERSION)
                     FAIL(
                         "invalid enclave config format version %lu\n",
@@ -413,6 +449,18 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
        "size of host_import_env out of range");
 }
 
+void check_required_elements(string_list_t* seen)
+{
+    const char* required[] = {"args"};
+    const size_t num_required = sizeof(required) / sizeof(char*);
+    for (size_t i = 0; i < num_required; i++)
+    {
+        const char* r = required[i];
+        if (!string_list_contains(seen, r))
+            FAIL("config does not contain required element '%s'\n", r);
+    }
+}
+
 int sgxlkl_read_enclave_config(
     const char* from,
     sgxlkl_enclave_config_t* to,
@@ -428,8 +476,6 @@ int sgxlkl_read_enclave_config(
         return 1;
 
     *to = sgxlkl_default_enclave_config;
-
-    enforce_format = false;
 
     json_parser_t parser;
     json_result_t r = JSON_UNEXPECTED;
@@ -463,6 +509,8 @@ int sgxlkl_read_enclave_config(
 
     free(json_copy);
 
+    if (enforce_format)
+        check_required_elements(callback_data.seen);
     check_config(to);
     string_list_free(callback_data.seen);
 

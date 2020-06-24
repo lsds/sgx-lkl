@@ -1,7 +1,11 @@
+#ifdef SGXLKL_ENCLAVE
 #include <enclave/oe_compat.h>
-
+#else
 #include <stdlib.h>
 #include <string.h>
+#endif
+
+#include <stdbool.h>
 
 #include "shared/string_list.h"
 
@@ -15,15 +19,15 @@ string_list_t* string_list_add(string_list_t* list, const char* str)
     return ns;
 }
 
-int string_list_contains(const string_list_t* list, const char* str)
+bool string_list_contains(const string_list_t* list, const char* str)
 {
     while (list)
     {
         if (list->element == str || strcmp(list->element, str) == 0)
-            return 1;
+            return true;
         list = list->next;
     }
-    return 0;
+    return false;
 }
 
 size_t string_list_len(string_list_t* list)
