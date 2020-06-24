@@ -84,6 +84,12 @@ enum lthread_st
     LT_ST_PINNED,          /* lthread pinned to ethread */
 };
 
+enum lthread_type
+{
+    USERSPACE_THREAD,
+    LKL_KERNEL_THREAD
+};
+
 struct lthread_tls
 {
     pthread_key_t key;
@@ -105,6 +111,7 @@ struct lthread_attr
     size_t stack_size;  /* current stack_size */
     _Atomic(int) state; /* current lthread state */
     void* stack;        /* ptr to lthread_stack */
+    int thread_type;    /* type of thread: usermode or lkl kernel */
 };
 
 typedef void (*sig_handler)(int sig, siginfo_t* si, void* unused);
@@ -142,6 +149,7 @@ struct lthread
     struct lthread_tls_l tls;     /* pointer to TLS */
     uint8_t* itls;                /* image TLS */
     size_t itlssz;                /* size of TLS image */
+    uintptr_t tp;                 /* thread pointer */
     int err;                      /* errno value */
     char* dlerror_buf;
     int dlerror_flag;
