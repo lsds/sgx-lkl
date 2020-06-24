@@ -13,6 +13,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/mount.h>
 #include <syscall.h>
 #include <time.h>
 
@@ -1147,6 +1148,34 @@ struct timespec timespec_diff(struct timespec end, struct timespec start)
     return diff;
 }
 
+#ifdef DEBUG
+static void display_mount_table()
+{
+    int fd, ret;
+    char buf[1024];
+
+    fd = lkl_sys_open("/proc/mounts", O_RDONLY, 0);
+    if (fd < 0)
+    {
+        SGXLKL_VERBOSE("/proc/mounts cannot be accessed\n");
+        return;
+    }
+
+    SGXLKL_VERBOSE("========= /proc/mounts ===========\n");
+    while ((ret = lkl_sys_read(fd, buf, 1024)) > 0)
+    {
+        SGXLKL_VERBOSE_RAW("%s", buf);
+    }
+    SGXLKL_VERBOSE("==================================\n");
+
+    ret = lkl_sys_close(fd);
+    if (ret != 0)
+    {
+        sgxlkl_fail("Could not close file descriptor for /proc/mounts\n");
+    }
+}
+#endif
+
 /* Semaphore used to block LKL termination thread */
 static struct lkl_sem* termination_sem;
 
@@ -1211,15 +1240,25 @@ static void* lkl_termination_thread(void* args)
             lkl_strerror(ret));
     }
 
-    // Unmount disks
+#ifdef DEBUG
+    display_mount_table();
+#endif
+
+    // Unmount disks (assumes i==0 is the root disk)
     long res;
     for (int i = num_disks - 1; i >= 0; --i)
     {
         if (!disks[i].mounted)
             continue;
 
-        SGXLKL_VERBOSE("calling lkl_umount_timeout(%s)\n", disks[i].mnt);
-        res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
+        /*
+         * We are calling umount with the MNT_DETACH flag for the root
+         * file system, otherwise the call fails to unmount the file
+         * system or sometimes blocks indefinitely. (We should still
+         * check that the file system was unmounted cleanly.)
+         */
+        SGXLKL_VERBOSE("calling lkl_umount_timeout(\"%s\", %s, %i)\n", disks[i].mnt, i == 0 ? "MNT_DETACH" : "0", UMOUNT_DISK_TIMEOUT);
+        res = lkl_umount_timeout(disks[i].mnt, i == 0 ? MNT_DETACH : 0, UMOUNT_DISK_TIMEOUT);
         if (res < 0)
         {
             sgxlkl_warn(
@@ -1249,6 +1288,10 @@ static void* lkl_termination_thread(void* args)
                 lkl_strerror(res));
         }
     }
+
+#ifdef DEBUG
+    display_mount_table();
+#endif
 
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
