@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 
 # This script transforms an SGX-LKL installation such that all shared library dependencies
 # are bundled in the installation prefix and SGX-LKL can be run stand-alone
