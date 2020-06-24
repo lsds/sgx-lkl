@@ -9,7 +9,8 @@ sudo apt-get install -y \
     autopoint pkgconf autoconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev \
     ninja-build ansible linux-headers-$(uname -r) \
     python3-venv unzip dkms debhelper apt-utils pax-utils openjdk-8-jdk-headless \
-    expect
+    expect \
+    gdb
 
 if [[ ! -x "$(command -v docker)" ]]; then
     sudo apt-get install -y docker.io
