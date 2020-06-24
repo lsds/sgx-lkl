@@ -1162,8 +1162,9 @@ static void display_mount_table()
     }
 
     SGXLKL_VERBOSE("========= /proc/mounts ===========\n");
-    while ((ret = lkl_sys_read(fd, buf, 1024)) > 0)
+    while ((ret = lkl_sys_read(fd, buf, 1023)) > 0)
     {
+        buf[ret] = '\0';
         SGXLKL_VERBOSE_RAW("%s", buf);
     }
     SGXLKL_VERBOSE("==================================\n");
