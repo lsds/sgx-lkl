@@ -55,9 +55,9 @@
 #define SGXLKL_HD_OVERLAY 66
 #define SGXLKL_HOST_IMPORT_ENV 67
 
-int parse_sgxlkl_config(const char* path, char** err);
+int sgxlkl_parse_params_from_str(char* str, char** err);
 
-int parse_sgxlkl_config_from_str(char* str, char** err);
+int sgxlkl_parse_params_from_file(const char* path, char** err);
 
 int sgxlkl_configured(int opt);
 

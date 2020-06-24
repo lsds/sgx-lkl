@@ -1632,7 +1632,7 @@ void host_config_from_params(char* root_disk_path)
 void host_config_from_file(char* filename, char* root_disk_path)
 {
     char* err = NULL;
-    if (parse_sgxlkl_config(filename, &err) < 0)
+    if (sgxlkl_parse_params_from_file(filename, &err) < 0)
         sgxlkl_host_fail(
             "Error parsing host config file '%s': %s\n", filename, err);
 

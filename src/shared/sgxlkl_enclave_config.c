@@ -47,7 +47,6 @@ static int strdupz(char** to, const char* from)
 typedef struct json_callback_data
 {
     sgxlkl_enclave_config_t* config;
-    size_t buffer_sz;
     unsigned long index;
     string_list_t* seen;
     bool enforce_format;
@@ -252,7 +251,6 @@ static json_result_t json_read_callback(
     void* callback_data)
 {
     static char* last_path = NULL;
-    json_result_t result = JSON_UNEXPECTED;
     json_callback_data_t* data = (json_callback_data_t*)callback_data;
     size_t i = parser->path[parser->depth - 1].index;
     sgxlkl_enclave_config_t* cfg = data->config;
@@ -417,9 +415,7 @@ static json_result_t json_read_callback(
         }
     }
 
-    result = JSON_OK;
-
-    return result;
+    return JSON_OK;
 }
 
 void check_config(const sgxlkl_enclave_config_t* cfg)
@@ -476,7 +472,6 @@ int sgxlkl_read_enclave_config(
     options.allow_whitespace = !enforce_format;
     json_result_t r = JSON_UNEXPECTED;
     json_callback_data_t callback_data = {.config = to,
-                                          .buffer_sz = 0,
                                           .index = 0,
                                           .seen = NULL,
                                           .enforce_format = enforce_format};

@@ -1,11 +1,16 @@
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include <json.h>
 
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "shared/env.h"
-#include "shared/json_util.h"
 #include "shared/sgxlkl_enclave_config.h"
 
 #define TYPE_CHAR 0
@@ -37,6 +42,10 @@ struct sgxlkl_config_elem
         int val_bool;
     };
 };
+
+typedef struct json_callback_data
+{
+} json_callback_data_t;
 
 #define DEFAULT_SGXLKL_VERBOSE 0
 #define DEFAULT_SGXLKL_CWD "/"
@@ -147,112 +156,208 @@ static inline struct sgxlkl_config_elem* config_elem_by_key(const char* key)
     return NULL;
 }
 
-static int parse_sgxlkl_config_entry(
-    const char* key,
-    struct json_object* value,
-    void* arg)
+static char* make_path(json_parser_t* parser)
 {
-    struct sgxlkl_config_elem* ce = config_elem_by_key(key);
-    if (!ce)
+    static char tmp[1024] = "";
+
+    if (parser->depth > 0)
     {
-        sgxlkl_host_warn("Unknown configuration entry: %s\n", key);
-        goto end;
+        char* p = (char*)tmp;
+        size_t len = strlen(parser->path[0].name);
+        memcpy(p, parser->path[0].name, len);
+        p += len;
+        *p = '\0';
+        for (size_t i = 1; i < parser->depth; i++)
+        {
+            len = strlen(parser->path[i].name);
+            *(p++) = '.';
+            memcpy(p, parser->path[i].name, len);
+            p += len;
+            *p = '\0';
+        }
     }
 
-    int json_val_type = json_object_get_type(value);
-    switch (json_val_type)
+    return strdup(tmp);
+}
+
+
+static json_result_t parse_sgxlkl_config_entry(
+    json_parser_t* parser,
+    json_reason_t reason,
+    json_type_t type,
+    const json_union_t* un,
+    void* callback_data)
+{
+    switch (reason)
     {
-        case json_type_boolean:
-            if (ce->type != TYPE_BOOL)
+        case JSON_REASON_NONE:
+            sgxlkl_host_fail("unreachable");
+        case JSON_REASON_NAME: break;
+        case JSON_REASON_BEGIN_OBJECT: break;
+        case JSON_REASON_END_OBJECT: break;
+        case JSON_REASON_BEGIN_ARRAY: break;
+        case JSON_REASON_END_ARRAY: break;
+        case JSON_REASON_VALUE: {
+            char *path = make_path(parser);
+            struct sgxlkl_config_elem* ce = config_elem_by_key(path);
+
+            if (!ce)
             {
-                sgxlkl_host_warn(
-                    "Unexpected value for configuration key %s. Boolean "
-                    "expected.\n",
-                    key);
-                goto end;
+                sgxlkl_host_warn("Unknown configuration entry: %s\n", path);
+                free(path);
+                return JSON_OK;
             }
-            else
-            {
-                ce->val_bool =
-                    getenv_bool(ce->env_key, json_object_get_boolean(value));
+
+            ce->inited = 1;
+            ce->configured = 1;
+
+            switch (type) {
+              case JSON_TYPE_BOOLEAN:
+                if (ce->type == TYPE_BOOL)  {
+                  sgxlkl_host_warn(
+                      "Unexpected value for configuration %s. Boolean "
+                      "expected.\n",
+                      path);
+                }
+                else
+                  ce->val_bool = getenv_bool(ce->env_key, un->boolean);
+
+                break;
+              case JSON_TYPE_INTEGER:
+                  if (ce->type == TYPE_UINT)
+                  {
+                      sgxlkl_host_warn(
+                          "Unexpected value for configuration %s. Integer "
+                          "expected.\n",
+                          path);
+                  }
+                  else
+                  {
+                      ce->val_uint = getenv_uint64(
+                          ce->env_key,
+                          un->integer,
+                          ce->def_uint.max);
+                  }
+                  break;
+              case JSON_TYPE_STRING:
+                  if (ce->type == TYPE_UINT)
+                  {
+                      uint64_t val = size_str_to_uint64(
+                          un->string,
+                          ce->def_uint.val,
+                          ce->def_uint.max);
+                      ce->val_uint =
+                          getenv_uint64(ce->env_key, val, ce->def_uint.max);
+                  }
+                  else if (ce->type != TYPE_CHAR)
+                  {
+                      sgxlkl_host_warn(
+                          "Unexpected value for configuration %s. String "
+                          "expected.\n",
+                          path);
+                  }
+                  else
+                  {
+                      ce->val_char =
+                          getenv_str(ce->env_key, un->string);
+                  }
+                  break;
+              default:
+                  sgxlkl_host_warn(
+                      "Value of configuration %s has unknown type.\n", path);
+                break;
             }
-            break;
-        case json_type_int:
-            if (ce->type != TYPE_UINT)
-            {
-                sgxlkl_host_warn(
-                    "Unexpected value for configuration key %s. Integer "
-                    "expected.\n",
-                    key);
-                goto end;
-            }
-            else
-            {
-                ce->val_uint = getenv_uint64(
-                    ce->env_key,
-                    json_object_get_int64(value),
-                    ce->def_uint.max);
-            }
-            break;
-        case json_type_string:
-            // Size string, e.g. "12k"?
-            if (ce->type == TYPE_UINT)
-            {
-                uint64_t val = size_str_to_uint64(
-                    json_object_get_string(value),
-                    ce->def_uint.val,
-                    ce->def_uint.max);
-                ce->val_uint =
-                    getenv_uint64(ce->env_key, val, ce->def_uint.max);
-            }
-            else if (ce->type != TYPE_CHAR)
-            {
-                sgxlkl_host_warn(
-                    "Unexpected value for configuration key %s. String "
-                    "expected.\n",
-                    key);
-                goto end;
-            }
-            else
-            {
-                ce->val_char =
-                    getenv_str(ce->env_key, json_object_get_string(value));
-            }
-            break;
-        case json_type_object:
-            if (ce->type != TYPE_JSON)
-            {
-                sgxlkl_host_warn(
-                    "Unexpected value for configuration key %s. JSON object "
-                    "expected.\n",
-                    key);
-                goto end;
-            }
-            else
-            {
-                ce->val_char =
-                    getenv_str(ce->env_key, json_object_to_json_string(value));
-            }
-            break;
+        }
         default:
-            sgxlkl_host_warn(
-                "Value of configuration key %s has unknown type.\n", key);
+          sgxlkl_host_warn("Unknown json reason %d.\n", reason);
+        break;
     }
-    ce->inited = 1;
-    ce->configured = 1;
 
-end:
+    return JSON_OK;
+}
+
+int sgxlkl_parse_params_from_str(char* from, char** err)
+{
+    json_parser_t parser;
+    json_parser_options_t options;
+    options.allow_whitespace = true;
+    json_result_t r = JSON_UNEXPECTED;
+    json_callback_data_t callback_data = {};
+
+    // parser destroys `from`, so we copy it first.
+    size_t json_len = strlen(from);
+    char* json_copy = malloc(sizeof(char) * (json_len + 1));
+    memcpy(json_copy, from, json_len);
+
+    json_allocator_t allocator = {.ja_malloc = malloc, .ja_free = free};
+
+    if ((r = json_parser_init(
+             &parser,
+             json_copy,
+             strlen(from),
+             parse_sgxlkl_config_entry,
+             &callback_data,
+             &allocator,
+             &options)) != JSON_OK)
+        sgxlkl_host_fail("json_parser_init() failed: %d\n", r);
+
+    if ((r = json_parser_parse(&parser)) != JSON_OK)
+        sgxlkl_host_fail("json_parser_parse() failed: %d\n", r);
+
+    if (parser.depth != 0)
+        sgxlkl_host_fail("unterminated json objects\n");
+
+    free(json_copy);
+
     return 0;
 }
 
-int parse_sgxlkl_config(const char* path, char** err)
+int sgxlkl_parse_params_from_file(const char* path, char** err)
 {
-    return parse_json_from_file(path, parse_sgxlkl_config_entry, NULL, err);
-}
+  int fd;
+    if ((fd = open(path, O_RDONLY)) < 0)
+    {
+        if (err)
+            *err = strdup(strerror(errno));
+        else
+            perror("Failed to open JSON file");
+        return -1;
+    }
 
-int parse_sgxlkl_config_from_str(char* str, char** err)
-{
-    return parse_json_from_str(str, parse_sgxlkl_config_entry, NULL, err);
+    off_t len = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+    char* buf;
+    if (!(buf = (char*)malloc(len + 1)))
+    {
+        if (err)
+            *err = strdup("Failed to alloate memory for JSON buffer");
+        else
+            perror("Failed to alloate memory for JSON buffer");
+        return -1;
+    }
+    ssize_t ret;
+    int off = 0;
+    while ((ret = read(fd, &buf[off], len - off)) > 0)
+    {
+        off += ret;
+    }
+    buf[len] = 0;
+
+    close(fd);
+
+    if (ret < 0)
+    {
+        if (err)
+            *err = strdup(strerror(errno));
+        else
+            perror("Failed to read from JSON file");
+        free(buf);
+        return -1;
+    }
+
+    int res = sgxlkl_parse_params_from_str(buf, err);
+    free(buf);
+    return res;
 }
 
 int sgxlkl_configured(int opt)
