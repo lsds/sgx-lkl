@@ -37,8 +37,9 @@ function RunOneTest()
     # Start the test timer. This only creates $test_name-StartTime file with time stamp in it
     JunitTestStarted "$test_name"
 
-    # Start the test. Redirect stdout to stdout_file and error logs to stderr_file
-    bash $test_runner_script run $run_mode >"$stdout_file" 2>"$stderr_file"
+    # Start the test. Redirect stdout to stdout_file and error logs to stderr_file.
+    # Test is run with unbuffered output streams to avoid losing errors in case of crashes.
+    stdbuf -o0 -e0 $test_runner_script run $run_mode >"$stdout_file" 2>"$stderr_file"
     test_exit_code=$?
 }
 
