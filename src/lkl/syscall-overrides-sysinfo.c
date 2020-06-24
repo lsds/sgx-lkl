@@ -1,4 +1,5 @@
 #include "enclave/enclave_mem.h"
+#include <sys/sysinfo.h>
 
 long syscall_sysinfo_override(struct sysinfo* info)
 {
