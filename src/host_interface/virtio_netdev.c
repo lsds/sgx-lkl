@@ -250,21 +250,27 @@ static int virtio_net_fd_net_tx(uint8_t netdev_id, struct iovec* iov, int cnt)
 
     if (ret < 0)
     {
-        if (errno != EAGAIN)
+        char tmp;
+
+        switch (errno)
         {
-            sgxlkl_host_fail(
-                "%s: write to fd failed: %s", __func__, strerror(errno));
-        }
-        else
-        {
-            char tmp;
-            nd_fd->poll_tx = 1;
-            int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
-            if (pipe_ret <= 0)
+            case EAGAIN:
+                nd_fd->poll_tx = 1;
+                int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
+                if (pipe_ret <= 0)
+                    sgxlkl_host_fail(
+                        "%s: Write to fd pipe failed: %s",
+                        __func__,
+                        strerror(-pipe_ret));
+                break;
+
+            // Check if the fd has been closed and return error
+            case EBADF:
+                break;
+
+            default:
                 sgxlkl_host_fail(
-                    "%s: Write to fd pipe failed: %s",
-                    __func__,
-                    strerror(-pipe_ret));
+                    "%s: write to fd failed: %s", __func__, strerror(errno));
         }
     }
     return ret;
@@ -285,22 +291,30 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
 
     if (ret < 0)
     {
-        if (errno != EAGAIN)
+
+        char tmp;
+
+        switch (errno)
         {
-            sgxlkl_host_info(
-                "%s: read failed fd: %d ret: %d errno: %d\n",
-                __func__,
-                nd_fd->fd,
-                ret,
-                errno);
-        }
-        else
-        {
-            char tmp;
-            nd_fd->poll_rx = 1;
-            int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
-            if (pipe_ret < 0)
-                sgxlkl_host_fail("%s: Write failed: %d\n", __func__, pipe_ret);
+            case EAGAIN:
+                nd_fd->poll_rx = 1;
+                int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
+                if (pipe_ret < 0)
+                    sgxlkl_host_fail(
+                        "%s: Write failed: %d\n", __func__, pipe_ret);
+                break;
+
+            // Check if the fd has been closed and return error
+            case EBADF:
+                break;
+
+            default:
+                sgxlkl_host_info(
+                    "%s: read failed fd: %d ret: %d errno: %d\n",
+                    __func__,
+                    nd_fd->fd,
+                    ret,
+                    errno);
         }
     }
     return ret;
