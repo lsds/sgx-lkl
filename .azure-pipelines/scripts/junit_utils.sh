@@ -52,12 +52,8 @@ function AddLogFileToJunit()
     if [[ -f "$log_file" ]]; then
         FILE2=$(<"$junit_file")
         # Remove non-printable characters from log file
-        FILE1=`sed 's/[^[:print:]]//g' "$log_file"`
-        FILE1="${FILE1//\&/\&amp;}"
-        FILE1="${FILE1//\"/\&quot;}"
-        FILE1="${FILE1//\'/\&apos;}"
-        FILE1="${FILE1//\</\&lt;}"
-        FILE1="${FILE1//\>/\&gt;}"
+	FILE1=$(<"$log_file")
+	FILE1="<![CDATA["$FILE1"]]>" 
         echo "${FILE2//$place_holder/$FILE1}" > "$junit_file"
     fi
 }
