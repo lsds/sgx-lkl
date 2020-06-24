@@ -14,7 +14,7 @@
 #include "host/serialize_enclave_config.h"
 
 #define FAIL sgxlkl_host_fail
-#define INFO sgxlkl_host_info
+#define VERB sgxlkl_host_verbose
 
 typedef struct json_obj
 {
@@ -526,7 +526,7 @@ void serialize_enclave_config(
     char* position = *buffer;
     print_json(buffer, buffer_size, &position, root);
 
-    INFO("Enclave config: %s\n", *buffer);
+    VERB("Enclave config: %s\n", *buffer);
 
     free_json(root);
 }

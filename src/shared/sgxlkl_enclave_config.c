@@ -4,7 +4,6 @@
 #include <enclave/enclave_util.h>
 #define FAIL sgxlkl_fail
 #define WARN sgxlkl_warn
-#define INFO sgxlkl_info
 #else
 #include <host/sgxlkl_util.h>
 #include <stdio.h>
@@ -12,7 +11,6 @@
 #include <string.h>
 #define FAIL sgxlkl_host_fail
 #define WARN sgxlkl_host_warn
-#define INFO sgxlkl_host_info
 #endif
 
 #include <json.h>
