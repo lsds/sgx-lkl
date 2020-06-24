@@ -1586,7 +1586,7 @@ void override_enclave_config(
     }
 }
 
-void host_config_from_cmdline(char* root_disk_path)
+void host_config_from_params(char* root_disk_path)
 {
     host_state.config.tap_device = sgxlkl_config_str(SGXLKL_TAP);
     host_state.config.thread_affinity =
@@ -1627,6 +1627,24 @@ void host_config_from_cmdline(char* root_disk_path)
         if (host_state.num_disks >= HOST_MAX_DISKS)
             sgxlkl_host_fail("too many disks\n");
     }
+}
+
+void host_config_from_file(char* filename, char* root_disk_path)
+{
+    char* err = NULL;
+    if (parse_sgxlkl_config(filename, &err) < 0)
+        sgxlkl_host_fail(
+            "Error parsing host config file '%s': %s\n", filename, err);
+
+    if (sgxlkl_configured(SGXLKL_HD))
+        root_disk_path = sgxlkl_config_str(SGXLKL_HD);
+
+    host_config_from_params(root_disk_path);
+}
+
+void host_config_from_cmdline(char* root_disk_path)
+{
+    host_config_from_params(root_disk_path);
 }
 
 int main(int argc, char* argv[], char* envp[])
@@ -1763,7 +1781,7 @@ int main(int argc, char* argv[], char* envp[])
     check_envs_all(envp);
 
     if (host_config_path)
-        sgxlkl_host_fail("host config files not supported yet\n");
+        host_config_from_file(host_config_path, root_hd);
     else
         host_config_from_cmdline(root_hd);
 
