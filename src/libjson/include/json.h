@@ -114,6 +114,11 @@ typedef struct _json_node
     size_t index;
 } json_node_t;
 
+typedef struct _json_parser_options
+{
+    int allow_whitespace;
+} json_parser_options_t;
+
 struct _json_parser
 {
     unsigned int magic;
@@ -132,6 +137,7 @@ struct _json_parser
         unsigned int line,
         const char* func,
         const char* message);
+    json_parser_options_t options;
 };
 
 /* This function initializes the JSON parser. The parser destroys its input
@@ -141,6 +147,7 @@ struct _json_parser
  *     - callback - called repeatedly during parsing.
  *     - callback_data - user data passed to the callback.
  *     - allocator - required custom allocator.
+ *     - allow_whitespace - allow whitespace.
  */
 json_result_t json_parser_init(
     json_parser_t* parser,
@@ -148,7 +155,8 @@ json_result_t json_parser_init(
     size_t json_size,
     json_parser_callback_t callback,
     void* callback_data,
-    json_allocator_t* allocator);
+    json_allocator_t* allocator,
+    json_parser_options_t* options);
 
 /* This function performs parsing which calls the callback passed to
  * json_parser_init() as elements are recognized. The following is the
@@ -285,8 +293,17 @@ json_result_t json_print(
 void json_dump_path(json_write_t write, void* stream, json_parser_t* parser);
 
 /* Self-contained string conversion functions */
-long int _strtol(const char* nptr, char** endptr, int base);
-unsigned long int _strtoul(const char* nptr, char** endptr, int base);
-double _strtod(const char* nptr, char** endptr);
+extern json_result_t json_conversion_error;
+long int _strtol(
+    const char* nptr,
+    char** endptr,
+    int base,
+    int allow_whitespace);
+unsigned long int _strtoul(
+    const char* nptr,
+    char** endptr,
+    int base,
+    int allow_whitespace);
+double _strtod(const char* nptr, char** endptr, int allow_whitespace);
 
 #endif /* _JSON_H */

@@ -303,7 +303,13 @@ static int _isdigit2(char c, int base)
     return _digit[(unsigned char)c] < base;
 }
 
-long int _strtol(const char* nptr, char** endptr, int base)
+json_result_t json_conversion_error = 0;
+
+long int _strtol(
+    const char* nptr,
+    char** endptr,
+    int base,
+    int allow_whitespace)
 {
     const char* p;
     unsigned long x = 0;
@@ -319,8 +325,14 @@ long int _strtol(const char* nptr, char** endptr, int base)
     p = nptr;
 
     /* Skip any leading whitespace */
-    while (_isspace(*p))
-        p++;
+    if (allow_whitespace)
+        while (_isspace(*p))
+            p++;
+    else if (_isspace(*p))
+    {
+        json_conversion_error = JSON_BAD_SYNTAX;
+        return UINT64_MAX;
+    }
 
     /* Handle '+' and '-' */
     if (p[0] == '+')
@@ -378,6 +390,7 @@ long int _strtol(const char* nptr, char** endptr, int base)
                 if (endptr)
                     *endptr = (char*)p;
 
+                json_conversion_error = JSON_OUT_OF_BOUNDS;
                 return UINT64_MAX;
             }
 
@@ -394,6 +407,7 @@ long int _strtol(const char* nptr, char** endptr, int base)
                 if (endptr)
                     *endptr = (char*)p;
 
+                json_conversion_error = JSON_OUT_OF_BOUNDS;
                 return UINT64_MAX;
             }
 
@@ -424,12 +438,16 @@ long int _strtol(const char* nptr, char** endptr, int base)
     return (long)x;
 }
 
-unsigned long int _strtoul(const char* nptr, char** endptr, int base)
+unsigned long int _strtoul(
+    const char* nptr,
+    char** endptr,
+    int base,
+    int allow_whitespace)
 {
-    return (unsigned long)_strtol(nptr, endptr, base);
+    return (unsigned long)_strtol(nptr, endptr, base, allow_whitespace);
 }
 
-double _strtod(const char* nptr, char** endptr)
+double _strtod(const char* nptr, char** endptr, int allow_whitespace)
 {
     const char* p;
     int negative = 0;
@@ -451,8 +469,14 @@ double _strtod(const char* nptr, char** endptr)
     p = nptr;
 
     /* Skip any leading whitespace */
-    while (_isspace(*p))
-        p++;
+    if (allow_whitespace)
+        while (_isspace(*p))
+            p++;
+    else if (_isspace(*p))
+    {
+        json_conversion_error = 1;
+        return 0.0;
+    }
 
     /* Handle '+' and '-' */
     if (p[0] == '+')
@@ -468,7 +492,7 @@ double _strtod(const char* nptr, char** endptr)
     /* Parse the leading number */
     {
         char* end;
-        x = _strtoul(p, &end, 10);
+        x = _strtoul(p, &end, 10, allow_whitespace);
 
         if (p != end)
         {
@@ -485,7 +509,7 @@ double _strtod(const char* nptr, char** endptr)
         char* end;
 
         p++;
-        y = _strtoul(p, &end, 10);
+        y = _strtoul(p, &end, 10, allow_whitespace);
 
         if (p != end)
         {
@@ -523,7 +547,7 @@ double _strtod(const char* nptr, char** endptr)
         if (*p == '-' || *p == '+')
             p++;
 
-        exp = _strtoul(p, &end, 10);
+        exp = _strtoul(p, &end, 10, allow_whitespace);
 
         if (p != end)
             *endptr = (char*)end;
@@ -880,7 +904,11 @@ static json_result_t _get_array(json_parser_t* parser, size_t* array_size)
     {
         /* Skip whitespace */
         while (parser->ptr != parser->end && _isspace(*parser->ptr))
+        {
+            if (!parser->options.allow_whitespace)
+                return JSON_BAD_SYNTAX;
             parser->ptr++;
+        }
 
         /* Fail if output exhausted */
         if (parser->ptr == parser->end)
@@ -913,16 +941,27 @@ done:
     return result;
 }
 
-static int _strtou64(uint64_t* x, const char* str)
+static int _strtou64(uint64_t* x, const char* str, int allow_whitespace)
 {
     char* end;
 
-    *x = _strtoul(str, &end, 10);
+    *x = _strtoul(str, &end, 10, allow_whitespace);
 
     if (!end || *end != '\0')
         return -1;
 
     return 0;
+}
+
+static json_result_t skip_whitespace(json_parser_t* parser)
+{
+    while (parser->ptr != parser->end && _isspace(*parser->ptr))
+    {
+        if (!parser->options.allow_whitespace)
+            return JSON_BAD_SYNTAX;
+        parser->ptr++;
+    }
+    return JSON_OK;
 }
 
 static json_result_t _get_object(json_parser_t* parser)
@@ -940,8 +979,7 @@ static json_result_t _get_object(json_parser_t* parser)
     for (;;)
     {
         /* Skip whitespace */
-        while (parser->ptr != parser->end && _isspace(*parser->ptr))
-            parser->ptr++;
+        CHECK(skip_whitespace(parser));
 
         /* Fail if output exhausted */
         if (parser->ptr == parser->end)
@@ -962,7 +1000,8 @@ static json_result_t _get_object(json_parser_t* parser)
                 uint64_t n;
                 json_node_t node = {un.string, 0, 0, 0};
 
-                if (_strtou64(&n, un.string) == 0)
+                if (_strtou64(
+                        &n, un.string, parser->options.allow_whitespace) == 0)
                     node.number = n;
                 else
                     node.number = UINT64_MAX;
@@ -976,8 +1015,7 @@ static json_result_t _get_object(json_parser_t* parser)
             /* Expect: name-separator(':') */
             {
                 /* Skip whitespace */
-                while (parser->ptr != parser->end && _isspace(*parser->ptr))
-                    parser->ptr++;
+                CHECK(skip_whitespace(parser));
 
                 /* Fail if output exhausted */
                 if (parser->ptr == parser->end)
@@ -1035,12 +1073,13 @@ static json_result_t _get_number(
     if (isInteger)
     {
         *type = JSON_TYPE_INTEGER;
-        un->integer = _strtol(start, &end, 10);
+        un->integer =
+            _strtol(start, &end, 10, parser->options.allow_whitespace);
     }
     else
     {
         *type = JSON_TYPE_REAL;
-        un->real = _strtod(start, &end);
+        un->real = _strtod(start, &end, parser->options.allow_whitespace);
     }
 
     if (!end || end != parser->ptr)
@@ -1058,8 +1097,7 @@ static json_result_t _get_value(json_parser_t* parser)
     json_parser_t* scanner = NULL;
 
     /* Skip whitespace */
-    while (parser->ptr != parser->end && _isspace(*parser->ptr))
-        parser->ptr++;
+    CHECK(skip_whitespace(parser));
 
     /* Fail if output exhausted */
     if (parser->ptr == parser->end)
@@ -1189,7 +1227,8 @@ json_result_t json_parser_init(
     size_t size,
     json_parser_callback_t callback,
     void* callback_data,
-    json_allocator_t* allocator)
+    json_allocator_t* allocator,
+    json_parser_options_t* options)
 {
     if (!parser || !data || !size || !callback)
         return JSON_BAD_PARAMETER;
@@ -1204,6 +1243,9 @@ json_result_t json_parser_init(
     parser->callback = callback;
     parser->callback_data = callback_data;
     parser->allocator = allocator;
+
+    if (options)
+        parser->options = *options;
 
     return JSON_OK;
 }
@@ -1220,8 +1262,7 @@ json_result_t json_parser_parse(json_parser_t* parser)
     /* Expect '{' */
     {
         /* Skip whitespace */
-        while (parser->ptr != parser->end && _isspace(*parser->ptr))
-            parser->ptr++;
+        CHECK(skip_whitespace(parser));
 
         /* Fail if output exhausted */
         if (parser->ptr == parser->end)
@@ -1285,7 +1326,10 @@ json_result_t json_match(json_parser_t* parser, const char* pattern)
     {
         if (_strcmp(pattern_path[i], "#") == 0)
         {
-            if (_strtou64(&n, parser->path[i].name) != 0)
+            if (_strtou64(
+                    &n,
+                    parser->path[i].name,
+                    parser->options.allow_whitespace) != 0)
                 RAISE(JSON_TYPE_MISMATCH);
         }
         else if (_strcmp(pattern_path[i], parser->path[i].name) != 0)
@@ -1681,7 +1725,8 @@ json_result_t json_print(
             json_size,
             _json_print_callback,
             &callback_data,
-            allocator) != JSON_OK)
+            allocator,
+            NULL) != JSON_OK)
     {
         RAISE(JSON_FAILED);
     }

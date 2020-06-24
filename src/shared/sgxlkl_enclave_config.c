@@ -15,11 +15,6 @@
 #define INFO sgxlkl_host_info
 #endif
 
-#include <arpa/inet.h>
-#include <errno.h>
-
-#include <enclave/enclave_mem.h>
-#include <enclave/enclave_state.h>
 #include <json.h>
 #include <shared/env.h>
 #include <shared/sgxlkl_enclave_config.h>
@@ -154,12 +149,10 @@ static json_result_t decode_safe_uint64_t(
         FAIL("invalid value type for '%s'\n", make_path(parser));
     _Static_assert(
         sizeof(unsigned long) == 8, "unexpected size of unsigned long");
-    // Note: Can't use errno, because it depends on the scheduler, which isn't
-    // initialized yet. We use  _strtoul from libjson, which signals error
-    // by returning UINT64_MAX.
-    uint64_t tmp = _strtoul(value->string, NULL, 10);
-    if (tmp == UINT64_MAX)
-        return JSON_OUT_OF_BOUNDS;
+    json_conversion_error = JSON_OK;
+    uint64_t tmp = _strtoul(value->string, NULL, 10, false);
+    if (json_conversion_error != JSON_OK)
+        return json_conversion_error;
     *to = tmp;
     return JSON_OK;
 }
@@ -175,10 +168,10 @@ static json_result_t decode_any_uint64_t(
     uint64_t tmp;
     if (type == JSON_TYPE_STRING)
     {
-        errno = 0;
-        tmp = _strtoul(value->string, NULL, 10);
-        if (errno != 0)
-            return JSON_UNKNOWN_VALUE;
+        json_conversion_error = JSON_OK;
+        tmp = _strtoul(value->string, NULL, 10, true);
+        if (json_conversion_error != JSON_OK)
+            return json_conversion_error;
     }
     else if (type == JSON_TYPE_INTEGER)
         tmp = value->integer;
@@ -312,7 +305,8 @@ static json_result_t json_read_callback(
             }
 
             JPATHT("format_version", JSON_TYPE_STRING, {
-                uint64_t format_version = _strtoul(un->string, NULL, 10);
+                uint64_t format_version =
+                    _strtoul(un->string, NULL, 10, !data->enforce_format);
                 if (format_version < SGXLKL_ENCLAVE_CONFIG_VERSION)
                     FAIL(
                         "invalid enclave config format version %lu\n",
@@ -478,6 +472,8 @@ int sgxlkl_read_enclave_config(
     *to = sgxlkl_default_enclave_config;
 
     json_parser_t parser;
+    json_parser_options_t options;
+    options.allow_whitespace = !enforce_format;
     json_result_t r = JSON_UNEXPECTED;
     json_callback_data_t callback_data = {.config = to,
                                           .buffer_sz = 0,
@@ -498,7 +494,8 @@ int sgxlkl_read_enclave_config(
              strlen(from),
              json_read_callback,
              &callback_data,
-             &allocator)) != JSON_OK)
+             &allocator,
+             &options)) != JSON_OK)
         FAIL("json_parser_init() failed: %d\n", r);
 
     if ((r = json_parser_parse(&parser)) != JSON_OK)
