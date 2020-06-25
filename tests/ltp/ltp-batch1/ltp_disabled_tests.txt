@@ -14,7 +14,7 @@
 /ltp/testcases/kernel/syscalls/add_key/add_key04
 #/ltp/testcases/kernel/syscalls/adjtimex/adjtimex01
 /ltp/testcases/kernel/syscalls/adjtimex/adjtimex02
-/ltp/testcases/kernel/syscalls/alarm/alarm02
+#/ltp/testcases/kernel/syscalls/alarm/alarm02
 /ltp/testcases/kernel/syscalls/alarm/alarm03
 #/ltp/testcases/kernel/syscalls/alarm/alarm05
 #/ltp/testcases/kernel/syscalls/alarm/alarm06
