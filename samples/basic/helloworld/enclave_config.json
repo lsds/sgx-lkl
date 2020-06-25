@@ -1,9 +1,8 @@
 {
-  "args": [ "app/helloworld" ],
-  "disks": [
-    {
-      "mnt": "/",
-      "readonly": false
-    }
-  ]
+  "args": [
+    "app/helloworld"
+  ],
+  "root": {
+    "readonly": false
+  }
 }
