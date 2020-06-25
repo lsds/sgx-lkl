@@ -682,7 +682,7 @@
 #/ltp/testcases/kernel/syscalls/pselect/pselect03
 /ltp/testcases/kernel/syscalls/ptrace/ptrace01
 /ltp/testcases/kernel/syscalls/ptrace/ptrace02
-/ltp/testcases/kernel/syscalls/ptrace/ptrace03
+#/ltp/testcases/kernel/syscalls/ptrace/ptrace03
 /ltp/testcases/kernel/syscalls/ptrace/ptrace04
 /ltp/testcases/kernel/syscalls/ptrace/ptrace05
 /ltp/testcases/kernel/syscalls/ptrace/ptrace07
