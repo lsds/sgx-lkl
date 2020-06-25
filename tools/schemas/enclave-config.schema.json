@@ -361,7 +361,7 @@
         },
         "hostname": {
           "type": "string",
-          "description": "Host name for LKL to use.",
+          "description": "Host name to use inside the enclave.",
           "maxLength": 31,
           "default": "lkl",
           "overridable": "SGXLKL_HOSTNAME"
