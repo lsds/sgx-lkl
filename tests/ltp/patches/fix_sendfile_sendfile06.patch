@@ -1,0 +1,84 @@
+The original test case create a child process to test
+Sendfile system call. But, sgx-lkl environment supports single process.
+Hence, the test case is modified to use pthread instead of a child
+process.
+
+diff --git a/testcases/kernel/syscalls/sendfile/sendfile06.c b/testcases/kernel/syscalls/sendfile/sendfile06.c
+index abb67604f..8e079aa97 100644
+--- a/testcases/kernel/syscalls/sendfile/sendfile06.c
++++ b/testcases/kernel/syscalls/sendfile/sendfile06.c
+@@ -39,8 +39,10 @@
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
+ #include <string.h>
++#include <pthread.h>
+ #include "test.h"
+ #include "safe_macros.h"
++#include "tst_safe_pthread.h"
+ 
+ TCID_DEFINE(sendfile06);
+ 
+@@ -48,12 +50,13 @@ TCID_DEFINE(sendfile06);
+ #define OUT_FILE	"outfile"
+ 
+ static pid_t child_pid;
++static pthread_t child_tid;
+ static int sockfd;
+ static struct sockaddr_in sin1;
+ static struct stat sb;
+ 
+ static void cleanup(void);
+-static void do_child(void);
++static void* do_child(void* prm);
+ static void setup(void);
+ static int create_server(void);
+ 
+@@ -86,18 +89,18 @@ static void do_sendfile(void)
+ 		tst_resm(TFAIL, "sendfile(2) failed to return "
+ 			 "expected value, expected: %" PRId64 ", "
+ 			 "got: %ld", (int64_t) sb.st_size, TEST_RETURN);
+-		SAFE_KILL(cleanup, child_pid, SIGKILL);
++		pthread_cancel(child_tid);
+ 	} else if (after_pos != sb.st_size) {
+ 		tst_resm(TFAIL, "sendfile(2) failed to update "
+ 			 " the file position of in_fd, "
+ 			 "expected file position: %" PRId64 ", "
+ 			 "actual file position %" PRId64,
+ 			 (int64_t) sb.st_size, (int64_t) after_pos);
+-		SAFE_KILL(cleanup, child_pid, SIGKILL);
++		pthread_cancel(child_tid);
+ 	} else {
+ 		tst_resm(TPASS, "functionality of sendfile() is "
+ 			 "correct");
+-		waitpid(-1, &wait_stat, 0);
++		SAFE_PTHREAD_JOIN(child_tid, NULL);
+ 	}
+ 
+ 	SAFE_CLOSE(cleanup, in_fd);
+@@ -105,7 +108,7 @@ static void do_sendfile(void)
+ 	SAFE_CLOSE(cleanup, sockfd);
+ }
+ 
+-static void do_child(void)
++static void* do_child(void* prm)
+ {
+ 	socklen_t length = sizeof(sin1);
+ 	char rbuf[4096];
+@@ -122,7 +125,7 @@ static void do_child(void)
+ 		bytes_total_received += ret;
+ 	}
+ 
+-	exit(0);
++	pthread_exit(0);
+ }
+ 
+ static void setup(void)
+@@ -186,7 +189,7 @@ static int create_server(void)
+ 
+ 		}
+ #else
+-		do_child();
++		SAFE_PTHREAD_CREATE(&child_tid, NULL, do_child, NULL);
+ #endif
+ 	}
+ 

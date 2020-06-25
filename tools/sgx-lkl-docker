@@ -8,7 +8,6 @@ sgxlkl_root="${cmd_root}/.."
 
 sub_cmd=
 cc_name=
-cc_mode=debug
 cc_app_cfg=
 cc_host_cfg=
 
@@ -24,46 +23,68 @@ function usage() {
     echo "`basename $0` <command>"
     echo
     echo "where <command> is one of the following:"
-    echo "  build-cc                                           Build confidential container" 
+    echo "  build                                              Re-package disk images and configuration as Docker image" 
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
     echo "    --app-cfg=<path>                                 Path to app configuration file."
-    echo "    --mode=<debug|nonrelease>                          Select the deployment mode of SGX-LKL (default: debug)"
     echo
     echo " [-?]                                                Display this help message."
     exit 1
 }
 
-function build-cc() {
+function build() {
     echo "SGX-LKL root: $sgxlkl_root"
 
-    echo "Creating confidential container '${cc_name}' for $cc_mode mode"
+    echo "Creating confidential container '${cc_name}'"
 
     context_dir=$(mktemp -d sgxlkl_docker_context_XXXX)
     echo "Using temporary directory ${context_dir}"
 
-    if [[ $cc_mode == release ]]; then
-        suffix=
-        mode_arg="--hw-release"
-    else
-        suffix="-$cc_mode"
-        mode_arg="--hw-debug"
-    fi
-    install_prefix="/opt/sgx-lkl$suffix"
-
     cat >>${context_dir}/Dockerfile << EOF
+FROM ubuntu:18.04
+RUN apt-get update && apt-get install -y ca-certificates
+
+# ca-certificates.crt is read by libcurl which is used by the Azure DCAP Client.
+
+RUN groupadd -g 999 sgxlkl && \
+    useradd -g 999 -u 999 sgxlkl
+
+RUN mkdir /prep && \
+    cd /prep && \
+    mkdir etc && \
+    echo "sgxlkl:x:999:999::/tmp:/usr/sbin/nologin" > etc/passwd && \
+    echo "sgxlkl:x:999:" > etc/group && \
+    mkdir -p home/sgxlkl && \
+    chown sgxlkl:sgxlkl home/sgxlkl && \
+    ls -al home/sgxlkl && \
+    mkdir tmp && \
+    chmod 777 tmp && \
+    mkdir -p etc/ssl/certs && \
+    cp /etc/ssl/certs/ca-certificates.crt etc/ssl/certs && \
+    ls -al etc/ssl/certs
+
+COPY . /prep/home/sgxlkl
+
+# Allows container to be run with arbitrary user while supporting writable disk images.
+RUN chmod -R 777 /prep/home/sgxlkl
+
 FROM scratch
-COPY . /
 
-# Note: WORKDIR also creates the directory.
-WORKDIR /tmp
+ENV HOME=/home/sgxlkl
 ENV TMPDIR=/tmp
-
 # See https://github.com/microsoft/Azure-DCAP-Client.
-ENV AZDCAP_CACHE=${TMPDIR}
+ENV AZDCAP_CACHE=\${TMPDIR}
 
-ENTRYPOINT ["${install_prefix}/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
-CMD ["${mode_arg}"]
+COPY --from=0 /prep /
+
+USER sgxlkl
+WORKDIR \${HOME}
+
+ENTRYPOINT ["/opt/sgx-lkl/lib/external/ld-linux-x86-64", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
+    "--enclave-image=/opt/sgx-lkl/lib/libsgxlkl.so.signed",\
+    "--host-config=host-cfg.json",\
+    "--app-config=app-cfg.json"]
+CMD ["--hw-release"]
 EOF
 
     cp ${cc_app_cfg} ${context_dir}/app-cfg.json
@@ -77,7 +98,7 @@ EOF
         IFS=':' read -ra entry <<< "$line"
         img_path=${entry[0]}
         img_docker_path=${entry[1]}
-        cp $img_path $context_dir$img_docker_path
+        cp $img_path $context_dir/$img_docker_path
     done <<< "${disk_paths}"
     
     docker build -t $cc_name $context_dir
@@ -96,11 +117,8 @@ function main() {
             -h|-\?|--help)
                 usage && exit
                 ;;
-            build-cc)
+            build)
                 sub_cmd=$1
-                ;;
-            --mode=?*)
-                cc_mode=${1#*=}
                 ;;
             --name=?*)
                 cc_name=${1#*=}
@@ -125,8 +143,8 @@ function main() {
     done
 
     case "$sub_cmd" in
-        build-cc)
-            build-cc "$@"
+        build)
+            build "$@"
             ;;
         *)
             echo "Missing/unknown command" && usage && exit 1

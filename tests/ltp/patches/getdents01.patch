@@ -1,0 +1,14 @@
+Patch to set the longsyscall flag needed for using 64bit api. 
+This is set by command line option -l. Fixing for pipeline.
+diff --git a/testcases/kernel/syscalls/getdents/getdents01.c b/testcases/kernel/syscalls/getdents/getdents01.c
+index 3962d960b..078ef45e6 100644
+--- a/testcases/kernel/syscalls/getdents/getdents01.c
++++ b/testcases/kernel/syscalls/getdents/getdents01.c
+@@ -99,6 +99,7 @@ int main(int ac, char **av)
+ 	dirp = buf;
+ 
+ 	setup();
++	longsyscall = 1;
+ 
+ 	for (lc = 0; TEST_LOOPING(lc); lc++) {
+ 		const char *d_name;

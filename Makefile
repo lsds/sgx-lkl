@@ -11,7 +11,19 @@ OESIGN_CONFIG_PATH = $(SGXLKL_ROOT)/config
 .DEFAULT_GOAL:=all
 default: all
 
-all: update-git-submodules $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
+all: update-git-submodules $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
+
+# Check if the user didn't override the default in-tree OE install location with another OE host install
+ifeq ($(OE_SDK_ROOT),$(OE_SDK_ROOT_DEFAULT))
+# Build and install Open Enclave locally
+$(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
+	# Don't build tests.
+	# TODO replace with build option https://github.com/openenclave/openenclave/issues/2894
+	cd $(OE_SUBMODULE) && sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
+	mkdir -p $(OE_SUBMODULE)/build
+	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DENABLE_REFMAN=OFF -DCOMPILE_SYSTEM_EDL=OFF ..
+	$(MAKE) -C $(OE_SUBMODULE)/build -j$(tools/ncore.sh) && $(MAKE) -C $(OE_SUBMODULE)/build install
+endif
 
 # Install the glibc headers as for building libsgxlkl.so --nostdincludes is required.
 glibc-header-install: | ${SGXLKL_LIBC_SRC_DIR}/.git ${HOST_LIBC_BLD_DIR}
@@ -130,12 +142,14 @@ ${HOST_MUSL}/.git ${LKL}/.git ${SGXLKL_LIBC_SRC_DIR}/.git:
 
 update-git-submodules:
 	[ "$(FORCE_SUBMODULES_UPDATE)" = "false" ] || git submodule update --progress
+	# Initialise the missing Open Enclave submodules
+	cd $(OE_SUBMODULE) && git submodule update --recursive --progress --init
 
 fsgsbase-kernel-module:
 	make -C ${TOOLS}/kmod-set-fsgsbase
 
 install:
-	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
+	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb $(PREFIX)/lib/gdb/openenclave ${PREFIX}/share ${PREFIX}/share/schemas ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
 	cp $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) $(PREFIX)/lib
 	cp $(BUILD_DIR)/$(SGXLKL_RUN_TARGET) $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
@@ -146,6 +160,9 @@ install:
 	cp $(TOOLS)/gdb/sgx-lkl-gdb $(PREFIX)/bin
 	cp $(TOOLS)/gdb/gdbcommands.py $(PREFIX)/lib/gdb
 	cp $(TOOLS)/gdb/sgx-lkl-gdb.py $(PREFIX)/lib/gdb
+	cp -r $(OE_SDK_ROOT)/lib/openenclave/debugger/* $(PREFIX)/lib/gdb/openenclave
+	cp ${TOOLS}/schemas/app-config.schema.json $(PREFIX)/share/schemas
+	cp ${TOOLS}/schemas/host-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko $(PREFIX)/tools/kmod-set-fsgsbase/
 
 uninstall:
@@ -160,17 +177,32 @@ uninstall:
 	rm -f $(PREFIX)/bin/sgx-lkl-gdb
 	rm -rf $(PREFIX)/lib/gdb
 	rm -rf $(PREFIX)/tools/kmod-set-fsgsbase
-	rmdir $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/tools
+	rm -rf $(PREFIX)/share/schemas
+	rmdir $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/tools $(PREFIX)/share
 	rmdir $(PREFIX)
 
 builddirs:
 	mkdir -p $(SGXLKL_GILBC_BDIR)
 
+# Cleans the tree, but does not clean host_musl and the OE build
 clean:
 	@rm -rf $(BUILD_LINK_NAME) ${BUILD_DIR}
+	+${MAKE} -C ${SGXLKL_LIBC_SRC_DIR} distclean || true
+	+${MAKE} -C ${LKL} distclean || true
+	+${MAKE} -C ${LKL}/tools/lkl clean || true
+	+${MAKE} -C ${SGXLKL_ROOT}/third_party clean || true
+	+${MAKE} -C ${SGXLKL_ROOT}/third_party distclean || true
+	+${MAKE} -C src clean || true
+	+${MAKE} -C ${TOOLS}/kmod-set-fsgsbase clean || true
+	rm -f ${HOST_MUSL}/config.mak
+	rm -f ${SGXLKL_LIBC_SRC_DIR}/config.mak
+
+# Cleans everyting in the tree
+distclean:
+	@rm -rf $(BUILD_LINK_NAME) ${BUILD_DIR} $(OE_SUBMODULE)/build
 	+${MAKE} -C ${HOST_MUSL} distclean || true
 	+${MAKE} -C ${SGXLKL_LIBC_SRC_DIR} distclean || true
-	+${MAKE} -C ${LKL} clean || true
+	+${MAKE} -C ${LKL} distclean || true
 	+${MAKE} -C ${LKL}/tools/lkl clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party distclean || true

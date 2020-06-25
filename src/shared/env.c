@@ -54,8 +54,7 @@ void size_uint64_to_str(uint64_t size, char* buf, uint64_t len)
 
 uint64_t getenv_uint64(const char* var, uint64_t def, uint64_t max)
 {
-    uint64_t r;
-    char *val, *endptr;
+    char *val;
     if (!(val = getenv(var)))
         return def;
 

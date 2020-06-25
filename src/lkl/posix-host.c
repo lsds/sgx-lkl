@@ -211,7 +211,7 @@ static void sem_up(struct lkl_sem* sem)
     // there may be waiters.  Wake one up.
     if (atomic_fetch_add(&sem->count, 1) == 0)
     {
-        futex_wake(&sem->count, 1);
+        futex_wake(&sem->count, INT_MAX);
     }
 }
 
@@ -479,7 +479,6 @@ static void* timer_callback(void* _timer)
 {
     sgxlkl_timer* timer = (sgxlkl_timer*)_timer;
     struct timespec timeout;
-    struct timespec now;
 
     if (timer == NULL || timer->callback_fn == NULL)
     {
@@ -496,7 +495,6 @@ static void* timer_callback(void* _timer)
             break;
         }
 
-        int ret = 0;
         timeout.tv_sec = timer->delay_ns / NSEC_PER_SEC;
         timeout.tv_nsec = timer->delay_ns % NSEC_PER_SEC;
 
@@ -520,6 +518,7 @@ static void* timer_callback(void* _timer)
         // Check if the timer has triggered
         if (did_timeout)
         {
+            timer->next_delay_ns = 0;
             timer->callback_fn(timer->callback_arg);
             // If the callback function itself resets the timer,
             // timer->next_delay_ns will be non-zero.
@@ -570,9 +569,15 @@ static int timer_set_oneshot(void* _timer, unsigned long ns)
 
         if (timer->next_delay_ns)
         {
-            sgxlkl_fail("Bug: next_delay_ns already set for timer\n");
+            if (ns < timer->next_delay_ns)
+            {
+                timer->next_delay_ns = ns;
+            }
         }
-        timer->next_delay_ns = ns;
+        else
+        {
+            timer->next_delay_ns = ns;
+        }
     }
     else
     {

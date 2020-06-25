@@ -48,8 +48,6 @@ long syscall_SYS_futex_override(
     int* uaddr2,
     int val3)
 {
-    int rc = 0;
-
     if ((op & FUTEX_WAIT_BITSET) && timeout != NULL)
     {
         // adjust absolute timeout to a relative one

@@ -56,7 +56,6 @@ int __init_utp(void*, int);
 void* __copy_utls(struct lthread*, uint8_t*, size_t);
 static void _exec(void* lt);
 static void _lthread_init(struct lthread* lt);
-static void _lthread_resume_expired(struct timespec* ts);
 static void _lthread_lock(struct lthread* lt);
 static void lthread_rundestructors(struct lthread* lt);
 
@@ -202,11 +201,9 @@ void lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();
     struct lthread* lt = NULL;
-    size_t s, pauses = sleepspins;
-    struct timespec sleeptime = {0, sleeptime_ns};
+    size_t pauses = sleepspins;
     int spins = futex_wake_spins;
     int dequeued;
-    size_t i;
 
     /* scheduler not initiliazed, and no lthreads where created */
     if (sched == NULL)
@@ -301,52 +298,6 @@ void _lthread_desched_sleep(struct lthread* lt)
         lt->tid);
 }
 
-/*
- * Resumes expired lthread and cancels its events whether it was waiting
- * on one or not, and deschedules it from sleeping rbtree in case it was
- * sleeping.
- */
-static void _lthread_resume_expired(struct timespec* now)
-{
-    struct lthread* lt = NULL;
-    uint64_t curr_usec = 0;
-
-    if (nsleepers == 0)
-    {
-        return;
-    }
-
-    ticket_lock(&sleeplock);
-
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_resume_expired() TICKET_LOCK lock=SLEEPLOCK "
-        "tid=NULL\n",
-        (lthread_self() ? lthread_self()->tid : 0));
-
-    curr_usec = _lthread_timespec_to_usec(now);
-    while ((lt = RB_MIN(lthread_rb_sleep, &_lthread_sleeping)) != NULL)
-    {
-        if (lt->sleep_usecs <= curr_usec)
-        {
-            _lthread_desched_sleep(lt);
-            lthread_set_expired(lt);
-
-            /* don't clear expired if lthread exited/cancelled */
-            if (_lthread_resume(lt) != -1)
-                lt->attr.state &= CLEARBIT(LT_ST_EXPIRED);
-
-            continue;
-        }
-        break;
-    }
-    ticket_unlock(&sleeplock);
-
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_resume_expired() TICKET_UNLOCK lock=SLEEPLOCK "
-        "tid=NULL\n",
-        (lthread_self() ? lthread_self()->tid : 0));
-}
-
 static void _lthread_lock(struct lthread* lt)
 {
     int state, newstate;
@@ -409,7 +360,6 @@ void _lthread_free(struct lthread* lt)
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
         if (cont < 0 || waiters) {
-            int private_flag = priv ? FUTEX_PRIVATE : 0;
             enclave_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
         }
     }
@@ -430,7 +380,7 @@ void _lthread_free(struct lthread* lt)
     {
         if (__active_lthreads_tail == __active_lthreads)
         {
-            __active_lthreads_tail == NULL;
+            __active_lthreads_tail = NULL;
         }
         struct lthread_queue* new_head = __active_lthreads->next;
         oe_free(__active_lthreads);
@@ -868,6 +818,7 @@ void lthread_exit(void* ptr)
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
     _lthread_yield(lt);
+    __builtin_unreachable();
 }
 
 /* lthread_join may proceed only when:

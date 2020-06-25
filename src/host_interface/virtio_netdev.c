@@ -154,7 +154,7 @@ static int register_net_device(struct virtio_net_dev* net_dev, int fd)
  */
 static int virtio_net_fd_net_poll(uint8_t netdev_id)
 {
-    int ret, err;
+    int ret;
     struct netdev_fd* nd_fd = get_netdev_fd_instance(netdev_id);
 
     struct pollfd pfds[2] = {
@@ -504,6 +504,7 @@ void* poll_thread(void* arg)
             virtio_process_queue(&dev->dev, TX_QUEUE_IDX);
         }
     } while (1);
+    return NULL;
 }
 
 /*
@@ -647,9 +648,10 @@ void* netdev_task(void* arg)
 /*
  * Function to stop the polling thread for stopping the network interface
  */
-int net_dev_remove(uint8_t netdev_id)
+void net_dev_remove(uint8_t netdev_id)
 {
     struct virtio_net_dev* net_dev = get_virtio_netdev_instance(netdev_id);
     virtio_net_fd_net_poll_hup(netdev_id);
+    virtio_net_fd_net_free(netdev_id);
     pthread_join(net_dev->poll_tid, NULL);
 }

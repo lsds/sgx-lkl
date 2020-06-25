@@ -1,0 +1,15 @@
+trigger:
+  branches:
+    include:
+    - 'oe_port'
+  paths:
+    exclude:
+    - '*.md'
+    - 'docs/'
+pr: none
+
+extends:
+  template: template.yml
+  parameters:
+    publish: true
+    apt_repo_blob_container: apt-dev

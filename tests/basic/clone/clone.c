@@ -10,9 +10,10 @@
 #include <sched.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <sys/mman.h>
 
-static char child_stack[8192];
-static char *child_stack_end = child_stack + 8192;
+static char *child_stack;
+static char *child_stack_end;
 static char child_tls[4069];
 static char child_tls1[4069];
 static char child_tls2[4069];
@@ -59,6 +60,9 @@ int newthr(void *arg)
 	fprintf(stderr, "New thread created.\n");
 	fprintf(stderr, "Arg: %p.\n", arg);
 	fprintf(stderr, "Stack: %p.\n", &x);
+	// This would normally crash, but SGX_LKL defers unmapping the child stack
+	// until the thread exits.
+	munmap(child_stack, child_stack_end - child_stack);
 	return 0;
 }
 
@@ -77,14 +81,21 @@ int parallelthr(void* arg)
 	// the SGX-LKL host interface that backs the clone system call causes
 	// host tasks to become serialised.
 	// Note: This test will work only with 2+ ethreads.
-	while (__atomic_load_n(&counter, __ATOMIC_SEQ_CST) < 100)
+	while (1)
 	{
 		int v = __atomic_load_n(&counter, __ATOMIC_SEQ_CST);
+
+		if (v == 100)
+			break;
+
 		if (v % 2 == odd)
 		{
 			__atomic_compare_exchange_n(&counter, &v, v+1, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 		}
 	}
+
+	fprintf(stderr, "Thread %d finished\n", odd);
+
 	return 0;
 }
 
@@ -97,6 +108,9 @@ int main(int argc, char** argv)
 
 	pid_t ptid;
 	pid_t ctid = 0;
+	child_stack = mmap(0, 8192, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	child_stack_end = child_stack + 8192;
+	assert(child_stack != MAP_FAILED, "Failed to map child stack");
 	fprintf(stderr, "Clone syscall number: %d\n", SYS_clone);
 	fprintf(stderr, "lkl_syscall: %p\n", lkl_syscall);
 	fprintf(stderr, "fn: %p \n", newthr);
@@ -126,10 +140,12 @@ int main(int argc, char** argv)
 	fprintf(stderr, "\nIf this test hangs after waking up one thread, check you have at least 2 ethreads\n");
 	fprintf(stderr, "This test is checking that LKL is able to wake up two cloned threads and leaving them running in parallel\n\n");
 	futex_wake(&barrier);
+	fprintf(stderr, "Waiting for for Thread 0 to finish\n");
 	futex_wait(&ctid_futex1, ctid1);
+	fprintf(stderr, "Waiting for for Thread 1 to finish\n");
 	futex_wait(&ctid_futex2, ctid2);
 
 	fprintf(stderr, "\nTEST_PASSED\n");
 
-    return 0;
+	return 0;
 }

@@ -9,7 +9,6 @@ if [ -z $SGXLKL_PREFIX ]; then
     exit 1
 fi
 
-. /opt/openenclave/share/openenclave/openenclaverc
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 
 # Initialize the variables.
@@ -31,9 +30,14 @@ stack_trace_file_path="report/$test_name.stack"
 # Start the test timer.
 JunitTestStarted "$test_name"
 
-# Ensure we have a pristine environment
-git submodule foreach --recursive git clean -xdf
-make clean
+# Ensure that we have a clean build tree
+make distclean
+
+# Install the Open Enclave build dependencies for Azure
+sudo bash $SGXLKL_ROOT/openenclave/scripts/ansible/install-ansible.sh
+sudo ansible-playbook $SGXLKL_ROOT/openenclave/scripts/ansible/oe-contributors-acc-setup-no-driver.yml
+
+# Let's build
 make $make_args && make install $make_install_args
 make_exit=$?
 

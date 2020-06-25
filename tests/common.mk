@@ -14,15 +14,4 @@ else
 	export SGXLKL_DOCKER_TOOL=${SGXLKL_PREFIX}/bin/sgx-lkl-docker
 	export SGXLKL_GDB=${SGXLKL_PREFIX}/bin/sgx-lkl-gdb
 	export SGXLKL_JAVA_RUN=${SGXLKL_PREFIX}/bin/sgx-lkl-java
-
-	# Infer build mode if not given.
-	ifeq (${SGXLKL_BUILD_MODE},)
-		ifeq (${SGXLKL_PREFIX},/opt/sgx-lkl-debug)
-			export SGXLKL_BUILD_MODE=debug
-		else ifeq (${SGXLKL_PREFIX},/opt/sgx-lkl-nonrelease)
-			export SGXLKL_BUILD_MODE=nonrelease
-		else
-			$(error SGXLKL_BUILD_MODE not set and SGXLKL_PREFIX is not a standard path)
-		endif
-	endif
 endif

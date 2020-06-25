@@ -1,7 +1,11 @@
 include ../../common.mk
 
 CC_APP=/usr/bin/curl
-CC_APP_CMDLINE=${CC_APP} -v https://www.microsoft.com/
+
+# The following used to access https://www.microsoft.com, but this fails
+# with Github issue https://github.com/lsds/sgx-lkl/issues/499. Other URLs
+# appear to work fine.
+CC_APP_CMDLINE=${CC_APP} --trace-ascii - https://www.wikipedia.org/
 
 CC_IMAGE_SIZE=128M
 
