@@ -124,7 +124,7 @@ int __libc_init_enclave(int argc, char** argv)
         (void*)((unsigned char*)__oe_get_heap_base() + oe_allotted_heapsize);
 
     if (oe_allotted_heapsize >= __oe_get_heap_size())
-        sgxlkl_fail("error: not enough heap memory for OpenEnclave heap\n");
+        sgxlkl_fail("Not enough heap memory for OpenEnclave heap\n");
 
     const size_t sgxlkl_heap_size =
         (__oe_get_heap_size() - oe_allotted_heapsize);
