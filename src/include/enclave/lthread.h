@@ -185,39 +185,8 @@ struct lthread_sched
  * The structure is located towards the end of the page pointed by %gs.
  */
 struct schedctx {
-	/* Part 1 -- these fields may be external or
-	 * internal (accessed via asm) ABI. Do not change. */
 	struct schedctx *self;
-	void *unused1, *unused2;
-	uintptr_t sysinfo;
-	uintptr_t canary, canary2;
-
-	/* Part 2 -- implementation details, non-ABI. */
 	int tid;
-	int errno_val;
-	volatile int detach_state;
-	volatile int cancel;
-	volatile unsigned char canceldisable, cancelasync;
-	unsigned char tsd_used:1;
-	unsigned char unblock_cancel:1;
-	unsigned char dlerror_flag:1;
-	unsigned char *map_base;
-	size_t map_size;
-	void *stack;
-	size_t stack_size;
-	size_t guard_size;
-	void *start_arg;
-	void *(*start)(void *);
-	void *result;
-	struct __ptcb *cancelbuf;
-	void **tsd;
-	volatile int timer_id;
-	volatile int killlock[1];
-	char *dlerror_buf;
-
-	/* Part 3 -- the positions of these fields relative to
-	 * the end of the structure is external and internal ABI. */
-	uintptr_t canary_at_end;
     struct lthread_sched sched;
 };
 
@@ -232,9 +201,7 @@ struct lthread_tcb_base {
     // (TCB) layout. Among other things, it expects a read-only stack
     // guard/canary value at an offset 0x28 (40 bytes) from the FS segment
     // base/start of the TCB (see schedctx struct above).
-    uint64_t stack_guard_dummy; // Equivalent to schedctx->canary (see above).
-                                // canary2 is only used on the x32 arch, so we
-                                // ignore it here.
+    uint64_t stack_guard_dummy;
     struct schedctx *schedctx;
 };
 

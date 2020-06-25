@@ -405,7 +405,7 @@ void __init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
 {
 	mem += sz - sizeof(struct lthread_tcb_base);
 	mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
-    lt->tp = mem;
+	lt->tp = mem;
 	struct lthread_tcb_base *tcb = (struct lthread_tcb_base *)mem;
 	tcb->self = mem;
 }
