@@ -1,8 +1,7 @@
 Removed the wait calls as it is in single process context.
 PTRACE_TRACEME needs child process. Hence removing it from tests for sgxlkl
-
 diff --git a/testcases/kernel/syscalls/ptrace/ptrace03.c b/testcases/kernel/syscalls/ptrace/ptrace03.c
-index f326b834d..0313153db 100644
+index f326b834d..cf61a5d1e 100644
 --- a/testcases/kernel/syscalls/ptrace/ptrace03.c
 +++ b/testcases/kernel/syscalls/ptrace/ptrace03.c
 @@ -99,7 +99,6 @@ char *TCID = "ptrace03";
@@ -13,7 +12,7 @@ index f326b834d..0313153db 100644
  
  struct test_case_t {
  	int request;
-@@ -108,87 +107,46 @@ struct test_case_t {
+@@ -108,86 +107,42 @@ struct test_case_t {
  } test_cases[] = {
  	{
  	PTRACE_ATTACH, &init_pid, EPERM}, {
@@ -112,8 +111,6 @@ index f326b834d..0313153db 100644
 +			continue;
 +		}
 +
-+
-+
 +		TEST(ptrace(test_cases[i].request,
 +				    *(test_cases[i].pid), NULL, NULL));
 +		if ((TEST_RETURN == -1) && (TEST_ERRNO ==
@@ -125,7 +122,5 @@ index f326b834d..0313153db 100644
 +					 "ptrace() returned %ld",
 +					 TEST_RETURN);
  		}
-+
  	}
  
- 	/* cleanup and exit */
