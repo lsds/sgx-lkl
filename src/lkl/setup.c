@@ -1301,18 +1301,21 @@ static void* lkl_termination_thread(void* args)
                 "Could not unmount disk %d, %s\n", i, lkl_strerror(res));
         }
 
-        // Not really necessary for mounts in /mnt since /mnt is
-        // mounted as tmpfs itself, but it is also possible to mount
-        // secondary images at any place in the root file system,
-        // including persistent storage, if the root file system is
-        // writeable. For simplicity, remove all mount points here.
-        res = lkl_sys_rmdir(disk_i->destination);
-        if (res < 0)
+        if (!cfg->root.readonly)
         {
-            sgxlkl_warn(
-                "Could not remove mount point %s\n",
-                disk_i->destination,
-                lkl_strerror(res));
+            // Not really necessary for mounts in /mnt since /mnt is
+            // mounted as tmpfs itself, but it is also possible to mount
+            // secondary images at any place in the root file system,
+            // including persistent storage, if the root file system is
+            // writeable. For simplicity, remove all mount points here.
+            res = lkl_sys_rmdir(disk_i->destination);
+            if (res < 0)
+            {
+                sgxlkl_warn(
+                    "Could not remove mount point %s\n",
+                    disk_i->destination,
+                    lkl_strerror(res));
+            }
         }
     }
 
