@@ -1024,7 +1024,7 @@
 /ltp/testcases/kernel/syscalls/vfork/vfork01
 /ltp/testcases/kernel/syscalls/vfork/vfork02
 #/ltp/testcases/kernel/syscalls/vhangup/vhangup01
-/ltp/testcases/kernel/syscalls/vhangup/vhangup02
+#/ltp/testcases/kernel/syscalls/vhangup/vhangup02
 /ltp/testcases/kernel/syscalls/vmsplice/vmsplice01
 #/ltp/testcases/kernel/syscalls/vmsplice/vmsplice02
 #/ltp/testcases/kernel/syscalls/wait/wait01
