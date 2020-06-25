@@ -139,7 +139,6 @@ struct lthread
     lthread_func fun;             /* func lthread is running */
     void* arg;                    /* func args passed to func */
     struct lthread_attr attr;     /* various attributes */
-    struct __ptcb* cancelbuf;     /* cancellation buffer */
     int tid;                      /* lthread id */
     char funcname[64];            /* optional func name */
     struct lthread* lt_join;      /* lthread we want to join on */
@@ -151,8 +150,6 @@ struct lthread
     size_t itlssz;                /* size of TLS image */
     uintptr_t tp;                 /* thread pointer */
     int err;                      /* errno value */
-    char* dlerror_buf;
-    int dlerror_flag;
     /* yield_cb_* are a callback to call after yield finished and it's arg */
     /* they are required to release futex lock on FUTEX_WAIT operation */
     /* and in sched_yield (see comment there) to avoid race among schedulers */
@@ -187,7 +184,7 @@ struct lthread_sched
 struct schedctx {
 	struct schedctx *self;
 	int tid;
-    struct lthread_sched sched;
+	struct lthread_sched sched;
 };
 
 /* Thread Control Block (TCB) for lthreads and lthread scheduler */
