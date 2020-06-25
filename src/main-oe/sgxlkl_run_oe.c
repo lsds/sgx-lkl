@@ -1384,6 +1384,7 @@ void* enclave_init(ethread_args_t* args)
     return (void*)(long)exit_status;
 }
 
+/* Creates an SGX-LKL enclave with enclave configuration in the EEID. */
 void _create_enclave(
     char* libsgxlkl,
     uint32_t oe_flags,

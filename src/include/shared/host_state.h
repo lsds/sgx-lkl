@@ -18,22 +18,27 @@ typedef struct sgxlkl_host_disk_state
 
 typedef struct sgxlkl_host_config
 {
-    char* thread_affinity;
-    char* tap_device;
-    bool tap_offload;
+    char* thread_affinity; /* Thread affinity */
+    char* tap_device;      /* TAP device name */
+    bool tap_offload;      /* Flag to enable TAP offloading */
 } sgxlkl_host_config_t;
 
 typedef struct sgxlkl_host_state
 {
+    /* Configuration of the host */
     sgxlkl_host_config_t config;
 
+    /* File descriptor of the network device */
     int net_fd;
 
+    /* Host-side state of disks */
     size_t num_disks;
     sgxlkl_host_disk_state_t disks[HOST_MAX_DISKS];
 
+    /* Shared memory */
     sgxlkl_shared_memory_t shared_memory;
 
+    /* Enclave config */
     sgxlkl_enclave_config_t enclave_config;
 } sgxlkl_host_state_t;
 
