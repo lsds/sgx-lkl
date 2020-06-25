@@ -38,7 +38,7 @@ static void prepare_elf_stack()
     {
         state->imported_env = malloc(sizeof(char*) * cfg->num_host_import_env);
         if (!state->imported_env)
-            sgxlkl_fail("out of memory\n");
+            sgxlkl_fail("Could not allocate memory for imported host environment\n");
 
         for (size_t i = 0; i < cfg->num_host_import_env; i++)
         {
