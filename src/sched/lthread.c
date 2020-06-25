@@ -36,7 +36,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "pthread_impl.h"
 #include "stdio_impl.h"
 
 #include <enclave/enclave_mem.h>
@@ -401,7 +400,7 @@ void _lthread_free(struct lthread* lt)
     lthread_dealloc(lt);
 }
 
-void __init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
+static void init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
 {
 	mem += sz - sizeof(struct lthread_tcb_base);
 	mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
@@ -549,9 +548,9 @@ int _lthread_sched_init(size_t stack_size)
 
     struct lthread_sched* sched = lthread_get_sched();
 
-    sched.stack_size = sched_stack_size;
+    sched->stack_size = sched_stack_size;
 
-    sched.default_timeout = 3000000u;
+    sched->default_timeout = 3000000u;
 
     oe_memset_s(
         &c->sched.ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
@@ -663,7 +662,7 @@ int lthread_create(
         oe_free(lt);
         return -1;
     }
-    __init_tp(lt, lt->itls, lt->itlssz);
+    init_tp(lt, lt->itls, lt->itlssz);
 
     lt->attr.state = BIT(LT_ST_NEW) | (attrp ? attrp->state : 0);
     lt->attr.thread_type = LKL_KERNEL_THREAD;
