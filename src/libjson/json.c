@@ -722,6 +722,17 @@ static json_result_t _invoke_callback(
     return parser->callback(parser, reason, type, un, parser->callback_data);
 }
 
+static json_result_t skip_whitespace(json_parser_t* parser)
+{
+    while (parser->ptr != parser->end && _isspace(*parser->ptr))
+    {
+        if (!parser->options.allow_whitespace)
+            return JSON_BAD_SYNTAX;
+        parser->ptr++;
+    }
+    return JSON_OK;
+}
+
 static json_result_t _get_string(json_parser_t* parser, char** str)
 {
     json_result_t result = JSON_OK;
@@ -903,12 +914,7 @@ static json_result_t _get_array(json_parser_t* parser, size_t* array_size)
     for (;;)
     {
         /* Skip whitespace */
-        while (parser->ptr != parser->end && _isspace(*parser->ptr))
-        {
-            if (!parser->options.allow_whitespace)
-                return JSON_BAD_SYNTAX;
-            parser->ptr++;
-        }
+        CHECK(skip_whitespace(parser));
 
         /* Fail if output exhausted */
         if (parser->ptr == parser->end)
@@ -951,17 +957,6 @@ static int _strtou64(uint64_t* x, const char* str, int allow_whitespace)
         return -1;
 
     return 0;
-}
-
-static json_result_t skip_whitespace(json_parser_t* parser)
-{
-    while (parser->ptr != parser->end && _isspace(*parser->ptr))
-    {
-        if (!parser->options.allow_whitespace)
-            return JSON_BAD_SYNTAX;
-        parser->ptr++;
-    }
-    return JSON_OK;
 }
 
 static json_result_t _get_object(json_parser_t* parser)

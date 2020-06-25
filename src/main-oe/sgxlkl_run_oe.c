@@ -126,7 +126,7 @@ static void usage()
 #ifdef SGXLKL_RELEASE
     printf(
         "%s <--hw-release> [--enclave-image={libsgxlkl.so}] "
-        "[--host-config={host_state_file}] "
+        "[--host-config={host config file}] "
         "[--enclave-config={enclave config file}] "
         "<enclave_root_image> [executable] [args]>\n",
         SGXLKL_LAUNCHER_NAME);
@@ -443,29 +443,29 @@ static void sgxlkl_loader_signal_handler(int signo)
 static void prepare_verity(
     sgxlkl_enclave_root_config_t* disk,
     const char* disk_path,
-    char* verity_file_or_roothash,
-    char* verity_file_or_hashoffset)
+    char* verity_roothash_or_file,
+    char* verity_hashoffset_or_file)
 {
-    if (!verity_file_or_roothash)
+    if (!verity_roothash_or_file)
     {
         disk->roothash = NULL;
         disk->roothash_offset = 0;
         return;
     }
 
-    if (access(verity_file_or_roothash, R_OK) != -1)
+    if (access(verity_roothash_or_file, R_OK) != -1)
     {
         FILE* hf;
         char hash[MAX_HASH_DIGITS + 2];
 
-        if (!(hf = fopen(verity_file_or_roothash, "r")))
+        if (!(hf = fopen(verity_roothash_or_file, "r")))
             sgxlkl_host_fail(
-                "Failed to open root hash file %s.\n", verity_file_or_roothash);
+                "Failed to open root hash file %s.\n", verity_roothash_or_file);
 
         if (!fgets(hash, MAX_HASH_DIGITS + 2, hf))
             sgxlkl_host_fail(
                 "Failed to read root hash from file %s.\n",
-                verity_file_or_roothash);
+                verity_roothash_or_file);
 
         /* Remove possible new line */
         char* nl = strchr(hash, '\n');
@@ -476,7 +476,7 @@ static void prepare_verity(
         if (hash_len > MAX_HASH_DIGITS)
             sgxlkl_host_fail(
                 "Root hash read from file %s too long! Maximum length: %d\n",
-                verity_file_or_roothash,
+                verity_roothash_or_file,
                 MAX_HASH_DIGITS);
 
         disk->roothash = (char*)malloc(hash_len + 1);
@@ -486,10 +486,10 @@ static void prepare_verity(
         fclose(hf);
     }
     else
-        disk->roothash = verity_file_or_roothash;
+        disk->roothash = verity_roothash_or_file;
 
     char* hashoffset_path;
-    if (!verity_file_or_hashoffset)
+    if (!verity_hashoffset_or_file)
     {
         size_t hashoffset_path_len =
             strlen(disk_path) + strlen(".hashoffset") + 1;
@@ -503,7 +503,7 @@ static void prepare_verity(
     }
     else
     {
-        hashoffset_path = verity_file_or_hashoffset;
+        hashoffset_path = verity_hashoffset_or_file;
     }
 
     char* hashoffset_str;
@@ -524,9 +524,9 @@ static void prepare_verity(
 
         hashoffset_str = hashoffset_buf;
     }
-    else if (verity_file_or_hashoffset)
+    else if (verity_hashoffset_or_file)
     {
-        hashoffset_str = verity_file_or_hashoffset;
+        hashoffset_str = verity_hashoffset_or_file;
     }
     else
         sgxlkl_host_fail(
@@ -538,7 +538,7 @@ static void prepare_verity(
     if (errno == EINVAL || errno == ERANGE)
         sgxlkl_host_fail("Failed to parse hash offset!\n");
 
-    if (hashoffset_path != verity_file_or_hashoffset)
+    if (hashoffset_path != verity_hashoffset_or_file)
         free(hashoffset_path);
 }
 
@@ -546,11 +546,9 @@ static void override_enclave_disk_config(
     sgxlkl_enclave_root_config_t* disk,
     const char* image_path,
     char* keyfile_or_passphrase,
-    char* verity_file_or_roothash,
-    char* verity_file_or_hashoffset)
+    char* verity_roothash_or_file,
+    char* verity_hashoffset_or_file)
 {
-    // If key and root hash are provided remotely or is set via enclave
-    // config, don't set it here.
     if (host_state.enclave_config.mode != HW_RELEASE_MODE)
     {
         if (keyfile_or_passphrase)
@@ -597,8 +595,8 @@ static void override_enclave_disk_config(
         prepare_verity(
             disk,
             image_path,
-            verity_file_or_roothash,
-            verity_file_or_hashoffset);
+            verity_roothash_or_file,
+            verity_hashoffset_or_file);
     }
 }
 

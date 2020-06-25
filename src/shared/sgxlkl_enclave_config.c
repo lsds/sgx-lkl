@@ -13,6 +13,7 @@
 #define WARN sgxlkl_host_warn
 #endif
 
+#include <enclave/enclave_util.h>
 #include <json.h>
 #include <shared/env.h>
 #include <shared/sgxlkl_enclave_config.h>
@@ -256,7 +257,7 @@ static json_result_t json_read_callback(
     switch (reason)
     {
         case JSON_REASON_NONE:
-            FAIL("unreachable");
+            SGXLKL_ASSERT("unreachable");
         case JSON_REASON_NAME:
             break;
         case JSON_REASON_BEGIN_OBJECT:
@@ -393,7 +394,7 @@ static json_result_t json_read_callback(
                 SEEN(parser);
                 size_t len = strlen(un->string);
                 if (len > SGXLKL_DISK_MNT_MAX_PATH_LEN)
-                    FAIL("invalid length of 'mnt' for disk %d\n", i);
+                    FAIL("'destination' of disk %d too long\n", i);
                 memcpy(MOUNT()->destination, un->string, len + 1);
                 return JSON_OK;
             }
@@ -460,8 +461,11 @@ int sgxlkl_read_enclave_config(
         sizeof(sgxlkl_enclave_config_t) == 496,
         "sgxlkl_enclave_config_t size has changed");
 
-    if (!from || !to)
-        return 1;
+    if (!from)
+        FAIL("No config to read\n");
+
+    if (!to)
+        FAIL("No config to write to\n");
 
     *to = sgxlkl_default_enclave_config;
 

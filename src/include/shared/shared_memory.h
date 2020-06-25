@@ -5,7 +5,7 @@
 
 #include <shared/vio_event_channel.h>
 
-typedef struct sgxlkl_enclave_config_shared_memory
+typedef struct sgxlkl_shared_memory
 {
     /* shared memory for virtio implementation */
     void* virtio_net_dev_mem; /* shared memory for virtio network device */

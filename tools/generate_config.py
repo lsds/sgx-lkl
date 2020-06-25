@@ -58,7 +58,7 @@ def pre_type(jtype):
     elif jtt == 'string' or (isinstance(jtt, list) and 'string' in jtt and 'null' in jtt):
       return 'char' if 'maxLength' in jtype else 'char*'
     else:
-        print('unhandled json type: %s' % jtype)
+        raise Exception('unhandled json type: %s' % jtype)
   elif '$ref' in jtype:
     rtype = jtype['$ref'][jtype['$ref'].rfind('/')+1:]
     if rtype.startswith('safe_'):
@@ -66,7 +66,7 @@ def pre_type(jtype):
     else:
       return rtype
   else:
-    print('unknown json type: %s' % jtype)
+    raise Exception('unknown json type: %s' % jtype)
     return jtype
 
 def need_size_var(jtype):

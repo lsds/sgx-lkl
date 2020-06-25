@@ -185,18 +185,18 @@
         "roothash_offset": {
           "$ref": "#/definitions/safe_size_t",
           "description": "dm-verity hash offset.",
-          "default": "0"
+          "default": 0
         },
         "size": {
           "$ref": "#/definitions/safe_size_t",
           "description": "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.",
-          "default": "0"
+          "default": 0
         }
       }
     },
     "sgxlkl_enclave_root_config_t": {
       "type": "object",
-      "description": "Disk configuration",
+      "description": "Root disk configuration",
       "additionalProperties": false,
       "dependencies": {
         "roothash": [
@@ -244,7 +244,7 @@
         "roothash_offset": {
           "$ref": "#/definitions/safe_size_t",
           "description": "dm-verity hash offset.",
-          "default": "0"
+          "default": 0
         },
         "readonly": {
           "type": "boolean",
@@ -288,7 +288,7 @@
         "listen_port": {
           "$ref": "#/definitions/safe_uint32_t",
           "description": "Port to use on eth0 interface for the Wireguard endpoint.",
-          "default": "56002",
+          "default": 56002,
           "overridable": "SGXLKL_WG_PORT"
         },
         "key": {
@@ -306,7 +306,7 @@
           "items": {
             "$ref": "#/definitions/sgxlkl_enclave_wg_peer_config_t"
           },
-          "default": "[]",
+          "default": [],
           "overridable": "SGXLKL_WG_PEERS"
         }
       }
@@ -317,12 +317,12 @@
         "num_heap_pages": {
           "$ref": "#/definitions/safe_uint64_t",
           "description": "Number of heap pages of the enclave.",
-          "default": "262144"
+          "default": 262144
         },
         "num_stack_pages": {
           "$ref": "#/definitions/safe_uint64_t",
           "description": "Number of stack pages of the enclave.",
-          "default": "1024"
+          "default": 1024
         }
       }
     },
@@ -375,7 +375,7 @@
         "tap_mtu": {
           "$ref": "#/definitions/safe_uint32_t",
           "description": "Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).",
-          "default": "0",
+          "default": 0,
           "overridable": "SGXLKL_TAP_MTU"
         },
         "wg": {
@@ -385,25 +385,25 @@
         "ethreads": {
           "$ref": "#/definitions/safe_size_t",
           "description": "Number of enclave threads.",
-          "default": "1",
+          "default": 1,
           "overridable": "SGXLKL_ETHREADS"
         },
         "max_user_threads": {
           "$ref": "#/definitions/safe_size_t",
           "description": "Max. number of user-level thread inside the enclave.",
-          "default": "256",
+          "default": 256,
           "overridable": "SGXLKL_MAX_USER_THREADS"
         },
         "espins": {
           "$ref": "#/definitions/safe_size_t",
           "description": "Number of spins inside scheduler before sleeping begins.",
-          "default": "500",
+          "default": 500,
           "overridable": "SGXLKL_ESPINS"
         },
         "esleep": {
           "$ref": "#/definitions/safe_size_t",
           "description": "Sleep timeout in the scheduler (in ns).",
-          "default": "16000",
+          "default": 16000,
           "overridable": "SGXLKL_ESLEEP"
         },
         "clock_res": {
@@ -419,7 +419,7 @@
         "stacksize": {
           "$ref": "#/definitions/safe_size_t",
           "description": "Stack size of in-enclave user-level threads.",
-          "default": "524288",
+          "default": 524288,
           "overridable": "SGXLKL_STACK_SIZE"
         },
         "mmap_files": {
@@ -431,7 +431,7 @@
         "oe_heap_pagecount": {
           "$ref": "#/definitions/safe_size_t",
           "description": "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=<n>",
-          "default": "8192",
+          "default": 8192,
           "overridable": "SGXLKL_OE_HEAP_PAGE_COUNT"
         },
         "fsgsbase": {

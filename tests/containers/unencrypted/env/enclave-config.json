@@ -1,16 +1,13 @@
 {
-    "args": [
-      "/usr/bin/python3",
-      "-c",
-      "import os; assert os.environ['FOO'] == '42'"
-    ],
-    "envp": [ 
-      "FOO=42"
-    ],
-    "disks": [
-      {
-        "mnt": "/",
-        "readonly": false
-      }
-    ]
+  "args": [
+    "/usr/bin/python3",
+    "-c",
+    "import os; assert os.environ['FOO'] == '42'"
+  ],
+  "env": [
+    "FOO=42"
+  ],
+  "root": {
+    "readonly": false
+  }
 }

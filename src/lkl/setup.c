@@ -803,8 +803,7 @@ static void lkl_mount_disk(
     const int err = lkl_mount_blockdev(
         dev_str, mnt_point, "ext4", disk->readonly ? LKL_MS_RDONLY : 0, NULL);
     if (err < 0)
-        sgxlkl_fail(
-            "Error: lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
+        sgxlkl_fail("lkl_mount_blockdev()=%s (%d)\n", lkl_strerror(err), err);
 
     sgxlkl_enclave_state.disk_state[disk_index].mounted = true;
 }
@@ -935,8 +934,7 @@ void lkl_mount_disks(
     {
         size_t dsk_inx = mnt_inx + 1;
 
-        if (strcmp(mounts[mnt_inx].destination, "/") == 0)
-            sgxlkl_fail("Bug: root disk should not be in mounts list.\n");
+        SGXLKL_ASSERT(strcmp(mounts[mnt_inx].destination, "/") != 0);
 
         // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
         // support for more than 26 disks.
@@ -962,8 +960,7 @@ void lkl_mount_disks(
                              .roothash_offset = mounts[mnt_inx].roothash_offset,
                              .size = mounts[mnt_inx].size,
                              .overlay = false};
-        lkl_mount_disk(
-            &cfg, 'a' + dsk_inx, cfg.destination, dsk_inx);
+        lkl_mount_disk(&cfg, 'a' + dsk_inx, cfg.destination, dsk_inx);
     }
 
     if (cwd)
@@ -985,7 +982,7 @@ static uint32_t _parse_ip4(const char* str)
 {
     struct in_addr ia_tmp = {0};
     if (inet_pton(AF_INET, str, &ia_tmp) != 1)
-        sgxlkl_fail("Error: Invalid IPv4 address: %s\n", str);
+        sgxlkl_fail("Invalid IPv4 address: %s\n", str);
     return ia_tmp.s_addr;
 }
 
@@ -999,12 +996,12 @@ void lkl_poststart_net(int net_dev_id)
         res = lkl_if_set_ipv4(ifidx, ip4, atoi(sgxlkl_enclave->net_mask4));
         if (res < 0)
         {
-            sgxlkl_fail("Error: lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
+            sgxlkl_fail("lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
         }
         res = lkl_if_up(ifidx);
         if (res < 0)
         {
-            sgxlkl_fail("Error: lkl_if_up(eth0): %s\n", lkl_strerror(res));
+            sgxlkl_fail("lkl_if_up(eth0): %s\n", lkl_strerror(res));
         }
         if (sgxlkl_enclave->net_gw4 > 0)
         {
@@ -1012,8 +1009,7 @@ void lkl_poststart_net(int net_dev_id)
             res = lkl_set_ipv4_gateway(gw4);
             if (res < 0)
             {
-                sgxlkl_fail(
-                    "Error: lkl_set_ipv4_gateway(): %s\n", lkl_strerror(res));
+                sgxlkl_fail("lkl_set_ipv4_gateway(): %s\n", lkl_strerror(res));
             }
         }
 
@@ -1025,7 +1021,7 @@ void lkl_poststart_net(int net_dev_id)
     res = lkl_if_up(1);
     if (res < 0)
     {
-        sgxlkl_fail("Error: lkl_if_up(1=lo): %s\n", lkl_strerror(res));
+        sgxlkl_fail("lkl_if_up(1=lo): %s\n", lkl_strerror(res));
     }
 }
 

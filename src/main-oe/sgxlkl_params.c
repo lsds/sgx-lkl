@@ -169,7 +169,7 @@ static json_result_t parse_sgxlkl_config_entry(
     switch (reason)
     {
         case JSON_REASON_NONE:
-            sgxlkl_host_fail("unreachable");
+            assert("unreachable");
         case JSON_REASON_NAME: break;
         case JSON_REASON_BEGIN_OBJECT: break;
         case JSON_REASON_END_OBJECT: break;
@@ -308,9 +308,9 @@ int sgxlkl_parse_params_from_file(const char* path, char** err)
     if (!(buf = (char*)malloc(len + 1)))
     {
         if (err)
-            *err = strdup("Failed to alloate memory for JSON buffer");
+            *err = strdup("Failed to allocate memory for JSON buffer");
         else
-            perror("Failed to alloate memory for JSON buffer");
+            perror("Failed to allocate memory for JSON buffer");
         return -1;
     }
     ssize_t ret;
