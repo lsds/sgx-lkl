@@ -53,8 +53,10 @@ def pre_type(jtype):
         return item_type
       else:
         return item_type + '*'
-    elif jtt == 'boolean': return 'bool'
-    elif jtt == 'none': return 'null'
+    elif jtt == 'boolean':
+      return 'bool'
+    elif jtt == 'none':
+      return 'null'
     elif jtt == 'string' or (isinstance(jtt, list) and 'string' in jtt and 'null' in jtt):
       return 'char' if 'maxLength' in jtype else 'char*'
     else:
@@ -103,7 +105,8 @@ def generate_header(schema_file_name, root, args):
           num_vals = len(names)
           for value in names:
             header.write('    %s = %d' % (value.upper(), i))
-            if i < num_vals - 1: header.write(',')
+            if i < num_vals - 1:
+              header.write(',')
             if 'description' in typedef:
               header.write(' /* %s */' % typedef['description'])
             header.write('\n')
