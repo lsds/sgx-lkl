@@ -264,7 +264,7 @@
 /ltp/testcases/kernel/syscalls/fsync/fsync01
 /ltp/testcases/kernel/syscalls/fsync/fsync02
 /ltp/testcases/kernel/syscalls/fsync/fsync03
-#/ltp/testcases/kernel/syscalls/fsync/fsync04
+/ltp/testcases/kernel/syscalls/fsync/fsync04
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate01
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate03
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate04
@@ -800,9 +800,9 @@
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile08
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile09
 #/ltp/testcases/kernel/syscalls/sendmmsg/sendmmsg01
-#/ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
+/ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
 /ltp/testcases/kernel/syscalls/sendmsg/sendmsg02
-#/ltp/testcases/kernel/syscalls/sendto/sendto01
+/ltp/testcases/kernel/syscalls/sendto/sendto01
 /ltp/testcases/kernel/syscalls/sendto/sendto02
 /ltp/testcases/kernel/syscalls/set_mempolicy/set_mempolicy01
 /ltp/testcases/kernel/syscalls/set_mempolicy/set_mempolicy02
