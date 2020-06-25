@@ -49,6 +49,9 @@
 #define DEFINE_LTHREAD (lthread_set_funcname(__func__))
 #define CLOCK_LTHREAD CLOCK_REALTIME
 
+// Configures after how many scheduler cycles futexes are woken up
+#define DEFAULT_FUTEX_WAKE_SPINS 1
+
 struct mpmcq __scheduler_queue;
 
 typedef void* (*lthread_func)(void*);

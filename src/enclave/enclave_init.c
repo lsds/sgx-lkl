@@ -158,7 +158,7 @@ int __libc_init_enclave(int argc, char** argv)
     __init_libc(envp, argv[0]);
     __init_tls();
 
-    size_t futex_wake_spins = 1;
+    size_t futex_wake_spins = DEFAULT_FUTEX_WAKE_SPINS;
     size_t espins = sgxlkl_enclave->espins;
     size_t esleep = sgxlkl_enclave->esleep;
     lthread_sched_global_init(espins, esleep, futex_wake_spins);
