@@ -1544,7 +1544,7 @@ void lkl_start_init()
         SGXLKL_VERBOSE(
             "Disk %zu: Disk encryption: %s\n",
             i,
-            (is_encrypted(&cfg->mounts[i]) ? "ON" : "off"));
+            (is_encrypted(&cfg->mounts[i]) ? "yes" : "no"));
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
             i,
