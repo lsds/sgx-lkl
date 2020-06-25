@@ -127,10 +127,10 @@ const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {
 
 // clang-format off
 const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[49] = {
-    {"net_ip4", "char*", "IPv4 address to assign to LKL.", "10.0.1.1", "SGXLKL_IP4"},
-    {"net_gw4", "char*", "IPv4 gateway to assign to LKL.", "10.0.1.254", "SGXLKL_GW4"},
-    {"net_mask4", "char*", "CIDR mask for LKL to use.", "24", "SGXLKL_MASK4"},
-    {"hostname", "char[32]", "Host name for LKL to use.", "lkl", "SGXLKL_HOSTNAME"},
+    {"net_ip4", "char*", "IPv4 address to assign inside the enclave.", "10.0.1.1", "SGXLKL_IP4"},
+    {"net_gw4", "char*", "IPv4 gateway to assign inside the enclave.", "10.0.1.254", "SGXLKL_GW4"},
+    {"net_mask4", "char*", "CIDR mask to use inside the enclave.", "24", "SGXLKL_MASK4"},
+    {"hostname", "char[32]", "Host name to use inside the enclave.", "lkl", "SGXLKL_HOSTNAME"},
     {"hostnet", "bool", "Hostnet", "false", "SGXLKL_HOSTNET"},
     {"tap_mtu", "uint32_t", "Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).", "0", "SGXLKL_TAP_MTU"},
     {"wg.ip", "char*", "IPv4 address to assign to Wireguard interface.", "10.0.2.1", "SGXLKL_WG_IP"},
@@ -148,7 +148,7 @@ const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[49] = {
     {"oe_heap_pagecount", "size_t", "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=<n>", "8192", "SGXLKL_OE_HEAP_PAGE_COUNT"},
     {"fsgsbase", "bool", "", "true", NULL},
     {"verbose", "bool", "", "false", "SGXLKL_VERBOSE"},
-    {"kernel_verbose", "bool", "Set to 1 to print kernel messages.", "false", "SGXLKL_KERNEL_VERBOSE"},
+    {"kernel_verbose", "bool", "Set to 1 to print LKL kernel messages.", "false", "SGXLKL_KERNEL_VERBOSE"},
     {"kernel_cmd", "char*", "", "mem=32M", NULL},
     {"sysctl", "char*", "'sysctl' configurations. Semicolon-separated list of key value pairs in the form 'key1=value1;key2=value2;[...]'.", "NULL", "SGXLKL_SYSCTL"},
     {"swiotlb", "bool", "Enable DMA bounce buffer support, even in sw mode.", "true", "SGXLKL_ENABLE_SWIOTLB"},

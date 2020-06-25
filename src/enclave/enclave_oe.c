@@ -219,9 +219,11 @@ static int _read_eeid_config()
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
     sgxlkl_enclave_config_t* cfg = malloc(sizeof(sgxlkl_enclave_config_t));
-    sgxlkl_read_enclave_config(config_json, cfg, true);
+    if (!cfg)
+        sgxlkl_fail("out of memory, cannot allocate enclave config.\n");
+    int r = sgxlkl_read_enclave_config(config_json, cfg, true);
     sgxlkl_enclave_state.config = cfg;
-    return 0;
+    return r;
 }
 
 static int _copy_shared_memory(const sgxlkl_shared_memory_t* shm)
@@ -247,7 +249,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
 #ifdef DEBUG
-    sgxlkl_verbose = 0;
+    sgxlkl_enclave_state.verbose = 0;
 #endif
 
     if (_read_eeid_config())
@@ -259,7 +261,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #ifdef DEBUG
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
-    sgxlkl_verbose = sgxlkl_enclave_state.config->verbose;
+    sgxlkl_enclave_state.verbose = sgxlkl_enclave_state.config->verbose;
 #endif
 
     SGXLKL_VERBOSE("enter\n");
