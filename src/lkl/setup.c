@@ -1534,7 +1534,7 @@ void lkl_start_init()
 
     SGXLKL_VERBOSE(
         "Disk 0: Disk encryption: %s\n",
-        (cfg->root.key || cfg->root.key_id ? "ON" : "off"));
+        (cfg->root.key || cfg->root.key_id ? "yes" : "no"));
     SGXLKL_VERBOSE(
         "Disk 0: Disk is writable: %s\n", (!cfg->root.readonly ? "YES" : "no"));
 
