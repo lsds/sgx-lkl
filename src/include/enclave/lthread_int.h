@@ -71,7 +71,10 @@ static inline uint64_t _lthread_timespec_to_usec(const struct timespec* ts)
     return (ts->tv_sec * 1000000) + ts->tv_nsec / 1000;
 }
 
-// TODO: should this be static?
+/*
+Gets a pointer to the schedctx struct. The pointer is maintained at offset
+48 from gsbase of the ethread.
+*/
 static inline struct schedctx *__scheduler_self()
 {
 	struct schedctx *self;

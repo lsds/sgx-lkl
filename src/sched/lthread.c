@@ -436,7 +436,7 @@ void reset_tls_tp(struct lthread* lt)
 
     struct schedctx* sp = __scheduler_self();
 
-    // The scheduler context is at a fixed offset from its ethread's fsbase.
+    // The scheduler context is at a fixed offset from its ethread's gsbase.
     char* tp = (char*)sp - SCHEDCTX_OFFSET;
 
     if (!sgxlkl_in_sw_debug_mode())
@@ -547,11 +547,11 @@ int _lthread_sched_init(size_t stack_size)
 
     sched_stack_size = stack_size ? stack_size : MAX_STACK_SIZE;
 
-    struct schedctx* c = __scheduler_self();
+    struct lthread_sched* sched = lthread_get_sched();
 
-    c->sched.stack_size = sched_stack_size;
+    sched.stack_size = sched_stack_size;
 
-    c->sched.default_timeout = 3000000u;
+    sched.default_timeout = 3000000u;
 
     oe_memset_s(
         &c->sched.ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
