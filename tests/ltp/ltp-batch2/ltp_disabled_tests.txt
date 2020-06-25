@@ -34,7 +34,7 @@
 /ltp/testcases/kernel/syscalls/chdir/chdir01
 /ltp/testcases/kernel/syscalls/chdir/chdir02
 /ltp/testcases/kernel/syscalls/chdir/chdir03
-#/ltp/testcases/kernel/syscalls/chdir/chdir04
+/ltp/testcases/kernel/syscalls/chdir/chdir04
 /ltp/testcases/kernel/syscalls/chmod/chmod01
 /ltp/testcases/kernel/syscalls/chmod/chmod02
 #/ltp/testcases/kernel/syscalls/chmod/chmod03
