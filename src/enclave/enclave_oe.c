@@ -225,7 +225,7 @@ void sgxlkl_ethread_init(void)
     void* tls_page;
     __asm__ __volatile__("mov %%gs:0,%0" : "=r"(tls_page));
 
-    struct sched_tcb_base* sched_tcb = (struct sched_tcb_base*)tls_page;
+    struct lthread_tcb_base* sched_tcb = (struct lthread_tcb_base*)tls_page;
     sched_tcb->self = (void*)tls_page;
 
     size_t tls_offset = SCHEDCTX_OFFSET;
@@ -365,7 +365,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     void* tls_page;
     __asm__ __volatile__("mov %%gs:0,%0" : "=r"(tls_page));
 
-    struct sched_tcb_base* sched_tcb = (struct sched_tcb_base*)tls_page;
+    struct lthread_tcb_base* sched_tcb = (struct lthread_tcb_base*)tls_page;
     sched_tcb->self = (void*)tls_page;
 
     size_t tls_offset = SCHEDCTX_OFFSET;

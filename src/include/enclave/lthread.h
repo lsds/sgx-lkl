@@ -180,9 +180,9 @@ struct lthread_sched
     struct lthread* current_lthread;
 };
 /**
- * lthread scheduler context. Pointer to this structure is maintained in 
- * sched_tcb_base. The structure is located towards the end of the page pointed
- * by %gs. 
+ * lthread scheduler context. Pointer to this structure can be fetched by
+ * calling __scheduler_self(). 
+ * The structure is located towards the end of the page pointed by %gs.
  */
 struct schedctx {
 	/* Part 1 -- these fields may be external or
@@ -221,7 +221,7 @@ struct schedctx {
     struct lthread_sched sched;
 };
 
-/* Thread Control Block (TCB) for lthreads */
+/* Thread Control Block (TCB) for lthreads and lthread scheduler */
 struct lthread_tcb_base {
     void *self;
     char _pad_0[32];
@@ -235,14 +235,6 @@ struct lthread_tcb_base {
     uint64_t stack_guard_dummy; // Equivalent to schedctx->canary (see above).
                                 // canary2 is only used on the x32 arch, so we
                                 // ignore it here.
-    struct schedctx *schedctx;
-};
-
-/* Thread Control Block (TCB) for ethreads/the scheduler (schedctx) */
-struct sched_tcb_base {
-    void *self;
-    char _pad_0[32];
-    uint64_t stack_guard_dummy; // See struct lthread_tcb_base comment
     struct schedctx *schedctx;
 };
 
