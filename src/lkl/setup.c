@@ -1536,7 +1536,7 @@ void lkl_start_init()
         "Disk 0: Disk encryption: %s\n",
         (cfg->root.key || cfg->root.key_id ? "yes" : "no"));
     SGXLKL_VERBOSE(
-        "Disk 0: Disk is writable: %s\n", (!cfg->root.readonly ? "YES" : "no"));
+        "Disk 0: Disk is writable: %s\n", (!cfg->root.readonly ? "yes" : "no"));
 
     size_t num_disks = cfg->num_mounts;
     for (i = 0; i < num_disks; ++i)
