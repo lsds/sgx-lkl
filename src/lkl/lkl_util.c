@@ -1,5 +1,3 @@
-#include "lkl/lkl_util.h"
-
 #include <stdarg.h>
 #include <stdlib.h>
 

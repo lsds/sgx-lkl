@@ -4,6 +4,12 @@
 #include <enclave/enclave_state.h>
 #include <openenclave/enclave.h>
 
+#define SGXLKL_LKL_SYSCALL 1
+#define SGXLKL_INTERNAL_SYSCALL 3
+#define SGXLKL_IGNORED_SYSCALL 4
+#define SGXLKL_UNSUPPORTED_SYSCALL 5
+#define SGXLKL_REDIRECT_SYSCALL 6
+
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 __attribute__((noreturn)) void sgxlkl_fail(const char* msg, ...);
