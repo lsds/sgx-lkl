@@ -1,6 +1,7 @@
 #ifndef _ENCLAVE_UTIL_H
 #define _ENCLAVE_UTIL_H
 
+#include <enclave/enclave_state.h>
 #include <openenclave/enclave.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
