@@ -3,6 +3,9 @@
 
 #ifdef SGXLKL_ENCLAVE
 
+/* Rewire some functions to OE equivalents, to avoid dependencies on
+ * sgx-lkl-musl during SGX-LKL setup. */
+
 #include <openenclave/corelibc/bits/types.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestdlib.h>

@@ -14,25 +14,25 @@ typedef enum sgxlkl_libc_state
 
 typedef struct sgxlkl_enclave_disk_state
 {
-    size_t host_disk_index;
-    int fd;
-    size_t capacity;
-    bool mounted;
+    size_t host_disk_index; /* Index of the disk in shared memory */
+    int fd;                 /* File descriptor of the disk */
+    size_t capacity;        /* Capacity of the disk */
+    bool mounted;           /* Tracks whether the disk has been mounted */
 } sgxlkl_enclave_disk_state_t;
 
 typedef struct
 {
-    uint32_t argc;
-    char** argv;
-    char** envp;
-    Elf64_auxv_t** auxv;
+    uint32_t argc;       /* Number of arguments */
+    char** argv;         /* Arguments */
+    char** envp;         /* Environment variables */
+    Elf64_auxv_t** auxv; /* ELF64 auxiliary vector */
 } elf64_stack_t;
 
 typedef struct sgxlkl_enclave_state
 {
     const sgxlkl_enclave_config_t* config;
 
-    // Imported environment variables
+    /* Imported environment variables */
     char** imported_env;
     size_t num_imported_env;
 
@@ -53,8 +53,8 @@ typedef struct sgxlkl_enclave_state
     sgxlkl_shared_memory_t shared_memory;
 
 #ifdef DEBUG
-    /* sgxlkl_verbose is used by the tracing macros */
-    int verbose;
+    /* This flag is used by the tracing macros */
+    bool verbose;
 #endif
 } sgxlkl_enclave_state_t;
 

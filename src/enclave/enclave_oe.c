@@ -38,7 +38,8 @@ static void prepare_elf_stack()
     {
         state->imported_env = malloc(sizeof(char*) * cfg->num_host_import_env);
         if (!state->imported_env)
-            sgxlkl_fail("Could not allocate memory for imported host environment\n");
+            sgxlkl_fail(
+                "Could not allocate memory for imported host environment\n");
 
         for (size_t i = 0; i < cfg->num_host_import_env; i++)
         {
@@ -249,7 +250,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
 #ifdef DEBUG
-    sgxlkl_enclave_state.verbose = 0;
+    sgxlkl_enclave_state.verbose = false;
 #endif
 
     if (_read_eeid_config())
