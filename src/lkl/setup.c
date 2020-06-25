@@ -1548,7 +1548,7 @@ void lkl_start_init()
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
             i,
-            (!cfg->mounts[i].readonly ? "YES" : "no"));
+            (!cfg->mounts[i].readonly ? "yes" : "no"));
     }
 
     /* Setup bounce buffer for virtio */
