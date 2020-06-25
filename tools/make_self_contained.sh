@@ -63,6 +63,8 @@ fi
 oegdb_ptrace_lib_name=liboe_ptrace.so
 oegdb_ptrace_lib_path=${SGXLKL_PREFIX}/lib/gdb/openenclave/${oegdb_ptrace_lib_name}
 dlopened_libs=(
+    /usr/lib/x86_64-linux-gnu/libsgx_enclave_common.so # via Open Enclave
+    /usr/lib/x86_64-linux-gnu/libsgx_dcap_ql.so # via Open Enclave
     /usr/lib/libdcap_quoteprov.so # via Intel DCAP library
     /lib/x86_64-linux-gnu/libnss_dns.so.2 # via libcurl (via Azure DCAP Client library)
     ${oegdb_ptrace_lib_path} # via sgx-lkl-gdb
