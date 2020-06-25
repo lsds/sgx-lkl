@@ -1,9 +1,5 @@
-#include <openenclave/enclave.h>
-#include "openenclave/internal/calls.h"
-
-#include "enclave/enclave_util.h"
-
 #include <signal.h>
+#include <string.h>
 
 #include <asm/sigcontext.h>
 
@@ -12,7 +8,11 @@
 #include <lkl_host.h>
 #include <lkl/setup.h>
 #include <string.h>
+
+#include <openenclave/enclave.h>
+
 #include "enclave/enclave_oe.h"
+#include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/lthread.h"
 #include "shared/env.h"

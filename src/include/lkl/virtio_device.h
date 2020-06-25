@@ -1,7 +1,6 @@
 #ifndef __LKL_VIRTIO_DEVICE_H__
 #define __LKL_VIRTIO_DEVICE_H__
 
-struct sgxlkl_enclave_disk_config;
 struct virtio_dev;
 struct sgxlkl_enclave_root_config;
 struct sgxlkl_enclave_mount_config;

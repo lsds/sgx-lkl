@@ -37,7 +37,7 @@ static void find_and_mount_disks()
         const sgxlkl_enclave_mount_config_t* cfg_disk = &cfg->mounts[i];
 
         if (strcmp(cfg_disk->destination, "/") == 0)
-            sgxlkl_fail("Error: root disk should not be in 'mounts'.\n");
+            sgxlkl_fail("root disk should not be in 'mounts'.\n");
 
         bool found = false;
         for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
@@ -124,7 +124,7 @@ int __libc_init_enclave(int argc, char** argv)
         (void*)((unsigned char*)__oe_get_heap_base() + oe_allotted_heapsize);
 
     if (oe_allotted_heapsize >= __oe_get_heap_size())
-        sgxlkl_fail("Not enough heap memory for OpenEnclave heap\n");
+        sgxlkl_fail("Not enough heap memory for Open Enclave heap\n");
 
     const size_t sgxlkl_heap_size =
         (__oe_get_heap_size() - oe_allotted_heapsize);

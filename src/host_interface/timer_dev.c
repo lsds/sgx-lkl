@@ -1,12 +1,13 @@
 #include <errno.h>
-#include <host/sgxlkl_util.h>
 #include <inttypes.h>
-#include <shared/sgxlkl_enclave_config.h>
-#include <shared/shared_memory.h>
-#include <shared/timer_dev.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include <host/sgxlkl_util.h>
+#include <shared/sgxlkl_enclave_config.h>
+#include <shared/shared_memory.h>
+#include <shared/timer_dev.h>
 
 #define NSEC_PER_SEC 1000000000
 

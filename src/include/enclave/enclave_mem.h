@@ -6,8 +6,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-struct timespec;
-
 void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files);
 
 void* enclave_mmap(

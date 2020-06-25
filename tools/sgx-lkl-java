@@ -14,7 +14,7 @@ fi
 
 SGX_LKL_OPTIONS="\
   SGXLKL_MMAP_FILES=${SGXLKL_MMAP_FILES:-Shared} \
-  SGXLKL_HOST_IMPORT_ENV=JRE_LIB_PATH,DEFAULT_JRE_ARGS,LD_LIBRARY_PATH"
+  SGXLKL_HOST_IMPORT_ENV=LD_LIBRARY_PATH"
 
 JRE_LIB_PATH="/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64/server:/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64:/usr/lib/jvm/java-1.8-openjdk/jre/../lib/amd64:/usr/lib/jvm/java-1.8-openjdk/lib/amd64/jli"
 DEFAULT_JRE_ARGS="\

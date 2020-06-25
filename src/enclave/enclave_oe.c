@@ -30,7 +30,6 @@ static void prepare_elf_stack()
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
     const sgxlkl_enclave_config_t* cfg = state->config;
 
-    // import host envp
     state->num_imported_env = 0;
     state->imported_env = NULL;
 
