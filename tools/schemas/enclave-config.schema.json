@@ -447,7 +447,7 @@
         },
         "kernel_verbose": {
           "type": "boolean",
-          "description": "Set to 1 to print kernel messages.",
+          "description": "Set to 1 to print LKL kernel messages.",
           "default": false,
           "overridable": "SGXLKL_KERNEL_VERBOSE"
         },
