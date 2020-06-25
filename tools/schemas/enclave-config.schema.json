@@ -36,7 +36,7 @@
       "pattern": "^0$|^[1-9][0-9]*$",
       "maxLength": 20,
       "minimum": 0,
-      "maximum": 9007199254740992,
+      "maximum": 9007199254740991,
       "multipleOf": 1.0
     },
     "safe_size_t": {
@@ -47,7 +47,7 @@
       "pattern": "^0$|^[1-9][0-9]*$",
       "maxLength": 20,
       "minimum": 0,
-      "maximum": 9007199254740992,
+      "maximum": 9007199254740991,
       "multipleOf": 1.0
     },
     "sgxlkl_enclave_mode_t": {
