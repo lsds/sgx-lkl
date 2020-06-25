@@ -1415,7 +1415,6 @@ void _create_enclave(
         libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, oe_enclave);
 
     free(eeid);
-    setting.u.eeid = NULL;
 
     sgxlkl_host_verbose_raw("result=%u (%s)\n", result, oe_result_str(result));
 
