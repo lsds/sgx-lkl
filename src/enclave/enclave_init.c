@@ -1,10 +1,6 @@
 #include "lkl/asm/host_ops.h"
 #include "lkl/setup.h"
 
-#define OE_BUILD_ENCLAVE
-#include <openenclave/attestation/attester.h>
-#include <openenclave/attestation/verifier.h>
-
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -63,86 +59,6 @@ static void find_and_mount_disks()
     lkl_mount_disks(&cfg->root, cfg->mounts, cfg->num_mounts, cfg->cwd);
 }
 
-// In internal OE header openenclave/internal/sgx/eeid_plugin.h
-#define OE_FORMAT_UUID_SGX_EEID_ECDSA_P256                                \
-    {                                                                     \
-        0x17, 0x04, 0x94, 0xa6, 0xab, 0x23, 0x47, 0x98, 0x8c, 0x38, 0x35, \
-            0x1c, 0xb0, 0xb6, 0xaf, 0x0A                                  \
-    }
-
-oe_result_t oe_sgx_eeid_attester_initialize(void);
-oe_result_t oe_sgx_eeid_verifier_initialize(void);
-
-static void get_attestation_evidence()
-{
-    /* Retrieve remote attestation report to exercise Azure DCAP Client
-     * (currently just for testing) */
-    if (sgxlkl_in_hw_debug_mode() || sgxlkl_in_hw_release_mode())
-    {
-        static const oe_uuid_t format_id = {OE_FORMAT_UUID_SGX_EEID_ECDSA_P256};
-
-        oe_sgx_eeid_attester_initialize();
-        oe_sgx_eeid_verifier_initialize();
-
-        size_t evidence_buffer_size = 0;
-        uint8_t* evidence_buffer = NULL;
-        // Endorsements: will work once
-        // https://github.com/openenclave/openenclave/pull/3166 is merged
-        // size_t endorsements_buffer_size = 0;
-        // uint8_t* endorsements_buffer = NULL;
-
-        oe_result_t result = oe_get_evidence(
-            &format_id,
-            NULL,
-            0,
-            NULL,
-            0,
-            &evidence_buffer,
-            &evidence_buffer_size,
-            NULL,
-            0);
-
-        if (result != OE_OK)
-            sgxlkl_fail(
-                "Failed to retrieve attestation evidence: %d.\n", result);
-        else
-            sgxlkl_info("Successfully obtained attestation evidence\n");
-
-        // Note: Since we're using the feature/sgx-lkl-support branch, we can
-        // only verify quotes created from that branch. The verification here
-        // will pass once https://github.com/openenclave/openenclave/pull/3167
-        // is merged.
-        oe_claim_t* claims = NULL;
-        size_t claims_size = 0;
-#if 0
-        result = oe_verify_evidence(
-            evidence_buffer,
-            evidence_buffer_size,
-            endorsements_buffer,
-            endorsements_buffer_size,
-            NULL,
-            0,
-            &claims,
-            &claims_size);
-        if (result != OE_OK)
-            sgxlkl_warn("Failed to verify attestation evidence\n");
-        else
-        {
-            sgxlkl_info("Successfully verified attestation evidence\n");
-            for (size_t i = 0; i < claims_size; i++)
-                sgxlkl_info(
-                    "Attestation claim #%d: %s=%s\n",
-                    i,
-                    claims[i].name,
-                    claims[i].value);
-        }
-#endif
-        oe_free_evidence(evidence_buffer);
-        // oe_free_endorsements(endorsements_buffer);
-        oe_free_claims(claims, claims_size);
-    }
-}
-
 static void init_wireguard()
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
@@ -190,9 +106,6 @@ static int startmain(void* args)
 
     init_wireguard();
     find_and_mount_disks();
-
-    if (false)
-        get_attestation_evidence();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
