@@ -125,7 +125,7 @@ int main(int argc, char** argv)
 	fprintf(stderr, "Clone returned %d, ctid: %d ptid: %d\n", clone_ret, ctid, ptid);
 	assert(ctid == clone_ret, "ctid is %d, should be %d\n", ctid, clone_ret);
 	int futex_ret = futex_wait(&ctid, clone_ret);
-	assert(futex_ret == 0, "futex syscall returned %d (%s)\n", strerror(errno));
+	assert(futex_ret == 0, "futex syscall returned %d\n", futex_ret);
 	fprintf(stderr, "After futex call, ctid is %d\n", ctid);
 	assert(ctid == 0, "ctid was not zeroed during futex wait\n");
 	fprintf(stderr, "Other thread should have terminated by now.\n");
