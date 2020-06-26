@@ -5,7 +5,7 @@
 # How is the test pass/fail outcome decided?
 # Test will be failed if:
 #   1. the exit code of run_test.sh is non-zero OR
-#   2. stdout/stderr of run_test.sh contains one or more failure identifiers from $SGXLKL_ROOT/.azure-pipelines/other/failure_identifiers.txt (case sensitive).
+#   2. stdout of run_test.sh contains one or more failure identifiers from $SGXLKL_ROOT/.azure-pipelines/other/failure_identifiers.txt (case sensitive).
 # Based on the test result, junit files will be created (consumable by Azure/Jenkins CI pipelines).
 
 . $SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh
@@ -33,13 +33,12 @@ function RunOneTest()
     . $test_runner_script init "$run_mode"
     echo "Test '$test_name' status - Running ($run_mode) ..."
     stdout_file="report/$test_name.stdout.txt"
-    stderr_file="report/$test_name.stderr.txt"
     # Start the test timer. This only creates $test_name-StartTime file with time stamp in it
     JunitTestStarted "$test_name"
 
-    # Start the test. Redirect stdout to stdout_file and error logs to stderr_file.
+    # Start the test. Redirect stdout and stderr logs to stdout_file.
     # Test is run with unbuffered output streams to avoid losing errors in case of crashes.
-    stdbuf -o0 -e0 $test_runner_script run $run_mode >"$stdout_file" 2>"$stderr_file"
+    stdbuf -o0 -e0 $test_runner_script run $run_mode >"$stdout_file" 2>&1
     test_exit_code=$?
 }
 
@@ -48,32 +47,28 @@ function ProcessOneTestResult()
     failures_in_output=0
     total_failures=0
 
-    # Failure Analysis by searching  stdout_file and stderr_file for some failure implying labels/identifiers
+    # Failure Analysis by searching stdout_file for some failure implying labels/identifiers
     current_test_failures=""
     for ((i = 0; i < ${#failure_identifiers[@]}; i++))
     do
         failure="${failure_identifiers[$i]}"
         echo "Checking for '$failure' in '$stdout_file' ..."
-        current_output_failures=$(cat "$stdout_file" "$stderr_file" | grep "$failure" | grep -v "echo" | wc -l)
+        current_output_failures=$(cat "$stdout_file" | grep "$failure" | grep -v "echo" | wc -l)
         total_failures=$(($total_failures + $current_output_failures))
         if [[ $current_output_failures > 0 ]]; then
-            failure_string_in_output="Failure : '$failure' observed in '$stdout_file' or '$stderr_file'"
+            failure_string_in_output="Failure : '$failure' observed in '$stdout_file'"
             echo $failure_string_in_output
             current_test_failures+="$failure_string_in_output\n"
             failures_in_output=$(($failures_in_output + $current_output_failures))
         fi
     done
 
-    # copy stderr or last 50 lines of stdout into stacktrace for junit xml
-    if [[ -f "$stderr_file" ]]; then
-        cat $stderr_file  >> "$stack_trace_file_path"
-    else
-        # echo "Note: Azure DevOps supports only 4K characters in stack trace
-        echo "Note: Printing last 50 lines." >> "$stack_trace_file_path"
-        echo "----------output-start-------------" >> "$stack_trace_file_path"
-        cat "$stdout_file" | tail -50 >> "$stack_trace_file_path"
-        echo "----------output-end-------------" >> "$stack_trace_file_path"
-    fi
+    # Copy last 50 lines of stdout into stacktrace for junit xml
+    # Note: Azure DevOps supports only 4K characters in stack trace
+    echo "Note: Printing last 50 lines." >> "$stack_trace_file_path"
+    echo "----------output-start-------------" >> "$stack_trace_file_path"
+    cat "$stdout_file" | tail -50 >> "$stack_trace_file_path"
+    echo "----------output-end-------------" >> "$stack_trace_file_path"
 
     if [[ $test_exit_code -eq 0 && $failures_in_output -eq 0 ]]; then
         current_test_result="passed"
@@ -92,9 +87,6 @@ function ProcessOneTestResult()
     cat "$stdout_file"
     echo "-----------stdout-end-------------"
     echo " "
-    echo "-----------stderr-start-------------"
-    cat "$stderr_file"
-    echo "-----------stderr-end-------------"
 
     # Finalize the test case. This creates junit.xml file for the folder for test folder based summary reporting
     # If the test cases in the test folder doesn't create additional junit.xml files, this will be the only test report for the test folder.

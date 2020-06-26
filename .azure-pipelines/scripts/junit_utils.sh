@@ -96,7 +96,6 @@ function JunitTestFinished()
     error_message_file_path="report/$test_name.error"
     stack_trace_file_path="report/$test_name.stack"
     stdout_file_path="report/$test_name.stdout.txt"
-    stderr_file_path="report/$test_name.stderr.txt"
     junit_file_path="report/TEST-$test_name-junit.xml"
     date +%s > "$test_end_time_file_path"
 
@@ -141,12 +140,6 @@ function JunitTestFinished()
     if [[ -f "$stdout_file_path" ]]; then
         echo "      <system-out>STD_OUT_MESSAGE</system-out>" >> "$junit_file_path"
         AddLogFileToJunit "$stdout_file_path" "$junit_file_path" "STD_OUT_MESSAGE"
-    fi
-
-    # Add stderr file to junit if exist
-    if [[ -f "$stderr_file_path" ]]; then
-        echo "      <system-err>STD_ERR_MESSAGE</system-err>" >> "$junit_file_path"
-        AddLogFileToJunit "$stderr_file_path" "$junit_file_path" "STD_ERR_MESSAGE"
     fi
 
     echo "    </testcase>" >> "$junit_file_path"
