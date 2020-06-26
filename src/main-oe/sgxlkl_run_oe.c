@@ -915,8 +915,10 @@ void set_tls(bool have_enclave_config)
     }
     else
     {
+        assert(econf->mode == SW_DEBUG_MODE);
         if (have_enclave_config && econf->fsgsbase != 0)
-            sgxlkl_host_fail("fsgsbase not available in sw-debug mode.");
+            sgxlkl_host_warn("disabling fsgsbase in sw-debug mode, despite it "
+                             "being enabled in enclave config.");
         econf->fsgsbase = 0;
     }
 
