@@ -260,6 +260,8 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
 #ifdef DEBUG
+    /* Make sure verbosity is off before loading the config (we don't know
+     * whether it's enabled yet).*/
     sgxlkl_enclave_state.verbose = false;
 #endif
 
