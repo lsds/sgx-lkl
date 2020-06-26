@@ -241,6 +241,13 @@ static json_result_t decode_uint32_t(
         CHECKMEM(data->config->A);                        \
     } while (0)
 
+static unsigned long get_array_index(json_parser_t* parser)
+{
+    if (parser->depth < 2)
+        FAIL("invalid array index\n");
+    return parser->path[parser->depth - 2].index;
+}
+
 static json_result_t json_read_callback(
     json_parser_t* parser,
     json_reason_t reason,
@@ -335,7 +342,7 @@ static json_result_t json_read_callback(
             JPATHT("clock_res.resolution", JSON_TYPE_STRING, {
                 if (strlen(un->string) != 16)
                     FAIL("invalid length of value for clock_res item");
-                i = parser->path[parser->depth - 2].index;
+                i = get_array_index(parser);
                 if (i >= 8)
                     FAIL("too many values for clock_res");
                 memcpy(&cfg->clock_res[i].resolution, un->string, 17);
@@ -374,7 +381,7 @@ static json_result_t json_read_callback(
             JU64("root.roothash_offset", data->config->root.roothash_offset);
             JBOOL("root.overlay", data->config->root.overlay);
 
-#define MOUNT() (&(cfg->mounts[parser->path[parser->depth - 2].index]))
+#define MOUNT() (&(cfg->mounts[get_array_index(parser)]))
             JBOOL("mounts.create", MOUNT()->create);
             JBOOL("mounts.fresh_key", MOUNT()->fresh_key);
             JHEXBUF("mounts.key", MOUNT()->key);
