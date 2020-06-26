@@ -155,7 +155,6 @@ stages:
                 testResultsFiles: "report/*-junit.xml"
                 testRunTitle: "${{ test_suite }} (${{ build_mode }}, ${{ run_mode }}, ${{ ethreads }} ethreads)"
                 mergeTestResults: true
-                failTaskOnFailedTests: true
 
             - task: PublishBuildArtifacts@1
               displayName: "Archive Logs"
