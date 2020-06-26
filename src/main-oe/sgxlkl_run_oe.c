@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <assert.h>
 #include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
