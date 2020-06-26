@@ -308,7 +308,7 @@ static json_result_t json_read_callback(
             JPATHT("format_version", JSON_TYPE_STRING, {
                 uint64_t format_version =
                     _strtoul(un->string, NULL, 10, !data->enforce_format);
-                if (format_version < SGXLKL_ENCLAVE_CONFIG_VERSION)
+                if (format_version != SGXLKL_ENCLAVE_CONFIG_VERSION)
                     FAIL(
                         "invalid enclave config format version %lu\n",
                         un->integer);
@@ -404,10 +404,10 @@ static json_result_t json_read_callback(
             JU64("image_sizes.num_heap_pages", sizes->num_heap_pages);
             JU64("image_sizes.num_stack_pages", sizes->num_stack_pages);
 
-            // Else element is unknown. We ignore this to allow newer
-            // launchers to support options that older enclave images
-            // don't know about.
-            WARN("Ignoring unknown json element '%s'.\n", make_path(parser));
+            FAIL(
+                "Invalid unknown json element '%s'; refusing to run with this "
+                "enclave config.\n",
+                make_path(parser));
         }
     }
 
