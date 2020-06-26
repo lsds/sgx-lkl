@@ -250,7 +250,8 @@ static int _read_eeid_config()
 
 static int _copy_shared_memory(const sgxlkl_shared_memory_t* shm)
 {
-    // Copy shared memory. Deep copy so the host can't change it?
+    /* TODO: Would a deep copy provide better security guarantees? */
+
     memcpy(
         &sgxlkl_enclave_state.shared_memory,
         shm,
