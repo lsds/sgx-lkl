@@ -197,8 +197,7 @@ extern "C"
 
     void lthread_sched_global_init(
         size_t sleepspins,
-        size_t sleeptime_ns,
-        size_t futex_wake_spins);
+        size_t sleeptime_ns);
 
     /**
      * Create a new thread where the caller manages the initial thread state.

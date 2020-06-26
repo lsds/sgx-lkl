@@ -174,12 +174,11 @@ void __schedqueue_inc()
 
 void lthread_sched_global_init(
     size_t sleepspins_,
-    size_t sleeptime_ns_,
-    size_t futex_wake_spins_)
+    size_t sleeptime_ns_)
 {
     sleepspins = sleepspins_;
     sleeptime_ns = sleeptime_ns_;
-    futex_wake_spins = futex_wake_spins_;
+    futex_wake_spins = DEFAULT_FUTEX_WAKE_SPINS;
     RB_INIT(&_lthread_sleeping);
 }
 
