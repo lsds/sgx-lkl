@@ -247,6 +247,7 @@ static int _read_eeid_config()
 static int _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
     /* Deep copy where necessary */
+
     sgxlkl_shared_memory_t* enc = &sgxlkl_enclave_state.shared_memory;
     memset(enc, 0, sizeof(sgxlkl_shared_memory_t));
 
@@ -269,15 +270,15 @@ static int _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         oe_malloc(sizeof(void*) * enc->num_virtio_blk_dev);
     CHECK_ALLOC(enc->virtio_blk_dev_mem);
     enc->virtio_blk_dev_names =
-        oe_malloc(sizeof(char*) * enc->num_virtio_blk_dev);
+        oe_calloc(enc->num_virtio_blk_dev, sizeof(char*));
     CHECK_ALLOC(enc->virtio_blk_dev_names);
     for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
     {
         enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
-        memcpy(
-            &enc->virtio_blk_dev_names[i],
-            host->virtio_blk_dev_names[i],
-            oe_strlen(host->virtio_blk_dev_names[i]));
+        const char* name = host->virtio_blk_dev_names[i];
+        size_t name_len = oe_strlen(name) + 1;
+        enc->virtio_blk_dev_names[i] = oe_malloc(name_len);
+        memcpy(enc->virtio_blk_dev_names[i], name, name_len);
     }
 
     if (host->env)
