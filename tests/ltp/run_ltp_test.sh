@@ -66,28 +66,34 @@ for file in ${ltp_tests[@]}; do
     error_message_file_path="$report_dir/$test_name.error"
     stack_trace_file_path="$report_dir/$test_name.stack"
     stdout_file="$report_dir/$test_name.stdout.txt"
-    stderr_file="$report_dir/$test_name.stderr.txt"
     # Start the test timer.
     JunitTestStarted "$test_name"
 
-    echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2> \"$stderr_file\""
-    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2> "$stderr_file"
+    echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2>&1"
+    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2>&1
     exit_code=$?
     if [[ $exit_code -eq  124 ]]; then
         echo "$SGX_LKL_RUN_CMD $file : TIMED OUT after $timeout secs"
-        echo "TIMED OUT after $timeout secs. TEST_FAILED" >> "$stderr_file"
+        echo "TIMED OUT after $timeout secs. TEST_FAILED" >> "$stdout_file"
     elif [[ $exit_code -ne 0 ]]; then
-        echo "TEST_FAILED EXIT CODE: $exit_code" >> "$stderr_file"
+        echo "TEST_FAILED EXIT CODE: $exit_code" >> "$stdout_file"
     else
         echo "$SGX_LKL_RUN_CMD $file: RETURNED EXIT CODE: $exit_code"
     fi
 
+    # Copy last 50 lines of stdout into stacktrace for junit xml
+    # Note: Azure DevOps supports only 4K characters in stack trace
+    echo "Note: Printing last 50 lines." >> "$stack_trace_file_path"
+    echo "----------output-start-------------" >> "$stack_trace_file_path"
+    cat "$stdout_file" | tail -50 >> "$stack_trace_file_path"
+    echo "----------output-end-------------" >> "$stack_trace_file_path"
+    
     if [[ $exit_code -eq 0 ]]; then
         total_passed=$(($total_passed + 1))
         echo "'$test_name' passed."
         echo "'$test_name' passed." > "$error_message_file_path"
-        echo "$counter, $test_name, $stdout_file, $stderr_file, Pass"
-        echo "$counter, $ltp_testcase_name, $stdout_file, $stderr_file, Pass" >> $csv_filename
+        echo "$counter, $test_name, $stdout_file, Pass"
+        echo "$counter, $ltp_testcase_name, $stdout_file, Pass" >> $csv_filename
         JunitTestFinished "$test_name" "passed" "$test_class" "$test_suite"
     else
         total_failed=$(($total_failed + 1))
@@ -95,14 +101,8 @@ for file in ${ltp_tests[@]}; do
         echo "'$test_name' failed." > "$error_message_file_path"
         echo "'make $test_mode-single test=$file' can be used to test this individually failing ltp test"
         echo "'make $test_mode-single test=$file' can be used to test this individually failing ltp test" >> "$error_message_file_path"
-        echo "$counter, $test_name, $stdout_file, $stderr_file, Failed"
-        echo "$counter, $ltp_testcase_name, $stdout_file, $stderr_file, Failed" >> $csv_filename
-        if [ ! -z "$stderr_file" ]; then
-            cat "$stderr_file" > "$stack_trace_file_path"
-        else
-            echo "Stack trace not available for $test_name." > "$stack_trace_file_path"
-        fi
-
+        echo "$counter, $test_name, $stdout_file, Failed"
+        echo "$counter, $ltp_testcase_name, $stdout_file, Failed" >> $csv_filename
         JunitTestFinished "$test_name" "failed" "$test_class" "$test_suite"
     fi
     echo "-------------------------------------------------------------------"
