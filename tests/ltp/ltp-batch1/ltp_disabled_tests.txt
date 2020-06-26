@@ -299,7 +299,7 @@
 #/ltp/testcases/kernel/syscalls/geteuid/geteuid02
 #/ltp/testcases/kernel/syscalls/getgid/getgid01
 #/ltp/testcases/kernel/syscalls/getgid/getgid03
-/ltp/testcases/kernel/syscalls/getgroups/getgroups01
+#/ltp/testcases/kernel/syscalls/getgroups/getgroups01
 #/ltp/testcases/kernel/syscalls/getgroups/getgroups03
 /ltp/testcases/kernel/syscalls/gethostbyname_r/gethostbyname_r01
 /ltp/testcases/kernel/syscalls/gethostid/gethostid01
