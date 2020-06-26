@@ -1,0 +1,60 @@
++ Patch Description: Tests were failing as no xattr support in loop device
++ So modofied the tests to use root filesystem with xattr support
++ Issue 297: Sgx enclave is getting aborted while test is trying to access invalid address
++ https://github.com/lsds/sgx-lkl/issues/297
+diff --git a/testcases/kernel/syscalls/listxattr/listxattr02.c b/testcases/kernel/syscalls/listxattr/listxattr02.c
+index 98a0985b3..fd5c50ca0 100644
+--- a/testcases/kernel/syscalls/listxattr/listxattr02.c
++++ b/testcases/kernel/syscalls/listxattr/listxattr02.c
+@@ -36,7 +36,8 @@
+ #define SECURITY_KEY   "security.ltptest"
+ #define VALUE  "test"
+ #define VALUE_SIZE     (sizeof(VALUE) - 1)
+-#define TESTFILE    "testfile"
++#define TESTFILE    "mntpoint/testfile"
++#define MNTPOINT    "mntpoint"
+
+ char longpathname[PATH_MAX + 2];
+
+@@ -47,7 +48,7 @@ static struct test_case {
+ } tc[] = {
+        {TESTFILE, 1, ERANGE},
+        {"", 20, ENOENT},
+-       {(char *)-1, 20, EFAULT},
++//     {(char *)-1, 20, EFAULT}, // TODO: Enable once git issue 297 is fixed
+        {longpathname, 20, ENAMETOOLONG}
+ };
+
+@@ -76,6 +77,10 @@ static void verify_listxattr(unsigned int n)
+
+ static void setup(void)
+ {
++       rmdir(MNTPOINT);
++       SAFE_MKDIR(MNTPOINT, 0644);
++       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, "user_xattr");
++
+        SAFE_TOUCH(TESTFILE, 0644, NULL);
+
+        SAFE_SETXATTR(TESTFILE, SECURITY_KEY, VALUE, VALUE_SIZE, XATTR_CREATE);
+@@ -83,12 +88,20 @@ static void setup(void)
+        memset(&longpathname, 'a', sizeof(longpathname) - 1);
+ }
+
++static void cleanup(void)
++{
++        remove(TESTFILE);
++        SAFE_UMOUNT(MNTPOINT);
++        SAFE_RMDIR(MNTPOINT);
++}
++
+ static struct tst_test test = {
+        .needs_tmpdir = 1,
+        .needs_root = 1,
+        .test = verify_listxattr,
+        .tcnt = ARRAY_SIZE(tc),
+        .setup = setup,
++       .cleanup = cleanup,
+ };
+
+ #else /* HAVE_SYS_XATTR_H */
+

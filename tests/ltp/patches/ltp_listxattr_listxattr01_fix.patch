@@ -1,0 +1,49 @@
++ Patch Description: Tests were failing as no xattr support in loop device
++ So modofied the tests to use root filesystem with xattr support
+diff --git a/testcases/kernel/syscalls/listxattr/listxattr01.c b/testcases/kernel/syscalls/listxattr/listxattr01.c
+index 62198b2a7..ca3e70232 100644
+--- a/testcases/kernel/syscalls/listxattr/listxattr01.c
++++ b/testcases/kernel/syscalls/listxattr/listxattr01.c
+@@ -31,7 +31,9 @@
+ #define VALUE  "test"
+ #define VALUE_SIZE     (sizeof(VALUE) - 1)
+ #define KEY_SIZE    (sizeof(SECURITY_KEY1) - 1)
+-#define TESTFILE    "testfile"
++#define TESTFILE    "mntpoint/testfile"
++#define MNTPOINT    "mntpoint"
++#define DIR_MODE    (S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
+
+ static int has_attribute(const char *list, int llen, const char *attr)
+ {
+@@ -64,17 +66,29 @@ static void verify_listxattr(void)
+ }
+
+ static void setup(void)
+-{
++{
++       rmdir(MNTPOINT);
++       SAFE_MKDIR(MNTPOINT, DIR_MODE);
++       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, NULL);
++
+        SAFE_TOUCH(TESTFILE, 0644, NULL);
+
+        SAFE_SETXATTR(TESTFILE, SECURITY_KEY1, VALUE, VALUE_SIZE, XATTR_CREATE);
+ }
+
++static void cleanup(void)
++{
++        remove(TESTFILE);
++        SAFE_UMOUNT(MNTPOINT);
++        SAFE_RMDIR(MNTPOINT);
++}
++
+ static struct tst_test test = {
+        .needs_tmpdir = 1,
+        .needs_root = 1,
+        .test_all = verify_listxattr,
+        .setup = setup,
++       .cleanup = cleanup,
+ };
+
+ #else
+
