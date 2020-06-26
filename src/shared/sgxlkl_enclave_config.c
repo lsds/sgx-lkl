@@ -318,12 +318,7 @@ static json_result_t json_read_callback(
             JSTRING("net_ip4", cfg->net_ip4);
             JSTRING("net_gw4", cfg->net_gw4);
             JSTRING("net_mask4", cfg->net_mask4);
-            JPATHT("hostname", JSON_TYPE_STRING, {
-                size_t len = strlen(un->string) + 1;
-                if (len > sizeof(cfg->hostname))
-                    FAIL("hostname too long");
-                memcpy(cfg->hostname, un->string, len);
-            });
+            JSTRING("hostname", cfg->hostname);
             JU32("tap_mtu", cfg->tap_mtu);
             JBOOL("hostnet", cfg->hostnet);
 
@@ -457,7 +452,7 @@ int sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 496,
+        sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from)
