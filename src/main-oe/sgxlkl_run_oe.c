@@ -1798,9 +1798,16 @@ int main(int argc, char* argv[], char* envp[])
         econf->ethreads,
         econf->kernel_cmd);
 
-    set_clock_res();
+    if (!enclave_config_path)
+    {
+        /* The enclave config file has a specified default for these settings,
+         * so we auto-detect them only if we don't have an enclave config file.
+         */
+        set_clock_res();
+        set_tls();
+    }
+
     host_state.shared_memory.env = envp;
-    set_tls();
     register_hds(root_hd);
     register_net();
 
