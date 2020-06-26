@@ -700,8 +700,10 @@ static void lkl_mount_disk(
         if (disk->key == NULL)
             sgxlkl_fail("Could not allocate memory for disk encryption key\n");
         for (size_t i = 0; i < disk->key_len; i++)
-            // TODO verify that this is secure
-            // cwinter: it's not, but I think we don't need this at all!
+            /* TODO: keys should be set up prior to reaching this function.
+             * Also, if we need fresh keys at all, they should be generated
+             * properly, e.g. by using the DRNG instructions or mbedTLS for RSA
+             * keys. */
             disk->key[i] = rand();
     }
 
