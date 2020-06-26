@@ -146,9 +146,6 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
-                MAA_CLIENT_ID: $(maaClientId)
-                MAA_SECRET_KEY: $(maaSecretKey)
-                MAA_APP_ID: $(maaAppId)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"

@@ -12,3 +12,7 @@ extends:
   template: template.yml
   parameters:
     publish: false
+    env:
+      MAA_CLIENT_ID: $(maaClientId)
+      MAA_SECRET_KEY: $(maaSecretKey)
+      MAA_APP_ID: $(maaAppId)
