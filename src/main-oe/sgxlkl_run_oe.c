@@ -844,14 +844,21 @@ void mk_clock_res_string(int clock)
     memcpy(econf->clock_res[clock].resolution, tmps, sz);
 }
 
-void set_clock_res()
+void set_clock_res(bool have_enclave_config)
 {
-    mk_clock_res_string(CLOCK_REALTIME);
-    mk_clock_res_string(CLOCK_MONOTONIC);
-    mk_clock_res_string(CLOCK_MONOTONIC_RAW);
-    mk_clock_res_string(CLOCK_REALTIME_COARSE);
-    mk_clock_res_string(CLOCK_MONOTONIC_COARSE);
-    mk_clock_res_string(CLOCK_BOOTTIME);
+    /* The enclave config file has a specified default for these settings,
+     * so we auto-detect them only if we don't have an enclave config file.
+     */
+
+    if (!have_enclave_config)
+    {
+        mk_clock_res_string(CLOCK_REALTIME);
+        mk_clock_res_string(CLOCK_MONOTONIC);
+        mk_clock_res_string(CLOCK_MONOTONIC_RAW);
+        mk_clock_res_string(CLOCK_REALTIME_COARSE);
+        mk_clock_res_string(CLOCK_MONOTONIC_COARSE);
+        mk_clock_res_string(CLOCK_BOOTTIME);
+    }
 }
 
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
@@ -865,12 +872,15 @@ static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
 
 /* Checks whether we can us FSGSBASE instructions within the enclave
    NOTE: This overrides previously set SIGILL handlers! */
-void set_tls()
+void set_tls(bool have_enclave_config)
 {
     sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
 
     if (econf->mode != SW_DEBUG_MODE)
     {
+        if (have_enclave_config && !econf->fsgsbase)
+            sgxlkl_host_fail("fsgsbase cannot be disabled in hardware mode.");
+
         // We need to check whether we can support TLS in hardware mode or not
         // This is only possible if control register bit CR4.FSGSBASE is set
         // that allows us to set the FS segment base from userspace when context
@@ -905,6 +915,8 @@ void set_tls()
     }
     else
     {
+        if (have_enclave_config && econf->fsgsbase != 0)
+            sgxlkl_host_fail("fsgsbase not available in sw-debug mode.");
         econf->fsgsbase = 0;
     }
 
@@ -1798,16 +1810,10 @@ int main(int argc, char* argv[], char* envp[])
         econf->ethreads,
         econf->kernel_cmd);
 
-    if (!enclave_config_path)
-    {
-        /* The enclave config file has a specified default for these settings,
-         * so we auto-detect them only if we don't have an enclave config file.
-         */
-        set_clock_res();
-        set_tls();
-    }
-
+    bool have_enclave_config_file = enclave_config_path != NULL;
+    set_clock_res(have_enclave_config_file);
     host_state.shared_memory.env = envp;
+    set_tls(have_enclave_config_file);
     register_hds(root_hd);
     register_net();
 
