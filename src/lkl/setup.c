@@ -930,37 +930,37 @@ void lkl_mount_disks(
 
     lkl_mount_root_disk(root, 0);
 
-    for (size_t mnt_inx = 0; mnt_inx < num_mounts; mnt_inx++)
+    for (size_t mnt_idx = 0; mnt_idx < num_mounts; mnt_idx++)
     {
-        size_t dsk_inx = mnt_inx + 1;
+        size_t dsk_idx = mnt_idx + 1;
 
-        SGXLKL_ASSERT(strcmp(mounts[mnt_inx].destination, "/") != 0);
+        SGXLKL_ASSERT(strcmp(mounts[mnt_idx].destination, "/") != 0);
 
         // We assign dev paths from /dev/vda to /dev/vdz, assuming we won't need
         // support for more than 26 disks.
-        if ('a' + dsk_inx > 'z')
+        if ('a' + dsk_idx > 'z')
         {
             sgxlkl_warn(
                 "Too many disks (maximum is 26). Failed to mount disk %d at "
                 "%s.\n",
-                dsk_inx,
-                mounts[mnt_inx].destination);
+                dsk_idx,
+                mounts[mnt_idx].destination);
             // Adjust number to number of mounted disks.
             num_mounts = 25;
             return;
         }
-        disk_config_t cfg = {.create = mounts[mnt_inx].create,
-                             .destination = mounts[mnt_inx].destination,
-                             .key_len = mounts[mnt_inx].key_len,
-                             .key = mounts[mnt_inx].key,
-                             .key_id = mounts[mnt_inx].key_id,
-                             .fresh_key = mounts[mnt_inx].fresh_key,
-                             .readonly = mounts[mnt_inx].readonly,
-                             .roothash = mounts[mnt_inx].roothash,
-                             .roothash_offset = mounts[mnt_inx].roothash_offset,
-                             .size = mounts[mnt_inx].size,
+        disk_config_t cfg = {.create = mounts[mnt_idx].create,
+                             .destination = mounts[mnt_idx].destination,
+                             .key_len = mounts[mnt_idx].key_len,
+                             .key = mounts[mnt_idx].key,
+                             .key_id = mounts[mnt_idx].key_id,
+                             .fresh_key = mounts[mnt_idx].fresh_key,
+                             .readonly = mounts[mnt_idx].readonly,
+                             .roothash = mounts[mnt_idx].roothash,
+                             .roothash_offset = mounts[mnt_idx].roothash_offset,
+                             .size = mounts[mnt_idx].size,
                              .overlay = false};
-        lkl_mount_disk(&cfg, 'a' + dsk_inx, cfg.destination, dsk_inx);
+        lkl_mount_disk(&cfg, 'a' + dsk_idx, cfg.destination, dsk_idx);
     }
 
     if (cwd)
