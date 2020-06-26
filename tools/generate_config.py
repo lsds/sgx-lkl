@@ -3,6 +3,7 @@
 import argparse
 from pathlib import Path
 import json
+import os
 
 from collections import OrderedDict
 
@@ -12,8 +13,6 @@ if (THIS_DIR / 'schemas').exists():
     SCHEMAS_DIR = THIS_DIR / 'schemas'
 else:
     SCHEMAS_DIR = THIS_DIR.parent / 'share' / 'schemas'
-
-ENCLAVE_CFG_SCHEMA_PATH = SCHEMAS_DIR / 'enclave-config.schema.json'
 
 def post_type(jtype):
   if 'type' in jtype:
@@ -70,8 +69,9 @@ def generate_header(schema_file_name, root, args):
   global num_settings
 
   with open(str(args.header), "w") as header:
-    header.write('#ifndef SGXLKL_ENCLAVE_CONFIG_GEN_H\n');
-    header.write('#define SGXLKL_ENCLAVE_CONFIG_GEN_H\n');
+    h = os.path.basename(schema_file_name).upper().replace('.', '_').replace('-', '_')
+    header.write('#ifndef _%s_H_\n' % h);
+    header.write('#define _%s_H_\n'% h);
 
     header.write('\n/* Automatically generated from %s; do not modify. */\n\n' % schema_file_name);
 
@@ -80,7 +80,9 @@ def generate_header(schema_file_name, root, args):
     header.write('#include <stddef.h>\n');
     header.write('#include <elf.h>\n\n');
 
-    header.write('#define SGXLKL_ENCLAVE_CONFIG_VERSION 1UL\n\n');
+    top = root['$ref'].rsplit('/')[-1]
+
+    header.write('#define %s_VERSION 1UL\n\n' % top.upper());
 
     num_settings = 0
     for typename, typedef in root['definitions'].items():
@@ -115,10 +117,9 @@ def generate_header(schema_file_name, root, args):
               header.write('    size_t %s;\n' % var_name)
             header.write('    %s %s%s;\n' % (pre_type(jtype), name, post_type(jtype)))
             num_settings += 1
-          num_settings -= 1
           header.write('} %s;\n\n' % typename)
 
-    header.write('extern const sgxlkl_enclave_config_t sgxlkl_default_enclave_config;\n\n');
+    header.write('extern const %s %s_default;\n\n' % (top, top[:-2]));
 
     header.write(
       "typedef struct {\n"
@@ -127,11 +128,11 @@ def generate_header(schema_file_name, root, args):
       "    char* description;\n"
       "    char* default_value;\n"
       "    char* override_var;\n"
-      "} sgxlkl_enclave_setting_t;\n\n");
+      "} %s_setting_t;\n\n" % top[:-2]);
 
-    header.write("extern const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[%d];\n\n" % num_settings);
+    header.write("extern const %s_setting_t %s_settings[%d];\n\n" % (top[:-2], top[:-2], num_settings));
 
-    header.write('#endif /* SGXLKL_ENCLAVE_CONFIG_H */');
+    header.write('#endif /* _%s_H_ */' % h);
 
 source_includes = """
 #ifdef SGXLKL_ENCLAVE
@@ -153,6 +154,8 @@ def generate_source(schema_file_name, root, args):
     source.write('\n')
 
     source.write('#include "%s"\n\n' % args.header)
+
+    top = root['$ref'].rsplit('/')[-1]
 
     # enum conversions
     for typename, typedef in root['definitions'].items():
@@ -182,7 +185,7 @@ def generate_source(schema_file_name, root, args):
 
 
     # default config
-    source.write('const sgxlkl_enclave_config_t sgxlkl_default_enclave_config = {\n')
+    source.write('const %s %s_default = {\n' % (top, top[:-2]))
     scope = []
     def initialize(scope, elem):
       indent = '    ' * (len(scope) + 1)
@@ -200,7 +203,15 @@ def generate_source(schema_file_name, root, args):
               if 'type' in jtype and jtype['type'] == 'array':
                 if 'default' in jtype:
                   dflt = jtype['default']
-                  source.write('%s.%s = %s,\n' % (indent, name, dflt))
+                  t = '{'
+                  for i in dflt:
+                    if type(i) is OrderedDict:
+                      t += '{'
+                      for k, v in i.items():
+                        t += '.' + str(k) + '="' + v + '"'
+                      t += '},'
+                  t += '}'
+                  source.write('%s.%s = %s,\n' % (indent, name, t))
                 else:
                   source.write('%s.%s = {0},\n' % (indent, name))
               elif 'enum' not in tdef:
@@ -234,11 +245,11 @@ def generate_source(schema_file_name, root, args):
               source.write('%s.%s=%s,\n' % (indent, name, dflt))
           scope = scope[:-1]
       scope = scope[:-1]
-    initialize(scope, 'sgxlkl_enclave_config_t')
+    initialize(scope, top)
     source.write('};\n\n')
 
     source.write('// clang-format off\n')
-    source.write('const sgxlkl_enclave_setting_t sgxlkl_enclave_settings[%s] = {\n' % num_settings)
+    source.write('const %s_setting_t %s_settings[%d] = {\n' % (top[:-2], top[:-2], num_settings))
     scope = []
     def describe(scope, elem):
       typedef = root['definitions'][elem]
@@ -272,23 +283,26 @@ def generate_source(schema_file_name, root, args):
             source.write('    {"%s", "%s", "%s", "%s", %s},\n' % (sname, ctype, desc, dflt, override_var))
           scope = scope[:-1]
       scope = scope[:-1]
-    describe(scope, 'sgxlkl_enclave_config_t')
+    describe(scope, top)
 
     source.write('};\n')
     source.write('// clang-format on\n')
 
 def generate(args):
-  schema_file_name = str(ENCLAVE_CFG_SCHEMA_PATH)
-  with open(schema_file_name, "r") as schema_file:
+  with open(args.schema_file, "r") as schema_file:
     root = json.load(schema_file, object_pairs_hook=OrderedDict)
 
-  generate_header(schema_file_name, root, args)
-  generate_source(schema_file_name, root, args)
+  generate_header(args.schema_file, root, args)
+  generate_source(args.schema_file, root, args)
 
 def main():
     parser = argparse.ArgumentParser(description='Generator for SGX-LKL configuration sources')
     parser.set_defaults(func=lambda _: parser.print_help())
 
+    parser.add_argument(
+        'schema_file', type=Path,
+        help='Schema file path',
+        metavar='PATH')
     parser.add_argument(
         '--header', type=Path,
         help='Header file to generate',

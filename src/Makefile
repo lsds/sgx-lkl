@@ -50,15 +50,24 @@ builddirs:
 	@mkdir -p $(LIB_SGXLKL_BUILD)/deploy
 	@mkdir -p $(LIB_SGXLKL_BUILD)/config
 
-# Auto-generated config
+# Auto-generated enclave config
 CFGGEN = $(abspath $(sgxlkl_toolsdir)/generate_config.py)
-CFGSCHEMA = $(sgxlkl_toolsdir)/schemas/enclave-config.schema.json
+CFGSCHEMA = $(abspath $(sgxlkl_toolsdir)/schemas/enclave-config.schema.json)
 CFGH = $(LIB_SGXLKL_BUILD)/config/sgxlkl_enclave_config_gen.h
 CFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_enclave_config_gen.c
 $(CFGH): $(CFGGEN) $(CFGSCHEMA)
-	cd $(LIB_SGXLKL_BUILD)/config; python3 $(CFGGEN) --header sgxlkl_enclave_config_gen.h --source sgxlkl_enclave_config_gen.c
+	cd $(LIB_SGXLKL_BUILD)/config; python3 $(CFGGEN) --header sgxlkl_enclave_config_gen.h --source sgxlkl_enclave_config_gen.c $(CFGSCHEMA)
 $(CFGC): $(CFGH)
 shared/sgxlkl_enclave_config.c main-oe/serialize_enclave_config.c: $(CFGH)
+
+# Auto-generated host config
+HCFGSCHEMA = $(abspath $(sgxlkl_toolsdir)/schemas/host-config.schema.json)
+HCFGH = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.h
+HCFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.c
+$(HCFGH): $(CFGGEN) $(HCFGSCHEMA)
+	cd $(LIB_SGXLKL_BUILD)/config; python3 $(CFGGEN) --header sgxlkl_host_config_gen.h --source sgxlkl_host_config_gen.c $(HCFGSCHEMA)
+$(HCFGC): $(HCFGH)
+main-oe/sgxlkl_host_config.c main-oe/sgxlkl_run_oe.c: $(HCFGH)
 
 # Build enclave static library: libsgxlkl.a
 
@@ -94,7 +103,7 @@ $(LIB_SGXLKL_BUILD)/sgxlkl/$(SGXLKL_STATIC_LIB): $(SGXLKL_OBJS) builddirs
 
 # Build run tool: sgx-lkl-run-oe
 
-MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c) $(wildcard libjson/*.c) $(CFGC)
+MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c) $(wildcard libjson/*.c) $(CFGC) $(HCFGC)
 
 OE_HOST_CALLS = main-oe/sgxlkl_u.c
 ifeq (,$(findstring ${OE_HOST_CALLS},$(MAIN_OE_SRCS)))

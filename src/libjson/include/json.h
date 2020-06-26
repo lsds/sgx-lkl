@@ -292,6 +292,9 @@ json_result_t json_print(
  */
 void json_dump_path(json_write_t write, void* stream, json_parser_t* parser);
 
+/* This function retrieves the index of the current array element */
+unsigned long json_get_array_index(json_parser_t* parser);
+
 /* Self-contained string conversion functions */
 extern json_result_t json_conversion_error;
 long int _strtol(

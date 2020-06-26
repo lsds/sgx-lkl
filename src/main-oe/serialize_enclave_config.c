@@ -8,7 +8,6 @@
 #include "enclave/wireguard.h"
 #include "host/sgxlkl_util.h"
 #include "shared/env.h"
-#include "shared/host_state.h"
 #include "shared/sgxlkl_enclave_config.h"
 
 #include "host/serialize_enclave_config.h"
@@ -93,6 +92,8 @@ static json_obj_t* encode_hex_string(
             FAIL("out of memory\n");
         bytes_to_hex(obj->value.string, len, buf, buf_sz);
     }
+    else
+        obj->value.string = strdup("");
     return obj;
 }
 
@@ -452,7 +453,7 @@ void serialize_enclave_config(
 
     size_t cnt = 0;
     root->objects[cnt++] =
-        encode_uint64("format_version", SGXLKL_ENCLAVE_CONFIG_VERSION);
+        encode_uint64("format_version", SGXLKL_ENCLAVE_CONFIG_T_VERSION);
     FPFSS(mode, sgxlkl_enclave_mode_t_to_string(config->mode));
     FPFU64(stacksize);
     FPFSS(

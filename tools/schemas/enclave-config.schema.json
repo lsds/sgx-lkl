@@ -41,7 +41,7 @@
     },
     "hex_string": {
       "type": "string",
-      "pattern": "^[0-9A-Fa-f]$"
+      "pattern": "^[0-9A-Fa-f]*$"
     },
     "sgxlkl_enclave_mode_t": {
       "enum": [
@@ -299,7 +299,8 @@
       "properties": {
         "format_version": {
           "$ref": "#/definitions/safe_size_t",
-          "description": "Version number of the enclave config type."
+          "description": "Version number of the enclave config type.",
+          "default": 1
         },
         "mode": {
           "$ref": "#/definitions/sgxlkl_enclave_mode_t",
@@ -381,7 +382,32 @@
           "items": {
             "$ref": "#/definitions/sgxlkl_clock_res_config_t"
           },
-          "default": "{{\"0000000000000001\"},{\"0000000000000001\"},{\"0000000000000000\"},{\"0000000000000000\"},{\"0000000000000001\"},{\"00000000003d0900\"},{\"00000000003d0900\"},{\"0000000000000001\"}}"
+          "default": [
+            {
+              "resolution": "0000000000000001"
+            },
+            {
+              "resolution": "0000000000000001"
+            },
+            {
+              "resolution": "0000000000000000"
+            },
+            {
+              "resolution": "0000000000000000"
+            },
+            {
+              "resolution": "0000000000000001"
+            },
+            {
+              "resolution": "00000000003d0900"
+            },
+            {
+              "resolution": "00000000003d0900"
+            },
+            {
+              "resolution": "0000000000000001"
+            }
+          ]
         },
         "stacksize": {
           "$ref": "#/definitions/safe_size_t",
@@ -421,7 +447,8 @@
         "kernel_cmd": {
           "type": "string",
           "description": "",
-          "default": "mem=32M"
+          "default": "mem=32M",
+          "overridable": "SGXLKL_CMDLINE"
         },
         "sysctl": {
           "type": [

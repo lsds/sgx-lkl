@@ -1,7 +1,7 @@
 #ifndef HOST_DEVICE_IFC_H
 #define HOST_DEVICE_IFC_H
 
-#include "shared/host_state.h"
+#include "host/host_state.h"
 #include "shared/shared_memory.h"
 #include "shared/virtio_ring_buff.h"
 

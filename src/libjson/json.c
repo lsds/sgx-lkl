@@ -1775,3 +1775,10 @@ void json_dump_path(json_write_t write, void* stream, json_parser_t* parser)
         (*write)(stream, STRLIT("\n"));
     }
 }
+
+unsigned long json_get_array_index(json_parser_t* parser)
+{
+    if (parser->depth < 2)
+        return -1;
+    return parser->path[parser->depth - 2].index;
+}

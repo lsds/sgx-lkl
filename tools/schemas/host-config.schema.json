@@ -1,13 +1,120 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "title": "SGX-LKL host config schema",
-    "required": [],
-    "additionalProperties": true,
-    "properties": {
-        "hd": {
-            "type": "string",
-            "description": "Path to the root filesystem disk"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "SGX-LKL host config schema",
+  "required": [],
+  "additionalProperties": true,
+  "definitions": {
+    "sgxlkl_host_root_config_t": {
+      "type": "object",
+      "description": "Root file system configuration.",
+      "properties": {
+        "image_path": {
+          "type": "string",
+          "description": "Path to file system image.",
+          "default": "",
+          "overridable": "SGXLKL_HD"
+        },
+        "key": {
+          "type": "string",
+          "description": "Encryption key as passphrase or file path to a key file for the root file system image (Debug only).",
+          "default": "",
+          "overridable": "SGXLKL_HD_KEY"
+        },
+        "overlay": {
+          "type": "boolean",
+          "description": "Enables overlay",
+          "default": false,
+          "overridable": "SGXLKL_HD_OVERLAY"
+        },
+        "readonly": {
+          "type": "boolean",
+          "description": "Set to 1 to mount the root file system as read-only.",
+          "default": false,
+          "overridable": "SGXLKL_HD_RO"
+        },
+        "verity": {
+          "type": "string",
+          "description": "Root hash or file path to root hash for the root file system image (Debug only).",
+          "default": "",
+          "overridable": "SGXLKL_HD_VERITY"
+        },
+        "verity_offset": {
+          "type": "string",
+          "description": "Offset or file path to offset of the dm-verity merkle tree on the root file system image (Debug only). If omitted and <path/to/diskimage>.hashoffset exists, this offset will be used if possible.",
+          "default": "",
+          "overridable": "SGXLKL_HD_VERITY_OFFSET"
         }
+      }
+    },
+    "sgxlkl_host_mount_config_t": {
+      "type": "object",
+      "description": "Host side mount configuration.",
+      "$comment": "Override: ",
+      "properties": {
+        "image_path": {
+          "type": "string",
+          "description": "Paths to mount image files",
+          "default": "",
+          "overridable": "SGXLKL_HDS"
+        },
+        "destination": {
+          "type": "string",
+          "description": "Mount point",
+          "default": "",
+          "overridable": "SGXLKL_HDS"
+        },
+        "readonly": {
+          "type": "boolean",
+          "description": "Set to 1 to mount the disk as read-only.",
+          "default": false,
+          "overridable": "SGXLKL_HDS"
+        }
+      }
+    },
+    "sgxlkl_host_config_t": {
+      "type": "object",
+      "description": "Host configuration",
+      "properties": {
+        "root": {
+          "$ref": "#/definitions/sgxlkl_host_root_config_t"
+        },
+        "mounts": {
+          "type": "array",
+          "description": "Secondary file system images.",
+          "items": {
+            "$ref": "#/definitions/sgxlkl_host_mount_config_t"
+          },
+          "default": [],
+          "overridable": "SGXLKL_HDS"
+        },
+        "verbose": {
+          "type": "boolean",
+          "description": "Set to 1 to enable verbose SGX-LKL launcher output.",
+          "default": true,
+          "overridable": "SGXLKL_VERBOSE"
+        },
+        "ethreads_affinity": {
+          "type": "string",
+          "description": "Specifies the CPU core affinity for enclave threads as a comma-separated list of cores to use, e.g. \"0-2,4\".",
+          "default": "",
+          "overridable": "SGXLKL_ETHREADS_AFFINITY"
+        },
+        "tap_device": {
+          "type": "string",
+          "description": "Tap network device to use as a network interface.",
+          "default": "",
+          "overridable": "SGXLKL_TAP"
+        },
+        "tap_offload": {
+          "type": "boolean",
+          "description": "Set to 1 to enable partial checksum support, TSOv4, TSOv6, and mergeable receive buffers for the TAP interface.",
+          "default": true,
+          "overridable": "SGXLKL_TAP_OFFLOAD"
+        }
+      }
     }
+  },
+  "$ref": "#/definitions/sgxlkl_host_config_t",
+  "description": "SGX-LKL host configuration."
 }

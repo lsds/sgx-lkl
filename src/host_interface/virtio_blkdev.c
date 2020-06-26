@@ -1,12 +1,12 @@
 #include <assert.h>
 #include <errno.h>
+#include <host/host_state.h>
 #include <host/sgxlkl_u.h>
 #include <host/sgxlkl_util.h>
 #include <host/vio_host_event_channel.h>
 #include <host/virtio_blkdev.h>
 #include <host/virtio_debug.h>
 #include <shared/env.h>
-#include <shared/host_state.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -16,7 +16,7 @@
 #define HOST_BLK_DEV_NUM_QUEUES 1
 #define HOST_BLK_DEV_QUEUE_DEPTH 32
 
-extern sgxlkl_host_state_t host_state;
+extern sgxlkl_host_state_t sgxlkl_host_state;
 
 #if DEBUG && VIRTIO_TEST_HOOK
 static uint64_t virtio_blk_req_cnt;
@@ -28,7 +28,7 @@ static uint64_t virtio_blk_req_cnt;
  */
 static inline sgxlkl_host_disk_state_t* get_disk_config(uint8_t blkdev_id)
 {
-    sgxlkl_host_disk_state_t* disk = &host_state.disks[blkdev_id];
+    sgxlkl_host_disk_state_t* disk = &sgxlkl_host_state.disks[blkdev_id];
     assert(disk != NULL);
     return disk;
 }
@@ -161,10 +161,10 @@ int blk_device_init(
     if (enable_swiotlb)
         host_blk_device->dev.device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);
 
-    host_state.shared_memory.virtio_blk_dev_mem[disk_index] =
+    sgxlkl_host_state.shared_memory.virtio_blk_dev_mem[disk_index] =
         &host_blk_device->dev;
-    host_state.shared_memory.virtio_blk_dev_names[disk_index] =
-        strdup(disk->mnt);
+    sgxlkl_host_state.shared_memory.virtio_blk_dev_names[disk_index] =
+        strdup(disk->root_config ? "/" : disk->mount_config->destination);
 
     return 0;
 }
@@ -189,7 +189,7 @@ void* blkdevice_thread(void* arg)
             continue;
 
         struct virtio_dev* dev =
-            host_state.shared_memory.virtio_blk_dev_mem[cfg->dev_id];
+            sgxlkl_host_state.shared_memory.virtio_blk_dev_mem[cfg->dev_id];
         virtio_process_queue(dev, 0);
 #if DEBUG && VIRTIO_TEST_HOOK
         uint64_t vio_req_cnt = virtio_debug_blk_get_ring_count();

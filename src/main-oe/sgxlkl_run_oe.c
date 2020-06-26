@@ -29,12 +29,13 @@
 #include <netinet/ip.h>
 
 #include "enclave/enclave_mem.h"
+#include "host/host_state.h"
 #include "host/serialize_enclave_config.h"
+#include "host/sgxlkl_host_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "host/vio_host_event_channel.h"
 #include "shared/env.h"
-#include "shared/host_state.h"
 #include "shared/sgxlkl_enclave_config.h"
 
 #include "lkl/linux/virtio_net.h"
@@ -79,7 +80,7 @@ static sgxlkl_sw_signal_handler _sgxlkl_sw_signal_handler;
 
 static int rdfsbase_caused_sigill = 0;
 
-sgxlkl_host_state_t host_state;
+sgxlkl_host_state_t sgxlkl_host_state;
 
 typedef struct ethread_args
 {
@@ -203,57 +204,29 @@ static void help_config()
 {
     printf("SGX-LKL configuration via environment variables:\n");
     printf("\n");
-    printf("Host options\n");
-    printf("============\n");
-    printf("## General ##\n");
+    printf("Host settings\n");
+    printf("=============\n");
+
     printf(
-        "%-35s %s (default: %d)\n",
-        "  SGXLKL_VERBOSE",
-        "Set to 1 to enable verbose SGX-LKL output.",
-        sgxlkl_default_enclave_config.verbose);
-    printf(
-        "%-35s %s",
-        "  SGXLKL_ETHREADS_AFFINITY",
-        "Specifies the CPU core affinity for enclave threads as a "
-        "comma-separated list of cores to use, e.g. \"0-2,4\".\n");
-    printf("## Network ##\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_TAP",
-        "Tap network device to use as a network interface.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_TAP_OFFLOAD",
-        "Set to 1 to enable partial checksum support, TSOv4, TSOv6, and "
-        "mergeable receive buffers for the TAP interface.\n");
-    printf("## Disk ##\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HDS",
-        "Secondary file system images. Comma-separated list of the format: "
-        "disk1path:disk1mntpoint:disk1mode,disk2path:disk2mntpoint:disk2mode,[."
-        "..].\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HD_RO",
-        "Set to 1 to mount the root file system as read-only.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HD_VERITY",
-        "Root hash or file path to root hash for the root file system image "
-        "(Debug only).\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HD_VERITY_OFFSET",
-        "Offset or file path to offset of the dm-verity merkle tree on the "
-        "root file system image (Debug only). If omitted and "
-        "<path/to/diskimage>.hashoffset exists, this offset will be used if "
-        "possible.\n");
-    printf(
-        "%-35s %s",
-        "  SGXLKL_HD_KEY",
-        "Encryption key as passphrase or file path to a key file for the root "
-        "file system image (Debug only).\n");
+        "  %-35s %s",
+        "SGXLKL_HDS",
+        "Override mounts: comma-separated list of the format: "
+        "disk1path:disk1mntpoint:disk1mode,"
+        "disk2path:disk2mntpoint:disk2mode,[...].\n");
+
+    size_t n = sizeof(sgxlkl_host_config_settings) /
+               sizeof(sgxlkl_host_config_setting_t);
+    for (size_t i = 0; i < n; i++)
+    {
+        const sgxlkl_host_config_setting_t* s = &sgxlkl_host_config_settings[i];
+        if (s->override_var)
+            printf(
+                "  %-35s %s (default: %s, overrides: %s)\n",
+                s->override_var,
+                s->description,
+                strcmp(s->default_value, "") == 0 ? "\"\"" : s->default_value,
+                s->scope);
+    }
 
 #ifndef SGXLKL_RELEASE
     printf("\n");
@@ -265,20 +238,21 @@ static void help_config()
     printf(
         "  %-35s %s",
         "SGXLKL_WG_PEERS",
-        "Comma-separated list of Wireguard peers in the format "
+        "Override Wireguard peers: comma-separated list of peers in the format "
         "\"key1:allowedips1:endpointhost1:port1, key2:allowedips2:...\".\n");
 
-    size_t n =
-        sizeof(sgxlkl_enclave_settings) / sizeof(sgxlkl_enclave_setting_t);
+    n = sizeof(sgxlkl_enclave_config_settings) /
+        sizeof(sgxlkl_enclave_config_setting_t);
     for (size_t i = 0; i < n; i++)
     {
-        const sgxlkl_enclave_setting_t* s = &sgxlkl_enclave_settings[i];
+        const sgxlkl_enclave_config_setting_t* s =
+            &sgxlkl_enclave_config_settings[i];
         if (s->override_var)
             printf(
                 "  %-35s %s (default: %s, overrides: %s)\n",
                 s->override_var,
                 s->description,
-                s->default_value,
+                strcmp(s->default_value, "") == 0 ? "\"\"" : s->default_value,
                 s->scope);
     }
 
@@ -343,11 +317,12 @@ static void help_enclave_config()
 {
     printf("Enclave configuration settings (attested)\n");
     printf("=========================================\n");
-    size_t n =
-        sizeof(sgxlkl_enclave_settings) / sizeof(sgxlkl_enclave_setting_t);
+    size_t n = sizeof(sgxlkl_enclave_config_settings) /
+               sizeof(sgxlkl_enclave_config_setting_t);
     for (size_t i = 0; i < n; i++)
     {
-        const sgxlkl_enclave_setting_t* s = &sgxlkl_enclave_settings[i];
+        const sgxlkl_enclave_config_setting_t* s =
+            &sgxlkl_enclave_config_settings[i];
         if (s->scope)
             printf(
                 "%-35s %s (default: %s)\n",
@@ -550,7 +525,7 @@ static void override_enclave_disk_config(
     char* verity_roothash_or_file,
     char* verity_hashoffset_or_file)
 {
-    if (host_state.enclave_config.mode != HW_RELEASE_MODE)
+    if (sgxlkl_host_state.enclave_config.mode != HW_RELEASE_MODE)
     {
         if (keyfile_or_passphrase)
         {
@@ -603,19 +578,23 @@ static void override_enclave_disk_config(
 
 void override_disk_config(const char* root_disk_path)
 {
-    sgxlkl_enclave_config_t* config = &host_state.enclave_config;
+    sgxlkl_enclave_config_t* config = &sgxlkl_host_state.enclave_config;
 
-    /* Count disks to add */
-    const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
-    if (config->num_mounts == 0)
+    const char* hds_str = NULL;
+    if (sgxlkl_config_overridden(SGXLKL_HDS))
     {
-        if (hds_str[0])
+        /* Count disks to add */
+        hds_str = sgxlkl_config_str(SGXLKL_HDS);
+        if (config->num_mounts == 0)
         {
-            config->num_mounts++;
-            for (int i = 0; hds_str[i]; i++)
+            if (hds_str[0])
             {
-                if (hds_str[i] == ',')
-                    config->num_mounts++;
+                config->num_mounts++;
+                for (int i = 0; hds_str[i]; i++)
+                {
+                    if (hds_str[i] == ',')
+                        config->num_mounts++;
+                }
             }
         }
     }
@@ -640,7 +619,6 @@ void override_disk_config(const char* root_disk_path)
         sgxlkl_config_str(SGXLKL_HD_VERITY),
         sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
 
-    /* Secondary disks */
     if (hds_str)
     {
         char* tmp = strdup(hds_str);
@@ -836,7 +814,7 @@ void get_signed_libsgxlkl_path(char* path_buf, size_t len)
 
 void mk_clock_res_string(int clock)
 {
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
     size_t sz = sizeof(sgxlkl_clock_res_config_t);
     struct timespec tmpt;
     char tmps[8 * 2 * 2 + 1];
@@ -875,7 +853,7 @@ static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
    NOTE: This overrides previously set SIGILL handlers! */
 void set_tls(bool have_enclave_config)
 {
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
 
     if (econf->mode != SW_DEBUG_MODE)
     {
@@ -937,18 +915,18 @@ void set_tls(bool have_enclave_config)
 /* Override wireguard enclave configuration */
 void override_enclave_wg_config()
 {
-    sgxlkl_enclave_wg_config_t* wg = &host_state.enclave_config.wg;
+    sgxlkl_enclave_wg_config_t* wg = &sgxlkl_host_state.enclave_config.wg;
 
-    if (sgxlkl_configured(SGXLKL_WG_IP))
+    if (sgxlkl_config_overridden(SGXLKL_WG_IP))
         wg->ip = sgxlkl_config_str(SGXLKL_WG_IP);
 
-    if (sgxlkl_configured(SGXLKL_WG_PORT))
+    if (sgxlkl_config_overridden(SGXLKL_WG_PORT))
         wg->listen_port = (uint16_t)sgxlkl_config_uint64(SGXLKL_WG_PORT);
 
-    if (sgxlkl_configured(SGXLKL_WG_KEY))
+    if (sgxlkl_config_overridden(SGXLKL_WG_KEY))
         wg->key = sgxlkl_config_str(SGXLKL_WG_KEY);
 
-    if (sgxlkl_configured(SGXLKL_WG_PEERS))
+    if (sgxlkl_config_overridden(SGXLKL_WG_PEERS))
     {
         int num_peers = 0;
         char* peers_str = sgxlkl_config_str(SGXLKL_WG_PEERS);
@@ -1002,28 +980,33 @@ void override_enclave_wg_config()
     }
 }
 
-static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
+static void register_hd(
+    sgxlkl_host_disk_state_t* disk,
+    const char* image_path,
+    const char* destination,
+    bool readonly,
+    size_t idx)
 {
     sgxlkl_host_verbose(
         "Registering disk %lu (path='%s', mnt='%s', [%s])\n",
         idx,
-        disk->image_path,
-        disk->mnt,
-        disk->readonly ? "RO" : "RW");
+        image_path,
+        destination,
+        readonly ? "RO" : "RW");
 
-    if (strlen(disk->mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
+    if (strlen(destination) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
         sgxlkl_host_fail(
             "Mount path for disk %lu too long (maximum length is %d): \"%s\"\n",
             idx,
             SGXLKL_DISK_MNT_MAX_PATH_LEN,
-            disk->mnt);
+            destination);
 
-    int fd = open(disk->image_path, disk->readonly ? O_RDONLY : O_RDWR);
+    int fd = open(image_path, readonly ? O_RDONLY : O_RDWR);
     if (fd == -1)
         sgxlkl_host_fail(
             "Unable to open disk file %s for %s access: %s\n",
-            disk->image_path,
-            disk->readonly ? "read" : "read/write",
+            image_path,
+            readonly ? "read" : "read/write",
             strerror(errno));
 
     struct stat disk_stat;
@@ -1036,18 +1019,13 @@ static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
         {
             sgxlkl_host_fail(
                 "Failed to get block device size of %s: %s\n",
-                disk->image_path,
+                image_path,
                 strerror(errno));
         }
     }
 
     char* disk_mmap = mmap(
-        NULL,
-        size,
-        PROT_READ | (disk->readonly ? 0 : PROT_WRITE),
-        MAP_SHARED,
-        fd,
-        0);
+        NULL, size, PROT_READ | (readonly ? 0 : PROT_WRITE), MAP_SHARED, fd, 0);
     if (disk_mmap == MAP_FAILED)
         sgxlkl_host_fail(
             "Could not map memory for disk image: %s\n", strerror(errno));
@@ -1064,38 +1042,60 @@ static void register_hd(sgxlkl_host_disk_state_t* disk, size_t idx)
     disk->mmap = disk_mmap;
     disk->size = size;
 
-    blk_device_init(disk, idx, host_state.enclave_config.swiotlb);
+    blk_device_init(disk, idx, sgxlkl_host_state.enclave_config.swiotlb);
 }
 
 static void register_hds(char* root_hd)
 {
-    size_t num_disks = host_state.num_disks;
+    size_t num_disks = sgxlkl_host_state.num_disks;
     if (num_disks == 0)
         sgxlkl_host_fail("no disks in host config");
 
-    sgxlkl_shared_memory_t* shm = &host_state.shared_memory;
-    shm->num_virtio_blk_dev = host_state.num_disks;
-    shm->virtio_blk_dev_mem = calloc(host_state.num_disks, sizeof(void*));
-    shm->virtio_blk_dev_names = calloc(host_state.num_disks, sizeof(char*));
+    sgxlkl_shared_memory_t* shm = &sgxlkl_host_state.shared_memory;
+    shm->num_virtio_blk_dev = sgxlkl_host_state.num_disks;
+    shm->virtio_blk_dev_mem =
+        calloc(sgxlkl_host_state.num_disks, sizeof(void*));
+    shm->virtio_blk_dev_names =
+        calloc(sgxlkl_host_state.num_disks, sizeof(char*));
 
     if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
         sgxlkl_host_fail("out of memory\n");
 
     for (size_t i = 0; i < num_disks; i++)
     {
-        sgxlkl_host_disk_state_t* disk = &host_state.disks[i];
-        register_hd(disk, i);
-        strcpy(shm->virtio_blk_dev_names[i], disk->mnt);
+        sgxlkl_host_disk_state_t* disk = &sgxlkl_host_state.disks[i];
+        const char* dest;
+        if (disk->root_config)
+        {
+            dest = "/";
+            register_hd(
+                disk,
+                disk->root_config->image_path,
+                dest,
+                disk->root_config->readonly,
+                i);
+        }
+        else
+        {
+            dest = disk->mount_config->destination;
+            register_hd(
+                disk,
+                disk->mount_config->image_path,
+                disk->mount_config->destination,
+                disk->mount_config->readonly,
+                i);
+            strcpy(shm->virtio_blk_dev_names[i], dest);
+        }
     }
 }
 
 static void register_net()
 {
-    if (host_state.net_fd != 0)
+    if (sgxlkl_host_state.net_fd != 0)
         sgxlkl_host_fail("Multiple network interfaces not supported yet\n");
 
     // Open tap device FD
-    const char* tapstr = host_state.config.tap_device;
+    const char* tapstr = sgxlkl_host_state.config.tap_device;
     if (tapstr == NULL || strlen(tapstr) == 0)
     {
         sgxlkl_host_verbose(
@@ -1107,18 +1107,18 @@ static void register_net()
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 
     int vnet_hdr_sz = 0;
-    if (host_state.config.tap_offload)
+    if (sgxlkl_host_state.config.tap_offload)
     {
         ifr.ifr_flags |= IFF_VNET_HDR;
         vnet_hdr_sz = sizeof(struct lkl_virtio_net_hdr_v1);
     }
 
-    host_state.net_fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
-    if (host_state.net_fd == -1)
+    sgxlkl_host_state.net_fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
+    if (sgxlkl_host_state.net_fd == -1)
         sgxlkl_host_fail(
             "TUN network device unavailable, open(\"/dev/net/tun\") failed");
 
-    if (ioctl(host_state.net_fd, TUNSETIFF, &ifr) == -1)
+    if (ioctl(sgxlkl_host_state.net_fd, TUNSETIFF, &ifr) == -1)
         sgxlkl_host_fail(
             "Tap device %s unavailable, ioctl(\"/dev/net/tun\"), TUNSETIFF) "
             "failed: %s\n",
@@ -1126,15 +1126,15 @@ static void register_net()
             strerror(errno));
 
     if (vnet_hdr_sz &&
-        ioctl(host_state.net_fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0)
+        ioctl(sgxlkl_host_state.net_fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0)
         sgxlkl_host_fail(
             "Failed to TUNSETVNETHDRSZ: /dev/net/tun: %s\n", strerror(errno));
 
     int offload_flags = 0;
-    if (host_state.config.tap_offload)
+    if (sgxlkl_host_state.config.tap_offload)
         offload_flags = TUN_F_TSO4 | TUN_F_TSO6 | TUN_F_CSUM;
 
-    if (ioctl(host_state.net_fd, TUNSETOFFLOAD, offload_flags) != 0)
+    if (ioctl(sgxlkl_host_state.net_fd, TUNSETOFFLOAD, offload_flags) != 0)
         sgxlkl_host_fail(
             "Failed to TUNSETOFFLOAD: /dev/net/tun: %s\n", strerror(errno));
 }
@@ -1142,12 +1142,12 @@ static void register_net()
 static void sgxlkl_cleanup(void)
 {
     // Close disk image fds
-    while (host_state.num_disks)
+    while (sgxlkl_host_state.num_disks)
     {
-        close(host_state.disks[--host_state.num_disks].fd);
+        close(sgxlkl_host_state.disks[--sgxlkl_host_state.num_disks].fd);
     }
-    free(host_state.shared_memory.virtio_blk_dev_mem);
-    free(host_state.shared_memory.virtio_blk_dev_names);
+    free(sgxlkl_host_state.shared_memory.virtio_blk_dev_mem);
+    free(sgxlkl_host_state.shared_memory.virtio_blk_dev_names);
 }
 
 static void serialize_ucontext(
@@ -1410,11 +1410,12 @@ void _create_enclave(
     char* buffer = NULL;
     size_t buffer_size = 0;
 
-    serialize_enclave_config(&host_state.enclave_config, &buffer, &buffer_size);
+    serialize_enclave_config(
+        &sgxlkl_host_state.enclave_config, &buffer, &buffer_size);
 
     oe_eeid_t* eeid = NULL;
     oe_create_eeid_sgx(buffer_size, &eeid);
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
     oe_enclave_size_settings_t oe_sizes = {
         .num_heap_pages = econf->image_sizes.num_heap_pages,
         .num_stack_pages = econf->image_sizes.num_stack_pages,
@@ -1441,7 +1442,7 @@ void find_root_disk_file(int* argc, char*** argv, char** root_hd)
 {
     // Determine path to root disk. Either configured via env/json config or
     // as first command line argument.
-    if (sgxlkl_configured(SGXLKL_HD))
+    if (sgxlkl_config_overridden(SGXLKL_HD))
     {
         if (root_hd)
             *root_hd = sgxlkl_config_str(SGXLKL_HD);
@@ -1484,7 +1485,7 @@ void enclave_config_from_file(const char* filename)
     if (ret < 0)
         sgxlkl_host_fail("Failed to read %s: %s.\n", filename, strerror(errno));
 
-    sgxlkl_read_enclave_config(buf, &host_state.enclave_config, false);
+    sgxlkl_read_enclave_config(buf, &sgxlkl_host_state.enclave_config, false);
 }
 
 void override_enclave_config(
@@ -1493,43 +1494,43 @@ void override_enclave_config(
     const char* root_disk_file,
     sgxlkl_enclave_mode_t enclave_mode_cmdline)
 {
-    sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
 
     if (enclave_mode_cmdline != UNKNOWN_MODE)
         econf->mode = enclave_mode_cmdline;
 
-    if (sgxlkl_configured(SGXLKL_OE_HEAP_PAGE_COUNT))
+    if (sgxlkl_config_overridden(SGXLKL_OE_HEAP_PAGE_COUNT))
         econf->oe_heap_pagecount =
             sgxlkl_config_uint64(SGXLKL_OE_HEAP_PAGE_COUNT);
 
-    if (sgxlkl_configured(SGXLKL_STACK_SIZE))
+    if (sgxlkl_config_overridden(SGXLKL_STACK_SIZE))
         econf->stacksize = sgxlkl_config_uint64(SGXLKL_STACK_SIZE);
 
-    if (sgxlkl_configured(SGXLKL_MAX_USER_THREADS))
+    if (sgxlkl_config_overridden(SGXLKL_MAX_USER_THREADS))
         econf->max_user_threads = sgxlkl_config_uint64(SGXLKL_MAX_USER_THREADS);
 
-    if (sgxlkl_configured(SGXLKL_ESPINS))
+    if (sgxlkl_config_overridden(SGXLKL_ESPINS))
         econf->espins = sgxlkl_config_uint64(SGXLKL_ESPINS);
 
-    if (sgxlkl_configured(SGXLKL_ESLEEP))
+    if (sgxlkl_config_overridden(SGXLKL_ESLEEP))
         econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
 
-    if (sgxlkl_configured(SGXLKL_VERBOSE))
+    if (sgxlkl_config_overridden(SGXLKL_VERBOSE))
         econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
 
-    if (sgxlkl_configured(SGXLKL_KERNEL_VERBOSE))
+    if (sgxlkl_config_overridden(SGXLKL_KERNEL_VERBOSE))
         econf->kernel_verbose = sgxlkl_config_bool(SGXLKL_KERNEL_VERBOSE);
 
-    if (sgxlkl_configured(SGXLKL_CMDLINE))
+    if (sgxlkl_config_overridden(SGXLKL_CMDLINE))
         econf->kernel_cmd = sgxlkl_config_str(SGXLKL_CMDLINE);
 
-    if (sgxlkl_configured(SGXLKL_SYSCTL))
+    if (sgxlkl_config_overridden(SGXLKL_SYSCTL))
         econf->sysctl = sgxlkl_config_str(SGXLKL_SYSCTL);
 
-    if (sgxlkl_configured(SGXLKL_ENABLE_SWIOTLB))
+    if (sgxlkl_config_overridden(SGXLKL_ENABLE_SWIOTLB))
         econf->swiotlb = sgxlkl_config_bool(SGXLKL_ENABLE_SWIOTLB);
 
-    if (sgxlkl_configured(SGXLKL_MMAP_FILES))
+    if (sgxlkl_config_overridden(SGXLKL_MMAP_FILES))
     {
         char* mmap_files = sgxlkl_config_str(SGXLKL_MMAP_FILES);
         econf->mmap_files =
@@ -1539,34 +1540,35 @@ void override_enclave_config(
                                                   : ENCLAVE_MMAP_FILES_NONE);
     }
 
-    if (sgxlkl_configured(SGXLKL_ETHREADS))
+    if (sgxlkl_config_overridden(SGXLKL_ETHREADS))
         econf->ethreads = sgxlkl_config_uint64(SGXLKL_ETHREADS);
 
-    if (sgxlkl_configured(SGXLKL_IP4))
+    if (sgxlkl_config_overridden(SGXLKL_IP4))
         econf->net_ip4 = sgxlkl_config_str(SGXLKL_IP4);
 
-    if (sgxlkl_configured(SGXLKL_GW4))
+    if (sgxlkl_config_overridden(SGXLKL_GW4))
         econf->net_gw4 = sgxlkl_config_str(SGXLKL_GW4);
 
-    if (sgxlkl_configured(SGXLKL_MASK4))
+    if (sgxlkl_config_overridden(SGXLKL_MASK4))
         econf->net_mask4 = sgxlkl_config_str(SGXLKL_MASK4);
 
-    if (sgxlkl_configured(SGXLKL_HOSTNAME))
+    if (sgxlkl_config_overridden(SGXLKL_HOSTNAME))
         strcpy(econf->hostname, sgxlkl_config_str(SGXLKL_HOSTNAME));
 
-    if (sgxlkl_configured(SGXLKL_TAP_MTU))
+    if (sgxlkl_config_overridden(SGXLKL_TAP_MTU))
         econf->tap_mtu = (int)sgxlkl_config_uint64(SGXLKL_TAP_MTU);
 
-    if (sgxlkl_configured(SGXLKL_HOSTNET))
+    if (sgxlkl_config_overridden(SGXLKL_HOSTNET))
         econf->hostnet = sgxlkl_config_bool(SGXLKL_HOSTNET);
 
     override_enclave_wg_config();
 
-    if (sgxlkl_configured(SGXLKL_HDS) || sgxlkl_configured(SGXLKL_HD_RO) ||
-        sgxlkl_configured(SGXLKL_HD_OVERLAY) ||
-        sgxlkl_configured(SGXLKL_HD_KEY) ||
-        sgxlkl_configured(SGXLKL_HD_VERITY) ||
-        sgxlkl_configured(SGXLKL_HD_VERITY_OFFSET))
+    if (sgxlkl_config_overridden(SGXLKL_HDS) ||
+        sgxlkl_config_overridden(SGXLKL_HD_RO) ||
+        sgxlkl_config_overridden(SGXLKL_HD_OVERLAY) ||
+        sgxlkl_config_overridden(SGXLKL_HD_KEY) ||
+        sgxlkl_config_overridden(SGXLKL_HD_VERITY) ||
+        sgxlkl_config_overridden(SGXLKL_HD_VERITY_OFFSET))
         override_disk_config(root_disk_file);
 
     if (argv && argc > 0)
@@ -1575,7 +1577,7 @@ void override_enclave_config(
         econf->args = argv;
     }
 
-    if (sgxlkl_configured(SGXLKL_HOST_IMPORT_ENV))
+    if (sgxlkl_config_overridden(SGXLKL_HOST_IMPORT_ENV))
     {
         char* import_vars = strdup(sgxlkl_config_str(SGXLKL_HOST_IMPORT_ENV));
         econf->num_host_import_env = 0;
@@ -1596,67 +1598,114 @@ void override_enclave_config(
             }
         free(import_vars);
     }
+
+#ifndef SGXLKL_RELEASE
+    /* Variables listed in sgxlkl_auto_passthrough are automatically imported in
+     * the enclave in debug mode. */
+    size_t num_auto_pt = sizeof(sgxlkl_auto_passthrough) / sizeof(char*);
+    for (size_t i = 0; i < num_auto_pt; i++)
+    {
+        const char* var = sgxlkl_auto_passthrough[i];
+        const char* val = getenv(var);
+        if (val != NULL)
+        {
+            econf->host_import_env = realloc(
+                econf->host_import_env,
+                sizeof(char*) * (econf->num_host_import_env + 1));
+            econf->host_import_env[econf->num_host_import_env++] = strdup(var);
+        }
+    }
+#endif
 }
 
-void host_config_from_params(char* root_disk_path)
+void setup_host_state()
 {
-    host_state.config.tap_device = sgxlkl_config_str(SGXLKL_TAP);
-    host_state.config.thread_affinity =
-        sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY);
-    host_state.config.tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
+    const sgxlkl_host_config_t* cfg = &sgxlkl_host_state.config;
 
-    if (!root_disk_path)
-        sgxlkl_host_fail("no root disk file\n");
+    sgxlkl_host_state.num_disks = 1 + cfg->num_mounts;
+    if (sgxlkl_host_state.num_disks >= HOST_MAX_DISKS)
+        sgxlkl_host_fail("too many disks\n");
 
-    /* Add root disk */
-    host_state.num_disks = 1;
-    sgxlkl_host_disk_state_t* root_disk = &host_state.disks[0];
-    strcpy(root_disk->mnt, "/");
-    root_disk->image_path = root_disk_path;
+    /* Root disk */
+    sgxlkl_host_disk_state_t* root_disk = &sgxlkl_host_state.disks[0];
+    root_disk->root_config = &cfg->root;
+    root_disk->mount_config = NULL;
 
-    /* Secondary disks */
-    const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
-    char* tmp = strdup(hds_str);
-    for (size_t i = 1; *tmp; i++)
+    /* Mounts */
+    for (size_t i = 0; i < cfg->num_mounts; i++)
     {
-        char* hd_path = tmp;
-        char* hd_mnt = strchrnul(hd_path, ':');
-        *hd_mnt = '\0';
-        hd_mnt++;
-        char* hd_mnt_end = strchrnul(hd_mnt, ':');
-        *hd_mnt_end = '\0';
-        int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-
-        host_state.disks[i].image_path = hd_path;
-        strcpy(host_state.disks[i].mnt, hd_mnt);
-        host_state.disks[i].readonly = hd_ro;
-
-        tmp = strchrnul(hd_mnt_end + 1, ',');
-        while (*tmp == ' ' || *tmp == ',')
-            tmp++;
-
-        host_state.num_disks++;
-        if (host_state.num_disks >= HOST_MAX_DISKS)
-            sgxlkl_host_fail("too many disks\n");
+        sgxlkl_host_state.disks[i + 1].root_config = NULL;
+        sgxlkl_host_state.disks[i + 1].mount_config = &cfg->mounts[i];
     }
 }
 
-void host_config_from_file(char* filename, char* root_disk_path)
+void override_host_config(char* root_disk_path)
 {
-    char* err = NULL;
-    if (sgxlkl_parse_params_from_file(filename, &err) < 0)
-        sgxlkl_host_fail(
-            "Error parsing host config file '%s': %s\n", filename, err);
+    sgxlkl_host_config_t* cfg = &sgxlkl_host_state.config;
 
-    if (sgxlkl_configured(SGXLKL_HD))
-        root_disk_path = sgxlkl_config_str(SGXLKL_HD);
+    if (sgxlkl_config_overridden(SGXLKL_HD))
+        cfg->root.image_path = sgxlkl_config_str(SGXLKL_HD);
+    else if (!cfg->root.image_path)
+        cfg->root.image_path = root_disk_path;
+    if (sgxlkl_config_overridden(SGXLKL_HD_KEY))
+        cfg->root.key = sgxlkl_config_str(SGXLKL_HD_KEY);
+    if (sgxlkl_config_overridden(SGXLKL_HD_RO))
+        cfg->tap_offload = sgxlkl_config_bool(SGXLKL_HD_RO);
+    if (sgxlkl_config_overridden(SGXLKL_HD_VERITY))
+        cfg->root.key = sgxlkl_config_str(SGXLKL_HD_VERITY);
+    if (sgxlkl_config_overridden(SGXLKL_HD_VERITY_OFFSET))
+        cfg->root.key = sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET);
 
-    host_config_from_params(root_disk_path);
+    if (sgxlkl_config_overridden(SGXLKL_HDS))
+    {
+        const char* hds_str = sgxlkl_config_str(SGXLKL_HDS);
+        const char* p = hds_str;
+        assert(hds_str != NULL);
+
+        cfg->num_mounts = 1;
+        while (*p != 0)
+            if (*p++ == ',')
+                cfg->num_mounts++;
+
+        cfg->mounts =
+            calloc(cfg->num_mounts, sizeof(sgxlkl_host_mount_config_t));
+        char* tmp = strdup(hds_str);
+        for (size_t i = 0; *tmp; i++)
+        {
+            char* hd_path = tmp;
+            char* hd_mnt = strchrnul(hd_path, ':');
+            *hd_mnt = '\0';
+            hd_mnt++;
+            char* hd_mnt_end = strchrnul(hd_mnt, ':');
+            *hd_mnt_end = '\0';
+            int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
+
+            cfg->mounts[i].image_path = hd_path;
+            cfg->mounts[i].destination = hd_mnt;
+            cfg->mounts[i].readonly = hd_ro;
+
+            tmp = strchrnul(hd_mnt_end + 1, ',');
+            while (*tmp == ' ' || *tmp == ',')
+                tmp++;
+        }
+    }
+
+    if (sgxlkl_config_overridden(SGXLKL_VERBOSE))
+        cfg->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
+    if (sgxlkl_config_overridden(SGXLKL_ETHREADS_AFFINITY))
+        cfg->ethreads_affinity = sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY);
+    if (sgxlkl_config_overridden(SGXLKL_TAP))
+        cfg->tap_device = sgxlkl_config_str(SGXLKL_TAP);
+    if (sgxlkl_config_overridden(SGXLKL_TAP_OFFLOAD))
+        cfg->tap_offload = sgxlkl_config_bool(SGXLKL_TAP_OFFLOAD);
 }
 
-void host_config_from_cmdline(char* root_disk_path)
+void host_config_from_file(char* filename)
 {
-    host_config_from_params(root_disk_path);
+    sgxlkl_host_config_t* cfg = &sgxlkl_host_state.config;
+    char* err = NULL;
+    if (sgxlkl_read_host_config_from_file(filename, cfg, &err) < 0)
+        sgxlkl_host_fail("Error reading host config: %s\n", err);
 }
 
 int main(int argc, char* argv[], char* envp[])
@@ -1664,7 +1713,8 @@ int main(int argc, char* argv[], char* envp[])
     char* host_config_path = NULL;
     char* enclave_config_path = NULL;
     char libsgxlkl[PATH_MAX];
-    const sgxlkl_enclave_config_t* econf = &host_state.enclave_config;
+    // const sgxlkl_host_config_t* hconf = &host_state.config;
+    const sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
     char* root_hd = NULL;
     pthread_t* sgxlkl_threads;
     pthread_t* host_vdisk_task;
@@ -1703,7 +1753,7 @@ int main(int argc, char* argv[], char* envp[])
         {"enclave-config", required_argument, 0, 'c'},
         {0, 0, 0, 0}};
 
-    host_state.enclave_config = sgxlkl_default_enclave_config;
+    sgxlkl_host_state.enclave_config = sgxlkl_enclave_config_default;
     sgxlkl_enclave_mode_t enclave_mode_cmdline = UNKNOWN_MODE;
 
     while ((c = getopt_sgxlkl(argc, argv, long_options)) != -1)
@@ -1792,14 +1842,24 @@ int main(int argc, char* argv[], char* envp[])
      * non-debug mode. */
     check_envs_all(envp);
 
+#ifdef SGXLKL_RELEASE
+    if (!host_config_path)
+        sgxlkl_host_fail("no host configuration provided\n");
+    host_config_from_file(host_config_path);
+#else
     if (host_config_path)
-        host_config_from_file(host_config_path, root_hd);
-    else
-        host_config_from_cmdline(root_hd);
+        host_config_from_file(host_config_path);
 
-    /* Host and guest cannot use virtio in HW mode without bounce buffer,so in
-     * hardware mode SWIOTLB is always enabled.
-     * SGXLKL_ENABLE_SWIOTLB allows to enable/disable SWIOTLB only in SW mode */
+    /* Environment variables override host config */
+    override_host_config(root_hd);
+#endif
+
+    setup_host_state();
+
+    /* Host and guest cannot use virtio in HW mode without bounce
+     * buffer,so in hardware mode SWIOTLB is always enabled.
+     * SGXLKL_ENABLE_SWIOTLB
+     * allows to enable/disable SWIOTLB only in SW mode */
     if (enclave_mode != SW_DEBUG_MODE && !econf->swiotlb)
     {
         sgxlkl_host_fail("SWIOTLB cannot be disabled in hardware mode. Set "
@@ -1814,7 +1874,7 @@ int main(int argc, char* argv[], char* envp[])
 
     bool have_enclave_config_file = enclave_config_path != NULL;
     set_clock_res(have_enclave_config_file);
-    host_state.shared_memory.env = envp;
+    sgxlkl_host_state.shared_memory.env = envp;
     set_tls(have_enclave_config_file);
     register_hds(root_hd);
     register_net();
@@ -1834,7 +1894,7 @@ int main(int argc, char* argv[], char* envp[])
     sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl);
 
     parse_cpu_affinity_params(
-        host_state.config.thread_affinity,
+        sgxlkl_host_state.config.ethreads_affinity,
         &ethreads_cores,
         &ethreads_cores_len);
 
@@ -1852,8 +1912,10 @@ int main(int argc, char* argv[], char* envp[])
         sgxlkl_host_fail("Failed to allocate console task mem: %d\n", errno);
     }
 
-    /* Number of Virtio disk task should be the number of disks enabled */
-    host_vdisk_task = calloc(sizeof(*host_vdisk_task), host_state.num_disks);
+    /* Number of Virtio disk task should be the number of disks enabled
+     */
+    host_vdisk_task =
+        calloc(sizeof(*host_vdisk_task), sgxlkl_host_state.num_disks);
     if (host_vdisk_task == 0)
     {
         sgxlkl_host_fail("Failed to allocate block_dev task mem: %d\n", errno);
@@ -1876,13 +1938,14 @@ int main(int argc, char* argv[], char* envp[])
     /* Perform host interface initialization */
     sgxlkl_host_interface_initialization();
 
-    /* Total event channel is propotional to the total device count. Currently
-     * number of device supported is block, network and console device. Each
-     * block disk is treated as a seperate block device and have an event
-     * channel associated with it.
+    /* Total event channel is propotional to the total device count.
+     * Currently number of device supported is block, network and
+     * console device. Each block disk is treated as a seperate block
+     * device and have an event channel associated with it.
      */
-    host_state.shared_memory.evt_channel_num =
-        host_state.num_disks + HOST_NETWORK_DEV_COUNT + HOST_CONSOLE_DEV_COUNT;
+    sgxlkl_host_state.shared_memory.evt_channel_num =
+        sgxlkl_host_state.num_disks + HOST_NETWORK_DEV_COUNT +
+        HOST_CONSOLE_DEV_COUNT;
 
     /* Host & guest device configurations */
     host_dev_config_t* host_dev_cfg = NULL;
@@ -1890,19 +1953,19 @@ int main(int argc, char* argv[], char* envp[])
 
     initialize_host_device_configuration(
         econf->swiotlb,
-        &host_state.shared_memory,
+        &sgxlkl_host_state.shared_memory,
         &host_dev_cfg,
         &enc_dev_config,
-        host_state.shared_memory.evt_channel_num);
+        sgxlkl_host_state.shared_memory.evt_channel_num);
 
     /* Initialize the host dev configuration in host event handler */
     vio_host_initialize_device_cfg(
-        host_dev_cfg, host_state.shared_memory.evt_channel_num);
+        host_dev_cfg, sgxlkl_host_state.shared_memory.evt_channel_num);
 
     int dev_index = 0;
 
     /* Launch block device host tasks */
-    for (; dev_index < host_state.num_disks; dev_index++)
+    for (; dev_index < sgxlkl_host_state.num_disks; dev_index++)
     {
         pthread_create(
             &host_vdisk_task[dev_index],
@@ -1913,12 +1976,12 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     /* Pass the enclave dev configuration in enclave event handler */
-    host_state.shared_memory.enc_dev_config = enc_dev_config;
+    sgxlkl_host_state.shared_memory.enc_dev_config = enc_dev_config;
 
     /* Launch network device host task */
-    if (host_state.net_fd != 0)
+    if (sgxlkl_host_state.net_fd != 0)
     {
-        int ret = netdev_init(&host_state);
+        int ret = netdev_init(&sgxlkl_host_state);
         if (ret < 0)
         {
             sgxlkl_host_fail("Network device initialization failed\n");
@@ -1935,13 +1998,13 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     /* Initialize the virtio console backend driver configuration */
-    virtio_console_init(&host_state, &host_dev_cfg[dev_index++]);
+    virtio_console_init(&sgxlkl_host_state, &host_dev_cfg[dev_index++]);
 
     /* Create host console device task */
     pthread_create(host_console_task, NULL, console_task, NULL);
     pthread_setname_np(*host_console_task, "HOST_CONSOLE_DEVICE");
 
-    int ret = timerdev_init(&host_state.shared_memory);
+    int ret = timerdev_init(&sgxlkl_host_state.shared_memory);
     if (ret < 0)
         sgxlkl_host_fail("Timer device initialization failed\n");
     else
@@ -1950,7 +2013,7 @@ int main(int argc, char* argv[], char* envp[])
             host_timerdev_task,
             NULL,
             timerdev_task,
-            host_state.shared_memory.timer_dev_mem);
+            sgxlkl_host_state.shared_memory.timer_dev_mem);
         pthread_setname_np(*host_timerdev_task, "HOST_TIMER_DEVICE");
     }
 
@@ -1974,10 +2037,11 @@ int main(int argc, char* argv[], char* envp[])
         }
 
         ethreads_args[i].ethread_id = i;
-        ethreads_args[i].shm = &host_state.shared_memory;
+        ethreads_args[i].shm = &sgxlkl_host_state.shared_memory;
         ethreads_args[i].oe_enclave = oe_enclave;
 
-        /* First ethread will pass the enclave configuration and settings */
+        /* First ethread will pass the enclave configuration and
+         * settings */
         if (i == 0)
         {
             pthread_create(

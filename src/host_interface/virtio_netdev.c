@@ -18,13 +18,13 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <host/host_state.h>
 #include <host/sgxlkl_util.h>
 #include <host/vio_host_event_channel.h>
 #include <host/virtio_debug.h>
 #include <host/virtio_netdev.h>
 #include <poll.h>
 #include <shared/env.h>
-#include <shared/host_state.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -301,7 +301,6 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
 
     if (ret < 0)
     {
-
         char tmp;
 
         switch (errno)

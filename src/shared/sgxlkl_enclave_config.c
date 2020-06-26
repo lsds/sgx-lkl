@@ -186,7 +186,6 @@ static json_result_t decode_uint64_t(
     json_parser_t* parser,
     json_type_t type,
     const json_union_t* value,
-    char* path,
     uint64_t* to)
 {
     if (((json_callback_data_t*)parser->callback_data)->enforce_format)
@@ -199,11 +198,10 @@ static json_result_t decode_uint32_t(
     json_parser_t* parser,
     json_type_t type,
     const json_union_t* value,
-    char* path,
     uint32_t* to)
 {
     uint64_t tmp = 0;
-    json_result_t r = decode_uint64_t(parser, type, value, path, &tmp);
+    json_result_t r = decode_uint64_t(parser, type, value, &tmp);
     if (r != JSON_OK)
         return r;
     if (tmp > UINT32_MAX)
@@ -212,26 +210,36 @@ static json_result_t decode_uint32_t(
     return JSON_OK;
 }
 
-#define JHEXBUF(PATH, DEST)                                  \
-    JPATH2T(PATH, JSON_TYPE_STRING, JSON_TYPE_NULL, {        \
-        if (type == JSON_TYPE_NULL)                          \
-            DEST = NULL;                                     \
-        else                                                 \
-        {                                                    \
-            size_t l = strlen(un->string);                   \
-            DEST##_len = l / 2;                              \
-            DEST = calloc(1, DEST##_len);                    \
-            CHECKMEM(DEST);                                  \
-            for (size_t i = 0; i < DEST##_len; i++)          \
-                DEST[i] = hex_to_int(un->string + 2 * i, 2); \
-        }                                                    \
+#define JHEXBUF(PATH, DEST)                                      \
+    JPATH2T(PATH, JSON_TYPE_STRING, JSON_TYPE_NULL, {            \
+        if (type == JSON_TYPE_NULL)                              \
+            DEST = NULL;                                         \
+        if (type != JSON_TYPE_STRING)                            \
+            return JSON_UNKNOWN_VALUE;                           \
+        else                                                     \
+        {                                                        \
+            size_t l = strlen(un->string);                       \
+            if (l == 0)                                          \
+            {                                                    \
+                DEST##_len = l / 2;                              \
+                DEST = NULL;                                     \
+            }                                                    \
+            else                                                 \
+            {                                                    \
+                DEST##_len = l / 2;                              \
+                DEST = calloc(1, DEST##_len);                    \
+                CHECKMEM(DEST);                                  \
+                for (size_t i = 0; i < DEST##_len; i++)          \
+                    DEST[i] = hex_to_int(un->string + 2 * i, 2); \
+            }                                                    \
+        }                                                        \
     });
 
 #define JBOOL(PATH, DEST) \
     JPATHT(PATH, JSON_TYPE_BOOLEAN, (DEST) = un->boolean;);
 
-#define JU64(P, D) JPATH(P, return decode_uint64_t(parser, type, un, P, &D));
-#define JU32(P, D) JPATH(P, return decode_uint32_t(parser, type, un, P, &D));
+#define JU64(P, D) JPATH(P, return decode_uint64_t(parser, type, un, &D));
+#define JU32(P, D) JPATH(P, return decode_uint32_t(parser, type, un, &D));
 
 #define ALLOC_ARRAY(N, A, T)                              \
     do                                                    \
@@ -241,11 +249,14 @@ static json_result_t decode_uint32_t(
         CHECKMEM(data->config->A);                        \
     } while (0)
 
-static unsigned long get_array_index(json_parser_t* parser)
+static sgxlkl_enclave_mount_config_t* _mount(
+    sgxlkl_enclave_config_t* cfg,
+    json_parser_t* parser)
 {
-    if (parser->depth < 2)
+    size_t i = json_get_array_index(parser);
+    if (i == -1)
         FAIL("invalid array index\n");
-    return parser->path[parser->depth - 2].index;
+    return &cfg->mounts[i];
 }
 
 static json_result_t json_read_callback(
@@ -305,13 +316,13 @@ static json_result_t json_read_callback(
                 last_path = cur_path;
             }
 
-            JPATHT("format_version", JSON_TYPE_STRING, {
-                uint64_t format_version =
-                    _strtoul(un->string, NULL, 10, !data->enforce_format);
-                if (format_version != SGXLKL_ENCLAVE_CONFIG_VERSION)
-                    FAIL(
-                        "invalid enclave config format version %lu\n",
-                        un->integer);
+            JPATH("format_version", {
+                uint64_t fv = 0;
+                json_result_t r = decode_uint64_t(parser, type, un, &fv);
+                if (r != JSON_OK)
+                    return r;
+                if (fv != SGXLKL_ENCLAVE_CONFIG_T_VERSION)
+                    FAIL("invalid enclave config format version %lu\n", fv);
             });
 
             JU64("stacksize", cfg->stacksize);
@@ -342,7 +353,9 @@ static json_result_t json_read_callback(
             JPATHT("clock_res.resolution", JSON_TYPE_STRING, {
                 if (strlen(un->string) != 16)
                     FAIL("invalid length of value for clock_res item");
-                i = get_array_index(parser);
+                i = json_get_array_index(parser);
+                if (i == -1)
+                    FAIL("invalid array index\n");
                 if (i >= 8)
                     FAIL("too many values for clock_res");
                 memcpy(&cfg->clock_res[i].resolution, un->string, 17);
@@ -381,7 +394,7 @@ static json_result_t json_read_callback(
             JU64("root.roothash_offset", data->config->root.roothash_offset);
             JBOOL("root.overlay", data->config->root.overlay);
 
-#define MOUNT() (&(cfg->mounts[get_array_index(parser)]))
+#define MOUNT() _mount(data->config, parser)
             JBOOL("mounts.create", MOUNT()->create);
             JBOOL("mounts.fresh_key", MOUNT()->fresh_key);
             JHEXBUF("mounts.key", MOUNT()->key);
@@ -463,7 +476,7 @@ void sgxlkl_read_enclave_config(
     if (!to)
         FAIL("No config to write to\n");
 
-    *to = sgxlkl_default_enclave_config;
+    *to = sgxlkl_enclave_config_default;
 
     json_parser_t parser;
     json_parser_options_t options;
@@ -512,7 +525,7 @@ void sgxlkl_read_enclave_config(
 void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
 {
     const sgxlkl_enclave_config_t* default_config =
-        &sgxlkl_default_enclave_config;
+        &sgxlkl_enclave_config_default;
 
     NONDEFAULT_FREE(net_ip4);
     NONDEFAULT_FREE(net_gw4);

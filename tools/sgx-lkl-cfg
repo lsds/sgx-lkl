@@ -12,7 +12,7 @@ if (THIS_DIR / "schemas").exists():
 else:
     SCHEMAS_DIR = THIS_DIR.parent / "share" / "schemas"
 
-APP_CFG_SCHEMA_PATH = SCHEMAS_DIR / "app-config.schema.json"
+ENCL_CFG_SCHEMA = SCHEMAS_DIR / "enclave-config.schema.json"
 HOST_CFG_SCHEMA_PATH = SCHEMAS_DIR / "host-config.schema.json"
 
 INDENT = 2
@@ -26,7 +26,7 @@ def main():
     subparsers = parser.add_subparsers()
 
     parser_create = subparsers.add_parser(
-        "create", help="Create host and app config files"
+        "create", help="Create host and enclave config files"
     )
     parser_create.add_argument(
         "--disk",
@@ -45,11 +45,11 @@ def main():
         help="Path to host config file to be created",
     )
     parser_create.add_argument(
-        "--app-cfg",
+        "--enclave-cfg",
         metavar="PATH",
         type=Path,
-        default=Path("app-config.json"),
-        help="Path to app config file to be created",
+        default=Path("enclave-config.json"),
+        help="Path to enclave config file to be created",
     )
     parser_create.add_argument(
         "--complete",
@@ -68,10 +68,10 @@ def main():
         help="Path to host config file to be modified",
     )
     parser_make_complete.add_argument(
-        "--app-cfg",
+        "--enclave-cfg",
         metavar="PATH",
         type=Path,
-        help="Path to app config file to be modified",
+        help="Path to enclave config file to be modified",
     )
     parser_make_complete.add_argument(
         "--dry-run",
@@ -81,13 +81,13 @@ def main():
     parser_make_complete.set_defaults(func=make_complete)
 
     parser_validate = subparsers.add_parser(
-        "validate", help="Validate host and app config files"
+        "validate", help="Validate host and enclave config files"
     )
     parser_validate.add_argument(
-        "--app-cfg",
+        "--enclave-cfg",
         metavar="PATH",
         type=Path,
-        help="Path to app config file to validate",
+        help="Path to enclave config file to validate",
     )
     parser_validate.add_argument(
         "--host-cfg",
@@ -98,21 +98,21 @@ def main():
     parser_validate.set_defaults(func=validate)
 
     parser_finalize = subparsers.add_parser(
-        "finalize", help="Finalize an app config file for use with attestation"
+        "finalize", help="Finalize an enclave config file for use with attestation"
     )
     parser_finalize.add_argument(
-        "--app-cfg",
+        "--enclave-cfg",
         metavar="PATH",
         type=Path,
         required=True,
-        help="Path to input app config file",
+        help="Path to input enclave config file",
     )
     parser_finalize.add_argument(
-        "--app-cfg-final",
+        "--enclave-cfg-final",
         metavar="PATH",
         type=Path,
         required=True,
-        help="Path to output app config file",
+        help="Path to output enclave config file",
     )
     parser_finalize.set_defaults(func=finalize)
 
@@ -147,13 +147,8 @@ def main():
 
 
 def create(args):
-    host_cfg = {}
-    app_cfg = {
-        "run": "PATH/TO/EXECUTABLE",
-        "args": [],
-        "environment": {},
-        "disk_config": [],
-    }
+    host_cfg = {"root": {}, "mounts": []}
+    encl_cfg = {"args": ["PATH/TO/EXECUTABLE"], "env": [], "mounts": []}
     for i, img_path in enumerate(args.img_paths):
         img_folder = img_path.parent
         img_filename = img_path.name
@@ -164,23 +159,31 @@ def create(args):
 
         # Extend host config
         if i == 0:
-            host_cfg["hd"] = str(img_path.resolve())
+            host_cfg["root"]["image_path"] = str(img_path.resolve())
         else:
-            hds = host_cfg.get("hds", "")
-            if hds:
-                hds += ","
-            hds += f"{img_path.resolve()}:/data_{i}:0"
-            host_cfg["hds"] = hds
+            mounts = host_cfg.get("mounts", [])
+            mounts.append(
+                {
+                    "image_path": str(img_path.resolve()),
+                    "destination": f"/data_{i}",
+                    "readonly": False,
+                }
+            )
 
-        # Extend app config
+        # Extend enclave config
         mnt_point = "/" if i == 0 else f"/data_{i}"
-        disk_cfg = {"disk": mnt_point, "readonly": img_roothash_path.exists()}
+        disk_cfg = {"readonly": img_roothash_path.exists()}
+        if i != 0:
+            disk_cfg["destination"] = mnt_point
         if img_roothash_path.exists():
             with open(img_roothash_path) as f:
                 disk_cfg["roothash"] = f.read().strip()
             with open(img_roothash_offset_path) as f:
                 disk_cfg["roothash_offset"] = int(f.read().strip())
-        app_cfg["disk_config"].append(disk_cfg)
+        if i == 0:
+            encl_cfg["root"] = disk_cfg
+        else:
+            encl_cfg["mounts"].append(disk_cfg)
 
         if i == 0 and docker_meta_path.exists():
             with open(docker_meta_path) as f:
@@ -197,37 +200,48 @@ def create(args):
             docker_env = docker_cfg["Env"]  # type: List[str]
 
             if docker_entrypoint:
-                app_cfg["run"] = docker_entrypoint.pop(0)
+                encl_cfg["args"][0] = docker_entrypoint.pop(0)
             elif docker_cmd:
-                app_cfg["run"] = docker_cmd.pop(0)
+                encl_cfg["args"][0] = docker_cmd.pop(0)
 
             if docker_entrypoint_abs:
-                app_cfg["run"] = docker_entrypoint_abs
+                encl_cfg["args"][0] = docker_entrypoint_abs
 
-            app_cfg["args"] = docker_entrypoint + docker_cmd
+            encl_cfg["args"] += docker_entrypoint + docker_cmd
 
             if docker_wd:
-                app_cfg["cwd"] = docker_wd
+                encl_cfg["cwd"] = docker_wd
 
             for entry in docker_env:
-                name, val = entry.split("=", maxsplit=1)
-                app_cfg["environment"][name] = val
+                encl_cfg["env"].append(entry)
 
     if args.complete:
-        with open(APP_CFG_SCHEMA_PATH) as f:
-            app_cfg_schema = json.load(f)
+        with open(ENCL_CFG_SCHEMA) as f:
+            encl_cfg_schema = json.load(f)
         with open(HOST_CFG_SCHEMA_PATH) as f:
             host_cfg_schema = json.load(f)
-        _make_complete(app_cfg, app_cfg_schema, quiet=True)
-        _make_complete(host_cfg, host_cfg_schema, quiet=True)
+
+        defs = (
+            []
+            if "definitions" not in encl_cfg_schema
+            else encl_cfg_schema["definitions"]
+        )
+        _make_complete(encl_cfg, encl_cfg_schema, defs, quiet=False)
+
+        defs = (
+            []
+            if "definitions" not in host_cfg_schema
+            else host_cfg_schema["definitions"]
+        )
+        _make_complete(host_cfg, host_cfg_schema, defs, quiet=False)
 
     with open(args.host_cfg, "w") as f:
         json.dump(host_cfg, f, indent=INDENT)
 
-    with open(args.app_cfg, "w") as f:
-        json.dump(app_cfg, f, indent=INDENT)
+    with open(args.enclave_cfg, "w") as f:
+        json.dump(encl_cfg, f, indent=INDENT)
 
-    print("Host and application configuration files successfully created.")
+    print("Host and enclave configuration files successfully created.")
     print()
     print("You should now do the following:")
     print("- Review the generated files.")
@@ -235,19 +249,20 @@ def create(args):
         print(
             "- Change the default mount paths for the extra disks from /data_<i> if needed."
         )
-    print('- Change the "run" and "args" fields in the app configuration if needed.')
-    if app_cfg["run"] in ["/bin/sh", "/bin/bash"]:
-        print(f'  Note: {app_cfg["run"]} was detected as Docker image entrypoint.')
+    print('- Change the args" fields in the enclave configuration if needed.')
+    entry_point = encl_cfg["args"][0]
+    if entry_point in ["/bin/sh", "/bin/bash"]:
+        print(f"  Note: {entry_point} was detected as Docker image entrypoint.")
         print("        This entrypoint is the default of many Docker images.")
         print(
             "        It is also implicitly used in the 'shell' form of CMD or ENTRYPOINT."
         )
-        print('        Please modify "run" in the app configuration if needed.')
+        print("        Please modify args[0] in the enclave configuration if needed.")
     print("- Change any additional fields if needed (see documentation).")
 
 
 def make_complete(args):
-    items = [(args.app_cfg, APP_CFG_SCHEMA_PATH), (args.host_cfg, HOST_CFG_SCHEMA_PATH)]
+    items = [(args.encl_cfg, ENCL_CFG_SCHEMA), (args.host_cfg, HOST_CFG_SCHEMA_PATH)]
     for cfg_path, schema_path in items:
         if not cfg_path:
             continue
@@ -259,7 +274,8 @@ def make_complete(args):
         with open(schema_path) as f:
             cfg_schema = json.load(f)
 
-        modified = _make_complete(cfg, cfg_schema)
+        defs = [] if "definitions" not in cfg_schema else cfg_schema["definitions"]
+        modified = _make_complete(cfg, cfg_schema, defs)
         if not modified:
             print("No fields were missing.")
 
@@ -268,22 +284,41 @@ def make_complete(args):
                 json.dump(cfg, f, indent=INDENT)
 
 
-def _make_complete(obj, obj_schema, obj_key_path="$", quiet=False):
+def _make_complete(obj, obj_schema, defs, obj_key_path="$", quiet=False):
     modified = False
-    for key, field_schema in obj_schema["properties"].items():
-        field_key_path = f"{obj_key_path}.{key}"
-        if "default" in field_schema:
-            default_value = field_schema["default"]
-            if key not in obj:
-                if not quiet:
-                    print(f"Added {field_key_path}: {json.dumps(default_value)}")
-                obj[key] = default_value
-                modified = True
+
+    if "$ref" in obj_schema:  # reference
+        ref = obj_schema["$ref"].rsplit("/")[-1]
+        if ref not in defs:
+            raise ValueError("missing definition: %s" % ref)
+        modified |= _make_complete(obj, defs[ref], defs, obj_key_path, quiet)
+    elif "properties" in obj_schema:  # object
+        for key, field_schema in obj_schema["properties"].items():
+            field_key_path = f"{obj_key_path}.{key}"
+            if "default" in field_schema:
+                default_value = field_schema["default"]
+                if key not in obj:
+                    if not quiet:
+                        print(f"Added {field_key_path}: {json.dumps(default_value)}")
+                    obj[key] = default_value
+                    modified = True
+            else:
+                if key not in obj:
+                    obj[key] = {}
+                modified |= _make_complete(
+                    obj[key], field_schema, defs, field_key_path, quiet
+                )
+    elif "items" in obj_schema:  # array
         item_schema = field_schema.get("items")
         if item_schema and "properties" in item_schema:
             for i, item_obj in enumerate(obj[key]):
                 item_key_path = f"{field_key_path}[{i}]"
-                modified |= _make_complete(item_obj, item_schema, item_key_path)
+                modified |= _make_complete(
+                    item_obj, item_schema, defs, item_key_path, quiet
+                )
+    elif "default" in obj_schema:
+        obj = obj_schema["default"]
+    # else: # literal, nothing to do
     return modified
 
 
@@ -299,10 +334,10 @@ def dict_raise_on_duplicates(ordered_pairs):
 
 
 def validate(args):
-    _validate(args.app_cfg, args.host_cfg)
+    _validate(args.enclave_cfg, args.host_cfg)
 
 
-def _validate(app_cfg_path=None, host_cfg_path=None):
+def _validate(encl_cfg_path=None, host_cfg_path=None):
     try:
         pkg_resources.require("jsonschema>=3")
         import jsonschema
@@ -314,7 +349,7 @@ def _validate(app_cfg_path=None, host_cfg_path=None):
             "but your version is too old (<3)"
         )
 
-    items = [(app_cfg_path, APP_CFG_SCHEMA_PATH), (host_cfg_path, HOST_CFG_SCHEMA_PATH)]
+    items = [(encl_cfg_path, ENCL_CFG_SCHEMA), (host_cfg_path, HOST_CFG_SCHEMA_PATH)]
     for cfg_path, schema_path in items:
         if not cfg_path:
             continue
@@ -327,13 +362,35 @@ def _validate(app_cfg_path=None, host_cfg_path=None):
     print("No errors found.")
 
 
+def encode_numbers(obj):
+    t = type(obj)
+    if t == dict:
+        n = {}
+        for key, value in obj.items():
+            n[key] = encode_numbers(value)
+        return n
+    elif t == list:
+        n = []
+        for value in obj:
+            n.append(encode_numbers(value))
+        return n
+    elif t == int:
+        return str(obj)
+    elif t == str or t == bool or obj == None:
+        return obj
+    else:
+        print("unknown: %s %s" % (obj, t))
+        return obj
+
+
 def finalize(args):
-    _validate(args.app_cfg)
-    with open(args.app_cfg) as f:
+    _validate(args.enclave_cfg)
+    with open(args.enclave_cfg) as f:
         cfg = json.load(f)
-    with open(args.app_cfg_final, "w") as f:
+    with open(args.enclave_cfg_final, "w") as f:
+        cfg = encode_numbers(cfg)
         json.dump(cfg, f, separators=(",", ":"), sort_keys=True)
-    print("Finalized app configuration successfully created.")
+    print("Finalized enclave configuration successfully created.")
 
 
 def dockerize(args):
