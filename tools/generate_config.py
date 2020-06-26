@@ -3,10 +3,7 @@
 import argparse
 from pathlib import Path
 import json
-try:
-    import jsonschema
-except ImportError:
-    jsonschema = None
+
 from collections import OrderedDict
 
 THIS_DIR = Path(__file__).parent
@@ -17,19 +14,6 @@ else:
     SCHEMAS_DIR = THIS_DIR.parent / 'share' / 'schemas'
 
 ENCLAVE_CFG_SCHEMA_PATH = SCHEMAS_DIR / 'enclave-config.schema.json'
-
-# Validates a particular enclave_cfg_path against ENCLAVE_CFG_SCHEMA_PATH
-def validate(args):
-    if jsonschema is None:
-        raise RuntimeError('validate requires the "jsonschema" Python package')
-    schema_path = ENCLAVE_CFG_SCHEMA_PATH
-    print('Validating {args.file}')
-    with open(args.file) as f:
-      cfg = json.load(f)
-    with open(schema_path) as f:
-      cfg_schema = json.load(f)
-    jsonschema.validate(instance=cfg, schema=cfg_schema)
-    print('No errors found.')
 
 def post_type(jtype):
   if 'type' in jtype:
@@ -165,7 +149,7 @@ def generate_source(schema_file_name, root, args):
     source.write(source_includes)
     source.write('\n')
 
-    source.write('#include "%s"\n\n' % args.header);
+    source.write('#include "%s"\n\n' % args.header)
 
     # enum conversions
     for typename, typedef in root['definitions'].items():
@@ -301,25 +285,16 @@ def generate(args):
 def main():
     parser = argparse.ArgumentParser(description='Generator for SGX-LKL configuration sources')
     parser.set_defaults(func=lambda _: parser.print_help())
-    subparsers = parser.add_subparsers()
 
-    parser_validate = subparsers.add_parser('validate', help='validate an enclave config file against the schema')
-    parser_validate.add_argument(
-        'file', type=Path,
-        help='Path to enclave config file to validate',
-        default=ENCLAVE_CFG_SCHEMA_PATH)
-    parser_validate.set_defaults(func=validate)
-
-    parser_generate = subparsers.add_parser('generate', help='generate enclave config sources')
-    parser_generate.add_argument(
+    parser.add_argument(
         '--header', type=Path,
         help='Header file to generate',
         default='sgxlkl_config_gen.h')
-    parser_generate.add_argument(
+    parser.add_argument(
         '--source', type=Path,
         help='Source file to generate',
         default='sgxlkl_config_gen.c')
-    parser_generate.set_defaults(func=generate)
+    parser.set_defaults(func=generate)
 
     args = parser.parse_args()
     args.func(args)

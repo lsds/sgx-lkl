@@ -103,7 +103,7 @@ sgx-lkl-musl-config: ${OPENENCLAVE}
 		--prefix=${SGXLKL_LIBC_BLD_DIR} \
 		--lklheaderdir=${LKL_BUILD}/include/ \
 		--lkllib=${LIBLKL} \
-		--sgxlklincludes="${SGXLKL_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal" \
+		--sgxlklincludes="${SGXLKL_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal ${BUILD_DIR}/config" \
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/${SGXLKL_STATIC_LIB} \
 		--sgxlkllibs="${THIRD_PARTY_LIB_CRYPTSETUP} ${THIRD_PARTY_LIB_POPT} ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_UUID} ${THIRD_PARTY_LIB_JSON} \
 								  ${THIRD_PARTY_LIB_CURL} ${OE_STUBS} ${OE_SDK_LIBS}/openenclave/enclave/libmbedtls.a" \
