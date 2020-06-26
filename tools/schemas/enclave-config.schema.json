@@ -516,7 +516,8 @@
           "description": "Disks to mount.",
           "items": {
             "$ref": "#/definitions/sgxlkl_enclave_mount_config_t"
-          }
+          },
+          "default": []
         },
         "image_sizes": {
           "$ref": "#/definitions/sgxlkl_image_sizes_config_t",
