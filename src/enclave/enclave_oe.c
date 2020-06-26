@@ -8,8 +8,13 @@
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
 #include "shared/env.h"
+#include "shared/timer_dev.h"
 
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
+
+#define CHECK_ALLOC(X) \
+    if (!X)            \
+        sgxlkl_fail("out of memory\n");
 
 bool sgxlkl_in_sw_debug_mode()
 {
@@ -74,8 +79,7 @@ static void prepare_elf_stack()
                     const char* str = *p;
                     size_t len = oe_strlen(str);
                     char* cpy = oe_malloc(len + 1);
-                    if (!cpy)
-                        sgxlkl_fail("out of memory\n");
+                    CHECK_ALLOC(cpy);
                     memcpy(cpy, str, len + 1);
                     state->imported_env[state->num_imported_env++] = cpy;
                 }
@@ -240,14 +244,53 @@ static int _read_eeid_config()
     return r;
 }
 
-static int _copy_shared_memory(const sgxlkl_shared_memory_t* shm)
+static int _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
-    /* TODO: Would a deep copy provide better security guarantees? */
+    /* Deep copy where necessary */
+    sgxlkl_shared_memory_t* enc = &sgxlkl_enclave_state.shared_memory;
+    memset(enc, 0, sizeof(sgxlkl_shared_memory_t));
 
-    memcpy(
-        &sgxlkl_enclave_state.shared_memory,
-        shm,
-        sizeof(sgxlkl_shared_memory_t));
+    enc->virtio_net_dev_mem = host->virtio_net_dev_mem;
+    enc->virtio_console_mem = host->virtio_console_mem;
+
+    enc->evt_channel_num = host->evt_channel_num;
+    /* enc_dev_config is required to be outside the enclave */
+    enc->enc_dev_config = host->enc_dev_config;
+
+    enc->virtio_swiotlb = host->virtio_swiotlb;
+    enc->virtio_swiotlb_size = host->virtio_swiotlb_size;
+
+    /* timer_dev_mem is required to be outside the enclave */
+    enc->timer_dev_mem = host->timer_dev_mem;
+
+    enc->num_virtio_blk_dev = host->num_virtio_blk_dev;
+
+    enc->virtio_blk_dev_mem =
+        oe_malloc(sizeof(void*) * enc->num_virtio_blk_dev);
+    CHECK_ALLOC(enc->virtio_blk_dev_mem);
+    enc->virtio_blk_dev_names =
+        oe_malloc(sizeof(char*) * enc->num_virtio_blk_dev);
+    CHECK_ALLOC(enc->virtio_blk_dev_names);
+    for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
+    {
+        enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
+        memcpy(
+            &enc->virtio_blk_dev_names[i],
+            host->virtio_blk_dev_names[i],
+            oe_strlen(host->virtio_blk_dev_names[i]));
+    }
+
+    if (host->env)
+    {
+        size_t henvc = 0;
+        while (host->env[henvc++] != 0)
+            ;
+        char** tmp = oe_malloc(sizeof(char*) * henvc);
+        CHECK_ALLOC(tmp);
+        for (size_t i = 0; i < henvc; i++)
+            tmp[i] = host->env[i];
+        enc->env = tmp;
+    }
 
     return 0;
 }

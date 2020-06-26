@@ -7,19 +7,20 @@
 
 typedef struct sgxlkl_shared_memory
 {
-    /* shared memory for virtio implementation */
-    void* virtio_net_dev_mem; /* shared memory for virtio network device */
-    void* virtio_console_mem; /* shared memory for virtio console device */
-    size_t evt_channel_num;   /* number of event channels */
-    enc_dev_config_t* enc_dev_config; /* Device configuration for guest */
+    /* Shared memory for virtio implementation */
+    void* virtio_net_dev_mem; /* Virtio network device */
+    void* virtio_console_mem; /* Virtio console device */
 
-    void* virtio_swiotlb;       /* memory for setting up bounce buffer */
-    size_t virtio_swiotlb_size; /* bounce buffer size */
+    size_t evt_channel_num;           /* Number of event channels */
+    enc_dev_config_t* enc_dev_config; /* Device configuration */
 
-    /* shared memory for getting time from the host  */
+    void* virtio_swiotlb;       /* Memory for setting up bounce buffer */
+    size_t virtio_swiotlb_size; /* Bounce buffer size */
+
+    /* Shared memory for getting time from the host  */
     struct timer_dev* timer_dev_mem;
 
-    /* Shared memory between for virtio block device */
+    /* Shared memory for virtio block devices */
     size_t num_virtio_blk_dev;
     void** virtio_blk_dev_mem;
     char** virtio_blk_dev_names;
