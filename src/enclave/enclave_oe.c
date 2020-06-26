@@ -230,7 +230,7 @@ void sgxlkl_ethread_init(void)
     return;
 }
 
-static int _read_eeid_config()
+static void _read_eeid_config()
 {
     const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
     const char* config_json = (const char*)eeid->data;
@@ -239,12 +239,11 @@ static int _read_eeid_config()
     sgxlkl_enclave_config_t* cfg = oe_malloc(sizeof(sgxlkl_enclave_config_t));
     if (!cfg)
         sgxlkl_fail("out of memory, cannot allocate enclave config.\n");
-    int r = sgxlkl_read_enclave_config(config_json, cfg, true);
+    sgxlkl_read_enclave_config(config_json, cfg, true);
     sgxlkl_enclave_state.config = cfg;
-    return r;
 }
 
-static int _copy_shared_memory(const sgxlkl_shared_memory_t* host)
+static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
     /* Deep copy where necessary */
 
@@ -292,8 +291,6 @@ static int _copy_shared_memory(const sgxlkl_shared_memory_t* host)
             tmp[i] = host->env[i];
         enc->env = tmp;
     }
-
-    return 0;
 }
 
 int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
@@ -309,11 +306,8 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     sgxlkl_enclave_state.verbose = false;
 #endif
 
-    if (_read_eeid_config())
-        return 1;
-
-    if (_copy_shared_memory(shared_memory))
-        return 1;
+    _read_eeid_config();
+    _copy_shared_memory(shared_memory);
 
 #ifdef DEBUG
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this

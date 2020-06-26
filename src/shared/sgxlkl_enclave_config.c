@@ -446,7 +446,7 @@ void check_required_elements(string_list_t* seen)
     }
 }
 
-int sgxlkl_read_enclave_config(
+void sgxlkl_read_enclave_config(
     const char* from,
     sgxlkl_enclave_config_t* to,
     bool enforce_format)
@@ -503,8 +503,6 @@ int sgxlkl_read_enclave_config(
         check_required_elements(callback_data.seen);
     check_config(to);
     string_list_free(callback_data.seen);
-
-    return 0;
 }
 
 #define NONDEFAULT_FREE(X)              \

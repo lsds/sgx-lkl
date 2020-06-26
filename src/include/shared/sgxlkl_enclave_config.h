@@ -9,7 +9,7 @@
 
 #include <sgxlkl_enclave_config_gen.h>
 
-int sgxlkl_read_enclave_config(
+void sgxlkl_read_enclave_config(
     const char* from,
     sgxlkl_enclave_config_t* to,
     bool enforce_format);
