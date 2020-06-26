@@ -573,6 +573,9 @@ int lthread_create_primitive(
     lt->itls = tls;
     // for cloned threads, tls argument is a ptr to the Thread Control Block
     lt->tp = tls;
+    // set self pointer for fs segment
+    struct lthread_tcb_base *tcb = (struct lthread_tcb_base *)lt->tp;
+    tcb->self = lt->tp;
     LIST_INIT(&lt->tls);
     lt->attr.state = BIT(LT_ST_READY);
     lt->attr.thread_type = USERSPACE_THREAD;
