@@ -1,4 +1,6 @@
 #include <openenclave/bits/eeid.h>
+#include <openenclave/corelibc/oemalloc.h>
+#include <openenclave/corelibc/oestring.h>
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oestring.h"
 
@@ -25,6 +27,25 @@ bool sgxlkl_in_hw_release_mode()
     return sgxlkl_enclave_state.config->mode == HW_RELEASE_MODE;
 }
 
+static int _strncmp(const char* x, const char* y, size_t n)
+{
+    if (n == 0)
+        return 0;
+
+    const char* px = x;
+    const char* py = y;
+    n--;
+
+    while (*px != 0 && *py != 0 && n && *px == *py)
+    {
+        px++;
+        py++;
+        n--;
+    }
+
+    return *px == *py ? 0 : *px < *py ? -1 : +1;
+}
+
 static void prepare_elf_stack()
 {
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
@@ -35,7 +56,8 @@ static void prepare_elf_stack()
 
     if (sgxlkl_enclave_state.shared_memory.env && cfg->num_host_import_env > 0)
     {
-        state->imported_env = malloc(sizeof(char*) * cfg->num_host_import_env);
+        state->imported_env =
+            oe_malloc(sizeof(char*) * cfg->num_host_import_env);
         if (!state->imported_env)
             sgxlkl_fail(
                 "Could not allocate memory for imported host environment\n");
@@ -47,12 +69,12 @@ static void prepare_elf_stack()
                  p && *p != NULL;
                  p++)
             {
-                size_t n = strlen(name);
-                if (strncmp(name, *p, n) == 0 && (*p)[n] == '=')
+                size_t n = oe_strlen(name);
+                if (_strncmp(name, *p, n) == 0 && (*p)[n] == '=')
                 {
                     const char* str = *p;
-                    size_t len = strlen(str);
-                    char* cpy = malloc(len + 1);
+                    size_t len = oe_strlen(str);
+                    char* cpy = oe_malloc(len + 1);
                     if (!cpy)
                         sgxlkl_fail("out of memory\n");
                     memcpy(cpy, str, len + 1);
@@ -65,29 +87,29 @@ static void prepare_elf_stack()
     size_t total_size = 0;
     size_t total_count = 1;
     for (size_t i = 0; i < cfg->num_args; i++)
-        total_size += strlen(cfg->args[i]) + 1;
+        total_size += oe_strlen(cfg->args[i]) + 1;
     total_count += cfg->num_args + 1;
     for (size_t i = 0; i < cfg->num_env; i++)
-        total_size += strlen(cfg->env[i]) + 1;
+        total_size += oe_strlen(cfg->env[i]) + 1;
     total_count += cfg->num_env + 1;
     for (size_t i = 0; i < state->num_imported_env; i++)
-        total_size += strlen(state->imported_env[i]) + 1;
+        total_size += oe_strlen(state->imported_env[i]) + 1;
     total_count += state->num_imported_env + 1;
     total_count += 1; // auxv terminator
     total_count += 1; // platform-independent stuff terminator
 
-    char* buf = calloc(total_size, sizeof(char));
-    char** out = calloc(total_count, sizeof(char*));
+    char* buf = oe_calloc(total_size, sizeof(char));
+    char** out = oe_calloc(total_count, sizeof(char*));
 
     size_t j = 0;
     char* buf_ptr = buf;
 
-#define ADD_STRING(S)               \
-    {                               \
-        size_t len = strlen(S) + 1; \
-        memcpy(buf_ptr, (S), len);  \
-        out[j++] = buf_ptr;         \
-        buf_ptr += len;             \
+#define ADD_STRING(S)                  \
+    {                                  \
+        size_t len = oe_strlen(S) + 1; \
+        memcpy(buf_ptr, (S), len);     \
+        out[j++] = buf_ptr;            \
+        buf_ptr += len;                \
     }
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
@@ -218,7 +240,7 @@ static int _read_eeid_config()
     const char* config_json = (const char*)eeid->data;
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
-    sgxlkl_enclave_config_t* cfg = malloc(sizeof(sgxlkl_enclave_config_t));
+    sgxlkl_enclave_config_t* cfg = oe_malloc(sizeof(sgxlkl_enclave_config_t));
     if (!cfg)
         sgxlkl_fail("out of memory, cannot allocate enclave config.\n");
     int r = sgxlkl_read_enclave_config(config_json, cfg, true);
@@ -298,15 +320,15 @@ void sgxlkl_free_enclave_state()
     state->config = NULL;
 
     state->num_imported_env = 0;
-    free(state->imported_env);
+    oe_free(state->imported_env);
 
     state->elf64_stack.argc = 0;
-    free(state->elf64_stack.argv);
-    free(state->elf64_stack.envp);
-    free(state->elf64_stack.auxv);
+    oe_free(state->elf64_stack.argv);
+    oe_free(state->elf64_stack.envp);
+    oe_free(state->elf64_stack.auxv);
 
     state->num_disk_state = 0;
-    free(state->disk_state);
+    oe_free(state->disk_state);
 
     state->libc_state = libc_not_started;
 }

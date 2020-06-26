@@ -1,7 +1,6 @@
-#include <enclave/oe_compat.h>
-
 #ifdef SGXLKL_ENCLAVE
 #include <enclave/enclave_util.h>
+#include <shared/oe_compat.h>
 #define FAIL sgxlkl_fail
 #define WARN sgxlkl_warn
 #else

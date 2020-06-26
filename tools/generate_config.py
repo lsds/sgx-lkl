@@ -149,7 +149,7 @@ def generate_header(schema_file_name, root, args):
 source_includes = """
 #ifdef SGXLKL_ENCLAVE
 #include <enclave/enclave_util.h>
-#include <enclave/oe_compat.h>
+#include <shared/oe_compat.h>
 #define FAIL sgxlkl_fail
 #else
 #include <host/sgxlkl_util.h>

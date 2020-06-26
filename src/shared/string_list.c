@@ -1,5 +1,5 @@
 #ifdef SGXLKL_ENCLAVE
-#include <enclave/oe_compat.h>
+#include <shared/oe_compat.h>
 #else
 #include <stdlib.h>
 #include <string.h>

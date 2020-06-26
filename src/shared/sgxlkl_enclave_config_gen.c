@@ -2,7 +2,7 @@
 
 #ifdef SGXLKL_ENCLAVE
 #include <enclave/enclave_util.h>
-#include <enclave/oe_compat.h>
+#include <shared/oe_compat.h>
 #define FAIL sgxlkl_fail
 #else
 #include <host/sgxlkl_util.h>
