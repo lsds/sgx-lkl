@@ -171,6 +171,7 @@ while IFS= read -r line; do failure_identifiers+=("$line"); done < "$failure_ide
 
 echo "MAA_CLIENT_ID : $MAA_CLIENT_ID"
 echo "MAA_SECRET_KEY: $MAA_SECRET_KEY"
+echo "MAA_APP_ID : $MAA_APP_ID"
 
 for file in ${file_list[@]};
 do
