@@ -94,8 +94,8 @@ static size_t sleeptime_ns = 1600;
 static size_t futex_wake_spins = 500;
 static volatile int schedqueuelen = 0;
 
-#if DEBUG
 int thread_count = 1;
+#if DEBUG
 struct lthread_queue* __active_lthreads = NULL;
 struct lthread_queue* __active_lthreads_tail = NULL;
 #endif

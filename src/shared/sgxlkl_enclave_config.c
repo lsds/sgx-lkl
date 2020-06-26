@@ -556,3 +556,8 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
     NONDEFAULT_FREE(mounts);
     free(config);
 }
+
+bool is_encrypted(sgxlkl_enclave_mount_config_t* cfg)
+{
+    return cfg->key || cfg->key_id || cfg->fresh_key;
+}

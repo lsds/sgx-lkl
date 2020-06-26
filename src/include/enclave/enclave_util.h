@@ -52,8 +52,6 @@ int int_log2(unsigned long long arg);
  */
 uint64_t next_power_of_2(uint64_t n);
 
-#ifdef DEBUG
-
 #include "openenclave/internal/print.h"
 
 extern int sgxlkl_trace_thread;
@@ -137,16 +135,5 @@ extern int sgxlkl_trace_redirect_syscall;
     {                                                       \
         oe_host_printf("[[   DISK   ]] " x, ##__VA_ARGS__); \
     }
-
-#else
-#define SGXLKL_ASSERT(EXPR)
-#define SGXLKL_VERBOSE(x, ...)
-#define SGXLKL_VERBOSE_RAW(x, ...)
-#define SGXLKL_TRACE_THREAD(x, ...)
-#define SGXLKL_TRACE_MMAP(x, ...)
-#define SGXLKL_TRACE_SIGNAL(x, ...)
-#define SGXLKL_TRACE_DISK(x, ...)
-#define SGXLKL_TRACE_SYSCALL(x, ...)
-#endif
 
 #endif /* _ENCLAVE_UTIL_H */

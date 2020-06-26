@@ -16,4 +16,7 @@ int sgxlkl_read_enclave_config(
 
 void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* enclave_config);
 
+/* Check if a disk is configured for encrypted operation */
+bool is_encrypted(sgxlkl_enclave_mount_config_t* cfg);
+
 #endif /* SGXLKL_ENCLAVE_CONFIG_H */

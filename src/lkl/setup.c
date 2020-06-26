@@ -655,13 +655,6 @@ static bool is_encrypted_cfg(disk_config_t* cfg)
     return cfg->key || cfg->key_id || cfg->fresh_key;
 }
 
-#ifdef DEBUG
-static bool is_encrypted(sgxlkl_enclave_mount_config_t* cfg)
-{
-    return cfg->key || cfg->key_id || cfg->fresh_key;
-}
-#endif
-
 static void lkl_mount_virtual()
 {
     lkl_mount_devtmpfs("/dev");
