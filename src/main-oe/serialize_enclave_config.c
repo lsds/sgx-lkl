@@ -29,7 +29,7 @@ typedef struct json_obj
     size_t size;
 } json_obj_t;
 
-static json_obj_t* mk_json_obj(
+static json_obj_t* create_json_obj(
     const char* key,
     json_type_t type,
     json_obj_t** array,
@@ -49,9 +49,9 @@ static json_obj_t* mk_json_obj(
     return r;
 }
 
-static json_obj_t* mk_json_string(const char* key, const char* value)
+static json_obj_t* create_json_string(const char* key, const char* value)
 {
-    json_obj_t* obj = mk_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
+    json_obj_t* obj = create_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
     if (value)
     {
         obj->value.string = strdup(value);
@@ -61,12 +61,30 @@ static json_obj_t* mk_json_string(const char* key, const char* value)
     return obj;
 }
 
-static json_obj_t* mk_json_hex_string(
+static json_obj_t* create_json_objects(const char* key, size_t len)
+{
+    json_obj_t* r = create_json_obj(key, JSON_TYPE_NULL, NULL, NULL, len);
+    r->objects = calloc(len, sizeof(json_obj_t*));
+    if (!r->objects)
+        FAIL("out of memory\n");
+    return r;
+}
+
+static json_obj_t* create_json_array(const char* key, size_t len)
+{
+    json_obj_t* r = create_json_obj(key, JSON_TYPE_NULL, NULL, NULL, len);
+    r->array = calloc(len, sizeof(char*));
+    if (!r->array)
+        FAIL("out of memory\n");
+    return r;
+}
+
+static json_obj_t* encode_hex_string(
     const char* key,
     const uint8_t* buf,
     size_t buf_sz)
 {
-    json_obj_t* obj = mk_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
+    json_obj_t* obj = create_json_obj(key, JSON_TYPE_STRING, NULL, NULL, 0);
     if (buf && buf_sz > 0)
     {
         size_t len = 2 * buf_sz + 1;
@@ -78,79 +96,61 @@ static json_obj_t* mk_json_hex_string(
     return obj;
 }
 
-static json_obj_t* mk_json_boolean(const char* key, const bool value)
+static json_obj_t* encode_boolean(const char* key, const bool value)
 {
-    json_obj_t* obj = mk_json_obj(key, JSON_TYPE_BOOLEAN, NULL, NULL, 0);
+    json_obj_t* obj = create_json_obj(key, JSON_TYPE_BOOLEAN, NULL, NULL, 0);
     obj->value.boolean = value;
     return obj;
 }
 
-static json_obj_t* mk_json_array(const char* key, size_t len)
-{
-    json_obj_t* r = mk_json_obj(key, JSON_TYPE_NULL, NULL, NULL, len);
-    r->array = calloc(len, sizeof(char*));
-    if (!r->array)
-        FAIL("out of memory\n");
-    return r;
-}
-
-static json_obj_t* mk_json_objects(const char* key, size_t len)
-{
-    json_obj_t* r = mk_json_obj(key, JSON_TYPE_NULL, NULL, NULL, len);
-    r->objects = calloc(len, sizeof(json_obj_t*));
-    if (!r->objects)
-        FAIL("out of memory\n");
-    return r;
-}
-
-static json_obj_t* mk_json_int(const char* key, uint64_t value, const char* fmt)
+static json_obj_t* encode_int(const char* key, uint64_t value, const char* fmt)
 {
     size_t len = 8 * 2 + 1;
     char* tmp = calloc(1, len);
     if (!tmp)
         FAIL("out of memory\n");
     snprintf(tmp, len, fmt, value);
-    return mk_json_string(key, tmp);
+    return create_json_string(key, tmp);
 }
 
-static json_obj_t* mk_json_u32(const char* key, uint32_t value)
+static json_obj_t* encode_uint32(const char* key, uint32_t value)
 {
-    return mk_json_int(key, value, "%" PRIu32);
+    return encode_int(key, value, "%" PRIu32);
 }
 
-static json_obj_t* mk_json_u64(const char* key, uint64_t value)
+static json_obj_t* encode_uint64(const char* key, uint64_t value)
 {
-    return mk_json_int(key, value, "%" PRIu64);
+    return encode_int(key, value, "%" PRIu64);
 }
 
-static json_obj_t* mk_json_string_array(
+static json_obj_t* encode_string_array(
     const char* key,
     char* const* strings,
     size_t num_strings)
 {
-    json_obj_t* res = mk_json_array(key, num_strings);
+    json_obj_t* res = create_json_array(key, num_strings);
     if (num_strings == 0)
         res->array = malloc(1);
     for (size_t i = 0; i < num_strings; i++)
-        res->array[i] = mk_json_string(NULL, strings[i]);
+        res->array[i] = create_json_string(NULL, strings[i]);
     return res;
 }
 
-static json_obj_t* mk_json_string_clock_res(
+static json_obj_t* encode_clock_res(
     const char* key,
     const sgxlkl_clock_res_config_t* clock_res)
 {
-    json_obj_t* res = mk_json_array(key, 8);
+    json_obj_t* res = create_json_array(key, 8);
     for (size_t i = 0; i < 8; i++)
     {
-        res->array[i] = mk_json_objects(NULL, 1);
+        res->array[i] = create_json_objects(NULL, 1);
         res->array[i]->objects[0] =
-            mk_json_string("resolution", clock_res[i].resolution);
+            create_json_string("resolution", clock_res[i].resolution);
     }
     return res;
 }
 
-static json_obj_t* mk_json_root(
+static json_obj_t* encode_root(
     const char* key,
     const sgxlkl_enclave_root_config_t* root)
 {
@@ -158,49 +158,50 @@ static json_obj_t* mk_json_root(
         sizeof(sgxlkl_enclave_root_config_t) == 48,
         "sgxlkl_enclave_root_config_t size has changed");
 
-    json_obj_t* r = mk_json_objects(key, 6);
-    r->objects[0] = mk_json_hex_string("key", root->key, root->key_len);
-    r->objects[1] = mk_json_string("key_id", root->key_id);
-    r->objects[2] = mk_json_string("roothash", root->roothash);
-    r->objects[3] = mk_json_u64("roothash_offset", root->roothash_offset);
-    r->objects[4] = mk_json_boolean("readonly", root->readonly);
-    r->objects[5] = mk_json_boolean("overlay", root->overlay);
+    json_obj_t* r = create_json_objects(key, 6);
+    r->objects[0] = encode_hex_string("key", root->key, root->key_len);
+    r->objects[1] = create_json_string("key_id", root->key_id);
+    r->objects[2] = create_json_string("roothash", root->roothash);
+    r->objects[3] = encode_uint64("roothash_offset", root->roothash_offset);
+    r->objects[4] = encode_boolean("readonly", root->readonly);
+    r->objects[5] = encode_boolean("overlay", root->overlay);
     return r;
 }
 
-static json_obj_t* mk_json_mounts(
+static json_obj_t* encode_mounts(
     const char* key,
     const sgxlkl_enclave_mount_config_t* mounts,
     size_t num_mounts)
 {
-    json_obj_t* r = mk_json_array(key, num_mounts);
+    json_obj_t* r = create_json_array(key, num_mounts);
     for (size_t i = 0; i < num_mounts; i++)
     {
         _Static_assert(
             sizeof(sgxlkl_enclave_mount_config_t) == 320,
             "sgxlkl_enclave_disk_config_t size has changed");
 
-        r->array[i] = mk_json_objects(NULL, 9);
+        r->array[i] = create_json_objects(NULL, 9);
         r->array[i]->objects[0] =
-            mk_json_string("destination", mounts[i].destination);
+            create_json_string("destination", mounts[i].destination);
         r->array[i]->objects[1] =
-            mk_json_hex_string("key", mounts[i].key, mounts[i].key_len);
-        r->array[i]->objects[2] = mk_json_string("key_id", mounts[i].key_id);
+            encode_hex_string("key", mounts[i].key, mounts[i].key_len);
+        r->array[i]->objects[2] =
+            create_json_string("key_id", mounts[i].key_id);
         r->array[i]->objects[3] =
-            mk_json_boolean("fresh_key", mounts[i].fresh_key);
+            encode_boolean("fresh_key", mounts[i].fresh_key);
         r->array[i]->objects[4] =
-            mk_json_string("roothash", mounts[i].roothash);
+            create_json_string("roothash", mounts[i].roothash);
         r->array[i]->objects[5] =
-            mk_json_u64("roothash_offset", mounts[i].roothash_offset);
+            encode_uint64("roothash_offset", mounts[i].roothash_offset);
         r->array[i]->objects[6] =
-            mk_json_boolean("readonly", mounts[i].readonly);
-        r->array[i]->objects[7] = mk_json_boolean("create", mounts[i].create);
-        r->array[i]->objects[8] = mk_json_u64("size", mounts[i].size);
+            encode_boolean("readonly", mounts[i].readonly);
+        r->array[i]->objects[7] = encode_boolean("create", mounts[i].create);
+        r->array[i]->objects[8] = encode_uint64("size", mounts[i].size);
     }
     return r;
 }
 
-static json_obj_t* mk_json_wg_peers(
+static json_obj_t* encode_wg_peers(
     const char* key,
     const sgxlkl_enclave_wg_peer_config_t* peers,
     size_t num_peers)
@@ -209,21 +210,21 @@ static json_obj_t* mk_json_wg_peers(
         sizeof(sgxlkl_enclave_wg_peer_config_t) == 24,
         "sgxlkl_enclave_wg_peer_config_t size has changed");
 
-    json_obj_t* r = mk_json_array(key, num_peers);
+    json_obj_t* r = create_json_array(key, num_peers);
     for (size_t i = 0; i < num_peers; i++)
     {
-        mk_json_objects(key, 4);
-        r->objects[i] = mk_json_objects(NULL, 3);
-        r->objects[i]->objects[0] = mk_json_string("key", peers[i].key);
+        create_json_objects(key, 4);
+        r->objects[i] = create_json_objects(NULL, 3);
+        r->objects[i]->objects[0] = create_json_string("key", peers[i].key);
         r->objects[i]->objects[1] =
-            mk_json_string("allowed_ips", peers[i].allowed_ips);
+            create_json_string("allowed_ips", peers[i].allowed_ips);
         r->objects[i]->objects[2] =
-            mk_json_string("endpoint", peers[i].endpoint);
+            create_json_string("endpoint", peers[i].endpoint);
     }
     return r;
 }
 
-static json_obj_t* mk_json_wg(
+static json_obj_t* encode_wg(
     const char* key,
     const sgxlkl_enclave_wg_config_t* wg)
 {
@@ -231,35 +232,35 @@ static json_obj_t* mk_json_wg(
         sizeof(sgxlkl_enclave_wg_config_t) == 40,
         "sgxlkl_enclave_wg_config_t size has changed");
 
-    json_obj_t* r = mk_json_objects(key, 4);
-    r->objects[0] = mk_json_string("ip", wg->ip);
-    r->objects[1] = mk_json_u32("listen_port", wg->listen_port);
-    r->objects[2] = mk_json_string("key", wg->key);
-    r->objects[3] = mk_json_wg_peers("peers", wg->peers, wg->num_peers);
+    json_obj_t* r = create_json_objects(key, 4);
+    r->objects[0] = create_json_string("ip", wg->ip);
+    r->objects[1] = encode_uint32("listen_port", wg->listen_port);
+    r->objects[2] = create_json_string("key", wg->key);
+    r->objects[3] = encode_wg_peers("peers", wg->peers, wg->num_peers);
 
     return r;
 }
 
-static json_obj_t* mk_json_auxv(
+static json_obj_t* encode_auxv(
     const char* key,
     const Elf64_auxv_t* auxv,
     size_t auxc)
 {
     _Static_assert(sizeof(Elf64_auxv_t) == 16, "Elf64_auxv_t size has changed");
 
-    json_obj_t* r = mk_json_array(key, auxc);
+    json_obj_t* r = create_json_array(key, auxc);
     if (auxc == 0)
         r->array = malloc(1);
     for (size_t i = 0; i < auxc; i++)
     {
-        r->objects[i] = mk_json_objects(NULL, 2);
-        r->objects[i]->objects[0] = mk_json_u64("a_type", auxv[i].a_type);
-        r->objects[i]->objects[1] = mk_json_u64("a_val", auxv[i].a_un.a_val);
+        r->objects[i] = create_json_objects(NULL, 2);
+        r->objects[i]->objects[0] = encode_uint64("a_type", auxv[i].a_type);
+        r->objects[i]->objects[1] = encode_uint64("a_val", auxv[i].a_un.a_val);
     }
     return r;
 }
 
-static json_obj_t* mk_json_image_sizes(
+static json_obj_t* encode_image_sizes(
     char* key,
     const sgxlkl_image_sizes_config_t* sizes)
 {
@@ -267,9 +268,9 @@ static json_obj_t* mk_json_image_sizes(
         sizeof(sgxlkl_image_sizes_config_t) == 16,
         "sgxlkl_image_sizes_config_t size has changed");
 
-    json_obj_t* r = mk_json_objects(key, 2);
-    r->objects[0] = mk_json_u64("num_heap_pages", sizes->num_heap_pages);
-    r->objects[1] = mk_json_u64("num_stack_pages", sizes->num_stack_pages);
+    json_obj_t* r = create_json_objects(key, 2);
+    r->objects[0] = encode_uint64("num_heap_pages", sizes->num_heap_pages);
+    r->objects[1] = encode_uint64("num_stack_pages", sizes->num_stack_pages);
     return r;
 }
 
@@ -457,20 +458,20 @@ void serialize_enclave_config(
         sizeof(sgxlkl_enclave_config_t) == 496,
         "sgxlkl_enclave_config_t size has changed");
 
-#define FPFBOOL(N) root->objects[cnt++] = mk_json_boolean(#N, config->N)
+#define FPFBOOL(N) root->objects[cnt++] = encode_boolean(#N, config->N)
 #define FPFS32(N) root->objects[cnt++] = mk_json_s32(#N, config->N)
-#define FPFU32(N) root->objects[cnt++] = mk_json_u32(#N, config->N)
-#define FPFU64(N) root->objects[cnt++] = mk_json_u64(#N, config->N)
-#define FPFS(N) root->objects[cnt++] = mk_json_string(#N, config->N)
-#define FPFSS(N, S) root->objects[cnt++] = mk_json_string(#N, S)
+#define FPFU32(N) root->objects[cnt++] = encode_uint32(#N, config->N)
+#define FPFU64(N) root->objects[cnt++] = encode_uint64(#N, config->N)
+#define FPFS(N) root->objects[cnt++] = create_json_string(#N, config->N)
+#define FPFSS(N, S) root->objects[cnt++] = create_json_string(#N, S)
 
     size_t root_size =
         sizeof(sgxlkl_enclave_config_t); // way more than necessary
-    json_obj_t* root = mk_json_objects(NULL, root_size);
+    json_obj_t* root = create_json_objects(NULL, root_size);
 
     size_t cnt = 0;
     root->objects[cnt++] =
-        mk_json_u64("format_version", SGXLKL_ENCLAVE_CONFIG_VERSION);
+        encode_uint64("format_version", SGXLKL_ENCLAVE_CONFIG_VERSION);
     FPFSS(mode, sgxlkl_enclave_mode_t_to_string(config->mode));
     FPFU64(stacksize);
     FPFSS(
@@ -483,14 +484,13 @@ void serialize_enclave_config(
     FPFS(hostname);
     FPFU32(tap_mtu);
     FPFBOOL(hostnet);
-    root->objects[cnt++] = mk_json_wg("wg", &config->wg);
+    root->objects[cnt++] = encode_wg("wg", &config->wg);
 
     FPFU64(max_user_threads);
     FPFU64(espins);
     FPFU64(esleep);
     FPFU64(ethreads);
-    root->objects[cnt++] =
-        mk_json_string_clock_res("clock_res", config->clock_res);
+    root->objects[cnt++] = encode_clock_res("clock_res", config->clock_res);
 
     FPFBOOL(fsgsbase);
     FPFBOOL(verbose);
@@ -501,23 +501,23 @@ void serialize_enclave_config(
 
     FPFS(cwd);
     root->objects[cnt++] =
-        mk_json_string_array("args", config->args, config->num_args);
+        encode_string_array("args", config->args, config->num_args);
     root->objects[cnt++] =
-        mk_json_string_array("env", config->env, config->num_env);
-    root->objects[cnt++] = mk_json_string_array(
+        encode_string_array("env", config->env, config->num_env);
+    root->objects[cnt++] = encode_string_array(
         "host_import_env",
         config->host_import_env,
         config->num_host_import_env);
-    root->objects[cnt++] = mk_json_auxv("auxv", config->auxv, config->num_auxv);
-    root->objects[cnt++] = mk_json_root("root", &config->root);
+    root->objects[cnt++] = encode_auxv("auxv", config->auxv, config->num_auxv);
+    root->objects[cnt++] = encode_root("root", &config->root);
     root->objects[cnt++] =
-        mk_json_mounts("mounts", config->mounts, config->num_mounts);
+        encode_mounts("mounts", config->mounts, config->num_mounts);
 
     FPFSS(
         exit_status, sgxlkl_exit_status_mode_t_to_string(config->exit_status));
 
     root->objects[cnt++] =
-        mk_json_image_sizes("image_sizes", &config->image_sizes);
+        encode_image_sizes("image_sizes", &config->image_sizes);
 
     root->size = cnt;
 
