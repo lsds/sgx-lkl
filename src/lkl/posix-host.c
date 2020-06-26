@@ -24,7 +24,7 @@
 
 #include "enclave/enclave_timer.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
