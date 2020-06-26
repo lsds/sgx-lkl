@@ -6,17 +6,6 @@
   ],
   "additionalProperties": false,
   "definitions": {
-    "safe_uint8_t": {
-      "type": [
-        "string",
-        "number"
-      ],
-      "pattern": "^0$|^[1-9][0-9]*$",
-      "maxLength": 3,
-      "minimum": 0,
-      "maximum": 255,
-      "multipleOf": 1.0
-    },
     "safe_uint32_t": {
       "type": [
         "string",
@@ -49,6 +38,10 @@
       "minimum": 0,
       "maximum": 9007199254740991,
       "multipleOf": 1.0
+    },
+    "hex_string": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]$"
     },
     "sgxlkl_enclave_mode_t": {
       "enum": [
@@ -87,17 +80,6 @@
         "EXIT_STATUS_BINARY",
         "EXIT_STATUS_NONE"
       ]
-    },
-    "Elf64_auxv_t": {
-      "type": "object",
-      "properties": {
-        "a_type": {
-          "type": "string"
-        },
-        "a_val": {
-          "type": "string"
-        }
-      }
     },
     "sgxlkl_clock_res_config_t": {
       "type": "object",
@@ -145,16 +127,9 @@
           "maxLength": 255
         },
         "key": {
-          "type": [
-            "array",
-            "null"
-          ],
+          "$ref": "#/definitions/hex_string",
           "description": "Disk encryption key (hex-encoded).",
-          "pattern": "^[0-9A-Fa-f]$",
-          "items": {
-            "$ref": "#/definitions/safe_uint8_t"
-          },
-          "default": null
+          "default": ""
         },
         "key_id": {
           "type": [
@@ -214,16 +189,9 @@
       },
       "properties": {
         "key": {
-          "type": [
-            "array",
-            "null"
-          ],
+          "$ref": "#/definitions/hex_string",
           "description": "Disk encryption key (hex-encoded).",
-          "pattern": "^[0-9A-Fa-f]$",
-          "items": {
-            "$ref": "#/definitions/safe_uint8_t"
-          },
-          "default": null
+          "default": ""
         },
         "key_id": {
           "type": [

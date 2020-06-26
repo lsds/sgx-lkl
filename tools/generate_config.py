@@ -49,6 +49,8 @@ def pre_type(jtype):
     rtype = jtype['$ref'][jtype['$ref'].rfind('/')+1:]
     if rtype.startswith('safe_'):
       return rtype[5:]
+    elif rtype == 'hex_string':
+      return 'uint8_t*'
     else:
       return rtype
   else:
@@ -56,10 +58,11 @@ def pre_type(jtype):
     return jtype
 
 def need_size_var(jtype):
-  if 'type' not in jtype:
-    return False
-  jtt = jtype['type']
-  return (jtt == 'array' and 'maxLength' not in jtype) or (isinstance(jtt, list) and 'array' in jtt and 'null' in jtt)
+  if 'type' in jtype:
+    jtt = jtype['type']
+    return (jtt == 'array' and 'maxLength' not in jtype) or (isinstance(jtt, list) and 'array' in jtt and 'null' in jtt)
+  else:
+    return '$ref' in jtype and jtype['$ref'] == '#/definitions/hex_string'
 
 num_settings = 0
 
@@ -210,9 +213,9 @@ def generate_source(schema_file_name, root, args):
             scope.append(name)
             sname = '.'.join(scope)
             ctype = pre_type(jtype) + post_type(jtype)
-            dflt = jtype['default'] if 'default' in jtype else ''
-            if dflt == '':
+            if 'default' not in jtype:
               raise Exception("ERROR: no default provided for %s" % sname)
+            dflt = jtype['default']
             if ctype == 'bool':
               dflt = "true" if dflt else "false"
             if ctype == 'char*' or ctype.startswith('char['):
@@ -226,7 +229,7 @@ def generate_source(schema_file_name, root, args):
                 if name == 'key':
                   size_var_name = 'key_len'
                 source.write('%s.%s=%s,\n' % (indent, size_var_name, 0))
-              if dflt is None or dflt == []:
+              if dflt is None or dflt == [] or dflt == '':
                 dflt = 'NULL'
               source.write('%s.%s=%s,\n' % (indent, name, dflt))
           scope = scope[:-1]
