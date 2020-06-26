@@ -9,7 +9,6 @@
 #include "enclave/enclave_util.h"
 #include "shared/env.h"
 
-const sgxlkl_enclave_config_t* sgxlkl_enclave = NULL;
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
@@ -256,10 +255,6 @@ static int _copy_shared_memory(const sgxlkl_shared_memory_t* shm)
         &sgxlkl_enclave_state.shared_memory,
         shm,
         sizeof(sgxlkl_shared_memory_t));
-
-    // This will be removed once shared memory and config have been
-    // separated fully.
-    sgxlkl_enclave = sgxlkl_enclave_state.config;
 
     return 0;
 }

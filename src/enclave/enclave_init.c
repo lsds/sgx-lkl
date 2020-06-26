@@ -116,10 +116,10 @@ int __libc_init_enclave(int argc, char** argv)
 {
     struct lthread* lt;
     char** envp = argv + argc + 1;
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
     /* Upper heap memory area is allotted to OE and rest is used by SGXLKL */
-    const size_t oe_allotted_heapsize =
-        sgxlkl_enclave->oe_heap_pagecount * PAGESIZE;
+    const size_t oe_allotted_heapsize = cfg->oe_heap_pagecount * PAGESIZE;
     const void* sgxlkl_heap_base =
         (void*)((unsigned char*)__oe_get_heap_base() + oe_allotted_heapsize);
 
@@ -131,26 +131,22 @@ int __libc_init_enclave(int argc, char** argv)
 
     SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
-        sgxlkl_heap_base,
-        sgxlkl_heap_size / PAGESIZE,
-        sgxlkl_enclave->mmap_files);
+        sgxlkl_heap_base, sgxlkl_heap_size / PAGESIZE, cfg->mmap_files);
 
-    libc.user_tls_enabled =
-        sgxlkl_in_sw_debug_mode() ? 1 : sgxlkl_enclave->fsgsbase;
+    libc.user_tls_enabled = sgxlkl_in_sw_debug_mode() ? 1 : cfg->fsgsbase;
 
-    init_sysconf(sgxlkl_enclave->ethreads, sgxlkl_enclave->ethreads);
+    init_sysconf(cfg->ethreads, cfg->ethreads);
 
     struct timespec tmp[8] = {0};
     for (size_t i = 0; i < 8; i++)
     {
-        tmp[i].tv_sec = hex_to_int(sgxlkl_enclave->clock_res[i].resolution, 8);
-        tmp[i].tv_nsec =
-            hex_to_int(sgxlkl_enclave->clock_res[i].resolution + 8, 8);
+        tmp[i].tv_sec = hex_to_int(cfg->clock_res[i].resolution, 8);
+        tmp[i].tv_nsec = hex_to_int(cfg->clock_res[i].resolution + 8, 8);
     }
     init_clock_res(tmp);
 
     size_t max_lthreads =
-        sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
+        cfg->max_user_threads * sizeof(*__scheduler_queue.buffer);
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
@@ -158,12 +154,12 @@ int __libc_init_enclave(int argc, char** argv)
     __init_libc(envp, argv[0]);
     __init_tls();
 
-    size_t espins = sgxlkl_enclave->espins;
-    size_t esleep = sgxlkl_enclave->esleep;
+    size_t espins = cfg->espins;
+    size_t esleep = cfg->esleep;
     lthread_sched_global_init(espins, esleep);
 
     SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
-    _lthread_sched_init(sgxlkl_enclave->stacksize);
+    _lthread_sched_init(cfg->stacksize);
 
     if (lthread_create(&lt, NULL, startmain, NULL) != 0)
     {

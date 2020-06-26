@@ -43,9 +43,10 @@ int enclave_futex(
 
 static void panic(void)
 {
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
     sgxlkl_fail(
         "Kernel panic!%s Aborting...\n",
-        sgxlkl_enclave->kernel_verbose
+        cfg->kernel_verbose
             ? ""
             : " Run DEBUG build with SGXLKL_KERNEL_VERBOSE=1 for more "
               "information.");

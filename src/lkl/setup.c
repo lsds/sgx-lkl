@@ -988,12 +988,13 @@ static uint32_t _parse_ip4(const char* str)
 
 void lkl_poststart_net(int net_dev_id)
 {
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
     int res = 0;
     if (net_dev_id >= 0)
     {
         int ifidx = lkl_netdev_get_ifindex(net_dev_id);
-        uint32_t ip4 = _parse_ip4(sgxlkl_enclave->net_ip4);
-        res = lkl_if_set_ipv4(ifidx, ip4, atoi(sgxlkl_enclave->net_mask4));
+        uint32_t ip4 = _parse_ip4(cfg->net_ip4);
+        res = lkl_if_set_ipv4(ifidx, ip4, atoi(cfg->net_mask4));
         if (res < 0)
         {
             sgxlkl_fail("lkl_if_set_ipv4(): %s\n", lkl_strerror(res));
@@ -1003,9 +1004,9 @@ void lkl_poststart_net(int net_dev_id)
         {
             sgxlkl_fail("lkl_if_up(eth0): %s\n", lkl_strerror(res));
         }
-        if (sgxlkl_enclave->net_gw4 > 0)
+        if (cfg->net_gw4 > 0)
         {
-            uint32_t gw4 = _parse_ip4(sgxlkl_enclave->net_gw4);
+            uint32_t gw4 = _parse_ip4(cfg->net_gw4);
             res = lkl_set_ipv4_gateway(gw4);
             if (res < 0)
             {
@@ -1025,12 +1026,14 @@ void lkl_poststart_net(int net_dev_id)
     }
 }
 
-static void do_sysctl(const sgxlkl_enclave_config_t* encl)
+static void do_sysctl()
 {
-    if (!encl->sysctl)
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+
+    if (!cfg->sysctl)
         return;
 
-    char* sysctl_all = strdup(encl->sysctl);
+    char* sysctl_all = strdup(cfg->sysctl);
     char* sysctl = sysctl_all;
     while (*sysctl)
     {
@@ -1071,14 +1074,16 @@ static void do_sysctl(const sgxlkl_enclave_config_t* encl)
 
 static void init_wireguard()
 {
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+
     wg_device new_device = {
         .name = "wg0",
-        .listen_port = sgxlkl_enclave->wg.listen_port,
+        .listen_port = cfg->wg.listen_port,
         .flags = WGDEVICE_HAS_PRIVATE_KEY | WGDEVICE_HAS_LISTEN_PORT,
         .first_peer = NULL,
         .last_peer = NULL};
 
-    char* wg_key_b64 = sgxlkl_enclave->wg.key;
+    char* wg_key_b64 = cfg->wg.key;
     if (wg_key_b64)
     {
         wg_key_from_base64(new_device.private_key, wg_key_b64);
@@ -1088,8 +1093,7 @@ static void init_wireguard()
         wg_generate_private_key(new_device.private_key);
     }
 
-    wgu_add_peers(
-        &new_device, sgxlkl_enclave->wg.peers, sgxlkl_enclave->wg.num_peers, 0);
+    wgu_add_peers(&new_device, cfg->wg.peers, cfg->wg.num_peers, 0);
 
     if (wg_add_device(new_device.name) < 0)
     {
@@ -1104,7 +1108,7 @@ static void init_wireguard()
     }
 
     int wgifindex = lkl_ifname_to_ifindex(new_device.name);
-    lkl_if_set_ipv4(wgifindex, _parse_ip4(sgxlkl_enclave->wg.ip), 24);
+    lkl_if_set_ipv4(wgifindex, _parse_ip4(cfg->wg.ip), 24);
     lkl_if_up(wgifindex);
 }
 
@@ -1239,7 +1243,7 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("termination thread unblocked\n");
 
     /* Expose exit status based on enclave config */
-    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave;
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
     switch (cfg->exit_status)
     {
         case EXIT_STATUS_FULL:
@@ -1475,10 +1479,10 @@ void lkl_start_init()
     if (getenv_bool("SGXLKL_TRACE_DISK", 0))
         sgxlkl_trace_disk = 1;
 
-    if (sgxlkl_enclave->hostnet)
+    if (cfg->hostnet)
         sgxlkl_use_host_network = 1;
 
-    sgxlkl_mtu = sgxlkl_enclave->tap_mtu;
+    sgxlkl_mtu = cfg->tap_mtu;
 
     SGXLKL_VERBOSE("calling initialize_enclave_event_channel()\n");
     initialize_enclave_event_channel(shm->enc_dev_config, shm->evt_channel_num);
@@ -1497,23 +1501,22 @@ void lkl_start_init()
 
     /* Each bootargs options are seperated using blank space. so 1 is added */
     int flen = strlen(BOOTARGS_CONSOLE_OPTION) + 1;
-    if (!sgxlkl_enclave->kernel_verbose)
+    if (!cfg->kernel_verbose)
         flen += strlen(BOOTARGS_QUIET_OPTION) + 1;
 
-    if (strlen(sgxlkl_enclave->kernel_cmd) > BOOTARGS_LEN - flen)
+    if (strlen(cfg->kernel_cmd) > BOOTARGS_LEN - flen)
         sgxlkl_fail(
             "LKL boot cmdline too long : %s len = %d",
-            sgxlkl_enclave->kernel_cmd,
-            strlen(sgxlkl_enclave->kernel_cmd));
+            cfg->kernel_cmd,
+            strlen(cfg->kernel_cmd));
 
     /* Check that the supplied bootargs do not cause buffer overflow */
-    if (!sgxlkl_enclave->kernel_verbose)
-    {
+    if (!cfg->kernel_verbose)
         oe_snprintf(
             bootargs,
             sizeof(bootargs),
             "%s %s %s",
-            sgxlkl_enclave->kernel_cmd,
+            cfg->kernel_cmd,
             BOOTARGS_CONSOLE_OPTION,
             "quiet");
     }
@@ -1523,7 +1526,7 @@ void lkl_start_init()
             bootargs,
             sizeof(bootargs),
             "%s %s",
-            sgxlkl_enclave->kernel_cmd,
+            cfg->kernel_cmd,
             BOOTARGS_CONSOLE_OPTION);
     }
 
@@ -1587,7 +1590,7 @@ void lkl_start_init()
     init_enclave_clock();
 
     // Sysctl
-    do_sysctl(sgxlkl_enclave);
+    do_sysctl();
 
     // Set interface status/IP/routes
     if (!sgxlkl_use_host_network)
@@ -1597,7 +1600,7 @@ void lkl_start_init()
     init_wireguard();
 
     // Set hostname (provided through SGXLKL_HOSTNAME)
-    sethostname(sgxlkl_enclave->hostname, strlen(sgxlkl_enclave->hostname));
+    sethostname(cfg->hostname, strlen(cfg->hostname));
 }
 
 extern inline int lkl_access_ok(unsigned long addr, unsigned long size)
