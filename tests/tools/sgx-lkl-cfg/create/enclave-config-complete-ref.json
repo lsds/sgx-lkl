@@ -1,0 +1,27 @@
+{
+  "run": "/usr/bin/python3",
+  "args": [
+    "/src/app.py",
+    "John"
+  ],
+  "environment": {
+    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "GREETING": "Hello"
+  },
+  "disk_config": [
+    {
+      "disk": "/",
+      "readonly": false,
+      "overlay": false,
+      "create": false
+    },
+    {
+      "disk": "/data_1",
+      "readonly": false,
+      "overlay": false,
+      "create": false
+    }
+  ],
+  "cwd": "/src",
+  "exit_status": "full"
+}
