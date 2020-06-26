@@ -47,6 +47,7 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "shared/tree.h"
+#include "openenclave/corelibc/oemalloc.h"
 
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -360,9 +361,8 @@ void _lthread_free(struct lthread* lt)
         lt->robust_list.head = *rp;
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
-        if (cont < 0 || waiters)
-        {
-            enclave_futex((int*)&m->_m_lock, FUTEX_WAKE | priv, 1, 0, 0, 0);
+        if (cont < 0 || waiters) {
+            enclave_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
         }
     }
     __do_orphaned_stdio_locks(lt);
@@ -958,7 +958,7 @@ int lthread_setcancelstate(int new, int* old)
  * accessed.  `lthread_current()` is always safe to use here as is any lthread
  * that has not yet been scheduled.
  */
-static struct lthread_tls* lthread_findtlsslot(struct lthread* lt, long key)
+static struct lthread_tls* lthread_findtlsslot(struct lthread *lt, long key)
 {
     struct lthread_tls *d, *d_tmp;
     LIST_FOREACH_SAFE(d, &lt->tls, tls_next, d_tmp)
