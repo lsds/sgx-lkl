@@ -270,8 +270,6 @@ static json_result_t json_read_callback(
                 ALLOC_ARRAY(num_args, args, char*);
             else if (MATCH("env"))
                 ALLOC_ARRAY(num_env, env, char*);
-            else if (MATCH("auxv"))
-                ALLOC_ARRAY(num_auxv, auxv, Elf64_auxv_t);
             else if (MATCH("mounts"))
                 ALLOC_ARRAY(num_mounts, mounts, sgxlkl_enclave_mount_config_t);
             else if (MATCH("host_import_env"))
@@ -360,8 +358,6 @@ static json_result_t json_read_callback(
             JPATHT("env", JSON_TYPE_STRING, {
                 strdupz(&cfg->env[i], un->string);
             });
-            JU64("auxv.a_type", cfg->auxv[i].a_type);
-            JU64("auxv.a_val", cfg->auxv[i].a_un.a_val);
             JPATHT("host_import_env", JSON_TYPE_STRING, {
                 strdupz(&cfg->host_import_env[i], un->string);
             });
@@ -427,7 +423,6 @@ void check_config(const sgxlkl_enclave_config_t* cfg)
     CC(cfg->tap_mtu > INT32_MAX, "tap_mtu out of range");
     CC(cfg->num_args > INT32_MAX, "size of args out of range");
     CC(cfg->num_env > INT32_MAX, "size of env out of range");
-    CC(cfg->num_auxv > INT32_MAX, "size of auxv out of range");
     CC(cfg->num_host_import_env > INT32_MAX,
        "size of host_import_env out of range");
 }
@@ -452,7 +447,7 @@ int sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 472,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from)
@@ -536,8 +531,6 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
     for (size_t i = 0; i < config->num_env; i++)
         free(config->env[i]);
     NONDEFAULT_FREE(env);
-
-    NONDEFAULT_FREE(auxv);
 
     for (size_t i = 0; i < config->num_host_import_env; i++)
         free(config->host_import_env[i]);

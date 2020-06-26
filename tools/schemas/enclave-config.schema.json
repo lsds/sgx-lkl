@@ -493,14 +493,6 @@
             "type": "string"
           }
         },
-        "auxv": {
-          "type": "array",
-          "description": "ELF64 Aux vector.",
-          "default": [],
-          "items": {
-            "$ref": "#/definitions/Elf64_auxv_t"
-          }
-        },
         "host_import_env": {
           "type": "array",
           "description": "Comma-separated list of environment variables to import from the host.",

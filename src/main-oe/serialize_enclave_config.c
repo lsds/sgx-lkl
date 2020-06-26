@@ -241,25 +241,6 @@ static json_obj_t* encode_wg(
     return r;
 }
 
-static json_obj_t* encode_auxv(
-    const char* key,
-    const Elf64_auxv_t* auxv,
-    size_t auxc)
-{
-    _Static_assert(sizeof(Elf64_auxv_t) == 16, "Elf64_auxv_t size has changed");
-
-    json_obj_t* r = create_json_array(key, auxc);
-    if (auxc == 0)
-        r->array = malloc(1);
-    for (size_t i = 0; i < auxc; i++)
-    {
-        r->objects[i] = create_json_objects(NULL, 2);
-        r->objects[i]->objects[0] = encode_uint64("a_type", auxv[i].a_type);
-        r->objects[i]->objects[1] = encode_uint64("a_val", auxv[i].a_un.a_val);
-    }
-    return r;
-}
-
 static json_obj_t* encode_image_sizes(
     char* key,
     const sgxlkl_image_sizes_config_t* sizes)
@@ -455,7 +436,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 472,
+        sizeof(sgxlkl_enclave_config_t) == 456,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = encode_boolean(#N, config->N)
@@ -508,7 +489,6 @@ void serialize_enclave_config(
         "host_import_env",
         config->host_import_env,
         config->num_host_import_env);
-    root->objects[cnt++] = encode_auxv("auxv", config->auxv, config->num_auxv);
     root->objects[cnt++] = encode_root("root", &config->root);
     root->objects[cnt++] =
         encode_mounts("mounts", config->mounts, config->num_mounts);

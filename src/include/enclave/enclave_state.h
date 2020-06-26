@@ -22,10 +22,10 @@ typedef struct sgxlkl_enclave_disk_state
 
 typedef struct
 {
-    uint32_t argc;       /* Number of arguments */
-    char** argv;         /* Arguments */
-    char** envp;         /* Environment variables */
-    Elf64_auxv_t** auxv; /* ELF64 auxiliary vector */
+    int argc;           /* Number of arguments */
+    char** argv;        /* Arguments */
+    char** envp;        /* Environment variables */
+    Elf64_auxv_t* auxv; /* ELF64 auxiliary vector */
 } elf64_stack_t;
 
 typedef struct sgxlkl_enclave_state

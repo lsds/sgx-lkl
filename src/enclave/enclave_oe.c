@@ -83,22 +83,23 @@ static void prepare_elf_stack()
         }
     }
 
-    size_t total_size = 0;
-    size_t total_count = 1;
+    size_t num_bytes = 0;
+    size_t num_ptrs = 1;
     for (size_t i = 0; i < cfg->num_args; i++)
-        total_size += oe_strlen(cfg->args[i]) + 1;
-    total_count += cfg->num_args + 1;
+        num_bytes += oe_strlen(cfg->args[i]) + 1;
+    num_ptrs += cfg->num_args + 1;
     for (size_t i = 0; i < cfg->num_env; i++)
-        total_size += oe_strlen(cfg->env[i]) + 1;
-    total_count += cfg->num_env + 1;
+        num_bytes += oe_strlen(cfg->env[i]) + 1;
+    num_ptrs += cfg->num_env + 1;
     for (size_t i = 0; i < state->num_imported_env; i++)
-        total_size += oe_strlen(state->imported_env[i]) + 1;
-    total_count += state->num_imported_env + 1;
-    total_count += 1; // auxv terminator
-    total_count += 1; // platform-independent stuff terminator
+        num_bytes += oe_strlen(state->imported_env[i]) + 1;
+    num_ptrs += state->num_imported_env + 1;
+    num_ptrs += 2; // auxv terminator
+    num_ptrs += 1; // end marker
 
-    char* buf = oe_calloc(total_size, sizeof(char));
-    char** out = oe_calloc(total_count, sizeof(char*));
+    elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
+    char* buf = oe_calloc(num_bytes, sizeof(char));
+    char** out = oe_calloc(num_ptrs, sizeof(char*));
 
     size_t j = 0;
     char* buf_ptr = buf;
@@ -110,8 +111,6 @@ static void prepare_elf_stack()
         out[j++] = buf_ptr;            \
         buf_ptr += len;                \
     }
-
-    elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
 
     // argv
     stack->argv = out;
@@ -130,18 +129,12 @@ static void prepare_elf_stack()
     out[j++] = NULL;
 
     // auxv
-    stack->auxv = (Elf64_auxv_t**)(out + j);
-    for (size_t i = 0; i < cfg->num_auxv; i++)
-    {
-        out[j++] = (char*)cfg->auxv[i].a_type;
-        out[j++] = (char*)cfg->auxv[i].a_un.a_val;
-    }
-    out[j++] = NULL;
+    stack->auxv = (Elf64_auxv_t*)(out + j);
+    stack->auxv->a_type = AT_NULL;
+    j++;
 
-    // TODO: platform independent things?
+    // end marker
     out[j++] = NULL;
-
-    // CHECK: should the memory holding the strings also be on the stack?
 }
 
 // We need to have a separate function here
@@ -319,9 +312,7 @@ void sgxlkl_free_enclave_state()
     oe_free(state->imported_env);
 
     state->elf64_stack.argc = 0;
-    oe_free(state->elf64_stack.argv);
-    oe_free(state->elf64_stack.envp);
-    oe_free(state->elf64_stack.auxv);
+    oe_free(state->elf64_stack.argv); /* includes envp/auxv */
 
     state->num_disk_state = 0;
     oe_free(state->disk_state);
