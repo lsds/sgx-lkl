@@ -9,12 +9,9 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
-<<<<<<< HEAD
-=======
 #include "enclave/lthread_int.h"
 #include "enclave/sgxlkl_app_config.h"
 #include "enclave/sgxlkl_config.h"
->>>>>>> move lthread init before libc init
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
@@ -110,6 +107,10 @@ static int startmain(void* args)
     lkl_start_init();
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
 
+    /* Set locale for usersapce components using it */
+    pthread_t self = __pthread_self();
+    self->locale = &libc.global_locale;
+    
     init_wireguard();
     find_and_mount_disks();
 
