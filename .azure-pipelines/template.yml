@@ -1,10 +1,6 @@
 variables:
   - name: SGXLKL_ROOT
     value: $(Build.SourcesDirectory)
-  - name: MAA_APP_ID
-    value: $(maaAppId)
-  - name: MAA_CLIENT_ID
-    value: $(MAACLIENTID)
 
 parameters:
 - name: 'build_modes'
@@ -142,6 +138,11 @@ stages:
             - bash: .azure-pipelines/scripts/run_setup.sh
               displayName: Run sgx-lkl-setup
 
+            - bash: export MAA_APP_ID=$MAA_APP_ID
+              displayName: Set Secrets as Env Vars
+              env:
+                MAA_APP_ID: $(maaAppId)
+
             - bash: .azure-pipelines/scripts/test_runner.sh ${{ test_suite }}
               displayName: Run Tests
               env:
@@ -150,7 +151,6 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
-                MAA_APP_ID: $(MAA_APP_ID)
                 MAA_CLIENT_ID: $(MAA_CLIENT_ID)
                 MAA_SECRET_KEY: $(maaSecretKey)
 
