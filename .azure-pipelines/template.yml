@@ -138,7 +138,7 @@ stages:
             - bash: .azure-pipelines/scripts/run_setup.sh
               displayName: Run sgx-lkl-setup
 
-            - bash: echo "1. MAA_APP_ID"; echo $(MAAAPPID); export MAA_APP_ID=$MAAAPPID; echo "2: "; echo $MAA_APP_ID; echo "3: ";echo $MAA_CLIENT_ID; echo "4: ";echo $MAA_SECRET_KEY;
+            - bash: echo "1. MAA_APP_ID"; echo $(MAAAPPID); export MAA_APP_ID=$MAAAPPID; echo "2 "; echo $MAA_APP_ID; echo "3 ";echo $MAA_CLIENT_ID; echo "4 ";echo $MAA_SECRET_KEY;
               displayName: Set Secrets as Env Vars
               env:
                 MAA_SECRET_KEY: $(maaSecretKey)
