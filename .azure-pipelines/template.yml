@@ -148,7 +148,7 @@ stages:
                 SGXLKL_ETHREADS: ${{ ethreads }}
                 MAA_APP_ID: $(maaAppId)
                 MAA_CLIENT_ID: $(MAACLIENTID)
-                MAA_SECRET_KEY: "${{ maaSecretKey }}"
+                MAA_SECRET_KEY: $MAASECRETKEY
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
