@@ -138,10 +138,11 @@ stages:
             - bash: .azure-pipelines/scripts/run_setup.sh
               displayName: Run sgx-lkl-setup
 
-            - bash: export MAA_APP_ID=$MAA_APP_ID
+            - bash: echo "1. MAA_APP_ID"; echo $(MAAAPPID); export MAA_APP_ID=$MAAAPPID; echo "2: "; echo $MAA_APP_ID; echo "3: ";echo $MAA_CLIENT_ID; echo "4: ";echo $MAA_SECRET_KEY;
               displayName: Set Secrets as Env Vars
               env:
-                MAA_APP_ID: $(maaAppId)
+                MAA_SECRET_KEY: $(maaSecretKey)
+                MAA_CLIENT_ID: $(MAACLIENTID)
 
             - bash: .azure-pipelines/scripts/test_runner.sh ${{ test_suite }}
               displayName: Run Tests
@@ -151,8 +152,6 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
-                MAA_CLIENT_ID: $(MAA_CLIENT_ID)
-                MAA_SECRET_KEY: $(maaSecretKey)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
