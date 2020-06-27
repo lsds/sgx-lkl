@@ -285,10 +285,11 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         size_t henvc = 0;
         while (host->env[henvc++] != 0)
             ;
-        char** tmp = oe_malloc(sizeof(char*) * henvc);
+        char** tmp = oe_malloc(sizeof(char*) * (henvc + 1));
         CHECK_ALLOC(tmp);
         for (size_t i = 0; i < henvc; i++)
             tmp[i] = host->env[i];
+        tmp[henvc] = NULL;
         enc->env = tmp;
     }
 }
