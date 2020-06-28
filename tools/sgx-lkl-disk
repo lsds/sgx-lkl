@@ -22,7 +22,7 @@ CRYPTSETUP_VERBOSE_FLAGS=""
 
 SYSDIRS=(dev mnt tmp sys run proc)
 
-USER=$(who am i | awk '{print $1}')
+USER=$(id -un)
 GROUP=$(id -gn "${USER}")
 
 # The lowest possible ext4 size seems to be ~140K. To be on the safe side, we require 512K.
