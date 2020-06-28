@@ -176,10 +176,6 @@ echo "MAA_APP_ID : "
 echo $MAA_APP_ID
 echo "HK1"
 echo $HK1
-echo "HK2"
-echo $HK2
-echo "HK3"
-echo $HK3
 
 for file in ${file_list[@]};
 do

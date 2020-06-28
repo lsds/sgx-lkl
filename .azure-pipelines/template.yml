@@ -1,8 +1,6 @@
 variables:
   - name: SGXLKL_ROOT
     value: $(Build.SourcesDirectory)
-  - name: HUS_KOYUN
-    value: $(HuseyinKoyun)
 
 parameters:
 - name: 'build_modes'
@@ -152,8 +150,6 @@ stages:
                 MAA_CLIENT_ID: $(MAACLIENTID)
                 MAA_SECRET_KEY: $(MAASECRETKEY)
                 HK1: $(HuseyinKoyun)
-                HK2: $(HUSEYINKOYUN)
-                HK3: $(HUS_KOYUN)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"

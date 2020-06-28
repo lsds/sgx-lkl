@@ -4,6 +4,14 @@ if [ -z $SGXLKL_ROOT ]; then
     exit 1
 fi
 
+echo "MAA_CLIENT_ID"
+echo $MAA_CLIENT_ID
+echo "MAA_SECRET_KEY: $MAA_SECRET_KEY"
+echo "MAA_APP_ID : "
+echo $MAA_APP_ID
+echo "HK1"
+echo $HK1
+
 . $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
 . $SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh
 
