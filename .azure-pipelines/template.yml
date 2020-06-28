@@ -138,15 +138,10 @@ stages:
             - bash: .azure-pipelines/scripts/run_setup.sh
               displayName: Run sgx-lkl-setup
             
-            - task: Bash@3
+            - script: 'echo $MAA_APP_ID; export $MAA_APP_ID'
               displayName: Set secret as env vars
-              inputs:
-                targetType: 'inline'
-                script:  echo "0 "; echo $MAA_APP_ID; echo "1. MAA_APP_ID"; echo $MAAAPPID; export MAA_APP_ID=$MAA_APP_ID; echo "2 "; echo $MAA_APP_ID; echo "3 ";echo $MAA_CLIENT_ID; echo "4 ";echo $MAA_SECRET_KEY;
               env:
-                MAA_APP_ID: $(maaAppId)
-                MAA_SECRET_KEY: $(maaSecretKey)
-                MAA_CLIENT_ID: $(MAACLIENTID)
+                MAA_APP_ID: $(MAAAPPID)
 
             - bash: .azure-pipelines/scripts/test_runner.sh ${{ test_suite }}
               displayName: Run Tests
