@@ -13,7 +13,7 @@ if [ -z "$SGXLKL_BUILD_MODE" ]; then
     exit 1
 fi
 
-# shellcheck source=/dev/null
+# shellcheck source=.azure-pipelines/scripts/junit_utils.sh
 . "$SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh"
 
 # Initialize the variables.
