@@ -138,10 +138,11 @@ stages:
             - bash: .azure-pipelines/scripts/run_setup.sh
               displayName: Run sgx-lkl-setup
             
-            - script: 'echo $MAA_APP_ID; export $MAA_APP_ID'
+            - script: 'echo $BRETTSECRET2; echo $MAA_APP_ID; export MAA_APP_ID'
               displayName: Set secret as env vars
               env:
-                MAA_APP_ID: $(MAAAPPID)
+                MAA_APP_ID: $(maaAppId)
+                BRETTSECRET2: $(BRETTSECRET)
 
             - bash: .azure-pipelines/scripts/test_runner.sh ${{ test_suite }}
               displayName: Run Tests
