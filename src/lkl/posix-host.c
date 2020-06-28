@@ -2,6 +2,8 @@
 /* This file is based on posix-host.c from LKL, modified to provide a host
  * interface for enclave environments. */
 
+// clang-format off
+
 #include <errno.h>
 #include <futex.h>
 #include <lkl_host.h>

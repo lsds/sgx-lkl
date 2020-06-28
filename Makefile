@@ -11,7 +11,7 @@ OESIGN_CONFIG_PATH = $(SGXLKL_ROOT)/config
 .DEFAULT_GOAL:=all
 default: all
 
-all: update-git-submodules $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
+all: update-git-submodules install-git-pre-commit-hook $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
 
 # Check if the user didn't override the default in-tree OE install location with another OE host install
 ifeq ($(OE_SDK_ROOT),$(OE_SDK_ROOT_DEFAULT))
@@ -144,6 +144,10 @@ update-git-submodules:
 	[ "$(FORCE_SUBMODULES_UPDATE)" = "false" ] || git submodule update --progress
 	# Initialise the missing Open Enclave submodules
 	cd $(OE_SUBMODULE) && git submodule update --recursive --progress --init
+
+# Git pre-commit hook installation
+install-git-pre-commit-hook: scripts/pre-commit
+	cp scripts/pre-commit .git/hooks
 
 fsgsbase-kernel-module:
 	make -C ${TOOLS}/kmod-set-fsgsbase

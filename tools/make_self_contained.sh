@@ -37,12 +37,12 @@ set -eo pipefail
 # libraries like the Azure DCAP Client are dlopen'd at runtime.
 # Because of that, there is extra logic that deals with bundling them manually.
 
-if [ -z $SGXLKL_PREFIX ]; then
+if [ -z "$SGXLKL_PREFIX" ]; then
     echo "ERROR: 'SGXLKL_PREFIX' is undefined. Please export SGXLKL_PREFIX=<SGX-LKL-OE> install prefix directory"
     exit 1
 fi
 
-SGXLKL_PREFIX=$(realpath -s $SGXLKL_PREFIX)
+SGXLKL_PREFIX=$(realpath -s "$SGXLKL_PREFIX")
 
 # Absolute prefix used for the location of the loader stored in the executable.
 # If this does not match at runtime, then the executable must be launched
@@ -95,56 +95,56 @@ if [[ ! -d $patchelf_dir ]]; then
 fi
 export PATH=$patchelf_dir/dist/bin:$PATH
 
-rpath=$(patchelf --print-rpath $exe_path)
+rpath=$(patchelf --print-rpath "$exe_path")
 if [[ "$rpath" != "" ]]; then
     echo "Installation is already self-contained."
     exit 1
 fi
 
-mkdir -p $SGXLKL_PREFIX/$external_lib_dir
+mkdir -p "$SGXLKL_PREFIX/$external_lib_dir"
 
 # Copy shared library dependencies into Debian package tree.
 # Note that lddtree includes the input executables / libraries as well in its output.
 # This is why 'rm' below is removing the (only) executable again.
-echo "Shared library dependencies of $exe_path ${dlopened_libs[@]}:"
+echo "Shared library dependencies of $exe_path ${dlopened_libs[*]}:"
 lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq
-lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq | xargs -i cp {} $SGXLKL_PREFIX/$external_lib_dir
-rm $SGXLKL_PREFIX/$external_lib_dir/$exe_name
-rm $SGXLKL_PREFIX/$external_lib_dir/$oegdb_ptrace_lib_name
+lddtree -l "$exe_path" "${dlopened_libs[@]}" | sort | uniq | xargs -i cp {} "$SGXLKL_PREFIX/$external_lib_dir"
+rm "$SGXLKL_PREFIX/$external_lib_dir/$exe_name"
+rm "$SGXLKL_PREFIX/$external_lib_dir/$oegdb_ptrace_lib_name"
 
 # Patch RPATHs of main executable and shared libraries.
-patchelf --force-rpath --set-rpath "\$ORIGIN/../$external_lib_dir" $SGXLKL_PREFIX/bin/$exe_name
-patchelf --force-rpath --set-rpath "\$ORIGIN/../../../$external_lib_dir" $oegdb_ptrace_lib_path
+patchelf --force-rpath --set-rpath "\$ORIGIN/../$external_lib_dir" "$SGXLKL_PREFIX/bin/$exe_name"
+patchelf --force-rpath --set-rpath "\$ORIGIN/../../../$external_lib_dir" "$oegdb_ptrace_lib_path"
 for lib_path in $SGXLKL_PREFIX/lib/external/*; do
-    patchelf --force-rpath --set-rpath "\$ORIGIN" $lib_path
+    patchelf --force-rpath --set-rpath "\$ORIGIN" "$lib_path"
 done
 
 # Patch the main executable interpreter path.
 # Note that the interpreter has to be a valid absolute path as this is read
 # directly by the kernel which does not use the rpath etc for resolution.
-interp_path=$(patchelf --print-interpreter $SGXLKL_PREFIX/bin/$exe_name)
-interp_filename=$(basename $interp_path)
-cp $interp_path $SGXLKL_PREFIX/$external_lib_dir
+interp_path=$(patchelf --print-interpreter "$SGXLKL_PREFIX/bin/$exe_name")
+interp_filename=$(basename "$interp_path")
+cp "$interp_path" "$SGXLKL_PREFIX/$external_lib_dir"
 interp_install_path=$SGXLKL_TARGET_PREFIX/$external_lib_dir/$interp_filename
-patchelf --set-interpreter $interp_install_path $SGXLKL_PREFIX/bin/$exe_name
+patchelf --set-interpreter "$interp_install_path" "$SGXLKL_PREFIX/bin/$exe_name"
 
 # Add a well-known symlink to the loader so that it can be used if needed.
-ln -sf $interp_filename $SGXLKL_PREFIX/$external_lib_dir/ld-linux-x86-64
+ln -sf "$interp_filename" "$SGXLKL_PREFIX/$external_lib_dir/ld-linux-x86-64"
 
 # Copy extra data files into Debian package tree.
-cp "${libsgx_enclave_image_paths[@]}" $SGXLKL_PREFIX/$external_lib_dir
+cp "${libsgx_enclave_image_paths[@]}" "$SGXLKL_PREFIX/$external_lib_dir"
 
 # Sanity check 1: ldd will fail if patchelf broke something badly,
 # though note that this does not check whether libraries can be resolved.
 echo "Running ldd test"
-ldd $SGXLKL_PREFIX/bin/$exe_name
+ldd "$SGXLKL_PREFIX/bin/$exe_name"
 
 # Sanity check 2: Run --help in empty Docker container to check if libs can be resolved.
 # Note: This does not check whether the Azure DCAP Client library loads.
 tar cv --files-from /dev/null | sudo docker import - empty
 echo "Running Docker test 1"
-sudo docker run --rm -v $SGXLKL_PREFIX:$SGXLKL_TARGET_PREFIX empty $SGXLKL_TARGET_PREFIX/bin/$exe_name --help
+sudo docker run --rm -v "$SGXLKL_PREFIX:$SGXLKL_TARGET_PREFIX" empty "$SGXLKL_TARGET_PREFIX/bin/$exe_name" --help
 echo "Running Docker test 2"
-sudo docker run --rm -v $SGXLKL_PREFIX:/foo empty /foo/lib/external/ld-linux-x86-64 /foo/bin/$exe_name --help
+sudo docker run --rm -v "$SGXLKL_PREFIX:/foo" empty /foo/lib/external/ld-linux-x86-64 /foo/bin/$exe_name --help
 
 echo "Successfully made installation self-contained."
