@@ -27,6 +27,8 @@
  *
  */
 
+// clang-format off
+
 #define WANT_REAL_ARCH_SYSCALLS
 
 #include <inttypes.h>

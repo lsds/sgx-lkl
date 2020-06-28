@@ -38,4 +38,5 @@ src/enclave/sgxlkl_t.c
 *.docker_entrypoint
 .gdb_history
 
-.vscode/
+.vscode/*
+!.vscode/extensions.json

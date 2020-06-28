@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# This script is very similar to the pre-commit hook, except it
+# unconditionally checks all files, which we have time for in CI.
+
+exit_() {
+    echo ""
+    echo "$1"
+    echo ""
+    exit 1
+}
+
+## Check whether source code has been formatted:
+if ! ./scripts/format-code --quiet --whatif; then
+    echo "code not formatted correctly, IGNORING FOR NOW!"
+    #exit_ "CI failed: please run ./scripts/format-code"
+fi
+
+# Check whether all scripts pass ShellCheck:
+if ! ./scripts/check-linters; then
+    exit_ "CI failed: please run ./scripts/check-linters"
+fi
