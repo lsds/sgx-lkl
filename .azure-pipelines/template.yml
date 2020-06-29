@@ -148,6 +148,11 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
+                MAA_CLIENT_ID: $(MaaClientId)
+                MAA_CLIENT_SECRET: $(MaaClientSecret)
+                MAA_APP_ID: $(MaaAppId)
+                DB_USERNAME: $(DbUserName)
+                DB_PASSWORD: $(DbPassword)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
@@ -218,4 +223,4 @@ stages:
               --account-name clcpackages -d ${{ parameters.apt_repo_blob_container }} \
               --destination-path 1fa5fb889b8efa6ea07354c3b54903f7 \
               -s $(Build.SourcesDirectory)/apt
-            
+
