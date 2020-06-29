@@ -876,9 +876,16 @@ void set_wg(sgxlkl_config_t* conf)
         char* ips = strchrnul(key, ':');
         *ips = '\0';
         ips++;
+
         char* ips_end = strchrnul(ips, ':');
-        *ips_end = '\0';
-        char* endpoint = ++ips_end;
+	// another ':', possible endpoint following, need to advance string
+        if (*ips_end == ':')
+	{
+	    *ips_end = '\0';
+	    ips_end++;
+	}
+
+        char* endpoint = ips_end;
         peers_str = strchrnul(endpoint, ',');
         if (*peers_str == ',')
         {
