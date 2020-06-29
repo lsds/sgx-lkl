@@ -80,7 +80,7 @@ for file in "${ltp_tests[@]}"; do
     fi
 
     echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout ${SGX_LKL_RUN_CMD[*]} $file > $stdout_file 2>&1"
-    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout "${SGX_LKL_RUN_CMD[@]}" "$file" > "$stdout_file" 2>&
+    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout "${SGX_LKL_RUN_CMD[@]}" "$file" > "$stdout_file" 2>&1
     exit_code=$?
     if [[ $exit_code -eq  124 ]]; then
         echo "${SGX_LKL_RUN_CMD[*]} $file : TIMED OUT after $timeout secs"
