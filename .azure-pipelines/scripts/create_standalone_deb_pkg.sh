@@ -86,7 +86,7 @@ rm -rf "$deb_install_prefix/tools/kmod-set-fsgsbase"
 
 # Bundle all dependencies.
 SGXLKL_PREFIX=$deb_install_prefix SGXLKL_TARGET_PREFIX=$install_prefix \
-    "$SGXLKL_ROOT/tools/make_self_contained.sh"
+    "$SGXLKL_ROOT/scripts/make_self_contained.sh"
 
 # Build the .deb package.
 mkdir "$deb_root_dir/DEBIAN"

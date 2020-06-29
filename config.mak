@@ -25,7 +25,9 @@ BUILD_LINK_NAME             ?= build
 SGXLKL_CFLAGS_EXTRA         ?= $(LIBC_CFLAGS)
 SGXLKL_BUILD_VARIANT        ?= sgx-lkl-$(BUILD_VARIANT)
 
-TOOLS                       ?= ${SGXLKL_ROOT}/tools
+# TODO remove this after lkl_bits.c/lkl_syscalls.c are gone
+#      (see also rules in Makefile)
+TOOLS                       ?= ${SGXLKL_ROOT}/scripts
 TOOLS_BUILD                 ?= $(BUILD_DIR)/tools
 TOOLS_SRC                   ?= $(wildcard $(TOOLS)/*.c)
 TOOLS_OBJ                   ?= $(addprefix $(TOOLS_BUILD)/, $(notdir $(TOOLS_SRC:.c=)))
