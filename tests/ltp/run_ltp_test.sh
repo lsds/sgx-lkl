@@ -71,8 +71,11 @@ for file in "${ltp_tests[@]}"; do
     # Start the test timer.
     JunitTestStarted "$test_name"
 
-    echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout ${SGX_LKL_RUN_CMD[*]} $file > $stdout_file 2>&1"
-    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout "${SGX_LKL_RUN_CMD[@]}" "$file" > "$stdout_file" 2>&1
+    # Master copy of image is sgxlkl-miniroot-fs.img.master
+    # Before running each test copy a fresh copy of image
+    cp -f sgxlkl-miniroot-fs.img.master sgxlkl-miniroot-fs.img
+    echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2>&1"
+    SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2>&1
     exit_code=$?
     if [[ $exit_code -eq  124 ]]; then
         echo "${SGX_LKL_RUN_CMD[*]} $file : TIMED OUT after $timeout secs"
