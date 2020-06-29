@@ -78,10 +78,13 @@ stages:
         - bash: .azure-pipelines/scripts/dump_system_info.sh
           displayName: Dump system info
 
+        - bash: scripts/check-ci
+          displayName: Run linters and check formatting
+
         - bash: .azure-pipelines/scripts/build.sh
           displayName: Compile and Build
           env:
-            build_mode: "${{ build_mode }}"
+            SGXLKL_BUILD_MODE: "${{ build_mode }}"
             SGXLKL_PREFIX: $(SGXLKL_ROOT)/install
 
         - bash: .azure-pipelines/scripts/create_standalone_deb_pkg.sh
@@ -141,7 +144,6 @@ stages:
             - bash: .azure-pipelines/scripts/test_runner.sh ${{ test_suite }}
               displayName: Run Tests
               env:
-                build_mode: "${{ build_mode }}"
                 SGXLKL_BUILD_MODE: "${{ build_mode }}"
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}

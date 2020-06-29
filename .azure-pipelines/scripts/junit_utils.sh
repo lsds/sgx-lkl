@@ -29,14 +29,16 @@ function CreateSuiteTestRunDurationJunit()
     suite_end_time=$(date +%s)
     junit_file_path="report/TEST-test-suite-test-run-overall-result-${test_group_name}-junit.xml"
 
-    duration=$(($suite_end_time-$suite_start_time))
+    duration=$((suite_end_time-suite_start_time))
 
-    echo "<testsuites>" > "$junit_file_path"
-    echo "  <testsuite name=\"$test_suite\" duration=\"$duration\">" >> "$junit_file_path"
-    echo "    <testcase name=\"test-suite-test-run-overall-result-${test_group_name}\" classname=\"Summary\" time=\"$duration\">" >> "$junit_file_path"
-    echo "    </testcase>" >> "$junit_file_path"
-    echo "  </testsuite>" >> "$junit_file_path"
-    echo '</testsuites>' >> "$junit_file_path"
+    {
+        echo "<testsuites>"
+        echo "  <testsuite name=\"$test_suite\" duration=\"$duration\">"
+        echo "    <testcase name=\"test-suite-test-run-overall-result-${test_group_name}\" classname=\"Summary\" time=\"$duration\">"
+        echo "    </testcase>"
+        echo "  </testsuite>"
+        echo '</testsuites>' 
+    } > "$junit_file_path"
 }
 
 # If log file exists, read it, clean xml non-compliant characters
@@ -52,9 +54,9 @@ function AddLogFileToJunit()
     if [[ -f "$log_file" ]]; then
         FILE2=$(<"$junit_file")
         # Remove non-printable characters from log file
-        FILE1=`sed 's/[^[:print:]]//g' "$log_file"`
+        FILE1=$(sed 's/[^[:print:]]//g' "$log_file")
         if [[ $place_holder != "TEST_MESSAGE" ]]; then
-            FILE1="<![CDATA["$FILE1"]]>"
+            FILE1="<![CDATA[$FILE1]]>"
         fi
         echo "${FILE2//$place_holder/$FILE1}" > "$junit_file"
     fi
@@ -142,9 +144,12 @@ function JunitTestFinished()
         AddLogFileToJunit "$stdout_file_path" "$junit_file_path" "STD_OUT_MESSAGE"
     fi
 
-    echo "    </testcase>" >> "$junit_file_path"
-    echo "  </testsuite>" >> "$junit_file_path"
-    echo '</testsuites>' >> "$junit_file_path"
+    {
+        echo "    </testcase>"
+        echo "  </testsuite>"
+        echo "</testsuites>"
+    } >> "$junit_file_path"
+
     rm -f "$test_start_time_file_path"
     rm -f "$test_end_time_file_path"
     rm -f "$error_message_file_path"

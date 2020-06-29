@@ -1,9 +1,11 @@
-if [ -z $SGXLKL_ROOT ]; then
+#!/bin/bash
+
+if [ -z "$SGXLKL_ROOT" ]; then
     echo "ERROR: 'SGXLKL_ROOT' is undefined. Please export SGXLKL_ROOT=<SGX-LKL-OE> source code repository"
     exit 1
 fi
 
-SGXLKL_VERSION=$(cat $SGXLKL_ROOT/VERSION)
+SGXLKL_VERSION=$(cat "$SGXLKL_ROOT/VERSION")
 if [[ $SGXLKL_VERSION == *-dev ]]; then
     if [[ -n $BUILD_BUILDNUMBER ]]; then
         # If we're running in Azure Pipelines, use build number (YYYYMMDD.n).
