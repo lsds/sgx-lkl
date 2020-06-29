@@ -481,6 +481,18 @@ int _lthread_resume(struct lthread* lt)
 
     set_tls_tp(lt);
     _switch(&lt->ctx, &sched->ctx);
+    // The first "startmain" thread eventually loads the app's ELF image
+    // and initializes its tls area. As lthread has to properly set the
+    // tls region on context switches, check if the fs has changed and
+    // update the lthread's thread pointer field accordingly.
+    if (sched->current_lthread->tid == 1 &&
+        (sched->current_lthread)->attr.thread_type == LKL_KERNEL_THREAD){
+        void* fs_ptr;
+        __asm__ __volatile__("mov %%fs:0,%0" : "=r"(fs_ptr));
+        if (fs_ptr != sched->current_lthread->tp){
+            sched->current_lthread->tp = fs_ptr;
+        }
+    }
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
 
