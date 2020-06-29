@@ -74,7 +74,8 @@ for file in "${ltp_tests[@]}"; do
     # Master copy of image is sgxlkl-miniroot-fs.img.master
     # Before running each test copy a fresh copy of image
     cp -f sgxlkl-miniroot-fs.img.master sgxlkl-miniroot-fs.img
-    if [[ $? -ne 0 ]]; then
+    cp_exit_code=$?
+    if [[ $cp_exit_code -ne 0 ]]; then
       echo "Cannot find sgxlkl-miniroot-fs.img.master"
       exit 1
     fi
