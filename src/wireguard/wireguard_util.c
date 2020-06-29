@@ -293,7 +293,6 @@ int wgu_add_peers(
             ret = -EINVAL;
             goto err;
         }
-
     }
 
     for (int i = 0; i < num_peers; i++)
