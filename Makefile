@@ -160,6 +160,7 @@ install:
 	cp $(TOOLS)/sgx-lkl-disk $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-setup $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-cfg $(PREFIX)/bin
+	cp $(TOOLS)/sgx-lkl-cfg.py $(PREFIX)/lib
 	cp $(TOOLS)/sgx-lkl-docker $(PREFIX)/bin
 	cp $(TOOLS)/gdb/sgx-lkl-gdb $(PREFIX)/bin
 	cp $(TOOLS)/gdb/gdbcommands.py $(PREFIX)/lib/gdb
@@ -179,6 +180,7 @@ uninstall:
 	rm -f $(PREFIX)/bin/sgx-lkl-cfg
 	rm -f $(PREFIX)/bin/sgx-lkl-docker
 	rm -f $(PREFIX)/bin/sgx-lkl-gdb
+	rm -rf $(PREFIX)/lib/sgx-lkl-cfg.py
 	rm -rf $(PREFIX)/lib/gdb
 	rm -rf $(PREFIX)/tools/kmod-set-fsgsbase
 	rm -rf $(PREFIX)/share/schemas
