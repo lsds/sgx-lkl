@@ -1,15 +1,9 @@
-#include <libc.h>
-#include <string.h>
-#include <time.h>
-
-#include "pthread.h"
-#include "pthread_impl.h"
-
 #include "lkl/asm/host_ops.h"
 #include "lkl/setup.h"
 
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oemalloc.h"
+#include <openenclave/internal/utils.h>
 #include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_mem.h"
@@ -19,7 +13,6 @@
 #include "enclave/sgxlkl_config.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "shared/env.h"
 
 _Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
 
@@ -164,7 +157,7 @@ static int startmain(void* args)
             {
                 enclave_disk_config_t* disk_untrusted =
                     &sgxlkl_enclave->disks[j];
-                if (!strcmp(disk->mnt, disk_untrusted->mnt))
+                if (!oe_strcmp(disk->mnt, disk_untrusted->mnt))
                 {
                     disk->fd = disk_untrusted->fd;
                     disk->capacity = disk_untrusted->capacity;
@@ -237,7 +230,7 @@ int __libc_init_enclave(int argc, char** argv)
 
     size_t max_lthreads =
         sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
-    max_lthreads = next_pow2(max_lthreads);
+    max_lthreads = oe_round_u64_to_pow2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
 
