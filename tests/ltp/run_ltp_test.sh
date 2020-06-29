@@ -74,6 +74,11 @@ for file in "${ltp_tests[@]}"; do
     # Master copy of image is sgxlkl-miniroot-fs.img.master
     # Before running each test copy a fresh copy of image
     cp -f sgxlkl-miniroot-fs.img.master sgxlkl-miniroot-fs.img
+    if [[ $? -ne 0 ]]; then
+      echo "Cannot find sgxlkl-miniroot-fs.img.master"
+      exit 1
+    fi
+
     echo "SGXLKL_CMDLINE=mem=512m SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > \"$stdout_file\" 2>&1"
     SGXLKL_CMDLINE="mem=512m" SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1 timeout $timeout $SGX_LKL_RUN_CMD $file > "$stdout_file" 2>&1
     exit_code=$?
