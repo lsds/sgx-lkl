@@ -40,9 +40,13 @@ scripts=$(git rev-parse --show-toplevel)/scripts
 
 # TODO enable after files have been formatted
 # shellcheck disable=SC2154
-#if ! "$scripts/format-code" --quiet --whatif --files="${files[*]}"; then
-#    exit_ "Commit failed: please run './scripts/format-code --staged' to fix the formatting"
+#if ! "$scripts/format-c-code" --quiet --whatif --files="${files[*]}"; then
+#    exit_ "Commit failed: please run './scripts/format-c-code --staged' to fix the formatting"
 #fi
+
+if ! "$scripts/format-py-code" --quiet --whatif; then
+    exit_ "Commit failed: please run './scripts/format-py-code' to fix the formatting"
+fi
 
 if ! "$scripts/check-linters" "${files[@]}"; then
     exit_ "Commit failed: please run './scripts/check-linters' and fix the warnings"

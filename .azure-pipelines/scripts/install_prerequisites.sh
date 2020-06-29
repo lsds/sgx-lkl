@@ -12,7 +12,7 @@ sudo apt-get install -y \
     expect \
     shellcheck clang-format
 
-sudo python3 -m pip install "jsonschema>=3"
+sudo python3 -m pip install "jsonschema>=3" black
 
 if [[ ! -x "$(command -v docker)" ]]; then
     sudo apt-get install -y docker.io
