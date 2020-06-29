@@ -31,7 +31,7 @@ index 98a0985b3..fd5c50ca0 100644
  {
 +       rmdir(MNTPOINT);
 +       SAFE_MKDIR(MNTPOINT, 0644);
-+       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, "user_xattr");
++       SAFE_MOUNT("/dev/vda", MNTPOINT, "ext4", 0, NULL);
 +
         SAFE_TOUCH(TESTFILE, 0644, NULL);
 
