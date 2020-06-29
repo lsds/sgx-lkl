@@ -64,7 +64,7 @@ Run the image with Docker, adjusting `/opt/sgx-lkl-debug` as necessary depending
 docker run --rm -v /opt/sgx-lkl-debug:/opt/sgx-lkl --device /dev/sgx python-sgxlkl --hw-debug
 ```
 
-Note that `/opt/sgx-lkl-debug` must be a self-contained installation in order to be mountable. This is the case when installing SGX-LKL from the Debian packages. When building from source, after `make install`, you need to run `tools/make_self_contained.sh` to make the installation self-contained.
+Note that `/opt/sgx-lkl-debug` must be a self-contained installation in order to be mountable. This is the case when installing SGX-LKL from the Debian packages. When building from source, after `make install`, you need to run `scripts/make_self_contained.sh` to make the installation self-contained.
 
 ## Deployment to Kubernetes
 
