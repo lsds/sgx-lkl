@@ -52,18 +52,22 @@ run-sw: $(ROOT_FS)
 	@${LTP_TEST_SCRIPT} run-sw
 
 run-hw-single: $(ROOT_FS)
+	@rm -fr $(ROOT_FS_FRESH_COPY)
 	@cp -f $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
 	${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
 
 run-sw-single: $(ROOT_FS)
+	@rm -fr $(ROOT_FS_FRESH_COPY)
 	@cp -f $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
 	${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
 
 run-hw-single-gdb: $(ROOT_FS)
+	@rm -fr $(ROOT_FS_FRESH_COPY)
 	@cp -f $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
 	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
 
 run-sw-single-gdb: $(ROOT_FS)
+	@rm -fr $(ROOT_FS_FRESH_COPY)
 	@cp -f $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
 	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
 
