@@ -20,7 +20,7 @@ fi
 
 function usage() {
     echo "Usage:"
-    echo "`basename $0` <command>"
+    echo "$(basename "$0") <command>"
     echo
     echo "where <command> is one of the following:"
     echo "  build                                              Re-package disk images and configuration as Docker image" 
@@ -40,7 +40,7 @@ function build() {
     context_dir=$(mktemp -d sgxlkl_docker_context_XXXX)
     echo "Using temporary directory ${context_dir}"
 
-    cat >>${context_dir}/Dockerfile << EOF
+    cat >>"${context_dir}/Dockerfile" << EOF
 FROM ubuntu:18.04
 RUN apt-get update && apt-get install -y ca-certificates
 
@@ -87,25 +87,25 @@ ENTRYPOINT ["/opt/sgx-lkl/lib/external/ld-linux-x86-64", "/opt/sgx-lkl/bin/sgx-l
 CMD ["--hw-release"]
 EOF
 
-    cp ${cc_app_cfg} ${context_dir}/app-cfg.json
+    cp "${cc_app_cfg}" "${context_dir}/app-cfg.json"
 
-    disk_paths=$(${cmd_root}/sgx-lkl-cfg dockerize \
+    disk_paths=$("${cmd_root}/sgx-lkl-cfg" dockerize \
         --host-cfg=${cc_host_cfg} \
-        --host-cfg-docker=${context_dir}/host-cfg.json \
+        --host-cfg-docker="${context_dir}/host-cfg.json" \
         --print-disk-paths)
     
     while IFS= read -r line; do
         IFS=':' read -ra entry <<< "$line"
         img_path=${entry[0]}
         img_docker_path=${entry[1]}
-        cp $img_path $context_dir/$img_docker_path
+        cp "$img_path" "$context_dir/$img_docker_path"
     done <<< "${disk_paths}"
     
-    docker build -t $cc_name $context_dir
+    docker build -t $cc_name "$context_dir"
 
     echo "Done. Tagged '$cc_name'."
 
-    rm -rf $context_dir
+    rm -rf "$context_dir"
 }
 
 function main() {

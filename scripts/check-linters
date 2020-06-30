@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+# Copyright (c) Open Enclave SDK contributors.
+# Licensed under the MIT License.
+
+# This script currently runs just the ShellCheck linter on shell
+# scripts. If run from a subdirectory, it will restrict itself to just
+# that directory.
+
+if ! hash shellcheck 2>/dev/null; then
+    echo "ShellCheck not found, please install!"
+    echo "See https://www.shellcheck.net/ for more info."
+    exit 1
+fi
+
+if [[ $# -ne 0 ]]; then
+    filelist="$*"
+else
+    filelist=$(git ls-files)
+fi
+
+for i in $filelist; do
+    if ! file -b "$i" | grep -q "shell script"; then
+        continue;
+    fi
+
+    if ! shellcheck -x "$i"; then
+        failed=1;
+    fi
+done
+
+if [[ $failed -eq 1 ]]; then
+    exit 1
+fi
+
+exit 0

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#shellcheck disable=SC2086,SC2154
+
 set -e
 
 # This script creates a Debian package that contains a DKMS-enabled kernel module
