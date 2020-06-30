@@ -73,6 +73,7 @@ for file in "${ltp_tests[@]}"; do
 
     # Master copy of image is sgxlkl-miniroot-fs.img.master
     # Before running each test copy a fresh copy of image
+    rm -fr sgxlkl-miniroot-fs.img
     cp -f sgxlkl-miniroot-fs.img.master sgxlkl-miniroot-fs.img
     cp_exit_code=$?
     if [[ $cp_exit_code -ne 0 ]]; then
