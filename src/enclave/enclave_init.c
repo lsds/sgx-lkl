@@ -114,8 +114,12 @@ static int startmain(void* args)
 {
     sgxlkl_app_config_t app_config = {0};
 
+    SGXLKL_VERBOSE("enter\n");
+
     __libc_start_init();
     a_barrier();
+
+    SGXLKL_VERBOSE("__libc_start_init finished\n");
 
     /* Indicate that libc initialization has finished */
     __libc_state = libc_initialized;
