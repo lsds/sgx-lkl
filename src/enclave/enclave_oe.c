@@ -25,7 +25,7 @@ static void _size_uint64_to_str(uint64_t size, char* buf, uint64_t len)
 {
     int i = 0;
     double bytes = size;
-    const char* units[] = {"B", "KB", "MB", "GB", "TB", "PB"};
+    const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
     const int unit_len = sizeof(units) / sizeof(units[0]);
 
     while (bytes > 1024.0 && i < unit_len)
