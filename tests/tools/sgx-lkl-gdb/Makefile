@@ -36,6 +36,7 @@ run: run-hw run-sw
 run-gdb: run-hw-gdb
 
 .ONESHELL:
+ifeq (${SGXLKL_BUILD_MODE},debug)
 run-hw: ${SGXLKL_ROOTFS}
 	output=$$(${SGXLKL_ENV} ${SGXLKL_GDB} ${GDB_CMDS} ${SGXLKL_STARTER} ${SGXLKL_HW_PARAMS} ${SGXLKL_ROOTFS} ${PROG} 2>&1)
 	echo "$$output"
@@ -45,6 +46,12 @@ run-sw: ${SGXLKL_ROOTFS}
 	output=$$(${SGXLKL_ENV} ${SGXLKL_GDB} ${GDB_CMDS} ${SGXLKL_STARTER} ${SGXLKL_SW_PARAMS} ${SGXLKL_ROOTFS} ${PROG} 2>&1)
 	echo "$$output"
 	echo "$$output" | grep '$(GDB_MATCH)'
+else
+run-hw:
+	@echo "Test disabled, SGXLKL_BUILD_MODE != debug"
+run-sw:
+	@echo "Test disabled, SGXLKL_BUILD_MODE != debug"
+endif
 
 run-hw-gdb: ${SGXLKL_ROOTFS}
 	$(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
