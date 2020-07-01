@@ -1386,6 +1386,7 @@ void lkl_start_init()
     size_t i;
 
     register_lkl_syscall_overrides();
+    SGXLKL_VERBOSE("register_lkl_syscall_overrides() finished\n");
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
@@ -1432,12 +1433,16 @@ void lkl_start_init()
 
     sgxlkl_mtu = sgxlkl_enclave->tap_mtu;
 
+    SGXLKL_VERBOSE("Configured env variables\n");
+
     initialize_enclave_event_channel(
         sgxlkl_enclave->shared_memory.enc_dev_config,
         sgxlkl_enclave->shared_memory.evt_channel_num);
+    SGXLKL_VERBOSE("initialize_enclave_event_channel() finished\n");
 
     // Register console device
     lkl_virtio_console_add(sgxlkl_enclave->shared_memory.virtio_console_mem);
+    SGXLKL_VERBOSE("lkl_virtio_console_add() finished\n");
 
     // Register network tap if given one
     int net_dev_id = -1;
