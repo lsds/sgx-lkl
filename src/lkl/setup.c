@@ -1384,14 +1384,14 @@ void lkl_start_init()
 {
     size_t i;
 
+    SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
     register_lkl_syscall_overrides();
-    SGXLKL_VERBOSE("register_lkl_syscall_overrides() finished\n");
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
 
     // TODO Make tracing options configurable via SGX-LKL config file.
-
+    SGXLKL_VERBOSE("fetching configuration from environment variables\n");
     if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0))
     {
         sgxlkl_trace_lkl_syscall = 1;
@@ -1432,16 +1432,14 @@ void lkl_start_init()
 
     sgxlkl_mtu = sgxlkl_enclave->tap_mtu;
 
-    SGXLKL_VERBOSE("configuration of environment variables finished\n");
-
+    SGXLKL_VERBOSE("calling initialize_enclave_event_channel()\n");
     initialize_enclave_event_channel(
         sgxlkl_enclave->shared_memory.enc_dev_config,
         sgxlkl_enclave->shared_memory.evt_channel_num);
-    SGXLKL_VERBOSE("initialize_enclave_event_channel() finished\n");
 
     // Register console device
+    SGXLKL_VERBOSE("calling lkl_virtio_console_add()\n");
     lkl_virtio_console_add(sgxlkl_enclave->shared_memory.virtio_console_mem);
-    SGXLKL_VERBOSE("lkl_virtio_console_add() finished\n");
 
     // Register network tap if given one
     int net_dev_id = -1;

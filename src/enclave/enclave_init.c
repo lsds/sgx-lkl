@@ -119,8 +119,6 @@ static int startmain(void* args)
     __libc_start_init();
     a_barrier();
 
-    SGXLKL_VERBOSE("__libc_start_init finished\n");
-
     /* Indicate that libc initialization has finished */
     __libc_state = libc_initialized;
 
@@ -219,39 +217,41 @@ int __libc_init_enclave(int argc, char** argv)
     const size_t sgxlkl_heap_size =
         (__oe_get_heap_size() - oe_allotted_heapsize);
 
+    SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
         sgxlkl_heap_base,
         sgxlkl_heap_size / PAGESIZE,
         sgxlkl_enclave->mmap_files);
-    SGXLKL_VERBOSE("enclave_mman_init() finished\n");
 
     libc.vvar_base = sgxlkl_enclave->shared_memory.vvar;
     libc.user_tls_enabled =
         sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
 
+    SGXLKL_VERBOSE("calling init_sysconf()\n");
     init_sysconf(
         sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);
+
+    SGXLKL_VERBOSE("calling init_clock_res()\n");
     init_clock_res(sgxlkl_enclave->clock_res);
-    SGXLKL_VERBOSE("init_clock_res() finished\n");
 
     size_t max_lthreads =
         sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
     max_lthreads = oe_round_u64_to_pow2(max_lthreads);
 
+    SGXLKL_VERBOSE("calling newmpmcq()\n");
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-    SGXLKL_VERBOSE("newmpmcq() finished\n");
 
+    SGXLKL_VERBOSE("calling __init_libc()\n");
     __init_libc(envp, argv[0]);
     __init_tls();
-    SGXLKL_VERBOSE("__init_tls() finished\n");
 
     size_t futex_wake_spins = sgxlkl_enclave->shared_memory.vvar ? 1 : 500;
     size_t espins = sgxlkl_enclave->espins;
     size_t esleep = sgxlkl_enclave->esleep;
     lthread_sched_global_init(espins, esleep, futex_wake_spins);
 
+    SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
     _lthread_sched_init(sgxlkl_enclave->stacksize);
-    SGXLKL_VERBOSE("_lthread_sched_init() finished\n");
 
     if (lthread_create(&lt, NULL, startmain, NULL) != 0)
     {
