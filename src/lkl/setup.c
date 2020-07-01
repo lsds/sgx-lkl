@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/random.h>
-#include <stdio.h>
 #include <stdlib.h>
 #define _GNU_SOURCE // Needed for strchrnul
 #include <lkl.h>
@@ -1433,7 +1432,7 @@ void lkl_start_init()
 
     sgxlkl_mtu = sgxlkl_enclave->tap_mtu;
 
-    SGXLKL_VERBOSE("Configured env variables\n");
+    SGXLKL_VERBOSE("configuration of environment variables finished\n");
 
     initialize_enclave_event_channel(
         sgxlkl_enclave->shared_memory.enc_dev_config,
@@ -1549,17 +1548,17 @@ void lkl_start_init()
 
     // Set address of ring buffer to env, so that enclave process can access it
     // directly
-    snprintf(
+    oe_snprintf(
         shm_common,
         64,
         "SGXLKL_SHMEM_COMMON=%p",
         sgxlkl_enclave->shared_memory.shm_common);
-    snprintf(
+    oe_snprintf(
         shm_enc_to_out_addr,
         64,
         "SGXLKL_SHMEM_ENC_TO_OUT=%p",
         sgxlkl_enclave->shared_memory.shm_enc_to_out);
-    snprintf(
+    oe_snprintf(
         shm_out_to_enc_addr,
         64,
         "SGXLKL_SHMEM_OUT_TO_ENC=%p",
