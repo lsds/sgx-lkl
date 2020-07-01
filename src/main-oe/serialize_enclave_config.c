@@ -263,9 +263,9 @@ static json_obj_t* encode_io(char* key, const sgxlkl_io_config_t* io)
         "sgxlkl_image_sizes_config_t size has changed");
 
     json_obj_t* r = create_json_objects(key, 3);
-    r->objects[0] = encode_uint64("console", io->console);
-    r->objects[1] = encode_uint64("block", io->block);
-    r->objects[2] = encode_uint64("network", io->network);
+    r->objects[0] = encode_boolean("console", io->console);
+    r->objects[1] = encode_boolean("block", io->block);
+    r->objects[2] = encode_boolean("network", io->network);
     return r;
 }
 
