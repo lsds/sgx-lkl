@@ -140,12 +140,18 @@ static json_result_t decode_safe_uint64_t(
     const json_union_t* value,
     uint64_t* to)
 {
-    if (!to)
+    if (!to || !value)
         return JSON_BAD_PARAMETER;
     if (type != JSON_TYPE_STRING)
         FAIL("invalid value type for '%s'\n", make_path(parser));
     _Static_assert(
         sizeof(unsigned long) == 8, "unexpected size of unsigned long");
+    if (strlen(value->string) > 1 &&
+        (value->string[0] <= '0' || value->string[0] > '9'))
+        FAIL(
+            "leading '%s' in value for '%s' is invalid",
+            value->string[0],
+            make_path(parser));
     json_conversion_error = JSON_OK;
     uint64_t tmp = _strtoul(value->string, NULL, 10, false);
     if (json_conversion_error != JSON_OK)
