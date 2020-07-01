@@ -51,8 +51,8 @@ builddirs:
 	@mkdir -p $(LIB_SGXLKL_BUILD)/config
 
 # Auto-generated enclave config
-CFGGEN = $(abspath $(sgxlkl_toolsdir)/generate_config.py)
-CFGSCHEMA = $(abspath $(sgxlkl_toolsdir)/schemas/enclave-config.schema.json)
+CFGGEN = $(abspath $(TOOLS)/generate_config.py)
+CFGSCHEMA = $(abspath $(TOOLS)/schemas/enclave-config.schema.json)
 CFGH = $(LIB_SGXLKL_BUILD)/config/sgxlkl_enclave_config_gen.h
 CFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_enclave_config_gen.c
 $(CFGH): $(CFGGEN) $(CFGSCHEMA)
@@ -61,7 +61,7 @@ $(CFGC): $(CFGH)
 shared/sgxlkl_enclave_config.c main-oe/serialize_enclave_config.c: $(CFGH)
 
 # Auto-generated host config
-HCFGSCHEMA = $(abspath $(sgxlkl_toolsdir)/schemas/host-config.schema.json)
+HCFGSCHEMA = $(abspath $(TOOLS)/schemas/host-config.schema.json)
 HCFGH = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.h
 HCFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.c
 $(HCFGH): $(CFGGEN) $(HCFGSCHEMA)
