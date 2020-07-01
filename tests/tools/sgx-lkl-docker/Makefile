@@ -10,10 +10,8 @@ IMAGE_SIZE=100M
 # The re-packaged Docker image.
 WRAP_DOCKER_IMAGE=test-sgx-lkl-docker
 WRAP_DOCKER_IMAGE_STAMP=$(WRAP_DOCKER_IMAGE).stamp
-# Note that an arbitrary/non-existing non-root user is used for launching the container.
 WRAP_DOCKER_ARGS_COMMON=\
 	--rm \
-	--user 4242 \
 	-v $(SGXLKL_PREFIX):/opt/sgx-lkl \
 	-e SGXLKL_VERBOSE=1 -e SGXLKL_KERNEL_VERBOSE=1
 WRAP_DOCKER_ARGS_HW=\
