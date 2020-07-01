@@ -81,5 +81,10 @@
   "image_sizes": {
     "num_heap_pages": 262144,
     "num_stack_pages": 1024
+  },
+  "io": {
+    "network": true,
+    "block": true,
+    "console": true
   }
 }
