@@ -45,6 +45,8 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 
+#include "openenclave/corelibc/oestring.h"
+
 #define UMOUNT_DISK_TIMEOUT 2000
 
 // Block size in bytes of the ext4 filesystem for newly created empty disks.
@@ -1457,22 +1459,26 @@ void lkl_start_init()
             sgxlkl_enclave->kernel_cmd,
             strlen(sgxlkl_enclave->kernel_cmd));
 
-    /* check the supplied bootargs does not cause buffer overflow */
+    /* Check that the supplied bootargs do not cause buffer overflow */
     if (!sgxlkl_enclave->kernel_verbose)
-        snprintf(
+    {
+        oe_snprintf(
             bootargs,
             sizeof(bootargs),
             "%s %s %s",
             sgxlkl_enclave->kernel_cmd,
             BOOTARGS_CONSOLE_OPTION,
             "quiet");
+    }
     else
-        snprintf(
+    {
+        oe_snprintf(
             bootargs,
             sizeof(bootargs),
             "%s %s",
             sgxlkl_enclave->kernel_cmd,
             BOOTARGS_CONSOLE_OPTION);
+    }
 
     // Start kernel threads (synchronous, doesn't return before kernel is ready)
     const char* lkl_cmdline = bootargs;
