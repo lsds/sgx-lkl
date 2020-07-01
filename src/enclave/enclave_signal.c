@@ -157,13 +157,17 @@ static uint64_t sgxlkl_enclave_signal_handler(
     {
         sgxlkl_warn(
             "Unhandled exception %s received (code=%i addr=0x%lx opcode=0x%x "
-            "lkl_is_running()=%i ret=%i)\n",
+            "ret=%i)\n",
             trap_info.description,
             exception_record->code,
             (void*)exception_record->address,
             opcode,
-            lkl_is_running(),
             ret);
+
+        if (!lkl_is_running())
+        {
+            sgxlkl_fail("Aborting because LKL is not running yet\n");
+        }
     }
 
     return OE_EXCEPTION_CONTINUE_EXECUTION;
