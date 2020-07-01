@@ -33,7 +33,7 @@ $(DATA_IMAGE): $(DISK_IMAGE)
 	cp $(DISK_IMAGE) $(DATA_IMAGE)
 
 $(CC_stamp): $(DISK_IMAGE) $(DATA_IMAGE)
-	$(SGXLKL_DOCKER_TOOL) build --name=$(CC) --host-cfg=host-config.json --app-cfg=app-config.json
+	$(SGXLKL_DOCKER_TOOL) build --name=$(CC) --host-cfg=host-config.json --enclave-cfg=enclave-config.json
 	touch $(CC_stamp)
 
 run: run-hw run-sw

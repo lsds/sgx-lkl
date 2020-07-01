@@ -399,24 +399,19 @@ def dockerize(args):
     with open(args.host_cfg) as f:
         cfg = json.load(f)
 
-    root_img_path = cfg["hd"]
+    root_img_path = cfg["root"]["image_path"]
     patched_root_img_path = patched_img_path_tmpl.format(i=0)
-    cfg["hd"] = patched_root_img_path
+    cfg["root"]["image_path"] = patched_root_img_path
     if args.print_disk_paths:
         print(f"{root_img_path}:{patched_root_img_path}")
 
-    hds = ""
-    if cfg.get("hds"):
-        for i, entry in enumerate(cfg["hds"].split(",")):
-            img_path, mount_path, mode = entry.split(":")
+    if cfg.get("mounts"):
+        for i, m in enumerate(cfg["mounts"]):
+            img_path = m["image_path"]
             patched_img_path = patched_img_path_tmpl.format(i=i + 1)
-            if hds:
-                hds += ","
-            hds += f"{patched_img_path}:{mount_path}:{mode}"
+            m["image_path"] = patched_img_path
             if args.print_disk_paths:
                 print(f"{img_path}:{patched_img_path}")
-    if hds:
-        cfg["hds"] = hds
 
     with open(args.host_cfg_docker, "w") as f:
         json.dump(cfg, f, indent=INDENT)

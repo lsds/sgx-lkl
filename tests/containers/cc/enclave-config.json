@@ -1,0 +1,10 @@
+{
+  "args": [
+    "/usr/bin/python3",
+    "/app/python-helloworld.py"
+  ],
+  "env": {},
+  "root": {
+    "readonly": false
+  }
+}
