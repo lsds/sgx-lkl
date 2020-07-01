@@ -128,9 +128,9 @@ static int startmain(void* args)
 
     /* SGX-LKL lthreads inherit names from their parent. Set this to "kernel"
      * temporarily to be able to identify LKL kernel threads */
-    //lthread_set_funcname(lthread_self(), "kernel");
+    lthread_set_funcname(lthread_self(), "kernel");
     lkl_start_init();
-    //lthread_set_funcname(lthread_self(), "sgx-lkl-init");
+    lthread_set_funcname(lthread_self(), "sgx-lkl-init");
 
     /* Get WG public key */
     wg_device* wg_dev;
