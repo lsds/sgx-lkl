@@ -245,13 +245,18 @@ static void _read_eeid_config()
 
 static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+
     /* Deep copy where necessary */
 
     sgxlkl_shared_memory_t* enc = &sgxlkl_enclave_state.shared_memory;
     memset(enc, 0, sizeof(sgxlkl_shared_memory_t));
 
-    enc->virtio_net_dev_mem = host->virtio_net_dev_mem;
-    enc->virtio_console_mem = host->virtio_console_mem;
+    if (cfg->io.network)
+        enc->virtio_net_dev_mem = host->virtio_net_dev_mem;
+
+    if (cfg->io.console)
+        enc->virtio_console_mem = host->virtio_console_mem;
 
     enc->evt_channel_num = host->evt_channel_num;
     /* enc_dev_config is required to be outside the enclave */
@@ -263,21 +268,24 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     /* timer_dev_mem is required to be outside the enclave */
     enc->timer_dev_mem = host->timer_dev_mem;
 
-    enc->num_virtio_blk_dev = host->num_virtio_blk_dev;
-
-    enc->virtio_blk_dev_mem =
-        oe_malloc(sizeof(void*) * enc->num_virtio_blk_dev);
-    CHECK_ALLOC(enc->virtio_blk_dev_mem);
-    enc->virtio_blk_dev_names =
-        oe_calloc(enc->num_virtio_blk_dev, sizeof(char*));
-    CHECK_ALLOC(enc->virtio_blk_dev_names);
-    for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
+    if (cfg->io.block)
     {
-        enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
-        const char* name = host->virtio_blk_dev_names[i];
-        size_t name_len = oe_strlen(name) + 1;
-        enc->virtio_blk_dev_names[i] = oe_malloc(name_len);
-        memcpy(enc->virtio_blk_dev_names[i], name, name_len);
+        enc->num_virtio_blk_dev = host->num_virtio_blk_dev;
+
+        enc->virtio_blk_dev_mem =
+            oe_malloc(sizeof(void*) * enc->num_virtio_blk_dev);
+        CHECK_ALLOC(enc->virtio_blk_dev_mem);
+        enc->virtio_blk_dev_names =
+            oe_calloc(enc->num_virtio_blk_dev, sizeof(char*));
+        CHECK_ALLOC(enc->virtio_blk_dev_names);
+        for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
+        {
+            enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
+            const char* name = host->virtio_blk_dev_names[i];
+            size_t name_len = oe_strlen(name) + 1;
+            enc->virtio_blk_dev_names[i] = oe_malloc(name_len);
+            memcpy(enc->virtio_blk_dev_names[i], name, name_len);
+        }
     }
 
     if (host->env)
