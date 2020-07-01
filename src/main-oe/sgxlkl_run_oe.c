@@ -1650,11 +1650,11 @@ void override_host_config(char* root_disk_path)
     if (sgxlkl_config_overridden(SGXLKL_HD_KEY))
         cfg->root.key = sgxlkl_config_str(SGXLKL_HD_KEY);
     if (sgxlkl_config_overridden(SGXLKL_HD_RO))
-        cfg->tap_offload = sgxlkl_config_bool(SGXLKL_HD_RO);
+        cfg->root.readonly = sgxlkl_config_bool(SGXLKL_HD_RO);
     if (sgxlkl_config_overridden(SGXLKL_HD_VERITY))
-        cfg->root.key = sgxlkl_config_str(SGXLKL_HD_VERITY);
+        cfg->root.verity = sgxlkl_config_str(SGXLKL_HD_VERITY);
     if (sgxlkl_config_overridden(SGXLKL_HD_VERITY_OFFSET))
-        cfg->root.key = sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET);
+        cfg->root.verity_offset = sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET);
 
     if (sgxlkl_config_overridden(SGXLKL_HDS))
     {
