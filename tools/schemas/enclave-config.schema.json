@@ -294,6 +294,26 @@
         }
       }
     },
+    "sgxlkl_io_config_t": {
+      "type": "object",
+      "properties": {
+        "network": {
+          "type": "boolean",
+          "description": "Enables shared memory for the network device",
+          "default": true
+        },
+        "block": {
+          "type": "boolean",
+          "description": "Enables shared memory for block devices",
+          "default": true
+        },
+        "console": {
+          "type": "boolean",
+          "description": "Enables shared memory for the console",
+          "default": true
+        }
+      }
+    },
     "sgxlkl_enclave_config_t": {
       "type": "object",
       "properties": {
@@ -517,6 +537,10 @@
         "image_sizes": {
           "$ref": "#/definitions/sgxlkl_image_sizes_config_t",
           "description": "Image memory size configuration."
+        },
+        "io": {
+          "$ref": "#/definitions/sgxlkl_io_config_t",
+          "description": "I/O configuration."
         }
       }
     }

@@ -256,6 +256,19 @@ static json_obj_t* encode_image_sizes(
     return r;
 }
 
+static json_obj_t* encode_io(char* key, const sgxlkl_io_config_t* io)
+{
+    _Static_assert(
+        sizeof(sgxlkl_io_config_t) == 3,
+        "sgxlkl_image_sizes_config_t size has changed");
+
+    json_obj_t* r = create_json_objects(key, 3);
+    r->objects[0] = encode_uint64("console", io->console);
+    r->objects[1] = encode_uint64("block", io->block);
+    r->objects[2] = encode_uint64("network", io->network);
+    return r;
+}
+
 static void print_to_buffer(
     char** buffer,
     size_t* buffer_size,
@@ -437,7 +450,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 464,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = encode_boolean(#N, config->N)
@@ -499,6 +512,8 @@ void serialize_enclave_config(
 
     root->objects[cnt++] =
         encode_image_sizes("image_sizes", &config->image_sizes);
+
+    root->objects[cnt++] = encode_io("io", &config->io);
 
     root->size = cnt;
 

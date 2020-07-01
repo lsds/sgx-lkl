@@ -417,6 +417,11 @@ static json_result_t json_read_callback(
             JU64("image_sizes.num_heap_pages", sizes->num_heap_pages);
             JU64("image_sizes.num_stack_pages", sizes->num_stack_pages);
 
+            sgxlkl_io_config_t* io = &cfg->io;
+            JBOOL("io.console", io->console);
+            JBOOL("io.block", io->block);
+            JBOOL("io.network", io->network);
+
             FAIL(
                 "Invalid unknown json element '%s'; refusing to run with this "
                 "enclave config.\n",
@@ -467,7 +472,7 @@ void sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 456,
+        sizeof(sgxlkl_enclave_config_t) == 464,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from)
