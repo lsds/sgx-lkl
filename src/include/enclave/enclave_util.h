@@ -4,11 +4,70 @@
 #include <enclave/enclave_state.h>
 #include <openenclave/enclave.h>
 
-#define SGXLKL_LKL_SYSCALL 1
-#define SGXLKL_INTERNAL_SYSCALL 3
-#define SGXLKL_IGNORED_SYSCALL 4
-#define SGXLKL_UNSUPPORTED_SYSCALL 5
-#define SGXLKL_REDIRECT_SYSCALL 6
+// Eventually we will want to turn system call tracing on and off independently
+// of the debug configuration, but for now they are the same.
+#define SGXLKL_ENABLE_SYSCALL_TRACING DEBUG
+
+/**
+ * The mechanism used to implement a specified system call.
+ */
+typedef enum
+{
+    /**
+     * System calls that are implemented by LKL as a normal Linux system call.
+     */
+    SGXLKL_LKL_SYSCALL = 1,
+    /**
+     * System calls that are implemented using SGX-LKL custom code paths that
+     * bypass the Linux kernel.  Eventually, these will all be replaced.
+     */
+    SGXLKL_INTERNAL_SYSCALL = 3,
+    /**
+     * System calls that are not possible to implement in an SGX environment but
+     * software that expects it to work can act as if it does.  For example,
+     * `mlock` is ignored because memory is all locked by the SGX environment.
+     */
+    SGXLKL_IGNORED_SYSCALL = 4,
+    /**
+     * System calls that are not supported in the SGX
+     * environment at all and which callers may handle.
+     */
+    SGXLKL_UNSUPPORTED_SYSCALL = 5,
+    /**
+     * System calls that were invoked using the normal
+     * architecture's system call numbers and
+     * redirected.
+     */
+    SGXLKL_REDIRECT_SYSCALL = 6,
+} sgxlkl_syscall_kind;
+
+/**
+ * Logs a trace message for the specified syscall.  The type argument
+ * identifies how the system call is implemented, `n` gives the number of
+ * parameters, `res` the result value. There are `params_len` variadic
+ * parameters (0 to 6) that give the arguments for the system call.
+ *
+ * This function returns `res`, so that it can be tail called on the return
+ * path.
+ */
+#if SGXLKL_ENABLE_SYSCALL_TRACING
+long __sgxlkl_log_syscall(
+    sgxlkl_syscall_kind type,
+    long n,
+    long res,
+    int params_len,
+    ...);
+#else
+static inline long __sgxlkl_log_syscall(
+    sgxlkl_syscall_kind type,
+    long n,
+    long res,
+    int params_len,
+    ...)
+{
+    return res;
+}
+#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
