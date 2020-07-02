@@ -1,0 +1,12 @@
+tests=$(cat supported | grep -v "^#" )
+
+for i in ${tests}
+do
+    timeout 60 make -s test TEST=$i
+    if [ "$?" != 0 ]; then
+        echo "*********************** FAIL: $?"
+        exit 1
+    else
+        echo "======================= PASS"
+    fi
+done
