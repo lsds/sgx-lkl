@@ -13,8 +13,6 @@ void sgxlkl_warn(char* msg, ...);
 
 void sgxlkl_info(char* msg, ...);
 
-void __sgxlkl_log_syscall(int type, long n, long res, int params_len, ...);
-
 int int_log2(unsigned long long arg);
 
 #ifdef DEBUG
