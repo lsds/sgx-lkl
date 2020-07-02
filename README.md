@@ -8,6 +8,7 @@ Various features are under development and there are several known bugs.
 [![Build Status](https://dev.azure.com/sgx-lkl/sgx-lkl/_apis/build/status/sgx-lkl?branchName=oe_port)](https://dev.azure.com/sgx-lkl/sgx-lkl/_build/latest?definitionId=1&branchName=oe_port)
 
 The SGX-LKL project is designed to run existing unmodified Linux binaries inside of Intel SGX enclaves. The goal of the project is to provide the necessary system support for complex applications (e.g., TensorFlow, PyTorch, and OpenVINO) and programming language runtimes (e.g., Python, the DotNet CLR and the JVM). SGX-LKL can run these applications in SGX enclaves without modifications or reliance on the untrusted host OS.
+Known incompatibilities are documented in [Incompatibilities.md](docs/Incompatibilities.md).
 
 The SGX-LKL project includes several components:
 
