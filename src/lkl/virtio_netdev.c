@@ -12,27 +12,19 @@
 #define MAX_NET_DEVS 16
 
 static uint8_t registered_dev_idx = 0;
-static uint8_t _netdev_base_id = 0;
 
 struct virtio_dev* registered_devs[MAX_NET_DEVS];
 static struct ticketlock __event_notifier_lock;
-
-/*
- * Function to get the netdev id maintained in virtio_netdev list
- */
-static inline uint8_t get_netdev_id(uint8_t dev_id)
-{
-    return (dev_id - _netdev_base_id);
-}
 
 /*
  * Function to get netdev instance to use its attributes
  */
 static inline struct virtio_dev* get_netdev_instance(uint8_t netdev_id)
 {
-    struct virtio_dev* ndev = registered_devs[netdev_id];
-    assert(ndev != NULL);
-    return ndev;
+    for (size_t i = 0; i < registered_dev_idx; i++)
+        if (registered_devs[i]->vendor_id == netdev_id)
+            return registered_devs[i];
+    SGXLKL_ASSERT(false);
 }
 
 /*
@@ -60,8 +52,7 @@ static int dev_register(struct virtio_dev* dev)
  */
 static void lkl_deliver_irq(uint64_t dev_id)
 {
-    uint8_t netdev_index = get_netdev_id(dev_id);
-    struct virtio_dev* dev = get_netdev_instance(netdev_index);
+    struct virtio_dev* dev = get_netdev_instance(dev_id);
     ticket_lock(&__event_notifier_lock);
 
     __sync_synchronize();
@@ -81,10 +72,6 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev)
     int ret = -1;
     memset(&__event_notifier_lock, 0, sizeof(struct ticketlock));
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
-
-    if (!_netdev_base_id)
-        /* Net devices get the IDs following disks (root + mounts) */
-        _netdev_base_id = sgxlkl_enclave_state.config->num_mounts + 2;
 
     registered_devs[registered_dev_idx] = netdev;
     lkl_virtio_dev_setup(netdev, mmio_size, &lkl_deliver_irq);

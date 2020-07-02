@@ -312,7 +312,8 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
                 // Check if there was an error but the fd has not been closed
                 if (pipe_ret < 0 && errno != EBADF)
                     sgxlkl_host_fail(
-                        "%s: write to fd pipe failed: fd=%i ret=%i errno=%i %s\n",
+                        "%s: write to fd pipe failed: fd=%i ret=%i errno=%i "
+                        "%s\n",
                         __func__,
                         nd_fd->pipe[1],
                         pipe_ret,
@@ -554,7 +555,10 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     netdev_vq_size = next_pow2(netdev_vq_size);
 
     if (!_netdev_id)
+    {
+        /* Net devices get the IDs following disks (root + mounts) */
         _netdev_base_id = _netdev_id = host_state->num_disks;
+    }
 
     /* Allocate memory for net device */
     net_dev = mmap(
