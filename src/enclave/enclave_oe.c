@@ -94,6 +94,8 @@ void sgxlkl_ethread_init(void)
 
     /* Initialization completed, now run the scheduler */
     __init_tls();
+
+    SGXLKL_ASSERT(sgxlkl_enclave);
     _lthread_sched_init(sgxlkl_enclave->stacksize);
 
     SGXLKL_VERBOSE("Calling lthread_run()\n");
