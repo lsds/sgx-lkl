@@ -1535,16 +1535,16 @@ void lkl_start_init()
     SGXLKL_VERBOSE(
         "Disk 0: Disk is writable: %s\n", (!cfg->root.readonly ? "yes" : "no"));
 
-    size_t num_disks = cfg->num_mounts;
-    for (i = 0; i < num_disks; ++i)
+    size_t num_mounts = cfg->num_mounts;
+    for (i = 0; i < num_mounts; ++i)
     {
         SGXLKL_VERBOSE(
             "Disk %zu: Disk encryption: %s\n",
-            i,
+            i + 1,
             (is_encrypted(&cfg->mounts[i]) ? "yes" : "no"));
         SGXLKL_VERBOSE(
             "Disk %zu: Disk is writable: %s\n",
-            i,
+            i + 1,
             (!cfg->mounts[i].readonly ? "yes" : "no"));
     }
 
