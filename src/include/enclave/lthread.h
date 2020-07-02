@@ -309,6 +309,10 @@ extern "C"
      */
     void futex_dequeue(struct lthread *lt);
 
+#ifdef DEBUG
+    void lthread_dump_all_threads(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

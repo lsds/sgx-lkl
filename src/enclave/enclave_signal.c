@@ -173,6 +173,9 @@ static uint64_t sgxlkl_enclave_signal_handler(
 
         if (!lkl_is_running())
         {
+#ifdef DEBUG
+            lthread_dump_all_threads();
+#endif
             sgxlkl_fail("Aborting because LKL is not running yet\n");
         }
     }
