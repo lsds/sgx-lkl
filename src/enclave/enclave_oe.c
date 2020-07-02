@@ -73,8 +73,6 @@ static void _sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 
 void sgxlkl_ethread_init(void)
 {
-    SGXLKL_VERBOSE("enter\n");
-
     void* tls_page;
     __asm__ __volatile__("mov %%fs:0,%0" : "=r"(tls_page));
 
@@ -90,15 +88,11 @@ void sgxlkl_ethread_init(void)
         a_spin();
     }
 
-    SGXLKL_VERBOSE("libc is initialised\n");
-
     /* Initialization completed, now run the scheduler */
     __init_tls();
 
     SGXLKL_ASSERT(sgxlkl_enclave);
     _lthread_sched_init(sgxlkl_enclave->stacksize);
-
-    SGXLKL_VERBOSE("Calling lthread_run()\n");
     lthread_run();
 
     return;

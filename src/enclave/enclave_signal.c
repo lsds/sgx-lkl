@@ -10,6 +10,7 @@
 #include <lkl_host.h>
 #include <string.h>
 #include "enclave/sgxlkl_t.h"
+#include "enclave/lthread.h"
 #include "shared/env.h"
 
 #define RDTSC_OPCODE 0x310F
@@ -155,10 +156,14 @@ static uint64_t sgxlkl_enclave_signal_handler(
     }
     else
     {
+        struct lthread* lt = lthread_self();
+
         sgxlkl_warn(
-            "Unhandled exception %s received (code=%i addr=0x%lx opcode=0x%x "
+            "Unhandled exception %s received (lt->funcname=%s code=%i "
+            "addr=0x%lx opcode=0x%x "
             "ret=%i)\n",
             trap_info.description,
+            lt ? lt->funcname : "(?)",
             exception_record->code,
             (void*)exception_record->address,
             opcode,
