@@ -6,5 +6,11 @@
   "env": {},
   "root": {
     "readonly": false
-  }
+  },
+  "mounts": [
+    {
+      "destination": "/data",
+      "readonly": false
+    }
+  ]
 }

@@ -54,4 +54,4 @@ run-sw: $(CC_stamp)
 endif
 
 clean:
-	rm -f $(DISK_IMAGE) $(DATA_IMAGE) $(CC)
+	rm -f $(DISK_IMAGE) $(DATA_IMAGE) $(CC) $(CC_stamp)
