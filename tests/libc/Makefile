@@ -21,43 +21,6 @@ clean:
 	rm -rf libc-test
 	rm -rf rootfs
 
-#TESTS += ./libc-test/src/functional/pthread_cancel-points.exe
-#TESTS += ./libc-test/src/functional/pthread_mutex_pi-static.exe
-#TESTS += ./libc-test/src/functional/pthread_cancel.exe
-TESTS += ./libc-test/src/functional/pthread_mutex.exe
-TESTS += ./libc-test/src/functional/pthread_mutex_pi.exe
-#TESTS += ./libc-test/src/functional/pthread_cancel-points-static.exe
-#TESTS += ./libc-test/src/functional/pthread_tsd-static.exe
-#TESTS += ./libc-test/src/functional/pthread_robust.exe
-#TESTS += ./libc-test/src/functional/pthread_tsd.exe
-#TESTS += ./libc-test/src/functional/pthread_cancel-static.exe
-#TESTS += ./libc-test/src/functional/pthread_robust-static.exe
-#TESTS += ./libc-test/src/functional/pthread_cond-static.exe
-#TESTS += ./libc-test/src/functional/pthread_mutex-static.exe
-#TESTS += ./libc-test/src/functional/pthread_cond.exe
-#TESTS += ./libc-test/src/regression/pthread-robust-detach.exe
-#TESTS += ./libc-test/src/regression/pthread_create-oom-static.exe
-#TESTS += ./libc-test/src/regression/pthread_exit-cancel.exe
-#TESTS += ./libc-test/src/regression/pthread_once-deadlock-static.exe
-#TESTS += ./libc-test/src/regression/pthread_rwlock-ebusy-static.exe
-#TESTS += ./libc-test/src/regression/pthread_condattr_setclock.exe
-#TESTS += ./libc-test/src/regression/pthread-robust-detach-static.exe
-#TESTS += ./libc-test/src/regression/pthread_cancel-sem_wait-static.exe
-#TESTS += ./libc-test/src/regression/pthread_rwlock-ebusy.exe
-#TESTS += ./libc-test/src/regression/pthread_atfork-errno-clobber-static.exe
-#TESTS += ./libc-test/src/regression/pthread_atfork-errno-clobber.exe
-#TESTS += ./libc-test/src/regression/pthread_exit-dtor.exe
-#TESTS += ./libc-test/src/regression/pthread_cond-smasher-static.exe
-#TESTS += ./libc-test/src/regression/pthread_cancel-sem_wait.exe
-#TESTS += ./libc-test/src/regression/pthread_create-oom.exe
-#TESTS += ./libc-test/src/regression/pthread_exit-cancel-static.exe
-#TESTS += ./libc-test/src/regression/pthread_once-deadlock.exe
-#TESTS += ./libc-test/src/regression/pthread_cond_wait-cancel_ignored.exe
-#TESTS += ./libc-test/src/regression/pthread_cond-smasher.exe
-#TESTS += ./libc-test/src/regression/pthread_condattr_setclock-static.exe
-#TESTS += ./libc-test/src/regression/pthread_exit-dtor-static.exe
-#TESTS += ./libc-test/src/regression/pthread_cond_wait-cancel_ignored-static.exe
-
 ifdef TEST
 test:
 	@ echo "<<<<<<<<<< test: $(TEST)"
