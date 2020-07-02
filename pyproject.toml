@@ -1,0 +1,22 @@
+[tool.black]
+# See https://black.readthedocs.io/en/stable/pyproject_toml.html.
+
+include = '''
+(
+    \.pyi?$
+  | tools/sgx-lkl-cfg$
+)
+'''
+
+exclude = '''
+(
+  /(
+      \.git         
+    | host-musl
+    | lkl
+    | openenclave
+    | sgx-lkl-musl
+    | third_party
+  )/
+)
+'''
