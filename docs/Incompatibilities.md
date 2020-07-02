@@ -28,7 +28,7 @@ At the system call layer, this means that there are some restrictions on `mmap`:
 
  - Mapping anonymous memory works reliably.
  - Shared mappings are not automatically written back.
- - `MAP_FIXED` mappings should only be done over existing mappings: the kernel and userspace share and address space.
+ - `MAP_FIXED` mappings should only be done over existing mappings: the kernel and userspace share an address space.
    It is currently possible to do `MAP_FIXED` over kernel mappings, this will be fixed in a future version.
 
 These restrictions are close to those of uCLinux and SGX-LKL will eventually use the no-MMU code from Linux.
