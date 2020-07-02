@@ -14,11 +14,12 @@ enclave {
      *   into oecore. Additionally, EDL does not currently support conditional
      *   imports
      */
+    from "openenclave/edl/sgx/sgx_attestation.edl" import *;
     from "openenclave/edl/attestation.edl" import *;
     from "openenclave/edl/logging.edl" import *;
     from "openenclave/edl/sgx/cpu.edl" import *;
     from "openenclave/edl/sgx/debug.edl" import *;
-    from "openenclave/edl/sgx/sgx_attestation.edl" import *;
+    from "openenclave/edl/syscall.edl" import *;
 
     include "shared/sgxlkl_config.h"
 
