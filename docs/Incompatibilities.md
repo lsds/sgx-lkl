@@ -59,7 +59,7 @@ Attempting to set CPU affinity will report success but silently fail.
 
 On x86-64 Linux, userspace makes system calls by placing the arguments and system call number in registers and then issuing a `syscall` instruction.
 With SGX, the `syscall` instruction is not permitted and so will raise an illegal instruction trap, which will be delivered to the host, resulting in an enclave exit and an enclave resume with the host.
-We do not yet emulate the syscall instruction and so any code attempts to make system calls directly will fail.
+We do not yet emulate the syscall instruction and so any code that attempts to make system calls directly will fail.
 
 The libc `syscall` function has been modified to use the LKL system call mechanism and so any code that does system calls via this function will work.
 
@@ -78,7 +78,7 @@ If the EPC is exhausted, the OS must swap to the rest of memory.
 This involves encrypting a page, removing it from the enclave, and providing a different page, which is then decrypted and validated.
 This process takes tens of thousands of cycles.
 
-Any workload that does not fix into the EPC will incur a significant (often a factor of ten) slowdown as a result of EPC swapping overheads.
+Any workload that does not fit into the EPC will incur a significant (often a factor of ten) slowdown as a result of EPC swapping overheads.
 In the most recent shipping SGX hardware, such as the Coffee Lake Xeons in the Azure DCv2 VMs, the EPC is 256MiB, shared between all SGX enclaves.
 On older hardware, the EPC is 128MiB.
 
