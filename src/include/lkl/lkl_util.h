@@ -3,6 +3,10 @@
 
 #include <openenclave/enclave.h>
 
+// Eventually we will want to turn system call tracing on and off independently
+// of the debug configuration, but for now they are the same.
+#define SGXLKL_ENABLE_SYSCALL_TRACING DEBUG
+
 /**
  * The mechanism used to implement a specified system call.
  */
@@ -45,7 +49,7 @@ typedef enum
  * This function returns `res`, so that it can be tail called on the return
  * path.
  */
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
 long __sgxlkl_log_syscall(
     sgxlkl_syscall_kind type,
     long n,

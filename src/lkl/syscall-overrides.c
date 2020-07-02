@@ -9,7 +9,7 @@
  * Macros for generating functions for implementing ignored system calls and
  * for their log variants.
  */
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
 #define IGNORED_SYSCALL(name, args)                           \
     static long ignore##name(                                 \
         long a1, long a2, long a3, long a4, long a5, long a6) \
@@ -44,7 +44,7 @@
  * and returns a not-implemented error.  The log variant logs that the system
  * call was unsupported.
  */
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
 #define UNSUPPORTED_SYSCALL(name, args)                       \
     static long unsupported##name()                           \
     {                                                         \
@@ -76,7 +76,7 @@
 
 #include "unsupported-syscalls.h"
 
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
 static lkl_syscall_handler_t real_syscalls[__lkl__NR_syscalls];
 
 #undef LKL_SYSCALL_DEFINE0
@@ -172,7 +172,7 @@ void register_lkl_syscall_overrides()
     // count them as LKL syscalls for the purpose of tracing.
     syscall_register_fstat_overrides();
 
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
     // If tracing is enabled, register syscall overrides that call the tracing
     // functions.
 #undef LKL_SYSCALL_DEFINE0
@@ -217,7 +217,7 @@ void register_lkl_syscall_overrides()
     // If tracing ignored syscalls is enabled, replace the ignored set with a
     // version that does the tracing and exits, otherwise replace them with a
     // version that silently returns success.
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
     if (sgxlkl_trace_ignored_syscall)
     {
 #define IGNORED_SYSCALL(name, args) \
@@ -235,7 +235,7 @@ void register_lkl_syscall_overrides()
     // If tracing unsupported syscalls is enabled, replace the ignored set with
     // a version that does the tracing and exits, otherwise replace them with a
     // version that silently returns failure.
-#if DEBUG
+#if SGXLKL_ENABLE_SYSCALL_TRACING
     if (sgxlkl_trace_unsupported_syscall)
     {
 #define UNSUPPORTED_SYSCALL(name, args) \
