@@ -34,7 +34,7 @@
 /ltp/testcases/kernel/syscalls/chdir/chdir01
 /ltp/testcases/kernel/syscalls/chdir/chdir02
 /ltp/testcases/kernel/syscalls/chdir/chdir03
-#/ltp/testcases/kernel/syscalls/chdir/chdir04
+/ltp/testcases/kernel/syscalls/chdir/chdir04
 /ltp/testcases/kernel/syscalls/chmod/chmod01
 /ltp/testcases/kernel/syscalls/chmod/chmod02
 #/ltp/testcases/kernel/syscalls/chmod/chmod03
@@ -682,7 +682,7 @@
 #/ltp/testcases/kernel/syscalls/pselect/pselect03
 /ltp/testcases/kernel/syscalls/ptrace/ptrace01
 /ltp/testcases/kernel/syscalls/ptrace/ptrace02
-/ltp/testcases/kernel/syscalls/ptrace/ptrace03
+#/ltp/testcases/kernel/syscalls/ptrace/ptrace03
 /ltp/testcases/kernel/syscalls/ptrace/ptrace04
 /ltp/testcases/kernel/syscalls/ptrace/ptrace05
 /ltp/testcases/kernel/syscalls/ptrace/ptrace07
@@ -800,9 +800,9 @@
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile08
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile09
 #/ltp/testcases/kernel/syscalls/sendmmsg/sendmmsg01
-#/ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
+/ltp/testcases/kernel/syscalls/sendmsg/sendmsg01
 /ltp/testcases/kernel/syscalls/sendmsg/sendmsg02
-#/ltp/testcases/kernel/syscalls/sendto/sendto01
+/ltp/testcases/kernel/syscalls/sendto/sendto01
 /ltp/testcases/kernel/syscalls/sendto/sendto02
 /ltp/testcases/kernel/syscalls/set_mempolicy/set_mempolicy01
 /ltp/testcases/kernel/syscalls/set_mempolicy/set_mempolicy02
@@ -824,7 +824,7 @@
 #/ltp/testcases/kernel/syscalls/setfsuid/setfsuid03
 #/ltp/testcases/kernel/syscalls/setfsuid/setfsuid04
 #/ltp/testcases/kernel/syscalls/setgid/setgid01
-/ltp/testcases/kernel/syscalls/setgid/setgid02
+#/ltp/testcases/kernel/syscalls/setgid/setgid02
 #/ltp/testcases/kernel/syscalls/setgid/setgid03
 #/ltp/testcases/kernel/syscalls/setgroups/setgroups01
 #/ltp/testcases/kernel/syscalls/setgroups/setgroups02
@@ -1024,7 +1024,7 @@
 /ltp/testcases/kernel/syscalls/vfork/vfork01
 /ltp/testcases/kernel/syscalls/vfork/vfork02
 #/ltp/testcases/kernel/syscalls/vhangup/vhangup01
-/ltp/testcases/kernel/syscalls/vhangup/vhangup02
+#/ltp/testcases/kernel/syscalls/vhangup/vhangup02
 /ltp/testcases/kernel/syscalls/vmsplice/vmsplice01
 #/ltp/testcases/kernel/syscalls/vmsplice/vmsplice02
 #/ltp/testcases/kernel/syscalls/wait/wait01

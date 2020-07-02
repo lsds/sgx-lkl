@@ -4,7 +4,8 @@ ALPINE_MAJOR=3.8
 ALPINE_VERSION=3.8.0
 ALPINE_ARCH=x86_64
 
-ROOT_FS=sgxlkl-miniroot-fs.img
+ROOT_FS=sgxlkl-miniroot-fs.img.master
+ROOT_FS_FRESH_COPY=sgxlkl-miniroot-fs.img
 ALPINE_TAR=alpine-minirootfs.tar.gz
 MOUNTPOINT=/media/ext4disk
 IMAGE_SIZE_MB=1500
@@ -51,19 +52,28 @@ run-sw: $(ROOT_FS)
 	@${LTP_TEST_SCRIPT} run-sw
 
 run-hw-single: $(ROOT_FS)
-	${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
+	@rm -f $(ROOT_FS_FRESH_COPY)
+	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
+	${SGXLKL_STARTER} --hw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 run-sw-single: $(ROOT_FS)
-	${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
+	@rm -f $(ROOT_FS_FRESH_COPY)
+	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
+	${SGXLKL_STARTER} --sw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 run-hw-single-gdb: $(ROOT_FS)
-	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
+	@rm -f $(ROOT_FS_FRESH_COPY)
+	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
+	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 run-sw-single-gdb: $(ROOT_FS)
-	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
+	@rm -f $(ROOT_FS_FRESH_COPY)
+	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
+	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true
 	@test -f $(ROOT_FS) && rm $(ROOT_FS) || true
+	@test -f $(ROOT_FS_FRESH_COPY) && rm $(ROOT_FS_FRESH_COPY) || true
 	@rm -f .c_binaries_list
 

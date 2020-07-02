@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
+import pkg_resources
 import argparse
 from pathlib import Path
 import json
-try:
-    import jsonschema
-except ImportError:
-    jsonschema = None
 
 THIS_DIR = Path(__file__).parent
 
@@ -246,8 +243,15 @@ def validate(args):
     _validate(args.app_cfg, args.host_cfg)
 
 def _validate(app_cfg_path=None, host_cfg_path=None):
-    if jsonschema is None:
+    try:
+        pkg_resources.require('jsonschema>=3')
+        import jsonschema
+    except pkg_resources.DistributionNotFound:
         raise RuntimeError('validate requires the "jsonschema" Python package')
+    except pkg_resources.VersionConflict:
+        raise RuntimeError('validate requires the "jsonschema" Python package '
+                           'but your version is too old (<3)')
+
     items = [
         (app_cfg_path, APP_CFG_SCHEMA_PATH),
         (host_cfg_path, HOST_CFG_SCHEMA_PATH)

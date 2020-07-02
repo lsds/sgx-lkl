@@ -1,0 +1,31 @@
+Alarm can return non zero if previous alarms are existing.
+Here test suite itself has alarm running to check for timeouts. 
+In sgxlkl environment, the test suite is already modified
+to run, test suite and test case in a single process
+environment. Hence, in the test case “alarm” system call 
+returning non zero value and test case failed.
+The alarm is reset in setup function before verification.
+
+diff --git a/testcases/kernel/syscalls/alarm/alarm02.c b/testcases/kernel/syscalls/alarm/alarm02.c
+index 94239060c..f140e6d1c 100644
+--- a/testcases/kernel/syscalls/alarm/alarm02.c
++++ b/testcases/kernel/syscalls/alarm/alarm02.c
+@@ -37,7 +37,7 @@ static void verify_alarm(unsigned int n)
+ 	if (ret != 0) {
+ 		tst_res(TFAIL,
+ 			"alarm(%u) returned %ld, when 0 was ",
+-			tc->sec, TST_RET);
++			tc->sec, ret);
+ 		return;
+ 	}
+ 
+@@ -70,6 +70,9 @@ static void sighandler(int sig)
+ 
+ static void setup(void)
+ {
++	// reset the alarm
++	alarm(0);
++
+ 	SAFE_SIGNAL(SIGALRM, sighandler);
+ }
+ 

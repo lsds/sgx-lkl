@@ -11,7 +11,7 @@ OESIGN_CONFIG_PATH = $(SGXLKL_ROOT)/config
 .DEFAULT_GOAL:=all
 default: all
 
-all: update-git-submodules $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
+all: update-git-submodules install-git-pre-commit-hook $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) fsgsbase-kernel-module
 
 # Check if the user didn't override the default in-tree OE install location with another OE host install
 ifeq ($(OE_SDK_ROOT),$(OE_SDK_ROOT_DEFAULT))
@@ -22,7 +22,7 @@ $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
 	cd $(OE_SUBMODULE) && sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
 	mkdir -p $(OE_SUBMODULE)/build
 	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DENABLE_REFMAN=OFF -DCOMPILE_SYSTEM_EDL=OFF ..
-	$(MAKE) -C $(OE_SUBMODULE)/build -j$(tools/ncore.sh) && $(MAKE) -C $(OE_SUBMODULE)/build install
+	$(MAKE) -C $(OE_SUBMODULE)/build -j$(scripts/ncore.sh) && $(MAKE) -C $(OE_SUBMODULE)/build install
 endif
 
 # Install the glibc headers as for building libsgxlkl.so --nostdincludes is required.
@@ -39,7 +39,7 @@ ${HOST_MUSL_BUILD}: | ${HOST_MUSL}/.git ${HOST_LIBC_BLD_DIR}
 	cd ${HOST_MUSL}; ( [ -f config.mak ] && [ -d ${HOST_LIBC_BLD_DIR} ] ) || CFLAGS="$(SGXLKL_CFLAGS_EXTRA)" ./configure \
 		$(LIBC_CONFIGURE_OPTS) \
 		--prefix=${HOST_LIBC_BLD_DIR}
-	+${MAKE} -C ${HOST_MUSL} -j`tools/ncore.sh` CFLAGS="$(SGXLKL_CFLAGS_EXTRA)" install
+	+${MAKE} -C ${HOST_MUSL} -j`scripts/ncore.sh` CFLAGS="$(SGXLKL_CFLAGS_EXTRA)" install
 	ln -fs ${LINUX_HEADERS_INC}/linux/ ${HOST_LIBC_BLD_DIR}/include/linux
 	ln -fs ${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm/ ${HOST_LIBC_BLD_DIR}/include/asm
 	ln -fs ${LINUX_HEADERS_INC}/asm-generic/ ${HOST_LIBC_BLD_DIR}/include/asm-generic
@@ -58,11 +58,11 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_BUILD} | ${LKL}/.git ${LKL_BUILD
 	cd ${LKL} && (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
 	# Override lkl's defconfig with our own
 	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/configs/defconfig
-	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_CC} EXTRA_CFLAGS="$(LKL_CFLAGS_EXTRA)" PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`scripts/ncore.sh` CC=${HOST_CC} EXTRA_CFLAGS="$(LKL_CFLAGS_EXTRA)" PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib
 	cp ${LKL}/tools/lkl/liblkl.a $(LKL_BUILD)/lib
-	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`tools/ncore.sh` CC=${HOST_CC} EXTRA_CFLAGS="$(LKL_CFLAGS_EXTRA)" PREFIX="" \
+	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`scripts/ncore.sh` CC=${HOST_CC} EXTRA_CFLAGS="$(LKL_CFLAGS_EXTRA)" PREFIX="" \
 		TARGETS="" headers_install
 	# Bugfix, prefix symbol that collides with musl's one
 	find ${LKL_BUILD}/include/ -type f -exec sed -i 's/struct ipc_perm/struct lkl_ipc_perm/' {} \;
@@ -72,6 +72,8 @@ lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_BUILD} | ${LKL}/.git ${LKL_BUILD
 
 tools: ${TOOLS_OBJ}
 
+# TODO remove tools rules after lkl_bits.c/lkl_syscalls.c are gone
+#      (see also config.mak)
 # Generic tool rule (doesn't actually depend on lkl_lib, but on LKL headers)
 ${TOOLS_BUILD}/%: ${TOOLS}/%.c ${HOST_MUSL_BUILD} ${LIBLKL} | ${TOOLS_BUILD}
 	@echo "${HOST_CC} $<"
@@ -108,7 +110,7 @@ sgx-lkl-musl-config: ${OPENENCLAVE}
 		--disable-shared
 
 sgx-lkl-musl: ${LIBLKL} ${LKL_HEADERS} $(SGXLKL_BUILD_VARIANT)-config sgx-lkl ${OE_STUBS} | ${SGXLKL_LIBC_BLD_DIR}
-	+${MAKE} -C ${SGXLKL_LIBC_SRC_DIR} -j`tools/ncore.sh` CFLAGS="$(SGXLKL_CFLAGS_EXTRA)"
+	+${MAKE} -C ${SGXLKL_LIBC_SRC_DIR} -j`scripts/ncore.sh` CFLAGS="$(SGXLKL_CFLAGS_EXTRA)"
 	@cp $(SGXLKL_LIBC_SRC_DIR)/lib/$(SGXLKL_LIB_TARGET) $(BUILD_DIR)/$(SGXLKL_LIB_TARGET)
 
 $(SGXLKL_RUN_TARGET):
@@ -145,8 +147,12 @@ update-git-submodules:
 	# Initialise the missing Open Enclave submodules
 	cd $(OE_SUBMODULE) && git submodule update --recursive --progress --init
 
+# Git pre-commit hook installation
+install-git-pre-commit-hook: scripts/pre-commit
+	cp scripts/pre-commit .git/hooks
+
 fsgsbase-kernel-module:
-	make -C ${TOOLS}/kmod-set-fsgsbase
+	make -C tools/kmod-set-fsgsbase
 
 install:
 	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb $(PREFIX)/lib/gdb/openenclave ${PREFIX}/share ${PREFIX}/share/schemas ${PREFIX}/tools ${PREFIX}/tools/kmod-set-fsgsbase
@@ -193,7 +199,7 @@ clean:
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party distclean || true
 	+${MAKE} -C src clean || true
-	+${MAKE} -C ${TOOLS}/kmod-set-fsgsbase clean || true
+	+${MAKE} -C tools/kmod-set-fsgsbase clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGXLKL_LIBC_SRC_DIR}/config.mak
 
@@ -207,6 +213,6 @@ distclean:
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party clean || true
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party distclean || true
 	+${MAKE} -C src clean || true
-	+${MAKE} -C ${TOOLS}/kmod-set-fsgsbase clean || true
+	+${MAKE} -C tools/kmod-set-fsgsbase clean || true
 	rm -f ${HOST_MUSL}/config.mak
 	rm -f ${SGXLKL_LIBC_SRC_DIR}/config.mak

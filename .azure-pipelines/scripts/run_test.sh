@@ -1,12 +1,18 @@
 #!/bin/bash
 
-if [ -z $SGXLKL_ROOT ]; then
+if [ -z "$SGXLKL_ROOT" ]; then
     echo "ERROR: 'SGXLKL_ROOT' is undefined. Please export SGXLKL_ROOT=<SGX-LKL-OE> source code repository"
     exit 1
 fi
+if [ -z "$SGXLKL_BUILD_MODE" ]; then
+    echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<mode>"
+    exit 1
+fi
 
-. $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
-. $SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh
+#shellcheck source=.azure-pipelines/scripts/junit_utils.sh
+. "$SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh"
+#shellcheck source=.azure-pipelines/scripts/test_utils.sh
+. "$SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh"
 
 # Initialize the variables and test case [mandatory].
 test_mode=$1 # init or run
@@ -21,7 +27,7 @@ fi
 tests_dir=$SGXLKL_ROOT/tests
 test_name="$(realpath --relative-to="$tests_dir" "$(pwd)")"
 test_name="${test_name//\//-}"
-test_name+="-($build_mode)-($run_mode)-($SGXLKL_ETHREADS-ethreads)"
+test_name+="-($SGXLKL_BUILD_MODE)-($run_mode)-($SGXLKL_ETHREADS-ethreads)"
 test_class=$(realpath --relative-to="$tests_dir" "$(pwd)/..")
 test_suite="sgx-lkl-oe"
 
@@ -37,8 +43,9 @@ fi
 
 # Get the timeout from the test module
 DEFAULT_TIMEOUT=300
-timeout=$(make gettimeout 2> /dev/null)
-[[ $? != 0 ]] && timeout=$DEFAULT_TIMEOUT
+if ! timeout=$(make gettimeout 2> /dev/null); then
+    timeout=$DEFAULT_TIMEOUT
+fi
 echo "Execution timeout: $timeout"
 
 case "$run_mode" in
@@ -54,7 +61,7 @@ case "$run_mode" in
        ;;
 esac
 
-timeout --kill-after=$(($timeout + 15))  $timeout make $run_mode
+timeout --kill-after=$((timeout + 15)) $timeout make "$run_mode"
 make_exit=$?
 
 if [[ "$make_exit" == "124" ]]; then

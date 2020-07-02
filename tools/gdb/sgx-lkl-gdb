@@ -6,7 +6,7 @@ shopt -s expand_aliases
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Are we running in the source tree?
-if [ -f $THIS_DIR/sgx-lkl-gdb.py ]; then
+if [ -f "$THIS_DIR/sgx-lkl-gdb.py" ]; then
     SGXLKL_GDB_HELPER_DIR=$THIS_DIR
     OE_GDB_PLUGIN_DIR=$THIS_DIR/../../build/openenclave/lib/openenclave/debugger
 else
