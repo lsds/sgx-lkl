@@ -106,22 +106,22 @@ static void parse_epoll_event_flags(
     buf[0] = '\0';
 }
 
-void __sgxlkl_log_syscall(int type, long n, long res, int params_len, ...)
+long __sgxlkl_log_syscall(sgxlkl_syscall_kind type, long n, long res, int params_len, ...)
 {
     const char* name = NULL;
     char errmsg[255] = {0};
 
     if (!sgxlkl_trace_ignored_syscall && type == SGXLKL_IGNORED_SYSCALL)
-        return;
+        return res;
 
     if (!sgxlkl_trace_unsupported_syscall && type == SGXLKL_UNSUPPORTED_SYSCALL)
-        return;
+        return res;
 
     if (!sgxlkl_trace_lkl_syscall && type == SGXLKL_LKL_SYSCALL)
-        return;
+        return res;
 
     if (!sgxlkl_trace_internal_syscall && type == SGXLKL_INTERNAL_SYSCALL)
-        return;
+        return res;
 
     long params[6] = {0};
     va_list valist;
@@ -282,14 +282,6 @@ void __sgxlkl_log_syscall(int type, long n, long res, int params_len, ...)
             res,
             errmsg);
     }
-}
-#else
-inline void __sgxlkl_log_syscall(
-    int type,
-    long n,
-    long res,
-    int params_len,
-    ...)
-{ /* empty */
+	return res;
 }
 #endif /* DEBUG */
