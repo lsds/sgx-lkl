@@ -36,14 +36,14 @@ static void find_and_mount_disks()
     {
         const sgxlkl_enclave_mount_config_t* cfg_disk = &cfg->mounts[i];
 
-        if (strcmp(cfg_disk->destination, "/") == 0)
+        if (oe_strcmp(cfg_disk->destination, "/") == 0)
             sgxlkl_fail("root disk should not be in 'mounts'.\n");
 
         bool found = false;
         for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
         {
-            if (strcmp(cfg_disk->destination, shm->virtio_blk_dev_names[j]) ==
-                0)
+            if (oe_strcmp(
+                    cfg_disk->destination, shm->virtio_blk_dev_names[j]) == 0)
             {
                 estate->disk_state[i + 1].host_disk_index = j;
                 found = true;
