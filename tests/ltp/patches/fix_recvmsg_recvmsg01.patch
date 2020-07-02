@@ -1,17 +1,17 @@
-In original test case the main process create a child process
-to wirte/read to/from sockets infinitely. In sgx-lkl supports single
+In the original test case, the main process creates a child process
+to write/read to/from sockets infinitely. SGX-LKL supports a single
 process environment. The test case is modified to use a child
-pthread  instead of forking a child process.
+pthread instead of forking a child process.
 
-One of the sub test case designed to test generation of EFAULT
-by accessing invalid address values. Currently sgx behaviour is 
-to call enclave abort, if address is not within enclave address
-range. Because of this test program is causing enclave abort
-and exiting with non-zero exit code. 
+One of the subtest cases is designed to test the generation of
+EFAULT by accessing invalid address values. Currently, SGX behavior
+is to call enclave abort, if the address is not within the enclave
+address range. Because of this test program is causing enclave
+abort and exiting with non-zero exit code.
 
-Github issue169 (https://github.com/lsds/sgx-lkl/issues/169)
-is raised to fix this behaviour. The sub test cases which test
-EFAULT error behaviour is commented/disabled until github
+Github issue169 (#169)
+is raised to fix this behavior. The subtest cases which test
+EFAULT error behavior is commented/disabled until GitHub
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/recvmsg/recvmsg01.c b/testcases/kernel/syscalls/recvmsg/recvmsg01.c
