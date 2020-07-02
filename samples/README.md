@@ -16,8 +16,8 @@
         Running an Encrypted and Integrity Protected Confidential Container with SGX-LKL. This sample created an encrypted image using a AES cipher and creates keys. You can run python applications in the container using `dm-integrity` and `dm-verity`
         Prints hello world from an encrypted confidential container <br>
         FAIL: <br>
-        run hw/sw variety -  success/problem changing owners while mounting/kernal panic <br>
-        run hw/sw integrity - problem activating crypto disk
+        run hw/sw variety -  success/bad count while changing owner - kernal panic <br>
+        run hw/sw integrity - problem activating crypto disk - FAIL: Error: lkl_mount_blockdev()=Invalid argument (-22)
 
     c. [Redis](containers/redis) <br>
         Build redis file system within SGX-LKL and experiment with the redis-cli commands in this enclave 
