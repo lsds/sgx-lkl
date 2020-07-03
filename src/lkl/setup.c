@@ -1391,7 +1391,6 @@ void lkl_start_init()
     lkl_host_ops = sgxlkl_host_ops;
 
     // TODO Make tracing options configurable via SGX-LKL config file.
-    SGXLKL_VERBOSE("fetching configuration from environment variables\n");
     if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0))
     {
         sgxlkl_trace_lkl_syscall = 1;
