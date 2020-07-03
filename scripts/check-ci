@@ -20,7 +20,7 @@ if ! ./scripts/format-c-code --quiet --whatif; then
 fi
 
 ## Check whether Python source code has been formatted:
-if ! ./scripts/format-py-code --quiet --whatif; then
+if ! ./scripts/format-py-code --whatif; then
     exit_ "CI failed: please run ./scripts/format-py-code"
 fi
 
