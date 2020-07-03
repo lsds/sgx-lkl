@@ -217,7 +217,7 @@ int __libc_init_enclave(int argc, char** argv)
     const size_t sgxlkl_heap_size =
         (__oe_get_heap_size() - oe_allotted_heapsize);
 
-    //SGXLKL_VERBOSE("calling enclave_mman_init()\n");
+    SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
         sgxlkl_heap_base,
         sgxlkl_heap_size / PAGESIZE,
@@ -227,21 +227,21 @@ int __libc_init_enclave(int argc, char** argv)
     libc.user_tls_enabled =
         sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
 
-    //SGXLKL_VERBOSE("calling init_sysconf()\n");
+    SGXLKL_VERBOSE("calling init_sysconf()\n");
     init_sysconf(
         sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);
 
-    //SGXLKL_VERBOSE("calling init_clock_res()\n");
+    SGXLKL_VERBOSE("calling init_clock_res()\n");
     init_clock_res(sgxlkl_enclave->clock_res);
 
     size_t max_lthreads =
         sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
     max_lthreads = oe_round_u64_to_pow2(max_lthreads);
 
-    //SGXLKL_VERBOSE("calling newmpmcq()\n");
+    SGXLKL_VERBOSE("calling newmpmcq()\n");
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
 
-    //SGXLKL_VERBOSE("calling __init_libc()\n");
+    SGXLKL_VERBOSE("calling __init_libc()\n");
     __init_libc(envp, argv[0]);
     __init_tls();
 
