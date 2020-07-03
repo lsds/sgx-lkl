@@ -148,37 +148,27 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
-    evt_chn_lock = (struct ticketlock**)oe_calloc(
-        evt_channel_num, sizeof(struct ticketlock*));
-    if (!evt_chn_lock)
-    {
-        sgxlkl_fail("Could not allocate memory for evt_chn_lock\n");
-    }
+    evt_chn_lock = (struct ticketlock**)oe_calloc_or_die(
+        evt_channel_num,
+        sizeof(struct ticketlock*),
+        "Could not allocate memory for evt_chn_lock\n");
 
-    vio_tasks =
-        (struct lthread**)oe_calloc(evt_channel_num, sizeof(struct lthread*));
-    if (!vio_tasks)
-    {
-        sgxlkl_fail("Could not allocate memory for vio_tasks\n");
-    }
+    vio_tasks = (struct lthread**)oe_calloc_or_die(
+        evt_channel_num,
+        sizeof(struct lthread*),
+        "Could not allocate memory for vio_tasks\n");
 
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
     {
-        evt_chn_lock[i] =
-            (struct ticketlock*)oe_calloc(1, sizeof(struct ticketlock));
-        if (!evt_chn_lock[i])
-        {
-            sgxlkl_fail("Could not allocate memory for evt_chn_lock[%i]\n", i);
-        }
+        evt_chn_lock[i] = (struct ticketlock*)oe_calloc_or_die(
+            1,
+            sizeof(struct ticketlock),
+            "Could not allocate memory for evt_chn_lock[%i]\n",
+            i);
 
-        memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
-
-        dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));
-        if (!dev_id)
-        {
-            sgxlkl_fail("Could not allocate memory for dev_id\n");
-        }
+        dev_id = (uint8_t*)oe_calloc_or_die(
+            1, sizeof(uint8_t), "Could not allocate memory for dev_id\n");
 
         *dev_id = enc_dev_config[i].dev_id;
 

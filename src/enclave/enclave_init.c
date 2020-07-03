@@ -3,7 +3,6 @@
 
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oemalloc.h"
-#include <openenclave/internal/utils.h>
 #include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_mem.h"
@@ -236,7 +235,7 @@ int __libc_init_enclave(int argc, char** argv)
 
     size_t max_lthreads =
         sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
-    max_lthreads = oe_round_u64_to_pow2(max_lthreads);
+    max_lthreads = next_power_of_2(max_lthreads);
 
     SGXLKL_VERBOSE("calling newmpmcq()\n");
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
