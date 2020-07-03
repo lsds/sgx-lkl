@@ -20,7 +20,7 @@ supported in sgxlkl. Removed the code calling "system"
 call.
 
 diff --git a/testcases/kernel/syscalls/sendmsg/sendmsg01.c b/testcases/kernel/syscalls/sendmsg/sendmsg01.c
-index cf6e74289..a1656d1fd 100644
+index cf6e74289..74ea6ff95 100644
 --- a/testcases/kernel/syscalls/sendmsg/sendmsg01.c
 +++ b/testcases/kernel/syscalls/sendmsg/sendmsg01.c
 @@ -44,11 +44,13 @@
@@ -395,7 +395,7 @@ index cf6e74289..a1656d1fd 100644
  	tst_require_root();
  	tst_sig(FORK, DEF_HANDLER, cleanup);
  	TEST_PAUSE;
-@@ -548,27 +523,20 @@ static void setup(void)
+@@ -548,27 +523,19 @@ static void setup(void)
  	sun1.sun_family = AF_UNIX;
  	strcpy(sun1.sun_path, tmpsunpath);
  
@@ -421,13 +421,21 @@ index cf6e74289..a1656d1fd 100644
  {
 -	if (pid > 0)
 -		kill(pid, SIGKILL);	/* kill server, if server exists */
-+	if(sfd > 0)
-+		close(sfd);
-+	if(ufd > 0)
-+		close(ufd);
-+
 +	SAFE_PTHREAD_JOIN(server_tid, NULL);
++	if(sfd >= 0)
++		close(sfd);
++	if(ufd >= 0)
++		close(ufd);
 +
  	unlink(tmpsunpath);
  	tst_rmdir();
  }
+@@ -584,6 +551,8 @@ static void setup0(void)
+ 
+ static void cleanup0(void)
+ {
++	if(s != 400 && s >= 0)
++		close(s);
+ 	s = -1;
+ }
+ 
