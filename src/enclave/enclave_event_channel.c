@@ -12,6 +12,7 @@
 #include "enclave/vio_enclave_event_channel.h"
 
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
 
 static struct ticketlock** evt_chn_lock;
 
@@ -88,6 +89,10 @@ static void vio_enclave_process_host_event(uint8_t* param)
 {
     uint8_t dev_id = *param;
 
+    char thread_name[16];
+    oe_snprintf(thread_name, sizeof(thread_name), "vio-%i", dev_id);
+    lthread_set_funcname(lthread_self(), thread_name);
+
     /* release memory after extracting dev_id */
     oe_free(param);
 
@@ -143,20 +148,28 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
-    evt_chn_lock = (struct ticketlock**)oe_calloc(
-        evt_channel_num, sizeof(struct ticketlock*));
+    evt_chn_lock = (struct ticketlock**)oe_calloc_or_die(
+        evt_channel_num,
+        sizeof(struct ticketlock*),
+        "Could not allocate memory for evt_chn_lock\n");
 
-    vio_tasks =
-        (struct lthread**)oe_calloc(evt_channel_num, sizeof(struct lthread*));
+    vio_tasks = (struct lthread**)oe_calloc_or_die(
+        evt_channel_num,
+        sizeof(struct lthread*),
+        "Could not allocate memory for vio_tasks\n");
 
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
     {
-        evt_chn_lock[i] =
-            (struct ticketlock*)oe_calloc(1, sizeof(struct ticketlock));
-        memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
+        evt_chn_lock[i] = (struct ticketlock*)oe_calloc_or_die(
+            1,
+            sizeof(struct ticketlock),
+            "Could not allocate memory for evt_chn_lock[%i]\n",
+            i);
 
-        dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));
+        dev_id = (uint8_t*)oe_calloc_or_die(
+            1, sizeof(uint8_t), "Could not allocate memory for dev_id\n");
+
         *dev_id = enc_dev_config[i].dev_id;
 
         struct lthread* lt = NULL;

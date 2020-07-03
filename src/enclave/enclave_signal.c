@@ -10,6 +10,7 @@
 #include <lkl_host.h>
 #include <string.h>
 #include "enclave/sgxlkl_t.h"
+#include "enclave/lthread.h"
 #include "shared/env.h"
 
 #define RDTSC_OPCODE 0x310F
@@ -155,15 +156,28 @@ static uint64_t sgxlkl_enclave_signal_handler(
     }
     else
     {
+        struct lthread* lt = lthread_self();
+
         sgxlkl_warn(
-            "Unhandled exception %s received (code=%i addr=0x%lx opcode=0x%x "
-            "lkl_is_running()=%i ret=%i)\n",
+            "Unhandled exception %s received (lt->funcname=%s lt->tid=%i "
+            "code=%i "
+            "addr=0x%lx opcode=0x%x "
+            "ret=%i)\n",
             trap_info.description,
+            lt ? lt->funcname : "(?)",
+            lt ? lt->tid : -1,
             exception_record->code,
             (void*)exception_record->address,
             opcode,
-            lkl_is_running(),
             ret);
+
+        if (!lkl_is_running())
+        {
+#ifdef DEBUG
+            lthread_dump_all_threads();
+#endif
+            sgxlkl_fail("Aborting because LKL is not running yet\n");
+        }
     }
 
     return OE_EXCEPTION_CONTINUE_EXECUTION;

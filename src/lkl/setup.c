@@ -4,7 +4,6 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <linux/random.h>
-#include <stdio.h>
 #include <stdlib.h>
 #define _GNU_SOURCE // Needed for strchrnul
 #include <lkl.h>
@@ -44,6 +43,8 @@
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
+
+#include "openenclave/corelibc/oestring.h"
 
 #define UMOUNT_DISK_TIMEOUT 2000
 
@@ -1383,13 +1384,13 @@ void lkl_start_init()
 {
     size_t i;
 
+    SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
     register_lkl_syscall_overrides();
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
 
     // TODO Make tracing options configurable via SGX-LKL config file.
-
     if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0))
     {
         sgxlkl_trace_lkl_syscall = 1;
@@ -1430,11 +1431,13 @@ void lkl_start_init()
 
     sgxlkl_mtu = sgxlkl_enclave->tap_mtu;
 
+    SGXLKL_VERBOSE("calling initialize_enclave_event_channel()\n");
     initialize_enclave_event_channel(
         sgxlkl_enclave->shared_memory.enc_dev_config,
         sgxlkl_enclave->shared_memory.evt_channel_num);
 
     // Register console device
+    SGXLKL_VERBOSE("calling lkl_virtio_console_add()\n");
     lkl_virtio_console_add(sgxlkl_enclave->shared_memory.virtio_console_mem);
 
     // Register network tap if given one
@@ -1457,22 +1460,26 @@ void lkl_start_init()
             sgxlkl_enclave->kernel_cmd,
             strlen(sgxlkl_enclave->kernel_cmd));
 
-    /* check the supplied bootargs does not cause buffer overflow */
+    /* Check that the supplied bootargs do not cause buffer overflow */
     if (!sgxlkl_enclave->kernel_verbose)
-        snprintf(
+    {
+        oe_snprintf(
             bootargs,
             sizeof(bootargs),
             "%s %s %s",
             sgxlkl_enclave->kernel_cmd,
             BOOTARGS_CONSOLE_OPTION,
             "quiet");
+    }
     else
-        snprintf(
+    {
+        oe_snprintf(
             bootargs,
             sizeof(bootargs),
             "%s %s",
             sgxlkl_enclave->kernel_cmd,
             BOOTARGS_CONSOLE_OPTION);
+    }
 
     // Start kernel threads (synchronous, doesn't return before kernel is ready)
     const char* lkl_cmdline = bootargs;
@@ -1538,17 +1545,17 @@ void lkl_start_init()
 
     // Set address of ring buffer to env, so that enclave process can access it
     // directly
-    snprintf(
+    oe_snprintf(
         shm_common,
         64,
         "SGXLKL_SHMEM_COMMON=%p",
         sgxlkl_enclave->shared_memory.shm_common);
-    snprintf(
+    oe_snprintf(
         shm_enc_to_out_addr,
         64,
         "SGXLKL_SHMEM_ENC_TO_OUT=%p",
         sgxlkl_enclave->shared_memory.shm_enc_to_out);
-    snprintf(
+    oe_snprintf(
         shm_out_to_enc_addr,
         64,
         "SGXLKL_SHMEM_OUT_TO_ENC=%p",

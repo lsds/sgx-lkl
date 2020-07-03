@@ -1079,3 +1079,23 @@ void lthread_set_expired(struct lthread* lt)
 {
     lt->attr.state |= BIT(LT_ST_EXPIRED);
 }
+
+#ifdef DEBUG
+void lthread_dump_all_threads(void)
+{
+    struct lthread_queue* lt_queue = __active_lthreads;
+
+    SGXLKL_VERBOSE("Dumping all lthreads:\n");
+
+    for (int i = 1; lt_queue; i++)
+    {
+        struct lthread* lt = lt_queue->lt;
+        SGXLKL_ASSERT(lt);
+        int tid = lt->tid;
+        char* funcname = lt->funcname;
+        SGXLKL_VERBOSE_RAW("%i: tid=%i [%s]\n", i, tid, funcname);
+
+        lt_queue = lt_queue->next;
+    }
+}
+#endif

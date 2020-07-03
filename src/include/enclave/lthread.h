@@ -309,6 +309,13 @@ extern "C"
      */
     void futex_dequeue(struct lthread *lt);
 
+#ifdef DEBUG
+    /**
+     * Show all the threads that currently exist.
+     */
+    void lthread_dump_all_threads(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

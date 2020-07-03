@@ -5,15 +5,32 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
-__attribute__((noreturn)) void sgxlkl_fail(char* msg, ...);
+__attribute__((noreturn)) void sgxlkl_fail(const char* msg, ...);
 
-void sgxlkl_error(char* msg, ...);
+void sgxlkl_error(const char* msg, ...);
 
-void sgxlkl_warn(char* msg, ...);
+void sgxlkl_warn(const char* msg, ...);
 
-void sgxlkl_info(char* msg, ...);
+void sgxlkl_info(const char* msg, ...);
+
+/**
+ * Performs a memory allocation with oe_malloc(size) and fails
+ * execution with fail_msg if it is not successful.
+ */
+void* oe_malloc_or_die(size_t size, const char* fail_msg, ...);
+
+/**
+ * Performs a memory allocation with oe_calloc(nmemb, size) and
+ * fails execution with fail_msg if it is not successful.
+ */
+void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...);
 
 int int_log2(unsigned long long arg);
+
+/**
+ * Rounds a number to the next power of 2.
+ */
+uint64_t next_power_of_2(uint64_t n);
 
 #ifdef DEBUG
 

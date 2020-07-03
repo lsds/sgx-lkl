@@ -1,14 +1,10 @@
-#include <string.h>
-
-#include "pthread_impl.h"
-
 #include <openenclave/internal/globals.h>
+#include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_config.h"
-#include "shared/env.h"
 
 extern int sgxlkl_verbose;
 
@@ -24,30 +20,56 @@ int __sgx_init_enclave()
     return __libc_init_enclave(sgxlkl_enclave->argc, sgxlkl_enclave->argv);
 }
 
-void sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
+#ifdef DEBUG
+static void _size_uint64_to_str(uint64_t size, char* buf, uint64_t len)
 {
-    char enclave_size_str[10];
+    int i = 0;
+    double bytes = size;
+    const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+    const int unit_len = sizeof(units) / sizeof(units[0]);
+
+    while (bytes > 1024.0 && i < unit_len)
+    {
+        bytes /= 1024.0;
+        i++;
+    }
+
+    /*
+     * The following works around oe_snprintf's lack of support for the
+     * "%f" format specifier.
+     */
+    unsigned int whole_part = (unsigned int)bytes;
+    double fraction_double = bytes - whole_part;
+    unsigned int fraction_part = (unsigned int)(fraction_double * 1000);
+
+    oe_snprintf(buf, len, "%i.%i %s", whole_part, fraction_part, units[i]);
+}
+
+static void _sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
+{
+    char enclave_size_str[16];
 
     size_t sgxlkl_enclave_size = __oe_get_enclave_size();
     size_t sgxlkl_enclave_heap_size = __oe_get_heap_size();
+    const void* sgxlkl_enclave_heap_base = __oe_get_heap_base();
+    const void* sgxlkl_enclave_heap_end = __oe_get_heap_end();
 
-    size_uint64_to_str(sgxlkl_enclave_size, enclave_size_str, 10);
+    _size_uint64_to_str(
+        sgxlkl_enclave_size, enclave_size_str, sizeof(enclave_size_str));
 
     SGXLKL_VERBOSE(
         "enclave base=0x%p size=%s\n", sgxlkl_enclave_base, enclave_size_str);
 
-    memset(enclave_size_str, 0, sizeof(enclave_size_str));
-    size_uint64_to_str(sgxlkl_enclave_heap_size, enclave_size_str, 10);
-#ifdef DEBUG
-    const void* sgxlkl_enclave_heap_base = __oe_get_heap_base();
-    const void* sgxlkl_enclave_heap_end = __oe_get_heap_end();
+    _size_uint64_to_str(
+        sgxlkl_enclave_heap_size, enclave_size_str, sizeof(enclave_size_str));
+
     SGXLKL_VERBOSE(
         "enclave heap base=0x%p size=%s end=0x%p\n",
         sgxlkl_enclave_heap_base,
         enclave_size_str,
         sgxlkl_enclave_heap_end);
-#endif
 }
+#endif
 
 void sgxlkl_ethread_init(void)
 {
@@ -68,6 +90,8 @@ void sgxlkl_ethread_init(void)
 
     /* Initialization completed, now run the scheduler */
     __init_tls();
+
+    SGXLKL_ASSERT(sgxlkl_enclave);
     _lthread_sched_init(sgxlkl_enclave->stacksize);
     lthread_run();
 
@@ -105,7 +129,10 @@ int sgxlkl_enclave_init(const sgxlkl_config_t* config_on_host)
     sched_tcb->schedctx = (struct schedctx*)((char*)tls_page + tls_offset);
 
     const void* sgxlkl_enclave_base = __oe_get_enclave_base();
-    sgxlkl_enclave_show_attribute(sgxlkl_enclave_base);
+
+#ifdef DEBUG
+    _sgxlkl_enclave_show_attribute(sgxlkl_enclave_base);
+#endif
 
     /* Indicate ongoing libc initialisation */
     __libc_state = libc_initializing;

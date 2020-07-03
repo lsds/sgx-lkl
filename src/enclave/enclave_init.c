@@ -1,10 +1,3 @@
-#include <libc.h>
-#include <string.h>
-#include <time.h>
-
-#include "pthread.h"
-#include "pthread_impl.h"
-
 #include "lkl/asm/host_ops.h"
 #include "lkl/setup.h"
 
@@ -19,7 +12,6 @@
 #include "enclave/sgxlkl_config.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "shared/env.h"
 
 _Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
 
@@ -121,6 +113,8 @@ static int startmain(void* args)
 {
     sgxlkl_app_config_t app_config = {0};
 
+    SGXLKL_VERBOSE("enter\n");
+
     __libc_start_init();
     a_barrier();
 
@@ -164,7 +158,7 @@ static int startmain(void* args)
             {
                 enclave_disk_config_t* disk_untrusted =
                     &sgxlkl_enclave->disks[j];
-                if (!strcmp(disk->mnt, disk_untrusted->mnt))
+                if (!oe_strcmp(disk->mnt, disk_untrusted->mnt))
                 {
                     disk->fd = disk_untrusted->fd;
                     disk->capacity = disk_untrusted->capacity;
@@ -222,6 +216,7 @@ int __libc_init_enclave(int argc, char** argv)
     const size_t sgxlkl_heap_size =
         (__oe_get_heap_size() - oe_allotted_heapsize);
 
+    SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
         sgxlkl_heap_base,
         sgxlkl_heap_size / PAGESIZE,
@@ -233,11 +228,12 @@ int __libc_init_enclave(int argc, char** argv)
 
     init_sysconf(
         sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);
+
     init_clock_res(sgxlkl_enclave->clock_res);
 
     size_t max_lthreads =
         sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
-    max_lthreads = next_pow2(max_lthreads);
+    max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
 
@@ -249,6 +245,7 @@ int __libc_init_enclave(int argc, char** argv)
     size_t esleep = sgxlkl_enclave->esleep;
     lthread_sched_global_init(espins, esleep, futex_wake_spins);
 
+    SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
     _lthread_sched_init(sgxlkl_enclave->stacksize);
 
     if (lthread_create(&lt, NULL, startmain, NULL) != 0)
