@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.17)
-project(SGX-LKL)
+project(SGX-LKL C)
+
+if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
+    add_link_options(-fuse-ld=$ENV{LD})
+endif()
 
 include(ProcessorCount)
 ProcessorCount(NUMBER_OF_CORES)
