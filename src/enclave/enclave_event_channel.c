@@ -167,6 +167,11 @@ void initialize_enclave_event_channel(
     {
         evt_chn_lock[i] =
             (struct ticketlock*)oe_calloc(1, sizeof(struct ticketlock));
+        if (!evt_chn_lock[i])
+        {
+            sgxlkl_fail("Could not allocate memory for evt_chn_lock[%i]\n", i);
+        }
+
         memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
 
         dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));
