@@ -106,16 +106,16 @@ add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
 # Note, this can go away once our upstream LKL has the wireguard patches
 # already applied
 add_custom_command(
-	OUTPUT "lkl/net/wireguard" "lkl/net/Kconfig" "lkl/net/Makefile" ".wireguard-patches-applied"
+	OUTPUT "lkl/net/wireguard" "lkl/net/Kconfig" "lkl/net/Makefile" "wireguard-patches-applied.stamp"
 	DEPENDS "${LKL_SUBDIRECTORY}/net/Makefile" "${LKL_SUBDIRECTORY}/net/Kconfig" fetch-and-extract-wireguard
 	COMMAND ${CMAKE_COMMAND} "-E" "copy" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Makefile" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Kconfig" "${CMAKE_BINARY_DIR}/lkl/net"
 	COMMAND ${CMAKE_COMMAND} "-E" "remove_directory" "${CMAKE_BINARY_DIR}/lkl/net/wireguard"
 	COMMAND "${wireguard_LOCATION}/contrib/kernel-tree/create-patch.sh" "|" "patch" "--forward" "-p1"
-	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/.wireguard-patches-applied"
+	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/wireguard-patches-applied.stamp"
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl" 
 	)
 
-add_custom_target(apply-wireguard-patches DEPENDS .wireguard-patches-applied)
+add_custom_target(apply-wireguard-patches DEPENDS "wireguard-patches-applied.stamp")
 add_custom_target(lkl-source-setup
 	DEPENDS copy-lkl ${DEFCONFIG_OVERRIDE_PATH} apply-wireguard-patches
 	)
@@ -175,16 +175,16 @@ set(GENERATED_EDGE_FILES
 	)
 
 
-add_custom_command(OUTPUT ".oeedger8r-run"
+add_custom_command(OUTPUT "oeedger8r-run.stamp"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	COMMAND openenclave::oeedger8r "--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave" "--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
-	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/.oeedger8r-run"
+	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/oeedger8r-run.stamp"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	BYPRODUCTS ${GENERATED_EDGE_FILES} 
 	)
 
 add_custom_target(build-interface-definitions
-	DEPENDS ".oeedger8r-run"
+	DEPENDS "oeedger8r-run.stamp"
 	)
 
 set(HOST_LIBS_BUILD_DIRECTORY "${CMAKE_BINARY_DIR}/host-libs-build")
