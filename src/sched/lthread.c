@@ -1093,7 +1093,7 @@ void lthread_dump_all_threads(void)
         SGXLKL_ASSERT(lt);
         int tid = lt->tid;
         char* funcname = lt->funcname;
-        SGXLKL_VERBOSE_RAW("%i: tid=%i funcname=%s\n", i, tid, funcname);
+        SGXLKL_VERBOSE_RAW("%i: tid=%i [%s]\n", i, tid, funcname);
 
         lt_queue = lt_queue->next;
     }
