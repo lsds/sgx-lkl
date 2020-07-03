@@ -12,6 +12,10 @@ function(copy_source_directory_to_output DIR EXCLUDE_PATHS)
 
 	foreach(FILE ${FILES})
 		if (NOT FILE IN_LIST EXCLUDE_PATHS)
+			if (${FILE} MATCHES "\\.[ao]$")
+				message(FATAL_ERROR "Source directory not clean, found ${FILE}")
+			endif()
+
 			set(SRC "${CMAKE_SOURCE_DIR}/${FILE}")
 			set(DST "${CMAKE_BINARY_DIR}/${FILE}")
 			if(IS_DIRECTORY ${SRC})
@@ -44,7 +48,7 @@ function(copy_source_directory_to_output DIR EXCLUDE_PATHS)
 			COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" ${FILES_TO_COPY} "${DEST_DIR}"
 			DEPENDS ${FILES_TO_COPY}
 			BYPRODUCTS ${FILES_COPIED}
-			COMMENT "Copying LKL source directory ${DIR}")
+			COMMENT "Copying source directory ${DIR}")
 		list(APPEND RULES ${RULE_NAME})
 	endif()
 	set(NEW_RULES ${RULES} PARENT_SCOPE)
