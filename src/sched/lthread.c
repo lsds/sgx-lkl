@@ -29,34 +29,26 @@
 
 #define WANT_REAL_ARCH_SYSCALLS
 
-#include <assert.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
-#include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/time.h>
-#include <unistd.h>
 
-#include "libc.h"
 #include "pthread_impl.h"
 #include "stdio_impl.h"
 
+#include <enclave/enclave_mem.h>
 #include <enclave/enclave_oe.h>
+#include <enclave/enclave_util.h>
 #include <enclave/lthread.h>
 #include "enclave/lthread_int.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "shared/tree.h"
-
-extern int errno;
+#include "openenclave/corelibc/oemalloc.h"
 
 extern int vio_enclave_wakeup_event_channel(void);
 
@@ -64,7 +56,6 @@ int __init_utp(void*, int);
 void* __copy_utls(struct lthread*, uint8_t*, size_t);
 static void _exec(void* lt);
 static void _lthread_init(struct lthread* lt);
-static void _lthread_resume_expired(struct timespec* ts);
 static void _lthread_lock(struct lthread* lt);
 static void lthread_rundestructors(struct lthread* lt);
 
@@ -154,8 +145,9 @@ __asm__("    .text                                  \n"
         "       movq 24(%rdi), %rbx                              \n"
         "       movq 8(%rdi), %rbp      # restore frame_pointer  \n"
         "       movq 0(%rdi), %rsp      # restore stack_pointer  \n"
-        "       movq 16(%rdi), %rax     # restore insn_pointer   \n"
-        "       movq %rax, (%rsp)                                \n"
+        "       movq 16(%rdi), %rdx     # restore insn_pointer   \n"
+        "       xor  %rax, %rax         # Clear return register 1\n"
+        "       movq %rdx, (%rsp)                                \n"
         "       ret                                              \n");
 #endif
 
@@ -209,11 +201,9 @@ void lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();
     struct lthread* lt = NULL;
-    size_t s, pauses = sleepspins;
-    struct timespec sleeptime = {0, sleeptime_ns};
+    size_t pauses = sleepspins;
     int spins = futex_wake_spins;
     int dequeued;
-    size_t i;
 
     /* scheduler not initiliazed, and no lthreads where created */
     if (sched == NULL)
@@ -308,52 +298,6 @@ void _lthread_desched_sleep(struct lthread* lt)
         lt->tid);
 }
 
-/*
- * Resumes expired lthread and cancels its events whether it was waiting
- * on one or not, and deschedules it from sleeping rbtree in case it was
- * sleeping.
- */
-static void _lthread_resume_expired(struct timespec* now)
-{
-    struct lthread* lt = NULL;
-    uint64_t curr_usec = 0;
-
-    if (nsleepers == 0)
-    {
-        return;
-    }
-
-    ticket_lock(&sleeplock);
-
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_resume_expired() TICKET_LOCK lock=SLEEPLOCK "
-        "tid=NULL\n",
-        (lthread_self() ? lthread_self()->tid : 0));
-
-    curr_usec = _lthread_timespec_to_usec(now);
-    while ((lt = RB_MIN(lthread_rb_sleep, &_lthread_sleeping)) != NULL)
-    {
-        if (lt->sleep_usecs <= curr_usec)
-        {
-            _lthread_desched_sleep(lt);
-            lthread_set_expired(lt);
-
-            /* don't clear expired if lthread exited/cancelled */
-            if (_lthread_resume(lt) != -1)
-                lt->attr.state &= CLEARBIT(LT_ST_EXPIRED);
-
-            continue;
-        }
-        break;
-    }
-    ticket_unlock(&sleeplock);
-
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_resume_expired() TICKET_UNLOCK lock=SLEEPLOCK "
-        "tid=NULL\n",
-        (lthread_self() ? lthread_self()->tid : 0));
-}
-
 static void _lthread_lock(struct lthread* lt)
 {
     int state, newstate;
@@ -403,7 +347,7 @@ void _lthread_free(struct lthread* lt)
         lthread_rundestructors(lt);
     if (lt->itls != 0)
     {
-        munmap(lt->itls, lt->itlssz);
+        enclave_munmap(lt->itls, lt->itlssz);
     }
     while ((rp = lt->robust_list.head) && rp != &lt->robust_list.head)
     {
@@ -415,13 +359,14 @@ void _lthread_free(struct lthread* lt)
         lt->robust_list.head = *rp;
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
-        if (cont < 0 || waiters)
-            __wake(&m->_m_lock, 1, priv);
+        if (cont < 0 || waiters) {
+            enclave_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
+        }
     }
     __do_orphaned_stdio_locks(lt);
     if (lt->attr.stack)
     {
-        munmap(lt->attr.stack, lt->attr.stack_size);
+        enclave_munmap(lt->attr.stack, lt->attr.stack_size);
         lt->attr.stack = NULL;
     }
     memset(lt, 0, sizeof(*lt));
@@ -435,10 +380,10 @@ void _lthread_free(struct lthread* lt)
     {
         if (__active_lthreads_tail == __active_lthreads)
         {
-            __active_lthreads_tail == NULL;
+            __active_lthreads_tail = NULL;
         }
         struct lthread_queue* new_head = __active_lthreads->next;
-        free(__active_lthreads);
+        oe_free(__active_lthreads);
         __active_lthreads = new_head;
     }
     else
@@ -453,7 +398,7 @@ void _lthread_free(struct lthread* lt)
                     __active_lthreads_tail = ltq;
                 }
                 struct lthread_queue* next_ltq = ltq->next->next;
-                free(ltq->next);
+                oe_free(ltq->next);
                 ltq->next = next_ltq;
                 break;
             }
@@ -462,7 +407,7 @@ void _lthread_free(struct lthread* lt)
     }
 #endif /* DEBUG */
 
-    free(lt);
+    oe_free(lt);
     lt = 0;
 }
 
@@ -488,8 +433,7 @@ void set_tls_tp(struct lthread* lt)
         int r = __set_thread_area(TP_ADJ(tp));
         if (r < 0)
         {
-            sgxlkl_fail(
-                "Could not set thread area %p: %s\n", tp, strerror(errno));
+            sgxlkl_fail( "Could not set thread area %p\n", tp);
         }
     }
 }
@@ -513,8 +457,7 @@ void reset_tls_tp(struct lthread* lt)
         int r = __set_thread_area(TP_ADJ(tp));
         if (r < 0)
         {
-            sgxlkl_fail(
-                "Could not set thread area %p: %s\n", tp, strerror(errno));
+            sgxlkl_fail( "Could not set thread area %p: %s\n", tp);
         }
     }
 }
@@ -616,7 +559,6 @@ int _lthread_sched_init(size_t stack_size)
     struct schedctx* c = __scheduler_self();
 
     c->sched.stack_size = sched_stack_size;
-    c->sched.page_size = sysconf(_SC_PAGESIZE);
 
     c->sched.default_timeout = 3000000u;
 
@@ -635,6 +577,99 @@ static void init_file_lock(FILE* f)
 {
     if (f && f->lock < 0)
         f->lock = 0;
+}
+
+int lthread_create_primitive(
+    struct lthread** new_lt,
+    void* pc,
+    void* sp,
+    void* tls)
+{
+    struct lthread* lt;
+
+    // FIXME: Remove when we no longer have lthread / libc layering issues.
+    if (!libc.threaded && libc.threads_minus_1 >= 0)
+    {
+        for (FILE* f = *__ofl_lock(); f; f = f->next)
+            init_file_lock(f);
+        __ofl_unlock();
+        init_file_lock(__stdin_used);
+        init_file_lock(__stdout_used);
+        init_file_lock(__stderr_used);
+        libc.threaded = 1;
+    }
+
+    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
+    {
+        return -1;
+    }
+
+    // FIXME: Once lthread / pthread layering is fixed, just use the tls
+    // argument as gs base.  We can't do that now because _lthread_free
+    // attempts to unmap this area.
+    lt->itlssz = libc.tls_size;
+    if (libc.tls_size)
+    {
+        if ((lt->itls = (uint8_t*)enclave_mmap(
+                 0,
+                 lt->itlssz,
+                 0, /* map_fixed */
+                 PROT_READ | PROT_WRITE,
+                 1 /* zero_pages */)) == MAP_FAILED)
+        {
+            oe_free(lt);
+            return -1;
+        }
+        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
+        {
+            oe_free(lt);
+            return -1;
+        }
+    }
+    LIST_INIT(&lt->tls);
+    lt->locale = &libc.global_locale;
+
+    lt->attr.state = BIT(LT_ST_READY);
+    lt->tid = a_fetch_add(&spawned_lthreads, 1);
+    lt->robust_list.head = &lt->robust_list.head;
+
+    static unsigned long long n = 0;
+    snprintf(lt->funcname, 64, "cloned host task %llu", __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
+
+    if (new_lt)
+    {
+        *new_lt = lt;
+    }
+
+    a_inc(&libc.threads_minus_1);
+
+    SGXLKL_TRACE_THREAD(
+        "[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+
+#if DEBUG
+    struct lthread_queue* new_ltq =
+        (struct lthread_queue*)oe_malloc(sizeof(struct lthread_queue));
+    new_ltq->lt = lt;
+    new_ltq->next = NULL;
+    if (__active_lthreads_tail)
+    {
+        __active_lthreads_tail->next = new_ltq;
+    }
+    else
+    {
+        __active_lthreads = new_ltq;
+    }
+    __active_lthreads_tail = new_ltq;
+#endif /* DEBUG */
+
+    // Set up the lthread initial PC and stack pointer.
+    lt->ctx.eip = pc;
+    // Reserve space on the stack for the return address.  `_switch` will pop
+    // this off.
+    lt->ctx.esp = ((char*)sp) - sizeof(void*);
+    (void)tls;
+
+    return 0;
 }
 
 int lthread_create(
@@ -660,21 +695,20 @@ int lthread_create(
 
     stack_size =
         attrp && attrp->stack_size ? attrp->stack_size : sched->stack_size;
-    if ((lt = calloc(1, sizeof(struct lthread))) == NULL)
+    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
     {
-        return (errno);
+        return -1;
     }
     lt->attr.stack = attrp ? attrp->stack : 0;
-    if ((!lt->attr.stack) && ((lt->attr.stack = mmap(
+    if ((!lt->attr.stack) && ((lt->attr.stack = enclave_mmap(
                                    0,
                                    stack_size,
+                                   0, /* map_fixed */
                                    PROT_READ | PROT_WRITE,
-                                   MAP_ANONYMOUS | MAP_PRIVATE,
-                                   -1,
-                                   0)) == MAP_FAILED))
+                                   1 /* zero_pages */)) == MAP_FAILED))
     {
-        free(lt);
-        return (errno);
+        oe_free(lt);
+        return -1;
     }
     lt->attr.stack_size = stack_size;
 
@@ -682,22 +716,21 @@ int lthread_create(
     lt->itlssz = libc.tls_size;
     if (libc.tls_size)
     {
-        if ((lt->itls = (uint8_t*)mmap(
+        if ((lt->itls = (uint8_t*)enclave_mmap(
                  0,
                  lt->itlssz,
+                 0, /* map_fixed */
                  PROT_READ | PROT_WRITE,
-                 MAP_ANONYMOUS | MAP_PRIVATE,
-                 -1,
-                 0)) == MAP_FAILED)
+                 1 /* zero_pages */)) == MAP_FAILED)
         {
-            free(lt);
-            return errno;
+            oe_free(lt);
+            return -1;
         }
         if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
         {
-            munmap(lt->attr.stack, stack_size);
-            free(lt);
-            return errno;
+            enclave_munmap(lt->attr.stack, stack_size);
+            oe_free(lt);
+            return -1;
         }
     }
 
@@ -727,7 +760,7 @@ int lthread_create(
 
 #if DEBUG
     struct lthread_queue* new_ltq =
-        (struct lthread_queue*)malloc(sizeof(struct lthread_queue));
+        (struct lthread_queue*)oe_malloc(sizeof(struct lthread_queue));
     new_ltq->lt = lt;
     new_ltq->next = NULL;
     if (__active_lthreads_tail)
@@ -785,6 +818,7 @@ void lthread_exit(void* ptr)
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
     _lthread_yield(lt);
+    __builtin_unreachable();
 }
 
 /* lthread_join may proceed only when:
@@ -891,20 +925,6 @@ struct lthread* lthread_self(void)
     }
 }
 
-/*
- * convenience function for performance measurement.
- */
-void lthread_print_timestamp(char* msg)
-{
-    struct timeval t1 = {0, 0};
-    gettimeofday(&t1, NULL);
-    sgxlkl_info(
-        "lt timestamp: sec: %ld usec: %ld (%s)\n",
-        t1.tv_sec,
-        (long)t1.tv_usec,
-        msg);
-}
-
 int lthread_setcancelstate(int new, int* old)
 {
     if (new > 2U)
@@ -925,10 +945,15 @@ int lthread_setcancelstate(int new, int* old)
     return 0;
 }
 
-static struct lthread_tls* lthread_findtlsslot(long key)
+/**
+ * Find the TLS slot for a specified lthread.  It is the caller's
+ * responsibility to ensure that the specified lthread is not concurrently
+ * accessed.  `lthread_current()` is always safe to use here as is any lthread
+ * that has not yet been scheduled.
+ */
+static struct lthread_tls* lthread_findtlsslot(struct lthread *lt, long key)
 {
     struct lthread_tls *d, *d_tmp;
-    struct lthread* lt = lthread_current();
     LIST_FOREACH_SAFE(d, &lt->tls, tls_next, d_tmp)
     {
         if (d->key == key)
@@ -939,11 +964,16 @@ static struct lthread_tls* lthread_findtlsslot(long key)
     return NULL;
 }
 
-static int lthread_addtlsslot(long key, void* data)
+/**
+ * Add a TLS slot for a specified lthread.  It is the caller's responsibility
+ * to ensure that the specified lthread is not concurrently accessed.
+ * `lthread_current()` is always safe to use here as is any lthread that has
+ * not yet been scheduled.
+ */
+static int lthread_addtlsslot(struct lthread* lt, long key, void* data)
 {
     struct lthread_tls* d;
-    struct lthread* lt = lthread_current();
-    d = calloc(1, sizeof(struct lthread_tls));
+    d = oe_calloc(1, sizeof(struct lthread_tls));
     if (d == NULL)
     {
         return ENOMEM;
@@ -954,27 +984,27 @@ static int lthread_addtlsslot(long key, void* data)
     return 0;
 }
 
-void* lthread_getspecific(long key)
+void* lthread_getspecific_remote(struct lthread* lt, long key)
 {
     struct lthread_tls* d;
-    if ((d = lthread_findtlsslot(key)) == NULL)
+    if ((d = lthread_findtlsslot(lt, key)) == NULL)
     {
         return NULL;
     }
     return d->data;
 }
 
-int lthread_setspecific(long key, const void* value)
+int lthread_setspecific_remote(struct lthread* lt, long key, const void* value)
 {
     struct lthread_tls* d;
-    if ((d = lthread_findtlsslot(key)) != NULL)
+    if ((d = lthread_findtlsslot(lt, key)) != NULL)
     {
         d->data = (void*)value;
         return 0;
     }
     else
     {
-        return lthread_addtlsslot(key, (void*)value);
+        return lthread_addtlsslot(lt, key, (void*)value);
     }
 }
 
@@ -986,7 +1016,7 @@ static unsigned global_count = 0;
 int lthread_key_create(long* k, void (*destructor)(void*))
 {
     struct lthread_tls_destructors* d;
-    d = calloc(1, sizeof(struct lthread_tls_destructors));
+    d = oe_calloc(1, sizeof(struct lthread_tls_destructors));
     if (d == NULL)
     {
         return ENOMEM;
@@ -1006,7 +1036,7 @@ int lthread_key_delete(long key)
         if (d->key == key)
         {
             LIST_REMOVE(d, tlsdestr_next);
-            free(d);
+            oe_free(d);
             return 0;
         }
     }
@@ -1041,7 +1071,7 @@ static void lthread_rundestructors(struct lthread* lt)
             }
         }
         LIST_REMOVE(d, tls_next);
-        free(d);
+        oe_free(d);
     }
 }
 

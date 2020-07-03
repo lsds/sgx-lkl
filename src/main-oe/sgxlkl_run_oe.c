@@ -51,7 +51,7 @@
 #define BUILD_INFO "[NON-RELEASE build (-O3)]"
 #endif
 
-#define SGXLKL_INFO_STRING "SGX-LKL (OE) Git version %s LKL version %s %s"
+#define SGXLKL_INFO_STRING "SGX-LKL (OE) %s (%s) LKL %s %s"
 #define SGXLKL_LAUNCHER_NAME "sgx-lkl-run-oe"
 
 // One first empty block for bootloaders, and offset in second block
@@ -70,7 +70,7 @@ extern char __sgxlklrun_text_segment_start;
 /* Function to initialize the host interface */
 extern void sgxlkl_host_interface_initialization(void);
 
-typedef void (*sgxlkl_sw_signal_handler)(oe_exception_record_t*);
+typedef uint64_t (*sgxlkl_sw_signal_handler)(oe_exception_record_t*);
 static sgxlkl_sw_signal_handler _sgxlkl_sw_signal_handler;
 
 // Keep track of enclave disk image files so we can flush changes on exit.
@@ -108,7 +108,7 @@ __gdb_hook_starter_ready(void* base_addr, int mode, char* libsgxlkl_path)
 
 static void version()
 {
-    printf(SGXLKL_INFO_STRING, GIT_VERSION, LKL_VERSION, BUILD_INFO);
+    printf(SGXLKL_INFO_STRING, SGXLKL_VERSION, SGXLKL_GIT_COMMIT, LKL_VERSION, BUILD_INFO);
     printf("\n");
 }
 
@@ -247,12 +247,6 @@ static void help_config()
     printf("## Scheduling ##\n");
     printf("%-35s %s", "  SGXLKL_ETHREADS", "Number of enclave threads.\n");
     printf(
-        "%-35s %s (default: %d)\n",
-        "  SGXLKL_GETTIME_VDSO",
-        "Set to 1 to use the host kernel vdso mechanism to handle "
-        "clock_gettime calls.",
-        DEFAULT_SGXLKL_GETTIME_VDSO);
-    printf(
         "%-35s %s",
         "  SGXLKL_ESLEEP",
         "Sleep timeout in the scheduler (in ns).\n");
@@ -335,9 +329,9 @@ static void help_config()
         "file system image (Debug only).\n");
     printf(
         "%-35s %s",
-        "  SGXLKL_HD_MMAP",
-        "Set to 1 to use file-backed mmap to read from and write to disks "
-        "instead of using host read/write calls.\n");
+        "  SGXLKL_HD_OVERLAY",
+        "Set to 1 to create an in-memory writable overlay for a read-only root "
+        "file system.\n");
     printf("## Memory ##\n");
     printf(
         "%-35s %s%ld\n",
@@ -379,6 +373,10 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_TRACE_THREAD",
         "Trace in-enclave user level thread scheduling.\n");
+    printf(
+        "%-35s %s",
+        "  SGXLKL_TRACE_DISK",
+        "Trace in-enclave disk setup.\n");
     printf("%-35s %s", "  SGXLKL_TRACE_SYSCALL", "Trace all system calls.\n");
     printf(
         "%-35s %s",
@@ -597,13 +595,16 @@ int getopt_sgxlkl(int argc, char* argv[], struct option long_options[])
 
         // Handle no argument options
         if (opt->has_arg == no_argument)
+        {
             if (arg[optidx])
                 return -1;
             else
                 break;
+        }
 
         // Handle required argument options
         if (opt->has_arg == required_argument)
+        {
             if (arg[optidx] == '=')
             {
                 optidx++;
@@ -619,6 +620,7 @@ int getopt_sgxlkl(int argc, char* argv[], struct option long_options[])
                 else
                     optidx = 0;
             }
+        }
         optarg = &argv[optind][optidx];
         break;
     }
@@ -714,48 +716,6 @@ void set_clock_res(sgxlkl_config_t* conf)
     clock_getres(
         CLOCK_MONOTONIC_COARSE, &conf->clock_res[CLOCK_MONOTONIC_COARSE]);
     clock_getres(CLOCK_BOOTTIME, &conf->clock_res[CLOCK_BOOTTIME]);
-}
-
-static void* find_vvar_base(void)
-{
-    FILE* maps;
-    char mapping[128];
-    void* vvar_base = 0;
-
-    if (!(maps = fopen("/proc/self/maps", "r")))
-        return NULL;
-
-    int found = 0;
-    while (!found && fgets(mapping, sizeof(mapping), maps))
-    {
-        int name_idx = -1;
-        if (sscanf(
-                mapping,
-                "%p-%*p r-%*cp %*x %*x:%*x %*u %n",
-                &vvar_base,
-                &name_idx) != 1)
-        {
-            continue;
-        }
-        if (name_idx >= 0 &&
-            !strncmp(&mapping[name_idx], "[vvar]", sizeof("[vvar]") - 1))
-            found = 1;
-    }
-
-    fclose(maps);
-    return found ? vvar_base : NULL;
-}
-
-void set_vdso(sgxlkl_config_t* conf)
-{
-    conf->shared_memory.vvar = 0;
-    if (!sgxlkl_config_bool(SGXLKL_GETTIME_VDSO))
-        return;
-
-    // Try to locate vvar pages
-    if (!(conf->shared_memory.vvar = find_vvar_base()))
-        sgxlkl_host_warn(
-            "Could not locate vvar region. vDSO support not available.\n");
 }
 
 static void* register_shm(char* path, size_t len)
@@ -1056,19 +1016,21 @@ static void register_hd(
     int readonly,
     char* keyfile_or_passphrase,
     char* verity_file_or_roothash,
-    char* verity_file_or_hashoffset)
+    char* verity_file_or_hashoffset,
+    int overlay)
 {
     size_t idx = encl->num_disks;
 
     sgxlkl_host_verbose(
-        "Registering disk %lu (path='%s', mnt='%s', [%s %s %s %s])\n",
+        "Registering disk %lu (path='%s', mnt='%s', [%s %s %s %s %s])\n",
         idx,
         path,
         mnt,
         readonly ? "RO" : "RW",
         keyfile_or_passphrase ? "encrypted" : "",
         verity_file_or_roothash ? "verity-hash" : "",
-        verity_file_or_hashoffset ? "verity-offset" : "");
+        verity_file_or_hashoffset ? "verity-offset" : "",
+        overlay ? "overlay" : "");
 
     if (strlen(mnt) > SGXLKL_DISK_MNT_MAX_PATH_LEN)
         sgxlkl_host_fail(
@@ -1123,6 +1085,7 @@ static void register_hd(
     disk->mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN] = '\0';
     disk->enc = is_disk_encrypted(fd);
     disk->create = 0; // set by app config
+    disk->overlay = overlay;
 
     blk_device_init(disk, encl->shared_memory.enable_swiotlb);
 
@@ -1210,7 +1173,8 @@ static void register_hds(sgxlkl_config_t* encl, char* root_hd)
         sgxlkl_config_bool(SGXLKL_HD_RO),
         sgxlkl_config_str(SGXLKL_HD_KEY),
         sgxlkl_config_str(SGXLKL_HD_VERITY),
-        sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET));
+        sgxlkl_config_str(SGXLKL_HD_VERITY_OFFSET),
+        sgxlkl_config_bool(SGXLKL_HD_OVERLAY));
     // Register secondary disks
     while (*hds_str)
     {
@@ -1221,7 +1185,7 @@ static void register_hds(sgxlkl_config_t* encl, char* root_hd)
         char* hd_mnt_end = strchrnul(hd_mnt, ':');
         *hd_mnt_end = '\0';
         int hd_ro = hd_mnt_end[1] == '1' ? 1 : 0;
-        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL);
+        register_hd(encl, hd_path, hd_mnt, hd_ro, NULL, NULL, NULL, false);
 
         hds_str = strchrnul(hd_mnt_end + 1, ',');
         while (*hds_str == ' ' || *hds_str == ',')
@@ -1444,40 +1408,6 @@ static void setup_sw_mode_signal_handlers(void)
         sgxlkl_host_fail("Failed to register SIGTRAP handler\n");
 }
 
-static void sgxlkl_read_config_data(
-    const char* filename,
-    unsigned char** config_data)
-{
-    unsigned char* data = NULL;
-    size_t read_size = 0;
-    int fd = -1, read_offset = 0;
-    off_t data_len = 0;
-
-    if ((fd = open(filename, O_RDONLY)) < 0)
-        return;
-
-    data_len = lseek(fd, 0, SEEK_END);
-
-    lseek(fd, 0, SEEK_SET);
-    data = (unsigned char*)malloc(data_len + 1);
-
-    if (!data)
-        return;
-
-    while ((read_size =
-                read(fd, &data[read_offset], (data_len - read_offset))) > 0)
-        read_offset += read_size;
-    data[data_len] = '\0';
-
-    if (read_size < 0)
-        sgxlkl_host_warn(
-            "Failed to read CC PLATFORM POLICY: error(%s)\n", strerror(errno));
-
-    close(fd);
-
-    *config_data = data;
-}
-
 /* Parses the string provided as config for CPU affinity specifications. The
  * specification must consist of a comma-separated list of core IDs. It can
  * contain ranges. For example, "0-2,4" is a valid specification.
@@ -1576,6 +1506,7 @@ void* ethread_init(ethread_args_t* args)
             result,
             oe_result_str(result));
     }
+    return NULL;
 }
 
 void* enclave_init(ethread_args_t* args)
@@ -1612,16 +1543,15 @@ int main(int argc, char* argv[], char* envp[])
     char libsgxlkl[PATH_MAX];
     sgxlkl_config_t encl = {0};
     char* root_hd = NULL;
-    size_t ecs = 0;
     long nproc;
     size_t num_ethreads = 1;
     pthread_t* sgxlkl_threads;
     pthread_t* host_vdisk_task;
     pthread_t* host_netdev_task;
     pthread_t* host_console_task;
+    pthread_t* host_timerdev_task;
     int* ethreads_cores;
     size_t ethreads_cores_len;
-    int encl_mmap_flags;
     pthread_attr_t eattr;
     cpu_set_t set;
     char** auxvp;
@@ -1713,7 +1643,7 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     sgxlkl_host_verbose(
-        SGXLKL_INFO_STRING, GIT_VERSION, LKL_VERSION, BUILD_INFO);
+        SGXLKL_INFO_STRING, SGXLKL_VERSION, SGXLKL_GIT_COMMIT, LKL_VERSION, BUILD_INFO);
     sgxlkl_host_verbose_raw(
         encl.mode == SW_DEBUG_MODE
             ? " [SOFTWARE DEBUG]\n"
@@ -1764,9 +1694,6 @@ int main(int argc, char* argv[], char* envp[])
         exit(EXIT_FAILURE);
     }
 
-    const size_t pagesize = sysconf(_SC_PAGESIZE);
-    ecs = sizeof(encl) + (pagesize - (sizeof(encl) % pagesize));
-
     /* Print warnings for ignored options, e.g. for debug options in non-debug
      * mode. */
     check_envs_all(envp);
@@ -1808,15 +1735,13 @@ int main(int argc, char* argv[], char* envp[])
     }
 
     sgxlkl_host_verbose(
-        "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\" GETTIME_VDSO=%i\n",
+        "nproc=%ld ETHREADS=%lu CMDLINE=\"%s\"\n",
         nproc,
         num_ethreads,
-        encl.kernel_cmd,
-        sgxlkl_config_bool(SGXLKL_GETTIME_VDSO));
+        encl.kernel_cmd);
 
     set_sysconf_params(&encl, num_ethreads);
     set_clock_res(&encl);
-    set_vdso(&encl);
     set_shared_mem(&encl);
     set_tls(&encl);
     set_wg(&encl);
@@ -1843,7 +1768,7 @@ int main(int argc, char* argv[], char* envp[])
     {
         get_signed_libsgxlkl_path(libsgxlkl, PATH_MAX);
     }
-    sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl ? libsgxlkl : "null");
+    sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl);
 
     parse_cpu_affinity_params(
         sgxlkl_config_str(SGXLKL_ETHREADS_AFFINITY),
@@ -1876,6 +1801,10 @@ int main(int argc, char* argv[], char* envp[])
     {
         sgxlkl_host_fail("Failed to allocate netdev_task mem : %d\n", errno);
     }
+
+    host_timerdev_task = calloc(1, sizeof(*host_timerdev_task));
+    if (host_timerdev_task == 0)
+        sgxlkl_host_fail("Failed to allocate timerdev_task mem : %d\n", errno);
 
     /* Enclave creation */
     sgxlkl_host_verbose("oe_create_enclave... ");
@@ -1953,6 +1882,16 @@ int main(int argc, char* argv[], char* envp[])
     /* Create host console device task */
     pthread_create(host_console_task, NULL, console_task, NULL);
     pthread_setname_np(*host_console_task, "HOST_CONSOLE_DEVICE");
+
+    int ret = timerdev_init(&encl);
+    if (ret < 0)
+        sgxlkl_host_fail("Timer device initialization failed\n");
+    else
+    {
+        pthread_create(
+            host_timerdev_task, NULL, timerdev_task, encl.shared_memory.timer_dev_mem);
+        pthread_setname_np(*host_timerdev_task, "HOST_TIMER_DEVICE");
+    }
 
 #ifdef DEBUG
     /* Need base address for GDB to work */

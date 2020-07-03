@@ -1,35 +1,41 @@
-# Makefile for test application
+include ../../common.mk
 
-TEST=pthread_join-test
+PROG=pthread_join-test
+PROG_SRC=$(PROG).c
+IMAGE_SIZE=5M
 
-SRC=$(TEST).c
-DISK_IMAGE=sgxlkl-${TEST}.img
-IMAGE_SIZE=16M
+EXECUTION_TIMEOUT=60
 
-SGXLKL_ROOT=../../..
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
-SGXLKL_CMD=${SGXLKL_ROOT}/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
+SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+SGXLKL_HW_PARAMS=--hw-debug
+SGXLKL_SW_PARAMS=--sw-debug
 
-SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=0
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 
 .DELETE_ON_ERROR:
-.PHONY: clean
+.PHONY: all clean
 
-run: run-hw
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
 
-$(TEST): $(SRC)
-	${MUSL_CC} -fPIE -pie -pthread -o $@ $(SRC)
+gettimeout:
+	@echo ${EXECUTION_TIMEOUT}
 
-$(DISK_IMAGE): $(TEST)
-	rm -f ${DISK_IMAGE}
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="busybox" --copy=$(TEST) ${DISK_IMAGE}
+run: run-hw run-sw
 
-run-hw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_CMD} --hw-debug ${DISK_IMAGE} $(TEST)
+run-gdb: run-hw-gdb
 
-run-sw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_CMD} --sw-debug ${DISK_IMAGE} $(TEST)
+run-hw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-sw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-hw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-sw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
 clean:
-	rm -f $(DISK_IMAGE) $(TEST)
+	rm -f $(SGXLKL_ROOTFS) $(PROG)

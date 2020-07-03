@@ -1,0 +1,221 @@
+variables:
+  - name: SGXLKL_ROOT
+    value: $(Build.SourcesDirectory)
+
+parameters:
+- name: 'build_modes'
+  type: object
+  default:
+  # Names must not have dashes as job names cannot have them.
+  # NOTE: When changing this list, also change install_prefix_mapping.
+  - debug
+  - nonrelease
+- name: 'run_modes'
+  type: object
+  default:
+  - hw
+  - sw
+- name: 'test_suites'
+  type: object
+  default:
+  - core
+  - ltp1
+  - ltp2
+- name: 'ethreads'
+  type: object
+  default:
+  - 8
+- name: 'test_timeout_minutes'
+  type: number
+  default: 60
+- name: 'install_prefix_mapping'
+  type: object
+  default:
+    debug: /opt/sgx-lkl-debug
+    nonrelease: /opt/sgx-lkl-nonrelease
+- name: 'build_pool'
+  type: object
+  default:
+    name: scaleset-nosgx
+- name: 'test_pool_mapping'
+  type: object
+  default:
+    sw:
+      name: scaleset-nosgx
+    hw:
+      name: scaleset-sgx
+- name: 'publish'
+  type: boolean
+  default: false
+- name: 'apt_repo_blob_container'
+  type: string
+  default: 'apt-dev'
+  values:
+  - apt-dev
+  - apt # for releases
+
+stages:
+- stage: build_and_test
+  displayName: Build and Test
+  jobs:
+  - ${{ each build_mode in parameters.build_modes }}:
+    - job: build_${{ build_mode }}
+      displayName: 'Build: ${{ build_mode }}'
+
+      pool: ${{ parameters.build_pool }}
+
+      steps:
+        - checkout: self
+          submodules: false
+          clean: true
+
+        - bash: .azure-pipelines/scripts/checkout_submodules.sh
+          displayName: Checkout Submodules
+      
+        - bash: .azure-pipelines/scripts/install_prerequisites.sh
+          displayName: Install prerequisites
+
+        - bash: .azure-pipelines/scripts/dump_system_info.sh
+          displayName: Dump system info
+
+        - bash: scripts/check-ci
+          displayName: Run linters and check formatting
+
+        - bash: .azure-pipelines/scripts/build.sh
+          displayName: Compile and Build
+          env:
+            SGXLKL_BUILD_MODE: "${{ build_mode }}"
+            SGXLKL_PREFIX: $(SGXLKL_ROOT)/install
+
+        - bash: .azure-pipelines/scripts/create_standalone_deb_pkg.sh
+          displayName: Create Debian package
+          env:
+            SGXLKL_BUILD_MODE: "${{ build_mode }}"
+            SGXLKL_PREFIX: $(SGXLKL_ROOT)/install
+
+        - task: PublishBuildArtifacts@1
+          displayName: Publish Debian package as build artifact
+          inputs:
+            pathtoPublish: $(Build.SourcesDirectory)/build/deb/pkg
+            artifactName: deb
+
+    - ${{ each run_mode in parameters.run_modes }}:
+      - ${{ each ethreads in parameters.ethreads }}:
+        - ${{ each test_suite in parameters.test_suites }}:
+          - job: test_${{ test_suite }}_${{ build_mode }}_${{ run_mode }}_${{ ethreads }}
+            displayName: 'Test: ${{ test_suite }} (${{ build_mode }}, ${{ run_mode }}, ${{ ethreads }} ethreads)'
+
+            dependsOn: build_${{ build_mode }}
+
+            # Skip ltp1 sw runs for now as they raise segfaults.
+            condition: and(succeeded(), not(and(eq('${{ test_suite }}', 'ltp1'), eq('${{ run_mode }}', 'sw'))))
+
+            pool: ${{ parameters.test_pool_mapping[run_mode] }}
+
+            timeoutInMinutes: ${{ parameters.test_timeout_minutes }}
+
+            steps:
+            - checkout: self
+              submodules: false
+              clean: true
+
+            - task: DownloadBuildArtifacts@0
+              displayName: Download Debian package
+              inputs:
+                downloadPath: $(Build.SourcesDirectory)
+                downloadType: specific
+                itemPattern: 'deb/*'
+
+            - bash: .azure-pipelines/scripts/install_prerequisites.sh
+              displayName: Install prerequisites
+
+            - bash: .azure-pipelines/scripts/dump_system_info.sh
+              displayName: Dump system info
+
+            - bash: .azure-pipelines/scripts/install_deb_pkg.sh
+              displayName: Install Debian package
+              env:
+                SGXLKL_DEB_DIR: $(Build.SourcesDirectory)/deb
+                SGXLKL_BUILD_MODE: "${{ build_mode }}"
+            
+            - bash: .azure-pipelines/scripts/run_setup.sh
+              displayName: Run sgx-lkl-setup
+
+            - bash: .azure-pipelines/scripts/test_runner.sh ${{ test_suite }}
+              displayName: Run Tests
+              env:
+                SGXLKL_BUILD_MODE: "${{ build_mode }}"
+                run_mode: "run-${{ run_mode }}"
+                SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
+                SGXLKL_ETHREADS: ${{ ethreads }}
+
+            - task: PublishTestResults@2
+              displayName: "Publish Test Results *.xml"
+              condition: always()
+              inputs:
+                testResultsFormat: "JUnit"
+                testResultsFiles: "report/*-junit.xml"
+                testRunTitle: "${{ test_suite }} (${{ build_mode }}, ${{ run_mode }}, ${{ ethreads }} ethreads)"
+                mergeTestResults: true
+
+            - task: PublishBuildArtifacts@1
+              displayName: "Archive Logs"
+              condition: always()
+              inputs:
+                pathtoPublish: "report"
+                artifactName: logs
+
+- ${{ if parameters.publish }}:
+  - stage: publish
+    displayName: Publish
+    dependsOn: build_and_test
+    jobs:
+    - job: Publish
+
+      # A free hosted agent is good enough for the publish job.
+      # It also has the Azure CLI installed already.
+      pool:
+        vmImage: ubuntu-latest
+
+      steps:
+      - checkout: self
+        submodules: false
+
+      - bash: .azure-pipelines/scripts/install_prerequisites.sh
+        displayName: Install prerequisites
+
+      - bash: .azure-pipelines/scripts/dump_system_info.sh
+        displayName: Dump system info
+    
+      - task: DownloadBuildArtifacts@0
+        displayName: Download Debian packages
+        inputs:
+          downloadPath: $(Build.SourcesDirectory)
+          downloadType: specific
+          itemPattern: 'deb/*'
+
+      - bash: .azure-pipelines/scripts/create_fsgsbase_dkms_deb_pkg.sh
+        displayName: Create FSGSBASE Debian package
+        env:
+          SGXLKL_DEB_DIR: $(Build.SourcesDirectory)/deb
+      
+      - bash: .azure-pipelines/scripts/create_deb_apt_repository.sh
+        displayName: Create APT repository
+        env:
+          SGXLKL_DEB_DIR: $(Build.SourcesDirectory)/deb
+          SGXLKL_APT_REPO_DIR: $(Build.SourcesDirectory)/apt
+
+      - task: AzureCLI@2
+        displayName: Publish APT repository to Blob container
+        inputs:
+          # pkg-storage is the name of the service connection created in Azure DevOps
+          # that gives access to the resource group containing the storage account.
+          azureSubscription: pkg-storage
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            az storage blob upload-batch \
+              --account-name clcpackages -d ${{ parameters.apt_repo_blob_container }} \
+              --destination-path 1fa5fb889b8efa6ea07354c3b54903f7 \
+              -s $(Build.SourcesDirectory)/apt
+            

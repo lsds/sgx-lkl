@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+set -e
+
+this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+for opt in "$@"
+do
+  case $opt in
+    -v | --verbose)
+        verbose=1
+        ;;
+
+    -q | --quiet)
+        quiet=1
+        ;;
+
+    -w | --whatif)
+        whatif=1
+        ;;
+
+    *)
+        echo "$0: unknown option:  $opt"
+        exit 1
+        ;;
+  esac
+done
+
+if command -v black &>/dev/null; then
+    cmd=(black)
+elif python3 -m black --help &>/dev/null; then
+    cmd=(python3 -m black)
+else
+    echo "black is not installed, run:"
+    echo "python3 -m pip install black"
+    exit 1
+fi
+
+args=()
+
+if [[ ${whatif} -eq 1 ]]; then
+    args+=("--check")
+fi
+if [[ ${quiet} -eq 1 ]]; then
+    args+=("--quiet")
+fi
+if [[ ${verbose} -eq 1 ]]; then
+    args+=("--verbose")
+fi
+
+"${cmd[@]}" "${args[@]}" "$this_dir/.."

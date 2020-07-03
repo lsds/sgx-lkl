@@ -1,0 +1,30 @@
+setpgid has a caveat that if pgid passed in is 0 then pgid is set to the
+process id of the calling process. Fix is to include that caveat.
+diff --git a/testcases/kernel/syscalls/setpgid/setpgid01.c b/testcases/kernel/syscalls/setpgid/setpgid01.c
+index 89c9a3779..c28f9e7f3 100644
+--- a/testcases/kernel/syscalls/setpgid/setpgid01.c
++++ b/testcases/kernel/syscalls/setpgid/setpgid01.c
+@@ -83,12 +83,19 @@ static void setpgid_test1(void)
+ 	pid = getpid();
+ 
+ 	TEST(setpgid(pid, pgid));
+-	if (TEST_RETURN == -1 || getpgrp() != pgid) {
+-		tst_resm(TFAIL | TTERRNO, "test setpgid(%d, %d) fail",
+-			 pid, pgid);
+-	} else {
++	if (pgid == 0 && TEST_RETURN == 0 && getpgrp() == pid)
++	{
+ 		tst_resm(TPASS, "test setpgid(%d, %d) success", pid, pgid);
+ 	}
++	else
++	{
++		if (TEST_RETURN == -1 || getpgrp() != pgid) {
++			tst_resm(TFAIL | TTERRNO, "test setpgid(%d, %d) fail",
++				 pid, pgid);
++		} else {
++			tst_resm(TPASS, "test setpgid(%d, %d) success", pid, pgid);
++		}
++	}
+ }
+ 
+ static int wait4child(pid_t child)

@@ -1,5 +1,4 @@
-
-SGXLKL_ROOT=../../../..
+include ../../../common.mk
 
 CC_APP=/usr/bin/python3
 CC_APP_CMDLINE=${CC_APP} -c 'print("SGX Encrypted Confidential Container Verify VERITY TEST PASSED !")'
@@ -17,14 +16,11 @@ SGXLKL_HD_VERITY=$(shell cat ${CC_IMAGE_VERITY_ROOTHASH})\
 SGXLKL_HD_VERITY_OFFSET=$(shell cat ${CC_IMAGE_VERITY_OFFSET})\
 SGXLKL_HD_RO=1
 
-VERBOSE_OPTS=SGXLKL_GETTIME_VDSO=0 SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+VERBOSE_OPTS=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
 
 ifeq ($(SGXLKL_VERBOSE),)
 	SGXLKL_ENV_VERITY+=${VERBOSE_OPTS}
 endif
-
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 
 .DELETE_ON_ERROR:
 .PHONY: all clean run-hw run-sw

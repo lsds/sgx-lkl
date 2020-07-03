@@ -1,8 +1,0 @@
-public class HelloWorld
-{
-	public static void main(String[] args)
-	{
-		System.out.println("Hello SGX world from Java!");
-		System.out.println("TEST_PASSED");
-	}
-}

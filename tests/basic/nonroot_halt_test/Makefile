@@ -1,39 +1,41 @@
-# Makefile for test application
+include ../../common.mk
 
-APP_DIRECTORY=app
-APP=nonroot_halt_test
-SRC=nonroot_halt_test.c
+PROG=nonroot_halt_test
+PROG_SRC=$(PROG).c
+IMAGE_SIZE=5M
 
-DISK_IMAGE=sgxlkl-${APP}.img
-IMAGE_SIZE=64M
+EXECUTION_TIMEOUT=60
 
-SGXLKL_ROOT=../../..
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
-SGXLKL_CMD=${SGXLKL_ROOT}/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
+SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+SGXLKL_HW_PARAMS=--hw-debug
+SGXLKL_SW_PARAMS=--sw-debug
 
-SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=1
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 
 .DELETE_ON_ERROR:
-.PHONY: clean
+.PHONY: all clean
+
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
+
+gettimeout:
+	@echo ${EXECUTION_TIMEOUT}
 
 run: run-hw run-sw
 
-$(APP): $(SRC)
-	${MUSL_CC} -fPIE -pie -o $@ $(SRC)
-	@mkdir -p ${APP_DIRECTORY}
-	@mv -f $@ ${APP_DIRECTORY}
+run-gdb: run-hw-gdb
 
-$(DISK_IMAGE): $(APP)
-	@rm -f ${DISK_IMAGE}
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="bash shadow sudo" --copy=./${APP_DIRECTORY}/ ${DISK_IMAGE}
+run-hw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
-run-hw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_CMD} --hw-debug ${DISK_IMAGE} $(APP_DIRECTORY)/$(APP)
+run-sw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
-run-sw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_CMD} --sw-debug ${DISK_IMAGE} $(APP_DIRECTORY)/$(APP)
+run-hw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-sw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
 clean:
-	rm -f $(DISK_IMAGE) $(APP)
-	@rm -rf $(APP_DIRECTORY)
+	rm -f $(SGXLKL_ROOTFS) $(PROG)

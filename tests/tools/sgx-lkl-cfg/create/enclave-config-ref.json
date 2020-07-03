@@ -1,0 +1,22 @@
+{
+  "run": "/usr/bin/python3",
+  "args": [
+    "/src/app.py",
+    "John"
+  ],
+  "environment": {
+    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "GREETING": "Hello"
+  },
+  "disk_config": [
+    {
+      "disk": "/",
+      "readonly": false
+    },
+    {
+      "disk": "/data_1",
+      "readonly": false
+    }
+  ],
+  "cwd": "/src"
+}

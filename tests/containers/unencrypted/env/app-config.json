@@ -1,0 +1,16 @@
+{
+    "run": "/usr/bin/python3",
+    "args": [
+      "-c",
+      "import os; assert os.environ['FOO'] == '42'"
+    ],
+    "environment": {
+      "FOO": "42"
+    },
+    "disk_config": [
+      {
+        "disk": "/",
+        "readonly": false
+      }
+    ]
+}

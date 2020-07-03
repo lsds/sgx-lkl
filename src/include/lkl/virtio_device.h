@@ -1,6 +1,9 @@
 #ifndef __LKL_VIRTIO_DEVICE_H__
 #define __LKL_VIRTIO_DEVICE_H__
 
+struct enclave_disk_config;
+struct virtio_dev;
+
 /*
  * Function to setup the block device and register it with virtio drivers
  */

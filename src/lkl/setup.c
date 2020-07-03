@@ -7,19 +7,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #define _GNU_SOURCE // Needed for strchrnul
+#include <lkl.h>
+#include <lkl_host.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/mount.h>
 #include <syscall.h>
 #include <time.h>
 
 #include <lkl.h>
 #include <lkl_host.h>
+#include <unistd.h>
+
+#include "enclave/enclave_util.h"
+#include "enclave/sgxlkl_t.h"
+#include "enclave/wireguard.h"
+#include "enclave/wireguard_util.h"
+#include "libcryptsetup.h"
+#include "libdevmapper.h"
 #include "lkl/disk.h"
 #include "lkl/ext4_create.h"
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
+#include "lkl/syscall-overrides.h"
 #include "lkl/virtio_device.h"
 #include "lkl/virtio_net.h"
 
@@ -32,8 +44,6 @@
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
-
-#define BIT(x) (1ULL << x)
 
 #define UMOUNT_DISK_TIMEOUT 2000
 
@@ -65,6 +75,7 @@ int sgxlkl_trace_redirect_syscall = 0;
 int sgxlkl_trace_mmap = 0;
 int sgxlkl_trace_signal = 0;
 int sgxlkl_trace_thread = 0;
+int sgxlkl_trace_disk = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_mtu = 0;
 
@@ -97,8 +108,7 @@ static void lkl_prepare_rootfs(const char* dirname, int perm)
             err = lkl_sys_mkdir(dirname, perm);
         if (err < 0)
         {
-            sgxlkl_fail(
-                "Unable to mkdir %s: %s\n", dirname, lkl_strerror(err));
+            sgxlkl_fail("Unable to mkdir %s: %s\n", dirname, lkl_strerror(err));
         }
     }
 }
@@ -123,7 +133,6 @@ static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
     if (dstbuf[dstdir_len - 1] != '/')
         dstbuf[dstdir_len++] = '/';
     struct lkl_linux_dirent64* dev = NULL;
-    int disknum = 0;
     while ((dev = lkl_readdir(dir)) != NULL)
     {
         strncpy(srcbuf + srcdir_len, dev->d_name, sizeof(srcbuf) - srcdir_len);
@@ -171,8 +180,7 @@ static void lkl_mount_shmtmpfs()
     int err = lkl_sys_mount("tmpfs", "/dev/shm", "tmpfs", 0, "rw,nodev");
     if (err != 0)
     {
-        sgxlkl_fail(
-            "lkl_sys_mount(tmpfs) (/dev/shm): %s\n", lkl_strerror(err));
+        sgxlkl_fail("lkl_sys_mount(tmpfs) (/dev/shm): %s\n", lkl_strerror(err));
     }
 }
 
@@ -299,6 +307,35 @@ fail:
     return err;
 }
 
+static void lkl_mount_overlay_tmpfs(
+    const char* mnt_point)
+{
+    int err = lkl_sys_mount("tmpfs", (char*)mnt_point, "tmpfs", 0, "mode=0777");
+    if (err != 0)
+    {
+        sgxlkl_fail("lkl_sys_mount(tmpfs): %s\n", lkl_strerror(err));
+    }
+}
+
+static void lkl_mount_overlayfs(
+    const char* lower_dir,
+    const char* upper_dir,
+    const char* work_dir,
+    const char* mnt_point)
+{
+    char opts[200];
+    snprintf(
+            opts,
+            sizeof(opts),
+            "lowerdir=%s,upperdir=%s,workdir=%s",
+            lower_dir, upper_dir, work_dir);
+    int err = lkl_sys_mount("overlay", (char*)mnt_point, "overlay", 0, opts);
+    if (err != 0)
+    {
+        sgxlkl_fail("lkl_sys_mount(overlayfs): %s\n", lkl_strerror(err));
+    }
+}
+
 struct lkl_crypt_device
 {
     char* disk_path;
@@ -353,7 +390,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     if (err == -1)
     {
         sgxlkl_fail("Unable to activate encrypted disk. Please ensure you "
-                     "have provided the correct passphrase/keyfile!\n");
+                    "have provided the correct passphrase/keyfile!\n");
     }
     else if (err != 0)
     {
@@ -662,6 +699,7 @@ static void lkl_mount_disk(
 
     if (disk->roothash != NULL)
     {
+        SGXLKL_VERBOSE("Activating verity disk\n");
         dev_str_verity[sizeof dev_str_verity - 2] = device;
         lkl_cd.crypt_name = dev_str_verity + offset_dev_str_crypt_name;
         lkl_run_in_kernel_stack(
@@ -745,8 +783,8 @@ static void lkl_mount_disk(
 static void lkl_mount_root_disk(struct enclave_disk_config* disk)
 {
     int err = 0;
-    char mnt_point[] = {"/mnt/vda"};
-    char new_dev_str[] = {"/mnt/vda/dev/"};
+    char mnt_point[] = "/mnt/vda";
+    char new_dev_str[] = "/mnt/vda/dev/";
 
     // If any byte of disk_dm_verity_root_hash is not 0xff, the verification
     // is run to compare disk_dm_verity_root_hash against disk->roothash.
@@ -775,6 +813,27 @@ static void lkl_mount_root_disk(struct enclave_disk_config* disk)
     }
 
     lkl_mount_disk(disk, 'a', mnt_point);
+
+    if (disk->overlay)
+    {
+        SGXLKL_VERBOSE("Creating writable in-memory overlay for rootfs.\n");
+        const char mnt_point_overlay[] = "/mnt/oda";
+        const char mnt_point_overlay_upper[] = "/mnt/oda-upper";
+        const char overlay_upper_dir[] = "/mnt/oda-upper/upper";
+        const char overlay_work_dir[] = "/mnt/oda-upper/work";
+        lkl_prepare_rootfs(mnt_point_overlay_upper, 0700);
+        lkl_mount_overlay_tmpfs(mnt_point_overlay_upper);
+        lkl_prepare_rootfs(overlay_upper_dir, 0700);
+        lkl_prepare_rootfs(overlay_work_dir, 0700);
+        lkl_prepare_rootfs(mnt_point_overlay, 0700);
+        lkl_mount_overlayfs(
+            mnt_point,
+            overlay_upper_dir,
+            overlay_work_dir,
+            mnt_point_overlay);
+        strcpy(mnt_point, mnt_point_overlay);
+        strcpy(new_dev_str, "/mnt/oda/dev/");
+    }
 
     /* set up /dev in the new root */
     lkl_prepare_rootfs(new_dev_str, 0700);
@@ -820,6 +879,11 @@ void lkl_mount_disks(
     size_t _num_disks,
     const char* cwd)
 {
+#ifdef DEBUG
+    if (sgxlkl_trace_disk)
+        crypt_set_debug_level(CRYPT_LOG_DEBUG);
+#endif
+
     num_disks = _num_disks;
     if (num_disks <= 0)
         sgxlkl_fail("No root disk provided. Aborting...\n");
@@ -851,8 +915,6 @@ void lkl_mount_disks(
 
     lkl_mount_root_disk(root_disk);
 
-    char dev_path[] = {"/dev/vdXX"};
-    size_t dev_path_len = strlen(dev_path);
     for (size_t i = 0; i < num_disks; ++i)
     {
         if (root_disk == &disks[i] || disks[i].fd == -1)
@@ -1015,7 +1077,7 @@ static void init_random()
 {
     struct rand_pool_info* pool_info = 0;
     FILE* f;
-    int fd;
+    int fd = 0;
 
     SGXLKL_VERBOSE("Adding entropy to entropy pool\n");
 
@@ -1064,31 +1126,56 @@ out:
         free(pool_info);
 }
 
-/* Requires starttime to be higher or equal to endtime */
-static int timespec_diff(
-    struct timespec* starttime,
-    struct timespec* endtime,
-    struct timespec* diff)
+/* Get the difference between end and start. If end is before start,
+ * returns {0, 0}
+ */
+struct timespec timespec_diff(struct timespec end, struct timespec start)
 {
-    if (starttime->tv_sec > endtime->tv_sec ||
-        (starttime->tv_sec == endtime->tv_sec &&
-         starttime->tv_nsec > endtime->tv_nsec))
+    struct timespec diff = {0, 0};
+
+    if (start.tv_sec <= end.tv_sec ||
+        (start.tv_sec == end.tv_sec && start.tv_nsec < end.tv_nsec))
     {
-        errno = EINVAL;
-        return -1;
+        diff.tv_sec = end.tv_sec - start.tv_sec;
+        if (start.tv_nsec > end.tv_nsec)
+        {
+            diff.tv_sec--;
+        }
+
+        diff.tv_nsec = (1000000000 + end.tv_nsec - start.tv_nsec) % 1000000000;
     }
 
-    diff->tv_sec = endtime->tv_sec - starttime->tv_sec;
-    if (starttime->tv_nsec > endtime->tv_nsec)
-    {
-        diff->tv_sec--;
-    }
-
-    diff->tv_nsec =
-        (1000000000 + endtime->tv_nsec - starttime->tv_nsec) % 1000000000;
-
-    return 0;
+    return diff;
 }
+
+#ifdef DEBUG
+static void display_mount_table()
+{
+    int fd, ret;
+    char buf[1024];
+
+    fd = lkl_sys_open("/proc/mounts", O_RDONLY, 0);
+    if (fd < 0)
+    {
+        SGXLKL_VERBOSE("/proc/mounts cannot be accessed\n");
+        return;
+    }
+
+    SGXLKL_VERBOSE("========= /proc/mounts ===========\n");
+    while ((ret = lkl_sys_read(fd, buf, 1023)) > 0)
+    {
+        buf[ret] = '\0';
+        SGXLKL_VERBOSE_RAW("%s", buf);
+    }
+    SGXLKL_VERBOSE("==================================\n");
+
+    ret = lkl_sys_close(fd);
+    if (ret != 0)
+    {
+        sgxlkl_fail("Could not close file descriptor for /proc/mounts\n");
+    }
+}
+#endif
 
 /* Semaphore used to block LKL termination thread */
 static struct lkl_sem* termination_sem;
@@ -1097,7 +1184,7 @@ static struct lkl_sem* termination_sem;
 static _Atomic(bool) is_lkl_terminating = false;
 
 /* Function to carry out the shutdown sequence */
-static int lkl_termination_thread(void* args)
+static void* lkl_termination_thread(void* args)
 {
     SGXLKL_VERBOSE("enter\n");
 
@@ -1106,7 +1193,7 @@ static int lkl_termination_thread(void* args)
      * thread is mapped to an LKL host thread. This way, no new kernel thread
      * will be created when we are actually shutting down.
      */
-    long pid = lkl_sys_getpid();
+    long pid __attribute__((unused)) = lkl_sys_getpid();
     SGXLKL_VERBOSE(
         "Performed LKL syscall to get host task allocated (pid=%li)\n", pid);
     SGXLKL_ASSERT(pid);
@@ -1136,7 +1223,7 @@ static int lkl_termination_thread(void* args)
     {
         struct timespec endtime, runtime;
         clock_gettime(CLOCK_MONOTONIC, &endtime);
-        timespec_diff(&sgxlkl_app_starttime, &endtime, &runtime);
+        runtime = timespec_diff(endtime, sgxlkl_app_starttime);
         sgxlkl_info(
             "Application runtime: %lld.%.9lds\n",
             runtime.tv_sec,
@@ -1154,15 +1241,25 @@ static int lkl_termination_thread(void* args)
             lkl_strerror(ret));
     }
 
-    // Unmount disks
+#ifdef DEBUG
+    display_mount_table();
+#endif
+
+    // Unmount disks (assumes i==0 is the root disk)
     long res;
     for (int i = num_disks - 1; i >= 0; --i)
     {
         if (!disks[i].mounted)
             continue;
 
-        SGXLKL_VERBOSE("calling lkl_umount_timeout(%s)\n", disks[i].mnt);
-        res = lkl_umount_timeout(disks[i].mnt, 0, UMOUNT_DISK_TIMEOUT);
+        /*
+         * We are calling umount with the MNT_DETACH flag for the root
+         * file system, otherwise the call fails to unmount the file
+         * system or sometimes blocks indefinitely. (We should still
+         * check that the file system was unmounted cleanly.)
+         */
+        SGXLKL_VERBOSE("calling lkl_umount_timeout(\"%s\", %s, %i)\n", disks[i].mnt, i == 0 ? "MNT_DETACH" : "0", UMOUNT_DISK_TIMEOUT);
+        res = lkl_umount_timeout(disks[i].mnt, i == 0 ? MNT_DETACH : 0, UMOUNT_DISK_TIMEOUT);
         if (res < 0)
         {
             sgxlkl_warn(
@@ -1193,6 +1290,10 @@ static int lkl_termination_thread(void* args)
         }
     }
 
+#ifdef DEBUG
+    display_mount_table();
+#endif
+
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
 
@@ -1218,8 +1319,6 @@ static int lkl_termination_thread(void* args)
     sgxlkl_free_config(sgxlkl_enclave);
 
     lthread_exit(NULL);
-
-    SGXLKL_VERBOSE("done\n");
 }
 
 /* Create the LKL termination thread */
@@ -1254,14 +1353,40 @@ void lkl_terminate(int exit_status)
     }
 }
 
+static void init_enclave_clock()
+{
+    SGXLKL_VERBOSE("Setting enclave realtime clock\n");
+
+    if (oe_is_within_enclave(
+            sgxlkl_enclave->shared_memory.timer_dev_mem,
+            sizeof(struct timer_dev)))
+    {
+        sgxlkl_fail(
+            "timer_dev memory isn't outside of the enclave. Aborting.\n");
+    }
+
+    struct timer_dev* t = sgxlkl_enclave->shared_memory.timer_dev_mem;
+    struct lkl_timespec start_time;
+    start_time.tv_sec = t->init_walltime_sec;
+    start_time.tv_nsec = t->init_walltime_nsec;
+    int ret = lkl_sys_clock_settime(LKL_CLOCK_REALTIME, (void*)&start_time);
+    if (ret != 0)
+    {
+        sgxlkl_fail(
+            "lkl_sys_clock_settime(\"/\") failed: ret=%i error=\"%s\"\n",
+            ret,
+            lkl_strerror(ret));
+    }
+}
+
 void lkl_start_init()
 {
     size_t i;
 
+    register_lkl_syscall_overrides();
+
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
-    if (getenv_bool("SGXLKL_HD_MMAP", 0))
-        lkl_dev_blk_ops = sgxlkl_dev_blk_mem_ops;
 
     // TODO Make tracing options configurable via SGX-LKL config file.
 
@@ -1296,6 +1421,9 @@ void lkl_start_init()
 
     if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
         sgxlkl_trace_thread = 1;
+
+    if (getenv_bool("SGXLKL_TRACE_DISK", 0))
+        sgxlkl_trace_disk = 1;
 
     if (sgxlkl_enclave->hostnet)
         sgxlkl_use_host_network = 1;
@@ -1397,6 +1525,8 @@ void lkl_start_init()
 
     SGXLKL_VERBOSE("calling init_random()\n");
     init_random();
+
+    init_enclave_clock();
 
     // Set environment variable to export SHMEM address to the application.
     // Note: Due to how putenv() works, we need to allocate the environment

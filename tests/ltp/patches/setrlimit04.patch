@@ -1,0 +1,51 @@
+Patch to setrlimit retrieve it and verify it is set instead of using a child 
+process to execute a binary with STACK_LIMIT which cannot be tested with SGX
+single process limitation
+diff --git a/testcases/kernel/syscalls/setrlimit/setrlimit04.c b/testcases/kernel/syscalls/setrlimit/setrlimit04.c
+index 5648f5103..262f5175e 100644
+--- a/testcases/kernel/syscalls/setrlimit/setrlimit04.c
++++ b/testcases/kernel/syscalls/setrlimit/setrlimit04.c
+@@ -20,34 +20,29 @@
+ 
+ #include "tst_test.h"
+ 
+-#define STACK_LIMIT (512 * 1024)
++#define STACK_LIMIT (5 * 1024)
+ 
+ static void test_setrlimit(void)
+ {
+ 	int status;
+ 	struct rlimit rlim;
+-	pid_t child;
+ 
+ 	rlim.rlim_cur = STACK_LIMIT;
+ 	rlim.rlim_max = STACK_LIMIT;
+ 
+ 	SAFE_SETRLIMIT(RLIMIT_STACK, &rlim);
+-
+-	child = SAFE_FORK();
+-	if (child == 0)
+-		SAFE_EXECLP("/bin/true", "/bin/true", NULL);
+-	SAFE_WAITPID(child, &status, 0);
+-
+-	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+-		tst_res(TPASS, "child process completed OK");
+-		return;
++	rlim.rlim_cur = 0;
++	rlim.rlim_max = 0;
++	getrlimit(RLIMIT_STACK, &rlim);
++	if (rlim.rlim_cur == STACK_LIMIT && rlim.rlim_max == STACK_LIMIT) {
++		tst_res(TPASS, "STACK_LIMIT is set accurately");
++	}
++	else {
++		tst_res(TFAIL, "STACK_LIMIT not set proper");
+ 	}
+-
+-	tst_res(TFAIL, "child %s", tst_strstatus(status));
+ }
+ 
+ static struct tst_test test = {
+ 	.test_all     = test_setrlimit,
+-	.forks_child  = 1,
+ 	.needs_root = 1,
+ };

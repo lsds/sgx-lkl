@@ -1,6 +1,24 @@
 // SGX-LKL-OE enclave/host interface
 
 enclave {
+    /*
+     * OE requires applications to import EDL used by the SDK to support some
+     * core functionality.
+     *
+     * - attestation.edl & sgx_attestation.edl are needed for OE attestation
+     *   APIs
+     * - logging.edl is needed to support OE diagnostic console logging
+     * - cpu.edl is not required by SGX-LKL, but OE is linked in such a way
+     *   that all applications must import it. This should be changed in OE
+     * - debug.edl should only be needed for debug builds but it is always linked
+     *   into oecore. Additionally, EDL does not currently support conditional
+     *   imports
+     */
+    from "openenclave/edl/attestation.edl" import *;
+    from "openenclave/edl/logging.edl" import *;
+    from "openenclave/edl/sgx/cpu.edl" import *;
+    from "openenclave/edl/sgx/debug.edl" import *;
+    from "openenclave/edl/sgx/sgx_attestation.edl" import *;
 
     include "shared/sgxlkl_config.h"
 
@@ -26,16 +44,6 @@ enclave {
             [user_check] void *addr,
             size_t len,
             int prot);
-
-        // Host call to get clock resolution
-        int sgxlkl_host_syscall_clock_getres(
-            clockid_t clk_id,
-            [out] struct timespec *res);
-
-        // Host call to get clock gettime
-        int sgxlkl_host_syscall_clock_gettime(
-            clockid_t clk_id,
-            [out] struct timespec *tp);
 
 	    // Host call for signal handler registration to support signal handling in software mode
 	    void sgxlkl_host_sw_register_signal_handler(

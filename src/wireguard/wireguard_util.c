@@ -281,7 +281,7 @@ int wgu_add_peers(
         memset(&new_peers[i], 0, sizeof(new_peers[i]));
         new_peers[i].flags = WGPEER_HAS_PUBLIC_KEY | WGPEER_REPLACE_ALLOWEDIPS;
 
-        if (ret = wg_key_from_base64(new_peers[i].public_key, peer_cfg.key))
+        if ( (ret = wg_key_from_base64(new_peers[i].public_key, peer_cfg.key)) )
         {
             goto err;
         }
@@ -303,7 +303,7 @@ int wgu_add_peers(
 
     for (int i = 0; i < num_peers; i++)
     {
-        if (ret = wgu_add_peer(dev, &new_peers[i], set_device))
+        if ( (ret = wgu_add_peer(dev, &new_peers[i], set_device)) )
             return ret;
     }
 

@@ -1,36 +1,34 @@
-# Makefile for test application
+include ../../common.mk
 
-TEST=illegal_instructions-test
+PROG=illegal_instructions-test
+PROG_SRC=$(PROG).c
+IMAGE_SIZE=5M
 
-SRC=$(TEST).c
-DISK_IMAGE=sgxlkl-${TEST}.img
-IMAGE_SIZE=16M
+EXECUTION_TIMEOUT=60
 
-SGXLKL_ROOT=../../..
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
-SGXLKL_CMD=${SGXLKL_ROOT}/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
+SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+SGXLKL_HW_PARAMS=--hw-debug
+SGXLKL_SW_PARAMS=--sw-debug
 
-SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1 SGXLKL_TRACE_SIGNAL=0
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 
 .DELETE_ON_ERROR:
-.PHONY: clean
+.PHONY: all clean
+
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
+
+gettimeout:
+	@echo ${EXECUTION_TIMEOUT}
 
 run: run-hw
 
-$(TEST): $(SRC)
-	${MUSL_CC} -fPIE -pie -o $@ $(SRC)
-
-$(DISK_IMAGE): $(TEST)
-	rm -f ${DISK_IMAGE}
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --alpine="busybox" --copy=$(TEST) ${DISK_IMAGE}
-
-run-hw: $(DISK_IMAGE)
+run-hw: ${SGXLKL_ROOTFS}
 	@# Note that the following ! inverts the error code from the enclave
-	@! ${SGXLKL_ENV} ${SGXLKL_CMD} --hw-debug ${DISK_IMAGE} $(TEST)
+	@! $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
 run-sw: 
 	@echo Test not supported in sw mode
 
 clean:
-	rm -f $(DISK_IMAGE) $(TEST)
+	rm -f $(SGXLKL_ROOTFS)

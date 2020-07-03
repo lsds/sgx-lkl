@@ -1,9 +1,9 @@
 #!/bin/bash
 
-SGXLKL_ROOT=`dirname "$0"`/..
+SGXLKL_ROOT=$(dirname "$0")/..
 
 echo -n "Creating tap network device for SGX-LKL..."
-sudo ip tuntap add dev sgxlkl_tap0 mode tap user `whoami`
+sudo ip tuntap add dev sgxlkl_tap0 mode tap user "$(whoami)"
 sudo ip link set dev sgxlkl_tap0 up
 sudo ip addr add dev sgxlkl_tap0 10.0.1.254/24
 echo "Done"
@@ -25,9 +25,11 @@ sudo iptables -t nat -A POSTROUTING -s 10.0.1.0/24 ! -d 10.0.1.0/24 -j MASQUERAD
 
 echo "Done"
 
-echo "Setting up Linux kernel module to support userspace FSGSBase..."
-sudo insmod ${SGXLKL_ROOT}/tools/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko val=1
-sudo rmmod mod_set_cr4_fsgsbase
-dmesg | tail -n 10
-echo "Done"
+if [[ -f ${SGXLKL_ROOT}/tools/kmod-set-fsgsbase ]]; then
+    echo "Setting up Linux kernel module to support userspace FSGSBase..."
+    sudo insmod "${SGXLKL_ROOT}/tools/kmod-set-fsgsbase/mod_set_cr4_fsgsbase.ko" val=1
+    sudo rmmod mod_set_cr4_fsgsbase
+    dmesg | tail -n 10
+    echo "Done"
+fi
 

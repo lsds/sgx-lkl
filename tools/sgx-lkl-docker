@@ -7,9 +7,6 @@ cmd_root="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 sgxlkl_root="${cmd_root}/.."
 
 sub_cmd=
-no_debug=
-build_from=source
-oe_prefix=/opt/openenclave
 cc_name=
 cc_app_cfg=
 cc_host_cfg=
@@ -23,15 +20,10 @@ fi
 
 function usage() {
     echo "Usage:"
-    echo "`basename $0` <command>"
+    echo "$(basename "$0") <command>"
     echo
     echo "where <command> is one of the following:"
-    echo "  build-sgxlkl                                       Build SGX-LKL-OE using Docker"
-    echo "    --no-debug                                       Build SGX-LKL without debug features"
-    echo "    --oe-prefix=<path>                               Build with Open Enclave installation in specified folder"
-    echo "                                                     (default: /opt/openenclave)"
-    echo
-    echo "  build-cc                                           Build confidential container" 
+    echo "  build                                              Re-package disk images and configuration as Docker image" 
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
     echo "    --app-cfg=<path>                                 Path to app configuration file."
@@ -40,31 +32,7 @@ function usage() {
     exit 1
 }
 
-function build-sgxlkl() {
-
-    echo -n Building SGX-LKL-OE using Docker
-    [[ $no_debug == 1 ]] && echo -n " without " || echo -n " with "
-    echo debug features ...
-
-    docker build --target builder \
-        -t lsds/sgx-lkl:build \
-        -f ${sgxlkl_root}/tools/docker/Dockerfile-sgxlkl-build \
-        ${sgxlkl_root}/tools/docker
-    
-    if [[ $no_debug == 1 ]]; then
-        debug=false
-    else
-        debug=true
-    fi
-
-    docker_cmd="cd $sgxlkl_root && source $oe_prefix/share/openenclave/openenclaverc && make DEBUG=${debug}"
-    volume_mounts="-v $sgxlkl_root:$sgxlkl_root -v $oe_prefix:$oe_prefix:ro"
-
-    docker run --rm --privileged=true -u $(id -u $USER) $volume_mounts \
-        lsds/sgx-lkl:build /bin/bash -c "${docker_cmd}"
-}
-
-function build-cc() {
+function build() {
     echo "SGX-LKL root: $sgxlkl_root"
 
     echo "Creating confidential container '${cc_name}'"
@@ -72,32 +40,66 @@ function build-cc() {
     context_dir=$(mktemp -d sgxlkl_docker_context_XXXX)
     echo "Using temporary directory ${context_dir}"
 
-    cat >>${context_dir}/Dockerfile << EOF
+    cat >>"${context_dir}/Dockerfile" << EOF
+FROM ubuntu:18.04
+RUN apt-get update && apt-get install -y ca-certificates
+
+# ca-certificates.crt is read by libcurl which is used by the Azure DCAP Client.
+
+RUN mkdir /prep && \
+    cd /prep && \
+    mkdir etc && \
+    mkdir -p home/sgxlkl && \
+    ls -al home/sgxlkl && \
+    mkdir tmp && \
+    chmod 777 tmp && \
+    mkdir -p etc/ssl/certs && \
+    cp /etc/ssl/certs/ca-certificates.crt etc/ssl/certs && \
+    ls -al etc/ssl/certs
+
+COPY . /prep/home/sgxlkl
+
+# Allows container to be run with arbitrary user while supporting writable disk images.
+RUN chmod -R 777 /prep/home/sgxlkl
+
 FROM scratch
-COPY . /
-ENTRYPOINT ["/opt/sgx-lkl/bin/sgx-lkl-run-oe", "--host-config=/host-cfg.json", "--app-config=/app-cfg.json"]
+
+ENV HOME=/home/sgxlkl
+ENV TMPDIR=/tmp
+# See https://github.com/microsoft/Azure-DCAP-Client.
+ENV AZDCAP_CACHE=\${TMPDIR}
+
+COPY --from=0 /prep /
+
+USER 1000:1000
+WORKDIR \${HOME}
+
+ENTRYPOINT ["/opt/sgx-lkl/lib/external/ld-linux-x86-64", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
+    "--enclave-image=/opt/sgx-lkl/lib/libsgxlkl.so.signed",\
+    "--host-config=host-cfg.json",\
+    "--app-config=app-cfg.json"]
 CMD ["--hw-release"]
 EOF
 
-    cp ${cc_app_cfg} ${context_dir}/app-cfg.json
+    cp "${cc_app_cfg}" "${context_dir}/app-cfg.json"
 
-    disk_paths=$(${cmd_root}/sgx-lkl-cfg dockerize \
+    disk_paths=$("${cmd_root}/sgx-lkl-cfg" dockerize \
         --host-cfg=${cc_host_cfg} \
-        --host-cfg-docker=${context_dir}/host-cfg.json \
+        --host-cfg-docker="${context_dir}/host-cfg.json" \
         --print-disk-paths)
     
     while IFS= read -r line; do
         IFS=':' read -ra entry <<< "$line"
         img_path=${entry[0]}
         img_docker_path=${entry[1]}
-        cp $img_path $context_dir$img_docker_path
+        cp "$img_path" "$context_dir/$img_docker_path"
     done <<< "${disk_paths}"
     
-    docker build -t $cc_name $context_dir
+    docker build -t $cc_name "$context_dir"
 
     echo "Done. Tagged '$cc_name'."
 
-    rm -rf $context_dir
+    rm -rf "$context_dir"
 }
 
 function main() {
@@ -109,23 +111,7 @@ function main() {
             -h|-\?|--help)
                 usage && exit
                 ;;
-            build-sgxlkl)
-                sub_cmd=$1
-                ;;
-            --no-debug)
-                if [ $sub_cmd != "build-sgxlkl" ]; then
-                    usage && exit 1
-                fi
-                no_debug=1
-                echo "no_debug currently unsupported" && exit
-                ;;
-            --oe-prefix=?*)
-                if [ $sub_cmd != "build-sgxlkl" ]; then
-                    usage && exit 1
-                fi
-                oe_prefix=${1#*=}
-                ;;
-            build-cc)
+            build)
                 sub_cmd=$1
                 ;;
             --name=?*)
@@ -151,11 +137,8 @@ function main() {
     done
 
     case "$sub_cmd" in
-        build-sgxlkl)
-            build-sgxlkl "$@"
-            ;;
-        build-cc)
-            build-cc "$@"
+        build)
+            build "$@"
             ;;
         *)
             echo "Missing/unknown command" && usage && exit 1

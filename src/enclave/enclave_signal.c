@@ -17,10 +17,11 @@
 /* Mapping between OE and hardware exception */
 struct oe_hw_exception_map
 {
-    uint32_t oe_code; /* OE exception code */
-    int trapnr;       /* Hardware trap no  */
-    int signo;        /* Signal for trap   */
-    bool supported;   /* Enabled in SGX-LKL*/
+    uint32_t oe_code;  /* OE exception code */
+    int trapnr;        /* Hardware trap no  */
+    int signo;         /* Signal for trap   */
+    bool supported;    /* Enabled in SGX-LKL */
+    char* description; /* Description string */
 };
 
 /* Encapsulating the exception information to a datastructure.
@@ -29,19 +30,16 @@ struct oe_hw_exception_map
  * all entry will be marked as true.
  */
 static struct oe_hw_exception_map exception_map[] = {
-    {OE_EXCEPTION_DIVIDE_BY_ZERO, X86_TRAP_DE, SIGFPE, true},
-    {OE_EXCEPTION_BREAKPOINT, X86_TRAP_BP, SIGTRAP, true},
-    {OE_EXCEPTION_BOUND_OUT_OF_RANGE, X86_TRAP_BR, SIGSEGV, true},
-    {OE_EXCEPTION_ILLEGAL_INSTRUCTION, X86_TRAP_UD, SIGILL, true},
-    {OE_EXCEPTION_ACCESS_VIOLATION, X86_TRAP_BR, SIGSEGV, true},
-    {OE_EXCEPTION_PAGE_FAULT, X86_TRAP_PF, SIGSEGV, true},
-    {OE_EXCEPTION_X87_FLOAT_POINT, X86_TRAP_MF, SIGFPE, true},
-    {OE_EXCEPTION_MISALIGNMENT, X86_TRAP_AC, SIGBUS, true},
-    {OE_EXCEPTION_SIMD_FLOAT_POINT, X86_TRAP_XF, SIGFPE, true},
+    {OE_EXCEPTION_DIVIDE_BY_ZERO, X86_TRAP_DE, SIGFPE, true, "SIGFPE (divide by zero)"},
+    {OE_EXCEPTION_BREAKPOINT, X86_TRAP_BP, SIGTRAP, true, "SIGTRAP (breakpoint)"},
+    {OE_EXCEPTION_BOUND_OUT_OF_RANGE, X86_TRAP_BR, SIGSEGV, true, "SIGSEGV (bound out of range)"},
+    {OE_EXCEPTION_ILLEGAL_INSTRUCTION, X86_TRAP_UD, SIGILL, true, "SIGILL (illegal instruction)"},
+    {OE_EXCEPTION_ACCESS_VIOLATION, X86_TRAP_BR, SIGSEGV, true, "SIGSEGV (access violation)"},
+    {OE_EXCEPTION_PAGE_FAULT, X86_TRAP_PF, SIGSEGV, true, "SIGSEGV (page fault)"},
+    {OE_EXCEPTION_X87_FLOAT_POINT, X86_TRAP_MF, SIGFPE, true, "SIGFPE (x87 floating point)"},
+    {OE_EXCEPTION_MISALIGNMENT, X86_TRAP_AC, SIGBUS, true, "SIGBUS (misalignment)"},
+    {OE_EXCEPTION_SIMD_FLOAT_POINT, X86_TRAP_XF, SIGFPE, true, "SIGFPE (SIMD float point)"},
 };
-
-extern void (*oe_continue_execution_hook)(
-    oe_exception_record_t* exception_record);
 
 static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context);
 
@@ -108,16 +106,7 @@ static void deserialize_ucontext(
     octx->rip = uctx->uc_mcontext.rip;
 }
 
-/* OE support two pass signal handler. First pass signal handler does not allows
- * ocall. SGXLKL need to execute ocalls in context of signal handler. Hence
- * actual signal handler is executed in second pass */
-static uint64_t sgxlkl_enclave_empty_signal_handler(
-    oe_exception_record_t* exception_record)
-{
-    return OE_EXCEPTION_CONTINUE_EXECUTION;
-}
-
-static void sgxlkl_enclave_signal_handler(
+static uint64_t sgxlkl_enclave_signal_handler(
     oe_exception_record_t* exception_record)
 {
     int ret = -1;
@@ -125,22 +114,34 @@ static void sgxlkl_enclave_signal_handler(
     struct ucontext uctx;
     struct oe_hw_exception_map trap_info;
     oe_context_t* oe_ctx = exception_record->context;
-    uint16_t opcode = *((uint16_t*)exception_record->context->rip);
-
-    SGXLKL_TRACE_SIGNAL(
-        "sgxlkl_enclave_signal_handler:: code=%d address=0x%lx opcode=0x%x\n",
-        exception_record->code,
-        exception_record->address,
-        opcode);
+    uint16_t *instr_addr = ((uint16_t*)exception_record->context->rip);
+    uint16_t opcode = instr_addr ? *instr_addr : 0;
 
     /* Emulate illegal instructions in SGX hardware mode */
     if (exception_record->code == OE_EXCEPTION_ILLEGAL_INSTRUCTION)
-        return _sgxlkl_illegal_instr_hook(opcode, exception_record->context);
+    {
+        SGXLKL_TRACE_SIGNAL(
+            "Exception SIGILL (illegal instruction) received (code=%d "
+            "address=0x%lx opcode=0x%x)\n",
+            exception_record->code,
+            exception_record->address,
+            opcode);
+
+        _sgxlkl_illegal_instr_hook(opcode, exception_record->context);
+        return OE_EXCEPTION_CONTINUE_EXECUTION;
+    }
 
     memset(&trap_info, 0, sizeof(trap_info));
     ret = get_trap_details(exception_record->code, &trap_info);
-    if (ret != -1)
+    if (ret != -1 && lkl_is_running())
     {
+        SGXLKL_TRACE_SIGNAL(
+            "Exception %s received (code=%d address=0x%lx opcode=0x%x)\n",
+            trap_info.description,
+            exception_record->code,
+            exception_record->address,
+            opcode);
+
         memset(&uctx, 0, sizeof(uctx));
         serialize_ucontext(oe_ctx, &uctx);
 
@@ -154,11 +155,18 @@ static void sgxlkl_enclave_signal_handler(
     }
     else
     {
-        SGXLKL_TRACE_SIGNAL(
-            "sgxlkl_enclave_signal_handler:: record->code=%d not "
-            "supported\n",
-            exception_record->code);
+        sgxlkl_warn(
+            "Unhandled exception %s received (code=%i addr=0x%lx opcode=0x%x "
+            "lkl_is_running()=%i ret=%i)\n",
+            trap_info.description,
+            exception_record->code,
+            (void*)exception_record->address,
+            opcode,
+            lkl_is_running(),
+            ret);
     }
+
+    return OE_EXCEPTION_CONTINUE_EXECUTION;
 }
 
 static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context)
@@ -216,9 +224,8 @@ void _register_enclave_signal_handlers(int mode)
     else
     {
         result = oe_add_vectored_exception_handler(
-            true, sgxlkl_enclave_empty_signal_handler);
+            true, sgxlkl_enclave_signal_handler);
         if (result != OE_OK)
             sgxlkl_fail("OE exception handler registration failed.\n");
-        oe_continue_execution_hook = sgxlkl_enclave_signal_handler;
     }
 }

@@ -181,7 +181,6 @@ struct lthread_sched
     void* stack;
     size_t stack_size;
     uint64_t default_timeout;
-    int page_size;
     /* convenience data maintained by lthread_resume */
     struct lthread* current_lthread;
 };
@@ -196,6 +195,23 @@ extern "C"
         size_t sleepspins,
         size_t sleeptime_ns,
         size_t futex_wake_spins);
+
+    /**
+     * Create a new thread where the caller manages the initial thread state.
+     * The newly created thread is returned via `new_lt`.  The newly created
+     * thread will begin executing from `pc`, with its stack pointer set to
+     * `sp` and its TLS area set to `tls`.  It is the caller's responsibility
+     * to ensure that the stack and TLS area allocated by this thread are
+     * cleaned up.
+     *
+     * The thread is not scheduled by this call and must be explicitly
+     * scheduled by the caller.
+     */
+    int lthread_create_primitive(
+        struct lthread** new_lt,
+        void* pc,
+        void* sp,
+        void* tls);
 
     int lthread_create(
         struct lthread** new_lt,
@@ -217,7 +233,7 @@ extern "C"
 
     void lthread_detach2(struct lthread* lt);
 
-    void lthread_exit(void* ptr);
+    void lthread_exit(void* ptr) __attribute__((noreturn));
 
     void lthread_wakeup(struct lthread* lt);
 
@@ -239,12 +255,47 @@ extern "C"
 
     int lthread_key_delete(long key);
 
-    void* lthread_getspecific(long key);
+    /**
+     * Access a thread-local variable corresponding to the key given by `key`,
+     * in the thread specified by `lt`.  This function is not safe to call
+     * while `lt` is running or concurrently with a call to
+     * `lthread_setspecific_remote` on the same lthread.  It is the caller's
+     * responsibility to ensure that this does not happen, for example after
+     * the thread has been removed from the scheduler during tear-down or by
+     * explicitly descheduling it.
+     */
+    void* lthread_getspecific_remote(struct lthread* lt, long key);
     
-    int lthread_setspecific(long key, const void* value);
+    /**
+     * Sets a thread-local variable corresponding to the key given by `key` to
+     * `value`, in the thread specified by `lt`.  This function is not safe to
+     * call while `lt` is running or concurrently with a call to
+     * `lthread_setspecific_remote` on the same lthread.  It is the caller's
+     * responsibility to ensure that this does not happen.  The most common use
+     * for this is between a call to `lthread_create_primitive` and
+     * `__scheduler_enqueue`, to initialise a thread-local variable before a
+     * thread starts.
+     */
+    int lthread_setspecific_remote(struct lthread* lt, long key, const void* value);
+
+    static inline void* lthread_getspecific(long key)
+    {
+        return lthread_getspecific_remote(lthread_current(), key);
+    }
+
+    static inline int lthread_setspecific(long key, const void* value)
+    {
+        return lthread_setspecific_remote(lthread_current(), key, value);
+    }
 
     static inline void __scheduler_enqueue(struct lthread* lt)
     {
+#ifndef NDEBUG
+        // Abort if we try to schedule an exited lthread.  We cannot rely on
+        // our normal assert machinery working if this invariant is violated.
+        if (lt->attr.state & (1<<(LT_ST_EXITED)))
+            __builtin_trap();
+#endif
         if (!lt)
         {
             a_crash();
@@ -252,6 +303,11 @@ extern "C"
         for (; !mpmc_enqueue(&__scheduler_queue, lt);)
             a_spin();
     }
+
+    /**
+     * Remove a thread from the list blocking on a futex.
+     */
+    void futex_dequeue(struct lthread *lt);
 
 #ifdef __cplusplus
 }

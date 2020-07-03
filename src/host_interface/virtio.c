@@ -252,7 +252,8 @@ static int virtio_process_one(struct virtio_dev* dev, int qidx)
         desc = get_next_desc(q, desc, &idx);
     } while (desc && req->buf_count < VIRTIO_REQ_MAX_BUFS);
 
-    dev->ops->enqueue(dev, qidx, req);
+    // Return result of enqueue operation
+    return dev->ops->enqueue(dev, qidx, req);
 }
 
 static inline void virtio_set_avail_event(struct virtq* q, uint16_t val)

@@ -4,20 +4,24 @@ LIB_SGXLKL_BUILD ?= $(BUILD_DIR)
 
 srcdir = ${SGXLKL_ROOT}/src
 musl_srcdir = $(SGXLKL_LIBC_SRC_DIR)/src
-sgxlkl_toolsdir = ../tools
+sgxlkl_scriptsdir = ../scripts
 
 CC = gcc
 CROSS_COMPILE =
 RANLIB  = $(CROSS_COMPILE)ranlib
 
-CFLAGS_MAIN = -I$(OE_SDK_INCLUDES)
-CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty
+# TODO remove -Wno-error flags
+CFLAGS_MAIN = -I$(OE_SDK_INCLUDES) -Wall -Werror -Wno-error=incompatible-pointer-types -Wno-error=pointer-to-int-cast -Wno-error=strict-aliasing
+# TODO add -nostdinc after relayering work complete
+#      cannot use -nostdinc currently as stdatomic.h is included which is missing
+CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE
 LINK_MAIN =
 
-GIT_VERSION = "$(shell git describe --dirty --always --tags)"
+SGXLKL_VERSION = "$(shell cat ${SGXLKL_ROOT}/VERSION)"
+SGXLKL_GIT_COMMIT = "$(shell git rev-parse --short HEAD || echo unknown)"
 LKL_VERSION = "$(shell make --quiet -C ${SGXLKL_ROOT}/lkl kernelversion)"
 
-CFLAGS_MAIN += $(SGXLKL_CFLAGS_EXTRA) -DGIT_VERSION=\"$(GIT_VERSION)\" -DLKL_VERSION=\"$(LKL_VERSION)\"
+CFLAGS_MAIN += $(SGXLKL_CFLAGS_EXTRA) -DSGXLKL_VERSION=\"$(SGXLKL_VERSION)\" -DSGXLKL_GIT_COMMIT=\"$(SGXLKL_GIT_COMMIT)\" -DLKL_VERSION=\"$(LKL_VERSION)\"
 
 # Copied from sgx-lkl-musl/config.mak after ./configure
 # TODO: Do not hardcode cflags here
@@ -27,7 +31,7 @@ CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-m
 
 CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
 CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -I$(CRYPTSETUP_BUILD)/include -I$(E2FSPROGS_BUILD)/include
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include
 
 # -----------------------------------------------------------------------------------------
 
@@ -46,7 +50,7 @@ builddirs:
 # Build enclave static library: libsgxlkl.a
 
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
-              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c)
+              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
@@ -56,7 +60,8 @@ endif
 SGXLKL_OBJS=$(addprefix $(LIB_SGXLKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
 ${OE_ENCLAVE_CALLS}: sgxlkl.edl
-	${OE_OESIGN_TOOL_PATH}/oeedger8r --trusted $< --trusted-dir enclave/
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
+		--trusted $< --trusted-dir enclave/
 	mv enclave/sgxlkl_t.h include/enclave/; mv enclave/sgxlkl_args.h include/shared/
 	sed -i '/#include "sgxlkl_t.h"/c\#include "enclave/sgxlkl_t.h"' enclave/sgxlkl_t.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' enclave/sgxlkl_t.c
@@ -84,13 +89,14 @@ endif
 
 MAIN_OE_OBJS =$(addprefix $(LIB_SGXLKL_BUILD)/main-oe/,$(MAIN_OE_SRCS:.c=.o))
 
-OESGX_OUTPUT := $(shell echo `exec $(OE_OESIGN_TOOL_PATH)/oesgx`)
-ifeq ($(findstring SGX_FLC,$(OESGX_OUTPUT)),SGX_FLC)
+OE_PKGCONFIG_OUTPUT := $(shell PKG_CONFIG_PATH=$(OE_SDK_ROOT)/share/pkgconfig:${PKG_CONFIG_PATH} pkg-config oehost-gcc --libs)
+ifeq ($(findstring sgx_dcap_ql,$(OE_PKGCONFIG_OUTPUT)),sgx_dcap_ql)
 	DCAP_LIB=-lsgx_dcap_ql
 endif
 
 ${OE_HOST_CALLS}: sgxlkl.edl
-	${OE_OESIGN_TOOL_PATH}/oeedger8r --untrusted $< --untrusted-dir main-oe/
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
+		--untrusted $< --untrusted-dir main-oe/
 	mv main-oe/sgxlkl_u.h include/host/; mv main-oe/sgxlkl_args.h include/shared/
 	sed -i '/#include "sgxlkl_u.h"/c\#include "host/sgxlkl_u.h"' main-oe/sgxlkl_u.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' main-oe/sgxlkl_u.c
@@ -104,7 +110,7 @@ $(MAIN_OE_OBJS): $(LIB_SGXLKL_BUILD)/main-oe/%.o: %.c | ${OE_HOST_CALLS}
 $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET): $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a $(OE_SDK_LIBS)/openenclave/host/liboehost.a builddirs
 	@echo "CC $<"
 	@$(CC) $(CFLAGS_MAIN) -o $@ $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a -ljson-c -lcrypto $(LINK_MAIN) \
-	-pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld -L$(OE_SDK_LIBS)/openenclave/host -rdynamic \
+	-pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_scriptsdir)/sgx-lkl.ld -L$(OE_SDK_LIBS)/openenclave/host -rdynamic \
 	-Wl,-z,noexecstack -loehost -ldl -lsgx_enclave_common -lsgx_urts -lssl -lcrypto $(DCAP_LIB)
 
 $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a: $(MAIN_OE_OBJS) builddirs

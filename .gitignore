@@ -1,8 +1,6 @@
 build
 build_musl
 
-tools/gdb/sgx-lkl-gdb
-
 third_party/curl/
 third_party/cryptsetup/
 third_party/devicemapper/
@@ -37,6 +35,8 @@ src/enclave/sgxlkl_t.c
 *.roothash
 *.hashoffset
 *.docker
+*.docker_entrypoint
 .gdb_history
 
-.vscode/
+.vscode/*
+!.vscode/extensions.json

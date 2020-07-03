@@ -89,7 +89,7 @@ LKL                                 ?= $(SGXLKL_ROOT)/lkl
 LKL_BUILD                           ?= ${BUILD_DIR}/lkl
 LIBLKL                              ?= ${LKL_BUILD}/lib/liblkl.a
 LKL_HEADERS                         ?= ${LKL_BUILD}/include/lkl/bits.h ${LKL_BUILD}/include/lkl/syscalls.h
-LKL_CFLAGS_EXTRA                    ?=
+LKL_CFLAGS_EXTRA                    ?= -fPIE
 
 ifeq ($(RELEASE),true)
     SGXLKL_CFLAGS           += -DSGXLKL_RELEASE
@@ -138,16 +138,17 @@ else
 endif
 
 # OpenEnclave
-export OE_SDK_ROOT := $(shell pkg-config oeenclave-gcc --variable=prefix)
+OE_SUBMODULE := $(SGXLKL_ROOT)/openenclave
+OE_SDK_ROOT_DEFAULT := $(BUILD_DIR)/openenclave
+OE_SDK_ROOT ?= $(OE_SDK_ROOT_DEFAULT)
 export OE_SDK_INCLUDES := $(OE_SDK_ROOT)/include
 export OE_SDK_LIBS := $(OE_SDK_ROOT)/lib
-export OE_OESIGN_TOOL_PATH := $(OE_SDK_ROOT)/bin
+OE_OESIGN_TOOL_PATH := $(OE_SDK_ROOT)/bin
 
-OPENENCLAVE = ${OE_SDK_ROOT}/lib/openenclave/enclave/liboeenclave.a
-
-ifeq (${OE_SDK_ROOT},)
-    $(info Could not find the OpenEnclave SDK installation)
-    $(info Did you source {openenclave_root}/share/openenclave/openenclaverc?)
-    $(error SGX-LKL requires a modified version of the OpenEnclave SDK to run, which can be \
-            found at https://github.com/openenclave/openenclave on the feature/sgx-lkl-support branch)
-endif
+OE_LIBS := enclave/liboecore.a \
+           enclave/liboeenclave.a \
+           enclave/liboecryptombed.a \
+           enclave/libmbedx509.a \
+           enclave/libmbedcrypto.a \
+           enclave/liboesyscall.a \
+           host/liboehost.a

@@ -2,7 +2,7 @@
 #define SGXLKL_CONFIG_H
 
 #include <elf.h>
-
+#include "host/timer_dev.h"
 #include "mpmc_queue.h"
 #include "shared/vio_event_channel.h"
 #include "time.h"
@@ -37,6 +37,7 @@ typedef struct enclave_disk_config
     char mnt[SGXLKL_DISK_MNT_MAX_PATH_LEN + 1]; // "/" for root disk
     /* Provided by user at runtime (after remote attestation). */
     int ro;                 // Read-only?
+    int overlay;            // overlayfs? only for rootfs
     char* key;              // Encryption key
     size_t key_len;         // Key length
     char* roothash;         // Root hash (for dm-verity)
@@ -81,6 +82,9 @@ typedef struct sgxlkl_shared_memory
     void* virtio_swiotlb;             /* memory for setting up bounce buffer */
     size_t virtio_swiotlb_size;       /* bounce buffer size */
     int enable_swiotlb;               /* Option to toggle swiotlb in SW mode */
+
+    /* shared memory for getting time from the host  */
+    struct timer_dev* timer_dev_mem;
 } sgxlkl_shared_memory_t;
 
 /* Configuration for SGX-LKL enclave from host */

@@ -14,7 +14,7 @@ extern void register_enclave_signal_handler(void* signal_handler);
 /*
  * Function to stop the host network device
  */
-extern int net_dev_remove(uint8_t dev_id);
+extern void net_dev_remove(uint8_t dev_id);
 
 /* Used for signaling the sleeping ethread in case of any virtio event */
 static pthread_cond_t cond;
@@ -142,20 +142,4 @@ void sgxlkl_host_shutdown_notification(void)
 {
     /* Notify host device for the shutdown evt */
     vio_host_notify_guest_shutdown_evt();
-}
-
-/*
- * Function to get clock resolution
- */
-int sgxlkl_host_syscall_clock_getres(clockid_t clk_id, struct timespec* res)
-{
-    return clock_getres(clk_id, res);
-}
-
-/*
- * Function to get the time from host
- */
-int sgxlkl_host_syscall_clock_gettime(clockid_t clk_id, struct timespec* tp)
-{
-    return clock_gettime(clk_id, tp);
 }

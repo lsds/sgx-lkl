@@ -1,21 +1,33 @@
 #!/bin/bash
 
-if [ -z $SGXLKL_ROOT ]; then
+if [ -z "$SGXLKL_ROOT" ]; then
     echo "ERROR: 'SGXLKL_ROOT' is undefined. Please export SGXLKL_ROOT=<SGX-LKL-OE> source code repository"
     exit 1
 fi
+if [ -z "$SGXLKL_PREFIX" ]; then
+    echo "ERROR: 'SGXLKL_PREFIX' is undefined. Please export SGXLKL_PREFIX=<install-prefix>"
+    exit 1
+fi
+if [ -z "$SGXLKL_BUILD_MODE" ]; then
+    echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<mode>"
+    exit 1
+fi
 
-. /opt/openenclave/share/openenclave/openenclaverc
-. $SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh
+# shellcheck source=.azure-pipelines/scripts/junit_utils.sh
+. "$SGXLKL_ROOT/.azure-pipelines/scripts/junit_utils.sh"
 
 # Initialize the variables.
-if [[ "$is_debug" == "true" ]];then
-    debug_mode="debug"
+if [[ "$SGXLKL_BUILD_MODE" == "debug" ]]; then
+    make_args=( "DEBUG=true" )
+elif [[ "$SGXLKL_BUILD_MODE" == "nonrelease" ]]; then
+    make_args=( )
 else
-    debug_mode="nondebug"
+    echo "unknown SGXLKL_BUILD_MODE: $SGXLKL_BUILD_MODE"
+    exit 1
 fi
-test_name="Compile and build ($debug_mode)"
-test_class="BVT"
+make_install_args=( "${make_args[@]}" "PREFIX=$SGXLKL_PREFIX" )
+test_name="Compile and build ($SGXLKL_BUILD_MODE)"
+test_class="Build"
 test_suite="sgx-lkl-oe"
 error_message_file_path="report/$test_name.error"
 stack_trace_file_path="report/$test_name.stack"
@@ -23,28 +35,24 @@ stack_trace_file_path="report/$test_name.stack"
 # Start the test timer.
 JunitTestStarted "$test_name"
 
-# Ensure we have a pristine environment
-git submodule foreach --recursive git clean -xdf
-make clean
-make DEBUG=$is_debug
+# Ensure that we have a clean build tree
+make distclean
+
+# Install the Open Enclave build dependencies for Azure
+sudo bash "$SGXLKL_ROOT/openenclave/scripts/ansible/install-ansible.sh"
+sudo ansible-playbook "$SGXLKL_ROOT/openenclave/scripts/ansible/oe-contributors-acc-setup-no-driver.yml"
+
+# Let's build
+make "${make_args[@]}" && make install "${make_install_args[@]}"
 make_exit=$?
 
-# Set up host networking and FSGSBASE userspace support
-$SGXLKL_ROOT/tools/sgx-lkl-setup
-setup_exit=$?
-
 # Process the result
-if [[ "$make_exit" == "0" ]] && [[ "$setup_exit" == "0" ]] && [[ -f build/sgx-lkl-run-oe ]] && [[ -f build/libsgxlkl.so.signed ]] && [[ -f build/libsgxlkl.so ]]; then
+if [[ "$make_exit" == "0" ]] && [[ -f build/sgx-lkl-run-oe ]] && [[ -f build/libsgxlkl.so.signed ]] && [[ -f build/libsgxlkl.so ]]; then
     JunitTestFinished "$test_name" "passed" "$test_class" "$test_suite"
 else
     echo "'$test_name' exited with $make_exit" > "$error_message_file_path"
-    make DEBUG=true > "$stack_trace_file_path"  2>&1
-    $SGXLKL_ROOT/tools/sgx-lkl-setup >> "$stack_trace_file_path"  2>&1
+    make "${make_args[@]}" > "$stack_trace_file_path"  2>&1
     JunitTestFinished "$test_name" "failed" "$test_class" "$test_suite"
 fi
 
-if [[ "$make_exit" == "0" ]]; then
-    exit $setup_exit
-else
-    exit $make_exit
-fi
+exit $make_exit

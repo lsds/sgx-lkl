@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-void sgxlkl_host_fail(char* msg, ...);
+void sgxlkl_host_fail(char* msg, ...) __attribute__((noreturn));
 void sgxlkl_host_err(char* msg, ...);
 void sgxlkl_host_warn(char* msg, ...);
 void sgxlkl_host_info(char* msg, ...);

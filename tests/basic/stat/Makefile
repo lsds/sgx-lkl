@@ -1,52 +1,41 @@
+include ../../common.mk
 
-APP_ROOT=app
-PROG=${APP_ROOT}/stat
-PROG_NONPIE=${APP_ROOT}/stat-nonpie
-PROG_C=stat.c
+PROG=stat
+PROG_SRC=$(PROG).c
+IMAGE_SIZE=5M
 
-DISK_IMAGE=sgxlkl-stat.img
-IMAGE_SIZE=100M
+EXECUTION_TIMEOUT=60
 
-SGXLKL_ROOT=../../..
-MUSL_CC=${SGXLKL_ROOT}/build/host-musl/bin/musl-gcc
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
-SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
+SGXLKL_ENV=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
+SGXLKL_HW_PARAMS=--hw-debug
+SGXLKL_SW_PARAMS=--sw-debug
 
-ifeq ($(SGXLKL_VERBOSE),)
-SGXLKL_ENV=\
-   SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=0 SGXLKL_TRACE_SIGNAL=0\
-   SGXLKL_TRACE_HOST_SYSCALL=0 SGXLKL_TRACE_LKL_SYSCALL=0 SGXLKL_TRACE_MMAP=0
-else
-SGXLKL_ENV=
-endif
+SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 
 .DELETE_ON_ERROR:
 .PHONY: all clean
 
-$(PROG): $(PROG_C)
-	${MUSL_CC} -fPIE -pie -o $@ $(PROG_C)
+$(SGXLKL_ROOTFS): $(PROG_SRC)
+	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
 
-# non-PIE executable are currently unsupported by SGX-LKL-OE
-$(PROG_NONPIE): $(PROG_C)
-	${MUSL_CC} -fno-pie -no-pie -o $@ $(PROG_C)
-
-$(DISK_IMAGE): $(PROG) $(PROG_NONPIE)
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --copy=./${APP_ROOT}/ ${DISK_IMAGE}
+gettimeout:
+	@echo ${EXECUTION_TIMEOUT}
 
 run: run-hw run-sw
 
-run-hw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(PROG)
+run-gdb: run-hw-gdb
 
-run-hw-gdb: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(PROG)
+run-hw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
-run-sw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(PROG)
+run-sw: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
-run-sw-gdb: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(PROG)
+run-hw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+
+run-sw-gdb: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
 clean:
-	rm -f $(DISK_IMAGE) $(PROG) $(PROG_NONPIE)
+	rm -f $(SGXLKL_ROOTFS) $(PROG)
