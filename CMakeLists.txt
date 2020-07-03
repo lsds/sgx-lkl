@@ -4,7 +4,31 @@ project(SGX-LKL)
 include(ProcessorCount)
 ProcessorCount(NUMBER_OF_CORES)
 
-find_package(OpenEnclave REQUIRED)
+set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
+if (OE_PREFIX)
+	set(openenclave_DIR ${OE_PREFIX}/lib/openenclave/cmake)
+	find_package(openenclave REQUIRED)
+else()
+	# OE should prefix public options.
+	set(WITH_EEID OFF CACHE BOOL "" FORCE) # TODO enable once compile errors fixed
+	set(COMPILE_SYSTEM_EDL OFF CACHE BOOL "" FORCE)
+	set(ENABLE_REFMAN OFF CACHE BOOL "" FORCE)
+	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+	set(OPENENCLAVE_DIR ${CMAKE_SOURCE_DIR}/openenclave)
+	add_subdirectory(${OPENENCLAVE_DIR} EXCLUDE_FROM_ALL)
+	
+	# OE should provide aliased targets.
+	add_library(openenclave::oecore ALIAS oecore)
+	add_library(openenclave::oeenclave ALIAS oeenclave)
+	add_library(openenclave::oehost ALIAS oehost)
+	add_executable(openenclave::oeedger8r ALIAS edger8r)
+	
+	set(oeedger8r_search_path_args 
+		--search-path ${OPENENCLAVE_DIR}/include
+		--search-path ${OPENENCLAVE_DIR}/include/openenclave/edl/sgx)
+endif()
+
 get_cmake_property(_variableNames VARIABLES)
 #foreach (_variableName ${_variableNames})
 #message(STATUS "${_variableName}=${${_variableName}}")
@@ -31,14 +55,17 @@ endfunction()
 set(LKL_SUBDIRECTORY "lkl")
 set(THIRD_PARTY_DOWNLOADS_DIRECTORY "${CMAKE_BINARY_DIR}/third_party")
 
-execute_process(COMMAND "git" "describe" "--dirty" "--always" "--tags"
-	OUTPUT_VARIABLE GIT_VERSION
+execute_process(COMMAND "git" "rev-parse" "--short" "HEAD"
+	OUTPUT_VARIABLE SGXLKL_GIT_COMMIT
 	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-string(STRIP "${GIT_VERSION}" GIT_VERSION)
+string(STRIP "${SGXLKL_GIT_COMMIT}" SGXLKL_GIT_COMMIT)
+file(READ "VERSION" SGXLKL_VERSION)
+string(STRIP "${SGXLKL_VERSION}" SGXLKL_VERSION)
 execute_process(COMMAND "make" "--quiet" "-C" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}" "kernelversion" OUTPUT_VARIABLE LKL_VERSION)
 string(STRIP "${LKL_VERSION}" LKL_VERSION)
 
-message(STATUS "SGX-LKL git version: ${GIT_VERSION}")
+message(STATUS "SGX-LKL git commit: ${SGXLKL_GIT_COMMIT}")
+message(STATUS "SGX-LKL version: ${SGXLKL_VERSION}")
 message(STATUS "LKL version: ${LKL_VERSION}")
 
 set(LKL_DEBUG FALSE CACHE BOOL "Enable extra debugging for LKL")
@@ -151,7 +178,11 @@ add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
 add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
 add_custom_target(sgx-lkl ALL DEPENDS build-lkl)
 
-add_definitions("-DGIT_VERSION=\"${GIT_VERSION}\"" "-DLKL_VERSION=\"${LKL_VERSION}\"")
+add_definitions(
+	"-DSGXLKL_GIT_COMMIT=\"${SGXLKL_GIT_COMMIT}\""
+	"-DSGXLKL_VERSION=\"${SGXLKL_VERSION}\""
+	"-DLKL_VERSION=\"${LKL_VERSION}\""
+	)
 
 
 set(HOST_TOOL_NAME "sgx-lkl-run")
@@ -177,7 +208,7 @@ set(GENERATED_EDGE_FILES
 
 add_custom_command(OUTPUT "oeedger8r-run.stamp"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-	COMMAND openenclave::oeedger8r "--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave" "--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
+	COMMAND openenclave::oeedger8r ${oeedger8r_search_path_args} "--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave" "--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
 	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/oeedger8r-run.stamp"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	BYPRODUCTS ${GENERATED_EDGE_FILES} 
@@ -245,7 +276,7 @@ target_link_directories("${HOST_TOOL_NAME}" PRIVATE
 	"${OE_LIBDIR}/openenclave/host"
 	)
 
-target_link_libraries("${HOST_TOOL_NAME}" "pthread" "json-c" "oehost" openenclave::oehostapp "rt")
+target_link_libraries("${HOST_TOOL_NAME}" "pthread" "json-c" "oehost" openenclave::oehost "rt")
 target_link_options("${HOST_TOOL_NAME}" PRIVATE "LINKER:--gc-sections")
 add_dependencies("${HOST_TOOL_NAME}" build-interface-definitions)
 # If we are configuring for the first build, add a fake dependency of this tool
