@@ -99,6 +99,29 @@ const uint8_t disk_dm_verity_root_hash[32] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+/* These prototypes are in OE-internal headers. */
+int oe_backtrace(void** buffer, int size);
+char** oe_backtrace_symbols(void* const* buffer, int size);
+void oe_free(void*);
+
+static void print_trace(void)
+{
+    void* array[256];
+    size_t size;
+    char** strings;
+    size_t i;
+
+    size = oe_backtrace(array, 256);
+    strings = oe_backtrace_symbols(array, size);
+
+    sgxlkl_info("Obtained %zd stack frames.\n", size);
+
+    for (i = 0; i < size; i++)
+        sgxlkl_info("#%ld  %p in %s(...)\n", i, array[i], strings[i]);
+
+    oe_free(strings);
+}
+
 static void lkl_prepare_rootfs(const char* dirname, int perm)
 {
     int err = lkl_sys_access(dirname, /*LKL_S_IRWXO*/ F_OK);
@@ -654,6 +677,8 @@ static void lkl_mount_disk(
     char device,
     const char* mnt_point)
 {
+    print_trace();
+
     char dev_str_raw[] = {"/dev/vdX"};
     char dev_str_enc[] = {"/dev/mapper/cryptX"};
     char dev_str_verity[] = {"/dev/mapper/verityX"};
