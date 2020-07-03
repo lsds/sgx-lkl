@@ -52,6 +52,7 @@ Spin locks that do not have a fallback futex path for the contended case, for ex
 Threads that block on a futex will be correctly scheduled.
 
 LKL runs Linux in single-core mode and delegates scheduling of userspace threads to the lthread scheduler.
+This means that only one core can be executing system calls at any time, though userspace code can be executing on other cores at the same time.
 As a result, the kernel's CPU affinity modes are not supported.
 Attempting to set CPU affinity will report success but silently fail.
 
@@ -101,6 +102,7 @@ A malicious host can cause spurious illegal instruction, floating point, or segm
 SGX does not give a trusted time source and, as described above, the `rdtsc` instruction is not allowed.
 SGX-LKL uses a variable in untrusted memory to provide a monotonic counter.
 The host updates this periodically (approximately every 5ms) and the enclave code advances it by 1ns on every query if the host has not changed the update.
+The in-enclave code ensures that time always goes forwards.
 This means that time within the enclave will always go forward but may jump forward.
 All of the Linux clocks are driven from this time source, so anything depending on smooth time (e.g. video / audio playback) would not be reliable.
 
