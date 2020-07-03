@@ -311,7 +311,11 @@ extern "C"
 
 #ifdef DEBUG
     /**
-     * Show all the threads that currently exist.
+     * Print stack traces for all lthreads that currently exist.
+     *
+     * This prints the active stack frame for the current lthread (marking it
+     * with '*') and stack traces at the time of the last context switch for
+     * all other lthreads.
      */
     void lthread_dump_all_threads(void);
 #endif

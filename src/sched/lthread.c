@@ -1085,7 +1085,8 @@ void lthread_dump_all_threads(void)
 {
     struct lthread_queue* lt_queue = __active_lthreads;
 
-    SGXLKL_VERBOSE("Dumping all lthreads:\n");
+    sgxlkl_info("=============================================================\n");
+    sgxlkl_info("Stack traces for all lthreads:\n");
 
     for (int i = 1; lt_queue; i++)
     {
@@ -1093,9 +1094,13 @@ void lthread_dump_all_threads(void)
         SGXLKL_ASSERT(lt);
         int tid = lt->tid;
         char* funcname = lt->funcname;
-        SGXLKL_VERBOSE_RAW("%i: tid=%i [%s]\n", i, tid, funcname);
+        sgxlkl_info("-------------------------------------------------------------\n");
+        sgxlkl_info("%s%i: tid=%i [%s]\n", lt == lthread_self() ? "*" : "", i, tid, funcname);
+        sgxlkl_print_backtrace(lt == lthread_self() ? __builtin_frame_address(0) : lt->ctx.ebp);
 
         lt_queue = lt_queue->next;
     }
+
+    sgxlkl_info("=============================================================\n");
 }
 #endif

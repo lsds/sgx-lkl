@@ -1,9 +1,11 @@
 #include "enclave/enclave_util.h"
+#include "enclave/lthread.h"
 
 #include <stdarg.h>
 
 #include "openenclave/internal/print.h"
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/internal/backtrace.h"
 
 #define OE_STDERR_FILENO 1
 
@@ -13,6 +15,11 @@ void sgxlkl_fail(const char* msg, ...)
     oe_host_fprintf(OE_STDERR_FILENO, "[[  SGX-LKL ]] FAIL: ");
     va_start(args, msg);
     oe_host_vfprintf(OE_STDERR_FILENO, msg, args);
+
+#ifdef DEBUG
+    lthread_dump_all_threads();
+#endif
+
     oe_abort();
 }
 
@@ -65,6 +72,30 @@ void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...)
     }
     return ptr;
 }
+
+#ifdef DEBUG
+// Provide access to an internal OE function
+extern int oe_backtrace_impl(void** start_frame, void** buffer, int size);
+
+void sgxlkl_print_backtrace(void** start_frame)
+{
+    void* buf[256];
+    size_t size;
+    char** strings;
+    size_t i;
+
+    size = oe_backtrace_impl(
+        start_frame == NULL ? __builtin_frame_address(0) : start_frame,
+        buf,
+        sizeof(buf));
+    strings = oe_backtrace_symbols(buf, size);
+
+    for (i = 0; i < size; i++)
+        sgxlkl_info("    #%ld: %p in %s(...)\n", i, buf[i], strings[i]);
+
+    oe_free(strings);
+}
+#endif
 
 uint64_t next_power_of_2(uint64_t n)
 {
