@@ -35,7 +35,6 @@
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "pthread_impl.h"
 #include "stdio_impl.h"
@@ -48,7 +47,9 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "shared/tree.h"
+
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
 
 extern int vio_enclave_wakeup_event_channel(void);
 
@@ -634,7 +635,11 @@ int lthread_create_primitive(
     lt->robust_list.head = &lt->robust_list.head;
 
     static unsigned long long n = 0;
-    snprintf(lt->funcname, 64, "cloned host task %llu", __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
+    oe_snprintf(
+        lt->funcname,
+        64,
+        "cloned host task %llu",
+        __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
 
     if (new_lt)
     {
