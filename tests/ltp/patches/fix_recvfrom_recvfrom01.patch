@@ -14,7 +14,7 @@ EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/recvfrom/recvfrom01.c b/testcases/kernel/syscalls/recvfrom/recvfrom01.c
-index 853d1cb9f..65e87fe01 100644
+index 853d1cb9f..40b8c25df 100644
 --- a/testcases/kernel/syscalls/recvfrom/recvfrom01.c
 +++ b/testcases/kernel/syscalls/recvfrom/recvfrom01.c
 @@ -44,6 +44,7 @@
@@ -67,17 +67,20 @@ index 853d1cb9f..65e87fe01 100644
  
  void setup(void)
  {
-@@ -191,7 +195,8 @@ void setup(void)
+@@ -191,7 +195,11 @@ void setup(void)
  
  void cleanup(void)
  {
 -	(void)kill(pid, SIGKILL);
-+	(void)close(sfd);
 +	SAFE_PTHREAD_JOIN(tid, NULL);
++	if (sfd >= 0)
++		(void)close(sfd);
++	if (s >= 0)
++		close(s);
  
  }
  
-@@ -276,7 +281,7 @@ pid_t start_server(struct sockaddr_in *sin0)
+@@ -276,7 +284,7 @@ pid_t start_server(struct sockaddr_in *sin0)
  			tst_brkm(TBROK, cleanup, "server self_exec failed");
  		}
  #else
@@ -86,7 +89,7 @@ index 853d1cb9f..65e87fe01 100644
  #endif
  		break;
  	case -1:
-@@ -284,13 +289,12 @@ pid_t start_server(struct sockaddr_in *sin0)
+@@ -284,13 +292,12 @@ pid_t start_server(struct sockaddr_in *sin0)
  		/* fall through */
  	default:		/* parent */
  		(void)close(sfd);
@@ -102,7 +105,7 @@ index 853d1cb9f..65e87fe01 100644
  {
  	struct sockaddr_in fsin;
  	fd_set afds, rfds;
-@@ -302,7 +306,7 @@ void do_child(void)
+@@ -302,7 +309,7 @@ void do_child(void)
  	nfds = sfd + 1;
  
  	/* accept connections until killed */
@@ -111,7 +114,7 @@ index 853d1cb9f..65e87fe01 100644
  		socklen_t fromlen;
  
  		memcpy(&rfds, &afds, sizeof(rfds));
-@@ -332,4 +336,5 @@ void do_child(void)
+@@ -332,4 +339,5 @@ void do_child(void)
  				}
  			}
  	}
