@@ -138,7 +138,39 @@ download_and_extract_tarball("curl" "https://curl.haxx.se/download/curl-7.66.0.t
 # modifying into the build directory at configure time (though driving this
 # from CMake will be a lot slower than from Ninja and avoiding re-doing the
 # copy on subsequent builds is harder).
-copy_source_directory_to_output("${LKL_SUBDIRECTORY}" "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig;${LKL_SUBDIRECTORY}/net/Makefile;${LKL_SUBDIRECTORY}/net/Kconfig")
+set(LKL_EXCLUDE
+	# Files we modify or generate.
+	arch/lkl/configs/defconfig
+	net/Makefile
+	net/Kconfig
+	# Folders we don't need.
+	arch/alpha
+	arch/arc
+	arch/arm
+	arch/arm64
+	arch/c6x
+	arch/csky
+	arch/h8300
+	arch/hexagon
+	arch/ia64
+	arch/m68k
+	arch/microblaze
+	arch/mips
+	arch/nds32
+	arch/nios2
+	arch/openrisc
+	arch/parisc
+	arch/powerpc
+	arch/riscv
+	arch/s390
+	arch/sh
+	arch/sparc
+	arch/um
+	arch/unicore32
+	arch/xtensa
+)
+list(TRANSFORM LKL_EXCLUDE PREPEND "${LKL_SUBDIRECTORY}/" OUTPUT_VARIABLE LKL_EXCLUDE)
+copy_source_directory_to_output("${LKL_SUBDIRECTORY}" "${LKL_EXCLUDE}")
 
 # Replace the default kernel configuration file with our own.
 set(DEFCONFIG_OVERRIDE_PATH "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig")
