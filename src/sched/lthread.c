@@ -50,6 +50,7 @@
 
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
+#include "openenclave/internal/safecrt.h"
 
 extern int vio_enclave_wakeup_event_channel(void);
 
@@ -370,7 +371,7 @@ void _lthread_free(struct lthread* lt)
         enclave_munmap(lt->attr.stack, lt->attr.stack_size);
         lt->attr.stack = NULL;
     }
-    memset(lt, 0, sizeof(*lt));
+    oe_memset_s(lt, sizeof(*lt), 0, sizeof(*lt));
     if (a_fetch_add(&libc.threads_minus_1, -1) == 0)
     {
         libc.threads_minus_1 = 0;
@@ -563,7 +564,8 @@ int _lthread_sched_init(size_t stack_size)
 
     c->sched.default_timeout = 3000000u;
 
-    memset(&c->sched.ctx, 0, sizeof(struct cpu_ctx));
+    oe_memset_s(
+        &c->sched.ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
 
     return (0);
 }
@@ -903,7 +905,7 @@ void lthread_detach2(struct lthread* lt)
 
 void lthread_set_funcname(struct lthread* lt, const char* f)
 {
-    strncpy(lt->funcname, f, 64);
+    oe_strncpy_s(lt->funcname, 64, f, 64);
     lt->funcname[64 - 1] = 0;
 }
 
