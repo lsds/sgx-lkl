@@ -140,7 +140,7 @@ copy_source_directory_to_output("${LKL_SUBDIRECTORY}" "${LKL_SUBDIRECTORY}/arch/
 set(DEFCONFIG_OVERRIDE_PATH "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig")
 add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
 	COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_if_different" "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig" ${DEFCONFIG_OVERRIDE_PATH}
-	MAIN_DEPENDENCY "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig"
+	MAIN_DEPENDENCY "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig"
 	COMMENT "Overriding LKL default configuration")
 
 # Apply the wireguard patch into our copy of the kernel tree.  
