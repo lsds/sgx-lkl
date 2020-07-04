@@ -5,6 +5,11 @@ if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
     add_link_options(-fuse-ld=$ENV{LD})
 endif()
 
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "No build type selected, default to Debug")
+  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
+endif()
+
 include(ProcessorCount)
 ProcessorCount(NUMBER_OF_CORES)
 
