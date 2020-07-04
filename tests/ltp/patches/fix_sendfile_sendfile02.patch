@@ -4,7 +4,7 @@ Hence, the test case is modified to use pthread instead of a child
 process.
 
 diff --git a/testcases/kernel/syscalls/sendfile/sendfile02.c b/testcases/kernel/syscalls/sendfile/sendfile02.c
-index e5f115146..b434d27c4 100644
+index e5f115146..08832748e 100644
 --- a/testcases/kernel/syscalls/sendfile/sendfile02.c
 +++ b/testcases/kernel/syscalls/sendfile/sendfile02.c
 @@ -56,8 +56,10 @@
@@ -30,7 +30,16 @@ index e5f115146..b434d27c4 100644
  void setup(void);
  int create_server(void);
  
-@@ -130,7 +133,7 @@ void do_sendfile(OFF_T offset, int i)
+@@ -99,8 +102,6 @@ void do_sendfile(OFF_T offset, int i)
+ {
+ 	int in_fd;
+ 	struct stat sb;
+-	int wait_status;
+-	int wait_stat;
+ 	off_t before_pos, after_pos;
+ 
+ 	out_fd = create_server();
+@@ -130,7 +131,7 @@ void do_sendfile(OFF_T offset, int i)
  			 "expected value, expected: %d, "
  			 "got: %ld", testcases[i].exp_retval,
  			 TEST_RETURN);
@@ -39,7 +48,7 @@ index e5f115146..b434d27c4 100644
  	} else if (offset != testcases[i].exp_updated_offset) {
  		tst_resm(TFAIL, "sendfile(2) failed to update "
  			 "OFFSET parameter to expected value, "
-@@ -145,7 +148,7 @@ void do_sendfile(OFF_T offset, int i)
+@@ -145,7 +146,7 @@ void do_sendfile(OFF_T offset, int i)
  	} else {
  		tst_resm(TPASS, "functionality of sendfile() is "
  			 "correct");
@@ -48,38 +57,61 @@ index e5f115146..b434d27c4 100644
  	}
  
  	close(in_fd);
-@@ -154,7 +157,7 @@ void do_sendfile(OFF_T offset, int i)
+@@ -154,18 +155,16 @@ void do_sendfile(OFF_T offset, int i)
  /*
   * do_child
   */
 -void do_child(void)
-+void* do_child(void* parm)
++void* do_child(void* parm LTP_ATTRIBUTE_UNUSED)
  {
- 	int lc;
+-	int lc;
  	socklen_t length;
-@@ -165,7 +168,7 @@ void do_child(void)
- 		recvfrom(sockfd, rbuf, 4096, 0, (struct sockaddr *)&sin1,
- 			 &length);
- 	}
+ 	char rbuf[4096];
+ 
+-	for (lc = 0; TEST_LOOPING(lc); lc++) {
+-		length = sizeof(sin1);
+-		recvfrom(sockfd, rbuf, 4096, 0, (struct sockaddr *)&sin1,
+-			 &length);
+-	}
 -	exit(0);
++	length = sizeof(sin1);
++	recvfrom(sockfd, rbuf, 4096, 0, (struct sockaddr *)&sin1,
++		 &length);
++
 +	pthread_exit(0);
  }
  
  /*
-@@ -244,7 +247,7 @@ int create_server(void)
+@@ -202,6 +201,7 @@ void setup(void)
+ void cleanup(void)
+ {
  
- 		}
- #else
--		do_child();
-+		SAFE_PTHREAD_CREATE(&ptid, NULL, do_child, NULL);
- #endif
++	close(sockfd);
+ 	close(out_fd);
+ 	/* delete the test directory created in setup() */
+ 	tst_rmdir();
+@@ -230,23 +230,7 @@ int create_server(void)
  	}
+ 	SAFE_GETSOCKNAME(cleanup, sockfd, (struct sockaddr *)&sin1, &slen);
  
-@@ -270,7 +273,6 @@ int main(int ac, char **av)
- 	argv0 = av[0];
- 	maybe_run_child(&do_child, "");
- #endif
+-	child_pid = FORK_OR_VFORK();
+-	if (child_pid < 0) {
+-		tst_brkm(TBROK, cleanup, "client/server fork failed: %s",
+-			 strerror(errno));
+-		return -1;
+-	}
+-	if (!child_pid) {	/* child */
+-#ifdef UCLINUX
+-		if (self_exec(argv0, "") < 0) {
+-			tst_brkm(TBROK, cleanup, "self_exec failed");
+-			return -1;
 -
- 	setup();
+-		}
+-#else
+-		do_child();
+-#endif
+-	}
++	SAFE_PTHREAD_CREATE(&ptid, NULL, do_child, NULL);
  
- 	/*
+ 	s = socket(PF_INET, SOCK_DGRAM, 0);
+ 	inet_aton("127.0.0.1", &sin1.sin_addr);
