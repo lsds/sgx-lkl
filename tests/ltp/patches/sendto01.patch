@@ -12,11 +12,8 @@ Github issue169 (https://github.com/lsds/sgx-lkl/issues/169)
 is raised to fix this behaviour. The sub test cases which test
 EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
-In addition a test related to shutdown a local endpoint is also
-disabled until issue 405.
-url:https://github.com/lsds/sgx-lkl/issues/405
 diff --git a/testcases/kernel/syscalls/sendto/sendto01.c b/testcases/kernel/syscalls/sendto/sendto01.c
-index 6fe0274ee..702baeae4 100644
+index 6fe0274ee..d7ee8cb99 100644
 --- a/testcases/kernel/syscalls/sendto/sendto01.c
 +++ b/testcases/kernel/syscalls/sendto/sendto01.c
 @@ -42,6 +42,8 @@
@@ -153,43 +150,7 @@ index 6fe0274ee..702baeae4 100644
  #endif
  	{.domain = PF_INET,
  	 .type = SOCK_DGRAM,
-@@ -195,20 +201,21 @@ struct test_case_t tdat[] = {
- 	 .setup = setup1,
- 	 .cleanup = cleanup1,
- 	 .desc = "UDP message too big"}
--	,
--	{.domain = PF_INET,
--	 .type = SOCK_STREAM,
--	 .proto = 0,
--	 .buf = buf,
--	 .buflen = sizeof(buf),
--	 .flags = 0,
--	 .to = &sin1,
--	 .tolen = sizeof(sin1),
--	 .retval = -1,
--	 .experrno = EPIPE,
--	 .setup = setup2,
--	 .cleanup = cleanup1,
--	 .desc = "local endpoint shutdown"}
-+// TODO: Enable back after issue 405 is fixed
-+//	,
-+//	{.domain = PF_INET,
-+//	 .type = SOCK_STREAM,
-+//	 .proto = 0,
-+//	 .buf = buf,
-+//	 .buflen = sizeof(buf),
-+//	 .flags = 0,
-+//	 .to = &sin1,
-+//	 .tolen = sizeof(sin1),
-+//	 .retval = -1,
-+//	 .experrno = EPIPE,
-+//	 .setup = setup2,
-+//	 .cleanup = cleanup1,
-+//	 .desc = "local endpoint shutdown"}
- 	,
- 	{.domain = PF_INET,
- 	 .type = SOCK_DGRAM,
-@@ -231,9 +238,9 @@ int TST_TOTAL = sizeof(tdat) / sizeof(tdat[0]);
+@@ -231,9 +237,9 @@ int TST_TOTAL = sizeof(tdat) / sizeof(tdat[0]);
  static char *argv0;
  #endif
  
@@ -201,7 +162,7 @@ index 6fe0274ee..702baeae4 100644
  	socklen_t slen = sizeof(*sin0);
  
  	sin0->sin_family = AF_INET;
-@@ -255,27 +262,21 @@ static pid_t start_server(struct sockaddr_in *sin0)
+@@ -255,27 +261,20 @@ static pid_t start_server(struct sockaddr_in *sin0)
  	}
  	SAFE_GETSOCKNAME(cleanup, sfd, (struct sockaddr *)sin0, &slen);
  
@@ -218,6 +179,8 @@ index 6fe0274ee..702baeae4 100644
 -	case -1:
 -		tst_brkm(TBROK | TERRNO, cleanup, "server fork failed");
 -	default:
+-		(void)close(sfd);
+-		return pid;
 +	//start a child thread to create a directory
 +	if(pthread_create(&tid, NULL, do_child_thread, NULL)== -1)
 +	{
@@ -226,8 +189,6 @@ index 6fe0274ee..702baeae4 100644
 +	else
 +	{
 +		tst_resm(TINFO,"Thread created");
- 		(void)close(sfd);
--		return pid;
  	}
 +	return tid;
  
@@ -239,7 +200,7 @@ index 6fe0274ee..702baeae4 100644
  {
  	struct sockaddr_in fsin;
  	fd_set afds, rfds;
-@@ -287,7 +288,7 @@ static void do_child(void)
+@@ -287,7 +286,7 @@ static void do_child(void)
  	nfds = sfd + 1;
  
  	/* accept connections until killed */
@@ -248,7 +209,7 @@ index 6fe0274ee..702baeae4 100644
  		socklen_t fromlen;
  
  		memcpy(&rfds, &afds, sizeof(rfds));
-@@ -315,6 +316,8 @@ static void do_child(void)
+@@ -315,6 +314,8 @@ static void do_child(void)
  			}
  		}
  	}
@@ -257,7 +218,7 @@ index 6fe0274ee..702baeae4 100644
  }
  
  int main(int ac, char *av[])
-@@ -323,10 +326,6 @@ int main(int ac, char *av[])
+@@ -323,10 +324,6 @@ int main(int ac, char *av[])
  
  	tst_parse_opts(ac, av, NULL, NULL);
  
@@ -268,7 +229,7 @@ index 6fe0274ee..702baeae4 100644
  
  	setup();
  
-@@ -364,20 +363,18 @@ int main(int ac, char *av[])
+@@ -364,20 +361,20 @@ int main(int ac, char *av[])
  	tst_exit();
  }
  
@@ -289,6 +250,17 @@ index 6fe0274ee..702baeae4 100644
 -	kill(server_pid, SIGKILL);
 +	kill_thread = 1;
 +	sched_yield();
++	if(sfd >=0)
++		(void)close(sfd);
  }
  
  static void setup0(void)
+@@ -390,6 +387,8 @@ static void setup0(void)
+ 
+ static void cleanup0(void)
+ {
++	if (s >= 0 && s != 400)
++		(void)close(s);
+ 	s = -1;
+ }
+ 
