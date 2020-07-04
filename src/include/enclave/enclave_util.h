@@ -25,6 +25,11 @@ void* oe_malloc_or_die(size_t size, const char* fail_msg, ...);
  */
 void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...);
 
+/**
+ *
+ * Note that generating a stack trace by unwinding stack frames could be exploited
+ * by an attacker and therefore should only be possible in a DEBUG build.
+ */
 #ifdef DEBUG
 /**
  * Prints a stacktrace using oe_backtrace() from start_frame. If start_frame

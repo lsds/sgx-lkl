@@ -313,9 +313,12 @@ extern "C"
     /**
      * Print stack traces for all lthreads that currently exist.
      *
-     * This prints the active stack frame for the current lthread (marking it
-     * with '*') and stack traces at the time of the last context switch for
-     * all other lthreads.
+     * This outputs the stack frames of all lthreads based on the frame
+     * pointers saved by the lthread scheduler. It shows the stack traces
+     * at the time of the last context switch.
+     *
+     * For the current lthread (marked with a '*'), it prints the active
+     * stack frames.
      */
     void lthread_dump_all_threads(void);
 #endif

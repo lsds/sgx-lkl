@@ -150,7 +150,13 @@ static uint64_t sgxlkl_enclave_signal_handler(
         if (!lkl_is_running())
         {
 #ifdef DEBUG
-            sgxlkl_error("Unhandled exception. Printing stack trace before the signal handler was invoked:\n");
+            sgxlkl_error("Exception received before LKL can handle it. "
+                         "Printing stack trace saved by exception handler:\n");
+            /**
+             * Since we cannot unwind the frames in the OE exception handler,
+             * we need to print a backtrace with the frame pointer from the
+             * saved exception context.
+             */
             sgxlkl_print_backtrace((void*)oe_ctx->rbp);
 #endif
 
@@ -177,6 +183,10 @@ static uint64_t sgxlkl_enclave_signal_handler(
         info.si_addr = (void*)exception_record->address;
         info.si_signo = trap_info.signo;
 
+        /**
+         * The trap is is passed to LKL. If it can be handled, excecution will continue,
+         * otherwise LKL will abort the process.
+         */
         lkl_do_trap(trap_info.trapnr, trap_info.signo, NULL, &uctx, 0, &info);
         deserialize_ucontext(&uctx, oe_ctx);
     }
