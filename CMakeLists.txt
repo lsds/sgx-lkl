@@ -10,6 +10,11 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
 endif()
 
+get_filename_component(real_binary_dir ${CMAKE_BINARY_DIR} REALPATH)
+if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
+	message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
+endif()
+
 include(ProcessorCount)
 ProcessorCount(NUMBER_OF_CORES)
 
