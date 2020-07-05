@@ -44,20 +44,27 @@ static inline void set_thread_state(void* lth)
 }
 
 /*
- * Function to yeild the virtio event channel task
+ * Function to yield the virtio event channel task
  */
 static inline void vio_wait_for_host_event(
     uint8_t dev_id,
     evt_t* evt_chn,
     evt_t val)
 {
-    struct lthread* lt = vio_tasks[dev_id];
+    SGXLKL_ASSERT(vio_tasks);
+    SGXLKL_ASSERT(evt_chn);
 
-    /* return if the event channel was signaled */
+    struct lthread* lt = vio_tasks[dev_id];
+    SGXLKL_ASSERT(lt);
+
+    /* Return if the event channel was signaled */
     if ((__atomic_load_n(evt_chn, __ATOMIC_SEQ_CST) != val) ||
         vio_shutdown_requested())
+    {
         return;
-    /* release cpu for other tasks */
+    }
+
+    /* Release CPU for other tasks */
     _lthread_yield_cb(lt, set_thread_state, lt);
 }
 
