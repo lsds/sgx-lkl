@@ -179,14 +179,15 @@ void initialize_enclave_event_channel(
 
         *dev_id = enc_dev_config[i].dev_id;
 
-        struct lthread* lt = NULL;
         if (lthread_create(
-                &lt, NULL, vio_enclave_process_host_event, (void*)dev_id) != 0)
+                &vio_tasks[i],
+                NULL,
+                vio_enclave_process_host_event,
+                (void*)dev_id) != 0)
         {
             oe_free(vio_tasks);
             sgxlkl_fail("Failed to create lthread for event channel\n");
         }
-        vio_tasks[i] = lt;
     }
     /* Mark event channel as initialized to be picked up by scheduler */
     _event_channel_initialized = true;
