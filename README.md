@@ -68,11 +68,12 @@ Finally, setup the host environment by running:
 sgx-lkl-setup
 ```
 
-SGX-LKL works most performant with a Linux kernel that has support for FSGSBASE.
-SGX-LKL outputs a message on start-up if this is not the case.
-FSGSBASE support is not part of mainline Linux yet.
-Azure VMs run on kernels [with FSGSBASE support](https://bugs.launchpad.net/ubuntu/+source/linux-azure/+bug/1877425) based on a proposed patch.
-To apply the latest patch version to non-Azure systems you may follow the instructions in <tools/ubuntu-patched-kernel-fsgsbase>.
+SGX-LKL works most performant with a Linux kernel that has support for userspace FSGSBASE instructions. Otherwise, support for thread local storage (TLS) must use emulated instructions, which reduces performance.
+SGX-LKL outputs a message on start-up if the currently running Linux kernel does not support FSGSBASE instructions.
+
+FSGSBASE support is not part of the mainline Linux kernel yet.
+Azure VMs run on Linux kernels [with FSGSBASE support](https://bugs.launchpad.net/ubuntu/+source/linux-azure/+bug/1877425) based on a proposed Linux kernel patch.
+To apply the latest patch version to non-Azure systems you may follow the instructions [here](tools/ubuntu-patched-kernel-fsgsbase).
 
 B. Building SGX-LKL-OE from source
 ----------------------------------
