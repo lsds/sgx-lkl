@@ -325,7 +325,7 @@ static void lkl_mount_overlayfs(
     const char* mnt_point)
 {
     char opts[200];
-    snprintf(
+    oe_snprintf(
             opts,
             sizeof(opts),
             "lowerdir=%s,upperdir=%s,workdir=%s",
