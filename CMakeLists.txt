@@ -171,7 +171,7 @@ copy_source_directory_to_output("${LKL_SUBDIRECTORY}" "${LKL_EXCLUDE}")
 # Replace the default kernel configuration file with our own.
 set(DEFCONFIG_OVERRIDE_PATH "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig")
 add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
-	COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_if_different" "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig" ${DEFCONFIG_OVERRIDE_PATH}
+	COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig" ${DEFCONFIG_OVERRIDE_PATH}
 	MAIN_DEPENDENCY "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig"
 	COMMENT "Overriding LKL default configuration")
 
@@ -209,11 +209,11 @@ add_custom_command(OUTPUT ${LKL_LIB_PATH}
 	COMMAND "DESTDIR=${LKL_HEADER_PATH}" "make" "-C" "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" "-j" "${NUMBER_OF_CORES}" "V=1" "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
 	COMMAND "DESTDIR=${LKL_HEADER_PATH}" "make" "-C" "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" "-j" "${NUMBER_OF_CORES}" "V=1" "PREFIX=\"\"" headers_install
 	COMMAND "make" "-C" "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" "ARCH=lkl" "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" "-j" "${NUMBER_OF_CORES}" "V=1" "PREFIX=\"\"" headers_install
-	COMMAND "echo" ARGS "'set(LKL_HEADERS'" ">" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND "find" ARGS "${LKL_HEADER_PATH}" ">>" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND "echo" ARGS "')'" ">>" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND ${CMAKE_COMMAND} ARGS "-E" "copy_if_different" "${LKL_HEADERS_FILE}.tmp" "${LKL_HEADERS_FILE}"
-	COMMAND ${CMAKE_COMMAND} ARGS "-E" "remove" "${LKL_HEADERS_FILE}.tmp" 
+	COMMAND "echo" "'set(LKL_HEADERS'" ">" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND "find" "${LKL_HEADER_PATH}" ">>" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND "echo" "')'" ">>" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" "${LKL_HEADERS_FILE}.tmp" "${LKL_HEADERS_FILE}"
+	COMMAND ${CMAKE_COMMAND} "-E" "remove" "${LKL_HEADERS_FILE}.tmp" 
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl"
 	BYPRODUCTS ${LKL_HEADERS} "${LKL_HEADERS_FILE}" 
 	COMMENT "Compiling LKL"
