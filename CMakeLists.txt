@@ -125,7 +125,7 @@ download_and_extract_tarball("devicemapper" "https://github.com/lvmteam/lvm2/arc
 download_and_extract_tarball("e2fsprogs" "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz")
 download_and_extract_tarball("util-linux" "https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git/snapshot/util-linux-2.29.2.tar.gz")
 download_and_extract_tarball("popt" "https://deb.debian.org/debian/pool/main/p/popt/popt_1.16.orig.tar.gz")
-download_and_extract_tarball("json-c" "https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz")
+#download_and_extract_tarball("json-c" "https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz")
 download_and_extract_tarball("wireguard" "https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz")
 download_and_extract_tarball("curl" "https://curl.haxx.se/download/curl-7.66.0.tar.bz2")
 
@@ -268,51 +268,22 @@ add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 
-set(HOST_LIBS_BUILD_DIRECTORY "${CMAKE_BINARY_DIR}/host-libs-build")
-set(HOST_LIBS_INSTALL_DIRECTORY "${CMAKE_BINARY_DIR}/host-libs/")
-mkdir("${HOST_LIBS_BUILD_DIRECTORY}")
-mkdir("${HOST_LIBS_INSTALL_DIRECTORY}")
-
-set(JSON_C_INSTALL_FILES
-	include/json-c
-	lib/libjson-c.a
-	lib/libjson-c.la
-	lib/libjson-c.so
-	lib/libjson-c.so.4
-	lib/libjson-c.so.4.0.0
-	lib/pkgconfig
-	include/json-c/arraylist.h
-	include/json-c/bits.h
-	include/json-c/debug.h
-	include/json-c/json.h
-	include/json-c/json_c_version.h
-	include/json-c/json_config.h
-	include/json-c/json_inttypes.h
-	include/json-c/json_object.h
-	include/json-c/json_object_iterator.h
-	include/json-c/json_pointer.h
-	include/json-c/json_tokener.h
-	include/json-c/json_util.h
-	include/json-c/json_visit.h
-	include/json-c/linkhash.h
-	include/json-c/printbuf.h
-	lib/pkgconfig/json-c.pc)
-
-list(TRANSFORM JSON_C_INSTALL_FILES PREPEND "${HOST_LIBS_INSTALL_DIRECTORY}/" OUTPUT_VARIABLE HOST_JSON_C_INSTALL_FILES)
-
-set(HOST_JSON_C_BUILD_DIRECTORY "${HOST_LIBS_BUILD_DIRECTORY}/json-c")
-mkdir("${HOST_JSON_C_BUILD_DIRECTORY}")
-add_custom_command(OUTPUT "${HOST_JSON_C_BUILD_DIRECTORY}/Makefile"
-	DEPENDS fetch-and-extract-json-c
-	COMMAND "${THIRD_PARTY_DOWNLOADS_DIRECTORY}/json-c/configure" "--enable-static" "--prefix=${HOST_LIBS_INSTALL_DIRECTORY}"
-	WORKING_DIRECTORY "${HOST_JSON_C_BUILD_DIRECTORY}"
-	)
-add_custom_target(build-host-json-c
-	DEPENDS "${HOST_JSON_C_BUILD_DIRECTORY}/Makefile" fetch-and-extract-json-c
-	COMMAND "make" "-j${NUMBER_OF_CORES}" install
-	WORKING_DIRECTORY "${HOST_JSON_C_BUILD_DIRECTORY}"
-	BYPRODUCTS ${JSON_C_INSTALL_FILES}
-	)
+include(ExternalProject)
+set_directory_properties(PROPERTIES EP_BASE "external")
+ExternalProject_Add(json-c-ep
+	URL https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz
+	URL_HASH SHA256=5d867baeb7f540abe8f3265ac18ed7a24f91fe3c5f4fd99ac3caba0708511b90
+	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "--prefix=<INSTALL_DIR>"
+	BUILD_COMMAND "make" "-j${NUMBER_OF_CORES}"
+	INSTALL_COMMAND "make" "install"
+	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libjson-c.so"
+)
+ExternalProject_Get_property(json-c-ep INSTALL_DIR)
+add_library(json-c INTERFACE)
+target_link_libraries(json-c INTERFACE "${INSTALL_DIR}/lib/libjson-c.so")
+target_include_directories(json-c INTERFACE "${INSTALL_DIR}/include")
+add_dependencies(json-c json-c-ep)
+add_library(json-c::json-c ALIAS json-c)
 
 add_executable("${HOST_TOOL_NAME}"
 	${MAIN_C_SRCS}
@@ -324,19 +295,14 @@ target_include_directories("${HOST_TOOL_NAME}" PRIVATE
 	"src/include"
 	"${CMAKE_BINARY_DIR}/geninclude"
 	"${CMAKE_BINARY_DIR}/lkl-headers/include"
-	"${HOST_LIBS_INSTALL_DIRECTORY}/include"
 	"${OE_INCLUDEDIR}")
-target_link_directories("${HOST_TOOL_NAME}" PRIVATE
-	"${HOST_LIBS_INSTALL_DIRECTORY}/lib"
-	)
-
-target_link_libraries("${HOST_TOOL_NAME}" "pthread" "json-c" openenclave::oehost "rt")
+target_link_libraries("${HOST_TOOL_NAME}" "pthread" json-c::json-c openenclave::oehost "rt")
 target_link_options("${HOST_TOOL_NAME}" PRIVATE "LINKER:--gc-sections")
 # If we are configuring for the first build, add a fake dependency of this tool
 # on the LKL build.  For subsequent builds this will be picked up by the real
 # LKL header dependencies.
 if(NOT LKL_HEADERS)
-	add_dependencies("${HOST_TOOL_NAME}" build-lkl build-host-json-c)
+	add_dependencies("${HOST_TOOL_NAME}" build-lkl)
 endif()
 
 
