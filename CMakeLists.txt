@@ -295,7 +295,7 @@ target_include_directories("${HOST_TOOL_NAME}" PRIVATE
 	"src/include"
 	"${CMAKE_BINARY_DIR}/geninclude"
 	"${CMAKE_BINARY_DIR}/lkl-headers/include"
-	"${OE_INCLUDEDIR}")
+	)
 target_link_libraries("${HOST_TOOL_NAME}" "pthread" json-c::json-c openenclave::oehost "rt")
 target_link_options("${HOST_TOOL_NAME}" PRIVATE "LINKER:--gc-sections")
 # If we are configuring for the first build, add a fake dependency of this tool
