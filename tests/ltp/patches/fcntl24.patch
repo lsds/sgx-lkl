@@ -1,6 +1,6 @@
 Test was failing as it used RAMFS. Fix is to use root file system.
 diff --git a/testcases/kernel/syscalls/fcntl/fcntl24.c b/testcases/kernel/syscalls/fcntl/fcntl24.c
-index 63c716ff6..21b62d10d 100644
+index 63c716ff6..b51d3ecb8 100644
 --- a/testcases/kernel/syscalls/fcntl/fcntl24.c
 +++ b/testcases/kernel/syscalls/fcntl/fcntl24.c
 @@ -93,7 +93,11 @@
@@ -41,13 +41,12 @@ index 63c716ff6..21b62d10d 100644
      /***************************************************************
       * check looping state if -c option given
       ***************************************************************/
-@@ -185,13 +181,12 @@ void setup(void)
+@@ -185,13 +181,11 @@ void setup(void)
  {
  
  	tst_sig(NOFORK, DEF_HANDLER, cleanup);
 +	rmdir(MNTPOINT);
 +	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
-+	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, NULL);
  
 -	TEST_PAUSE;
  
@@ -59,14 +58,13 @@ index 63c716ff6..21b62d10d 100644
  		tst_brkm(TBROK, cleanup,
  			 "open(%s, O_RDWR|O_CREAT,0777) Failed, errno=%d : %s",
  			 fname, errno, strerror(errno));
-@@ -210,7 +205,8 @@ void cleanup(void)
+@@ -210,7 +204,7 @@ void cleanup(void)
  		tst_resm(TWARN, "close(%s) Failed, errno=%d : %s", fname, errno,
  			 strerror(errno));
  	}
 -
 -	tst_rmdir();
 +	remove(FILENAME);
-+	SAFE_UMOUNT(NULL, MNTPOINT);
 +	SAFE_RMDIR(NULL, MNTPOINT);
  
  }
