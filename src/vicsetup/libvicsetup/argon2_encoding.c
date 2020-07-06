@@ -1,3 +1,3 @@
 #include "argon2.h"
 
-#include "argon2/src/encoding.c"
+#include "../../../third_party/argon2/src/encoding.c"
