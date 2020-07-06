@@ -1,6 +1,6 @@
 include ../../../common.mk
 
-export SGXLKL_CMDLINE=mem=80M
+export SGXLKL_CMDLINE=mem=128M
 
 CC_APP=/usr/bin/python3
 CC_APP_CONFIG=app-config.json

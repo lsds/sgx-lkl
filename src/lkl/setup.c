@@ -387,6 +387,7 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     // The key is only needed during activation, so clear it now.
     memset(lkl_cd->disk_config->key, 0, lkl_cd->disk_config->key_len);
     lkl_cd->disk_config->key = NULL;
+    lkl_cd->disk_config->key_len = 0;
 
     return 0;
 }
