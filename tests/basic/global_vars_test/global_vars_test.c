@@ -87,13 +87,27 @@ void perform_errno_test(void)
     _do_file_ops("file_fake.txt");
     l_err_no = errno;
     if (l_err_no != 2)
+    {
         prog_exec_status |= (1 << en_test_errno_fail_index);
+        fprintf(
+            stdout,
+            "fake test failed: errno=%i l_err_no=%i\n",
+            errno,
+            l_err_no);
+    }
 
     // reset the errno to verify the valid scenario
     _do_file_ops("/helloworld.txt");
     l_err_no = errno;
     if (l_err_no != 0)
+    {
         prog_exec_status |= (1 << en_test_errno_pass_index);
+        fprintf(
+            stdout,
+            "valid test failed: errno=%i l_err_no=%i\n",
+            errno,
+            l_err_no);
+    }
 }
 
 void print_test_status(void)
