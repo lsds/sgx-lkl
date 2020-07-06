@@ -326,7 +326,9 @@ static void lkl_mount_overlayfs(
         opts,
         sizeof(opts),
         "lowerdir=%s,upperdir=%s,workdir=%s",
-        lower_dir, upper_dir, work_dir);
+        lower_dir,
+        upper_dir,
+        work_dir);
     int err = lkl_sys_mount("overlay", (char*)mnt_point, "overlay", 0, opts);
     if (err != 0)
     {
@@ -1488,7 +1490,6 @@ void lkl_start_init()
     // Register network tap if given one
     int net_dev_id = -1;
     if (shm->virtio_net_dev_mem)
-        // TODO: Add flag in enclave config to disable this?
         net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
 
     /* Prepare bootargs to boot lkl kernel */
@@ -1507,6 +1508,7 @@ void lkl_start_init()
 
     /* Check that the supplied bootargs do not cause buffer overflow */
     if (!cfg->kernel_verbose)
+    {
         oe_snprintf(
             bootargs,
             sizeof(bootargs),
