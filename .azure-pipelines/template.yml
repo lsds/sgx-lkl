@@ -194,11 +194,6 @@ stages:
           downloadType: specific
           itemPattern: 'deb/*'
 
-      - bash: .azure-pipelines/scripts/create_fsgsbase_dkms_deb_pkg.sh
-        displayName: Create FSGSBASE Debian package
-        env:
-          SGXLKL_DEB_DIR: $(Build.SourcesDirectory)/deb
-      
       - bash: .azure-pipelines/scripts/create_deb_apt_repository.sh
         displayName: Create APT repository
         env:

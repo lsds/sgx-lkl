@@ -7,10 +7,7 @@ $ uname -a
 Linux msrc-cc06 5.3.0-40-generic #32~18.04.1 SMP Tue Mar 10 09:31:44 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
 ```
 
-The FSGSBASE patch has been downloaded from (here)(https://lore.kernel.org/patchwork/series/412883/mbox/).
-
-Such a patched kernel means that it is not longer necessary to use the unsafe FSGSBASE kernel module
-(from tools/kmod-set-fsgsbase), which makes the kernel vulnerable to userspace processes.
+The FSGSBASE patch has been downloaded from https://lore.kernel.org/patchwork/series/412883/mbox/.
 
 1. Add the Ubuntu sources to apt-get: 
 ```
@@ -34,10 +31,10 @@ $ apt-get source linux-image-unsigned-$(uname -r)
 4. Apply the FSGSBASE patch from the LKML:
 ```
 $ cd linux-hwe-5.3.0
-$ patch -p1 < ../Enable-FSGSBASE-instructions-v9.patch
+$ patch -p1 < ../Enable-FSGSBASE-instructions-v13.patch
 ```
 
-This applies patch version 9.
+This applies patch version 13.
 
 5. Update the Debian package changelog to create a new kernel version:
 ```
@@ -48,7 +45,7 @@ Add the following entry to the changelog:
 ```
 linux-hwe (5.3.0-40.32~18.04.1+fsgsbase) UNRELEASED; urgency=medium
 
-  * Apply the FSGSBASE v9 patch from the LKML
+  * Apply the FSGSBASE v13 patch from the LKML
 ```
 
 6. Build the Ubuntu kernel packages:
@@ -71,6 +68,6 @@ The above command requires the `force` option to override the currently installe
 $ sudo reboot
 ```
 
-Now FSGSBASE support should be available without relying on the FSGSBSE SGX-LKL kernel module.
+Now, FSGSBASE support should be available.
 
-To deactive FSGSBASE support, add the following kernel boot option: `nofsgsbase`
+To deactivate FSGSBASE support, add the following kernel boot option: `nofsgsbase`
