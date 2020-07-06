@@ -1,3 +1,5 @@
+#include "pthread_impl.h"
+
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestring.h>
