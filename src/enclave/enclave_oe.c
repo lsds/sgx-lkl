@@ -234,7 +234,6 @@ static void _read_eeid_config()
 {
     const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
     const char* config_json = (const char*)eeid->data;
-    sgxlkl_enclave_state.libc_state = libc_not_started;
 
     sgxlkl_enclave_config_t* cfg = oe_malloc(sizeof(sgxlkl_enclave_config_t));
     if (!cfg)
