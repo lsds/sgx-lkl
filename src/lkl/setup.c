@@ -1527,7 +1527,7 @@ void lkl_start_init()
     create_lkl_termination_thread();
 
     // Now that our kernel is ready to handle syscalls, mount root
-    SGXLKL_VERBOSE("calling lkl_mount_virtial()\n");
+    SGXLKL_VERBOSE("calling lkl_mount_virtual()\n");
     lkl_mount_virtual();
 
     SGXLKL_VERBOSE("calling init_random()\n");
