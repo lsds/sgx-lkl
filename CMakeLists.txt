@@ -242,26 +242,30 @@ file(GLOB KERNEL_C_SRCS CONFIGURE_DEPENDS
 	"${CMAKE_SOURCE_DIR}/src/sched/*.c"
 	"${CMAKE_SOURCE_DIR}/src/wireguard/*.c")
 
-set(GENERATED_EDGE_FILES 
-	"geninclude/enclave/sgxlkl_args.h"
-	"geninclude/enclave/sgxlkl_t.c"
-	"geninclude/enclave/sgxlkl_t.h"
+set(GENERATED_HOST_EDGE_FILES 
 	"geninclude/host/sgxlkl_args.h"
 	"geninclude/host/sgxlkl_u.c"
 	"geninclude/host/sgxlkl_u.h"
 	)
-
-
-add_custom_command(OUTPUT "oeedger8r-run.stamp"
-	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-	COMMAND openenclave::oeedger8r ${oeedger8r_search_path_args} "--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave" "--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl" "--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
-	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/oeedger8r-run.stamp"
-	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-	BYPRODUCTS ${GENERATED_EDGE_FILES} 
+set(GENERATED_ENCLAVE_EDGE_FILES 
+	"geninclude/enclave/sgxlkl_args.h"
+	"geninclude/enclave/sgxlkl_t.c"
+	"geninclude/enclave/sgxlkl_t.h"
 	)
 
-add_custom_target(build-interface-definitions
-	DEPENDS "oeedger8r-run.stamp"
+add_custom_command(OUTPUT ${GENERATED_HOST_EDGE_FILES}
+	COMMAND openenclave::oeedger8r
+		${oeedger8r_search_path_args}
+		"--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
+		"--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
+	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
+	)
+add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
+	COMMAND openenclave::oeedger8r
+		${oeedger8r_search_path_args}
+		"--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
+		"--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave"
+	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 
 set(HOST_LIBS_BUILD_DIRECTORY "${CMAKE_BINARY_DIR}/host-libs-build")
@@ -310,7 +314,12 @@ add_custom_target(build-host-json-c
 	BYPRODUCTS ${JSON_C_INSTALL_FILES}
 	)
 
-add_executable("${HOST_TOOL_NAME}" ${MAIN_C_SRCS} ${HOSTINTERFACE_C_SRCS} ${SHARED_C_SRCS} "geninclude/host/sgxlkl_u.c")
+add_executable("${HOST_TOOL_NAME}"
+	${MAIN_C_SRCS}
+	${HOSTINTERFACE_C_SRCS}
+	${SHARED_C_SRCS}
+	${GENERATED_HOST_EDGE_FILES}
+	)
 target_include_directories("${HOST_TOOL_NAME}" PRIVATE
 	"src/include"
 	"${CMAKE_BINARY_DIR}/geninclude"
@@ -319,12 +328,10 @@ target_include_directories("${HOST_TOOL_NAME}" PRIVATE
 	"${OE_INCLUDEDIR}")
 target_link_directories("${HOST_TOOL_NAME}" PRIVATE
 	"${HOST_LIBS_INSTALL_DIRECTORY}/lib"
-	"${OE_LIBDIR}/openenclave/host"
 	)
 
-target_link_libraries("${HOST_TOOL_NAME}" "pthread" "json-c" "oehost" openenclave::oehost "rt")
+target_link_libraries("${HOST_TOOL_NAME}" "pthread" "json-c" openenclave::oehost "rt")
 target_link_options("${HOST_TOOL_NAME}" PRIVATE "LINKER:--gc-sections")
-add_dependencies("${HOST_TOOL_NAME}" build-interface-definitions)
 # If we are configuring for the first build, add a fake dependency of this tool
 # on the LKL build.  For subsequent builds this will be picked up by the real
 # LKL header dependencies.
