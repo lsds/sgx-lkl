@@ -23,7 +23,7 @@ typedef enum test_index
     en_total_test
 } test_index_en;
 
-static void _do_file_ops(const char* filename)
+static int _do_file_ops(const char* filename)
 {
     FILE* fp = NULL;
 
@@ -31,12 +31,15 @@ static void _do_file_ops(const char* filename)
     errno = 0;
 
     fp = fopen(filename, "r");
+    int l_err_no = errno;
+
     if (!fp)
         fprintf(stderr, "fopen failed errno(%d)\n", errno);
+
     if (fp)
         fclose(fp);
 
-    return;
+    return l_err_no;
 }
 
 void perform_getopt_test(int argc, char** argv)
@@ -84,8 +87,8 @@ void perform_errno_test(void)
     int l_err_no = 0;
 
     // pass a non existent file to cause failure and check errno
-    _do_file_ops("file_fake.txt");
-    l_err_no = errno;
+    l_err_no = _do_file_ops("file_fake.txt");
+
     if (l_err_no != 2)
     {
         prog_exec_status |= (1 << en_test_errno_fail_index);
@@ -97,8 +100,8 @@ void perform_errno_test(void)
     }
 
     // reset the errno to verify the valid scenario
-    _do_file_ops("/helloworld.txt");
-    l_err_no = errno;
+    l_err_no = _do_file_ops("/helloworld.txt");
+
     if (l_err_no != 0)
     {
         prog_exec_status |= (1 << en_test_errno_pass_index);
