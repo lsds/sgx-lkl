@@ -58,7 +58,7 @@ LOCAL += __stack_chk_fail
 GLOBAL =
 GLOBAL += $(call syms,$(LIBOEENCLAVE))
 GLOBAL += $(call syms,$(LIBOESYSCALL))
-GLOBAL += $(call syms,$(LIBDIR)/oecore.o)
+GLOBAL += $(call syms,$(LIBOECORE))
 
 # Linker flags:
 LDFLAGS =
@@ -73,7 +73,10 @@ LDFLAGS += $(LIBOESYSCALL)
 LDFLAGS += $(LIBDIR)/oecore.o
 LDFLAGS += --no-whole-archive
 
-all:
+oeenclave:
+	rm -f $(LIBDIR)/oecore.o
+	rm -f $(LIBDIR)/oeenclave.o
+	echo ld -relocatable -o $(LIBDIR)/oecore.o --whole-archive $(LIBOECORE)
 	ld -relocatable -o $(LIBDIR)/oecore.o --whole-archive $(LIBOECORE)
 	objcopy $(addprefix -L,$(LOCAL)) $(LIBDIR)/oecore.o
 	ld -relocatable -o $(LIBDIR)/oeenclave.o $(LDFLAGS)
