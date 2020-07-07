@@ -630,7 +630,7 @@ static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
         MAP_SHARED | MAP_ANONYMOUS,
         -1,
         0);
-    if (addr == MAP_FAILED)
+    if ((intptr_t)addr < 0)
     {
         sgxlkl_fail("lkl_sys_mmap failed\n");
     }
@@ -1431,9 +1431,6 @@ void lkl_start_init()
 {
     size_t i;
 
-    SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
-    register_lkl_syscall_overrides();
-
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
@@ -1478,6 +1475,9 @@ void lkl_start_init()
 
     if (cfg->hostnet)
         sgxlkl_use_host_network = 1;
+
+    SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
+    register_lkl_syscall_overrides();
 
     sgxlkl_mtu = cfg->tap_mtu;
 

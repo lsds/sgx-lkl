@@ -24,12 +24,14 @@ void* enclave_mremap(
     size_t new_length,
     int mremap_fixed);
 
-int enclave_mmap_flags_supported(int flags, int fd);
+extern int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
 
 /**
  * Report memory usages (total and free bytes) in enclave
  */
 void enclave_mem_info(size_t* total, size_t* free);
+
+int enclave_mmap_flags_supported(int flags, int fd);
 
 int syscall_SYS_munmap(void* addr, size_t length);
 
