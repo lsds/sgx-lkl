@@ -21,10 +21,8 @@ void __vic_trace_ap(
     const char* format,
     va_list ap)
 {
-#if 0
     if (level > _level)
         return;
-#endif
 
     fprintf(stderr, "TRACE(%u): %s(%u): %s(): ", level, file, line, func);
     vfprintf(stderr, format, ap);
