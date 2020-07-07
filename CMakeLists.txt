@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.17)
 project(SGX-LKL C)
 
+# Conventions:
+# - All filenames/paths and variables containing them must be quoted.
+
 if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
-    add_link_options(-fuse-ld=$ENV{LD})
+    add_link_options("-fuse-ld=$ENV{LD}")
 endif()
 
 if (NOT CMAKE_GENERATOR STREQUAL "Ninja")
@@ -14,7 +17,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
 endif()
 
-get_filename_component(real_binary_dir ${CMAKE_BINARY_DIR} REALPATH)
+get_filename_component(real_binary_dir "${CMAKE_BINARY_DIR}" REALPATH)
 if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
 	message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
 endif()
@@ -24,7 +27,7 @@ ProcessorCount(NUMBER_OF_CORES)
 
 set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
 if (OE_PREFIX)
-	set(openenclave_DIR ${OE_PREFIX}/lib/openenclave/cmake)
+	set(openenclave_DIR "${OE_PREFIX}/lib/openenclave/cmake")
 	find_package(openenclave REQUIRED)
 else()
 	# OE should prefix public options.
@@ -33,8 +36,8 @@ else()
 	set(ENABLE_REFMAN OFF CACHE BOOL "" FORCE)
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
-	set(OPENENCLAVE_DIR ${CMAKE_SOURCE_DIR}/openenclave)
-	add_subdirectory(${OPENENCLAVE_DIR} EXCLUDE_FROM_ALL)
+	set(OPENENCLAVE_DIR "${CMAKE_SOURCE_DIR}/openenclave")
+	add_subdirectory("${OPENENCLAVE_DIR}" EXCLUDE_FROM_ALL)
 	
 	# OE should provide aliased targets.
 	add_library(openenclave::oecore ALIAS oecore)
@@ -43,8 +46,8 @@ else()
 	add_executable(openenclave::oeedger8r ALIAS edger8r)
 	
 	set(oeedger8r_search_path_args 
-		--search-path ${OPENENCLAVE_DIR}/include
-		--search-path ${OPENENCLAVE_DIR}/include/openenclave/edl/sgx)
+		--search-path "${OPENENCLAVE_DIR}/include"
+		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
 
 get_cmake_property(_variableNames VARIABLES)
@@ -67,19 +70,24 @@ get_cmake_property(_variableNames VARIABLES)
 # PACKAGE_PREFIX_DIR=/opt/openenclave
 
 function(mkdir DIRECTORY)
-	execute_process(COMMAND ${CMAKE_COMMAND} "-E" "make_directory" ${DIRECTORY})
+	execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${DIRECTORY}")
 endfunction()
 
 set(LKL_SUBDIRECTORY "lkl")
 set(THIRD_PARTY_DOWNLOADS_DIRECTORY "${CMAKE_BINARY_DIR}/third_party")
 
-execute_process(COMMAND "git" "rev-parse" "--short" "HEAD"
+execute_process(
+	COMMAND git rev-parse --short HEAD
 	OUTPUT_VARIABLE SGXLKL_GIT_COMMIT
 	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 string(STRIP "${SGXLKL_GIT_COMMIT}" SGXLKL_GIT_COMMIT)
+
 file(READ "VERSION" SGXLKL_VERSION)
 string(STRIP "${SGXLKL_VERSION}" SGXLKL_VERSION)
-execute_process(COMMAND "make" "--quiet" "-C" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}" "kernelversion" OUTPUT_VARIABLE LKL_VERSION)
+
+execute_process(
+	COMMAND make --quiet -C "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}" kernelversion
+	OUTPUT_VARIABLE LKL_VERSION)
 string(STRIP "${LKL_VERSION}" LKL_VERSION)
 
 message(STATUS "SGX-LKL git commit: ${SGXLKL_GIT_COMMIT}")
@@ -91,7 +99,7 @@ set(LIBC musl CACHE STRING "Libc implementation to build.  Currently only musl i
 # Add "glibc" here once glibc is supported
 set_property(CACHE LIBC PROPERTY STRINGS "musl")
 set(SGXLKL_COPY_INDIVIDUAL_FILES FALSE CACHE BOOL
-	"Copy source files one at a time.  This makes the initial build slower, but incremental builds faster.")
+	"Copy source files one at a time. This makes the initial build slower, but incremental builds faster.")
 
 if(LIBC STREQUAL "musl")
 	set(LIBC_IS_MUSL TRUE)
@@ -110,7 +118,7 @@ if(${LKL_DEBUG})
 endif()
 
 function(touch FILE_NAME)
-	execute_process(COMMAND ${CMAKE_COMMAND} "-E" "touch" "${FILE_NAME}")
+	execute_process(COMMAND ${CMAKE_COMMAND} -E touch "${FILE_NAME}")
 endfunction()
 
 include(cmake/RecursiveCopy.cmake)
@@ -171,7 +179,7 @@ copy_source_directory_to_output("${LKL_SUBDIRECTORY}" "${LKL_EXCLUDE}")
 # Replace the default kernel configuration file with our own.
 set(DEFCONFIG_OVERRIDE_PATH "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig")
 add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
-	COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig" ${DEFCONFIG_OVERRIDE_PATH}
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig" "${DEFCONFIG_OVERRIDE_PATH}"
 	MAIN_DEPENDENCY "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig"
 	COMMENT "Overriding LKL default configuration")
 
@@ -181,16 +189,16 @@ add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
 add_custom_command(
 	OUTPUT "lkl/net/wireguard" "lkl/net/Kconfig" "lkl/net/Makefile" "wireguard-patches-applied.stamp"
 	DEPENDS "${LKL_SUBDIRECTORY}/net/Makefile" "${LKL_SUBDIRECTORY}/net/Kconfig" fetch-and-extract-wireguard
-	COMMAND ${CMAKE_COMMAND} "-E" "copy" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Makefile" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Kconfig" "${CMAKE_BINARY_DIR}/lkl/net"
-	COMMAND ${CMAKE_COMMAND} "-E" "remove_directory" "${CMAKE_BINARY_DIR}/lkl/net/wireguard"
-	COMMAND "${wireguard_LOCATION}/contrib/kernel-tree/create-patch.sh" "|" "patch" "--forward" "-p1"
-	COMMAND ${CMAKE_COMMAND} "-E" "touch" "${CMAKE_BINARY_DIR}/wireguard-patches-applied.stamp"
+	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Makefile" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Kconfig" "${CMAKE_BINARY_DIR}/lkl/net"
+	COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/lkl/net/wireguard"
+	COMMAND "${wireguard_LOCATION}/contrib/kernel-tree/create-patch.sh" | patch --forward -p1
+	COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_BINARY_DIR}/wireguard-patches-applied.stamp"
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl" 
 	)
 
 add_custom_target(apply-wireguard-patches DEPENDS "wireguard-patches-applied.stamp")
 add_custom_target(lkl-source-setup
-	DEPENDS copy-lkl ${DEFCONFIG_OVERRIDE_PATH} apply-wireguard-patches
+	DEPENDS copy-lkl "${DEFCONFIG_OVERRIDE_PATH}" apply-wireguard-patches
 	)
 
 # We need to add the headers that we're going to generate as part of the
@@ -204,16 +212,16 @@ include("${LKL_HEADERS_FILE}")
 
 set(LKL_LIB_PATH "lkl/tools/lkl/liblkl.a")
 set(LKL_HEADER_PATH "${CMAKE_BINARY_DIR}/lkl-headers")
-add_custom_command(OUTPUT ${LKL_LIB_PATH}
+add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	DEPENDS lkl-source-setup
-	COMMAND "DESTDIR=${LKL_HEADER_PATH}" "make" "-C" "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" "-j" "${NUMBER_OF_CORES}" "V=1" "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
-	COMMAND "DESTDIR=${LKL_HEADER_PATH}" "make" "-C" "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" "-j" "${NUMBER_OF_CORES}" "V=1" "PREFIX=\"\"" headers_install
-	COMMAND "make" "-C" "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" "ARCH=lkl" "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" "-j" "${NUMBER_OF_CORES}" "V=1" "PREFIX=\"\"" headers_install
-	COMMAND "echo" "'set(LKL_HEADERS'" ">" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND "find" "${LKL_HEADER_PATH}" ">>" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND "echo" "')'" ">>" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" "${LKL_HEADERS_FILE}.tmp" "${LKL_HEADERS_FILE}"
-	COMMAND ${CMAKE_COMMAND} "-E" "remove" "${LKL_HEADERS_FILE}.tmp" 
+	COMMAND "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
+	COMMAND "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
+	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" ARCH=lkl "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
+	COMMAND echo "'set(LKL_HEADERS'" ">" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND find "${LKL_HEADER_PATH}" ">>" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND echo "')'" ">>" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LKL_HEADERS_FILE}.tmp" "${LKL_HEADERS_FILE}"
+	COMMAND ${CMAKE_COMMAND} -E remove "${LKL_HEADERS_FILE}.tmp" 
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl"
 	BYPRODUCTS ${LKL_HEADERS} "${LKL_HEADERS_FILE}" 
 	COMMENT "Compiling LKL"
@@ -225,13 +233,13 @@ add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
 add_custom_target(sgx-lkl ALL DEPENDS build-lkl)
 
 add_definitions(
-	"-DSGXLKL_GIT_COMMIT=\"${SGXLKL_GIT_COMMIT}\""
-	"-DSGXLKL_VERSION=\"${SGXLKL_VERSION}\""
-	"-DLKL_VERSION=\"${LKL_VERSION}\""
+	-DSGXLKL_GIT_COMMIT="${SGXLKL_GIT_COMMIT}"
+	-DSGXLKL_VERSION="${SGXLKL_VERSION}"
+	-DLKL_VERSION="${LKL_VERSION}"
 	)
 
 
-set(HOST_TOOL_NAME "sgx-lkl-run")
+set(HOST_TOOL_NAME sgx-lkl-run)
 
 file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
 file(GLOB HOSTINTERFACE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/host_interface/*.c")
@@ -256,15 +264,15 @@ set(GENERATED_ENCLAVE_EDGE_FILES
 add_custom_command(OUTPUT ${GENERATED_HOST_EDGE_FILES}
 	COMMAND openenclave::oeedger8r
 		${oeedger8r_search_path_args}
-		"--untrusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-		"--untrusted-dir" "${CMAKE_BINARY_DIR}/geninclude/host"
+		--untrusted "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
+		--untrusted-dir "${CMAKE_BINARY_DIR}/geninclude/host"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 	COMMAND openenclave::oeedger8r
 		${oeedger8r_search_path_args}
-		"--trusted" "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-		"--trusted-dir" "${CMAKE_BINARY_DIR}/geninclude/enclave"
+		--trusted "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
+		--trusted-dir "${CMAKE_BINARY_DIR}/geninclude/enclave"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 
@@ -273,9 +281,9 @@ set_directory_properties(PROPERTIES EP_BASE "external")
 ExternalProject_Add(json-c-ep
 	URL https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz
 	URL_HASH SHA256=5d867baeb7f540abe8f3265ac18ed7a24f91fe3c5f4fd99ac3caba0708511b90
-	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "--prefix=<INSTALL_DIR>"
-	BUILD_COMMAND "make" "-j${NUMBER_OF_CORES}"
-	INSTALL_COMMAND "make" "install"
+	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "CC=${CMAKE_C_COMPILER}" "--prefix=<INSTALL_DIR>"
+	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
+	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libjson-c.so"
 )
 ExternalProject_Get_property(json-c-ep INSTALL_DIR)
@@ -285,24 +293,24 @@ target_include_directories(json-c INTERFACE "${INSTALL_DIR}/include")
 add_dependencies(json-c json-c-ep)
 add_library(json-c::json-c ALIAS json-c)
 
-add_executable("${HOST_TOOL_NAME}"
+add_executable(${HOST_TOOL_NAME}
 	${MAIN_C_SRCS}
 	${HOSTINTERFACE_C_SRCS}
 	${SHARED_C_SRCS}
 	${GENERATED_HOST_EDGE_FILES}
 	)
-target_include_directories("${HOST_TOOL_NAME}" PRIVATE
+target_include_directories(${HOST_TOOL_NAME} PRIVATE
 	"src/include"
 	"${CMAKE_BINARY_DIR}/geninclude"
 	"${CMAKE_BINARY_DIR}/lkl-headers/include"
 	)
-target_link_libraries("${HOST_TOOL_NAME}" "pthread" json-c::json-c openenclave::oehost "rt")
-target_link_options("${HOST_TOOL_NAME}" PRIVATE "LINKER:--gc-sections")
+target_link_libraries(${HOST_TOOL_NAME} pthread json-c::json-c openenclave::oehost rt)
+target_link_options(${HOST_TOOL_NAME} PRIVATE "LINKER:--gc-sections")
 # If we are configuring for the first build, add a fake dependency of this tool
 # on the LKL build.  For subsequent builds this will be picked up by the real
 # LKL header dependencies.
 if(NOT LKL_HEADERS)
-	add_dependencies("${HOST_TOOL_NAME}" build-lkl)
+	add_dependencies(${HOST_TOOL_NAME} build-lkl)
 endif()
 
 
