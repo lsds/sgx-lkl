@@ -7,14 +7,14 @@
 
 #include "vic.h"
 
-void vic_hexdump_special(
+void vic_hexdump(
     const void* data,
     size_t size,
     bool spaces,
     bool newlines,
     size_t indent);
 
-void vic_hexdump(const void* data, size_t size);
+void vic_hexdump_formatted(const void* data, size_t size);
 
 void vic_hexdump_flat(const void* data, size_t size);
 

@@ -12,7 +12,7 @@ static void _indent(size_t indent)
         printf("  ");
 }
 
-void vic_hexdump_special(
+void vic_hexdump(
     const void* data,
     size_t size,
     bool spaces,
@@ -79,14 +79,14 @@ void vic_hexdump_special(
     fflush(stdout);
 }
 
-void vic_hexdump(const void* data, size_t size)
+void vic_hexdump_formatted(const void* data, size_t size)
 {
-    vic_hexdump_special(data, size, true, true, 0);
+    vic_hexdump(data, size, true, true, 0);
 }
 
 void vic_hexdump_flat(const void* data, size_t size)
 {
-    vic_hexdump_special(data, size, false, false, 0);
+    vic_hexdump(data, size, false, false, 0);
 }
 
 vic_result_t vic_bin_to_ascii(const void* data_, size_t size, char** ascii_out)

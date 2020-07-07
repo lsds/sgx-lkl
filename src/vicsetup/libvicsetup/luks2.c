@@ -1578,7 +1578,7 @@ static void _dump_binary_hdr(
 
     _indent(os, indent, t);
     printf("salt:\n");
-    vic_hexdump_special(hdr->salt, sizeof(hdr->salt), true, true, indent + 1);
+    vic_hexdump(hdr->salt, sizeof(hdr->salt), true, true, indent + 1);
 
     _indent(os, indent, t);
     printf("uuid: \"%s\"\n", hdr->uuid);
@@ -1591,7 +1591,7 @@ static void _dump_binary_hdr(
 
     _indent(os, indent, t);
     printf("csum:\n");
-    vic_hexdump_special(hdr->csum, vic_hash_size(hdr->csum_alg),
+    vic_hexdump(hdr->csum, vic_hash_size(hdr->csum_alg),
         true, true, indent + 1);
 
     _indent(os, --indent, t);

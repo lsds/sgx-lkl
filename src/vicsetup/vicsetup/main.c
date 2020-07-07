@@ -35,7 +35,7 @@
 
 static const char* arg0;
 
-void vic_hexdump(const void* data, size_t size);
+void vic_hexdump_formatted(const void* data, size_t size);
 
 void vic_hexdump_indent(const void* data, size_t size, size_t indent);
 
@@ -197,7 +197,7 @@ static int luksDump(int argc, const char* argv[])
                 err("failed to read block %zu\n", i);
 
             printf("    [BLOCK %zu]\n", i);
-            vic_hexdump_special(&blk, sizeof(blk), true, true, indent);
+            vic_hexdump(&blk, sizeof(blk), true, true, indent);
 
             if (fwrite(&blk, 1, sizeof(blk), os) != sizeof(blk))
                 err("failed to write /tmp/integrt");
@@ -681,7 +681,7 @@ static int luksGetMasterKey(int argc, const char* argv[])
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
 
-    vic_hexdump(&key.buf, key_size);
+    vic_hexdump_formatted(&key.buf, key_size);
 
     vic_blockdev_close(dev);
 

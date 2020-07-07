@@ -209,9 +209,9 @@ static void _dump_keyslot(const vic_luks_keyslot_t* slot)
     printf("\tSalt:\t\t\t");
 
     const size_t n = LUKS_SALT_SIZE / 2;
-    vic_hexdump(slot->salt, n);
+    vic_hexdump_formatted(slot->salt, n);
     printf("\t\t\t\t");
-    vic_hexdump(slot->salt + n, n);
+    vic_hexdump_formatted(slot->salt + n, n);
 
     printf("\tKey material offset:\t%d\n", slot->key_material_offset);
     printf("\tAF stripes:\t\t%d\n", slot->stripes);
@@ -239,13 +239,13 @@ int luks1_dump_hdr(const luks1_hdr_t* hdr)
     printf("MK bits:\t%d\n", hdr->key_bytes * 8);
 
     printf("MK digest\t");
-    vic_hexdump(hdr->mk_digest, LUKS_DIGEST_SIZE);
+    vic_hexdump_formatted(hdr->mk_digest, LUKS_DIGEST_SIZE);
 
     printf("MK salt\t\t");
     const size_t n = LUKS_SALT_SIZE / 2;
-    vic_hexdump(hdr->mk_digest_salt, n);
+    vic_hexdump_formatted(hdr->mk_digest_salt, n);
     printf("\t\t");
-    vic_hexdump(hdr->mk_digest_salt + n, n);
+    vic_hexdump_formatted(hdr->mk_digest_salt + n, n);
 
     printf("MK iterations:\t%d\n", hdr->mk_digest_iter);
 

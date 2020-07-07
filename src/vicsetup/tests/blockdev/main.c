@@ -152,8 +152,8 @@ int main(int argc, const char* argv[])
         assert(sizeof(blocks) == filesz);
         assert(memcmp(blocks, tmp, sizeof(blocks)) == 0);
 #if 0
-        vic_hexdump(blocks, sizeof(blocks));
-        vic_hexdump(tmp, sizeof(tmp));
+        vic_hexdump_formatted(blocks, sizeof(blocks));
+        vic_hexdump_formatted(tmp, sizeof(tmp));
 #endif
     }
 
