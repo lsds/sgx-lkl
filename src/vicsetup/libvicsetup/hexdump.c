@@ -4,7 +4,6 @@
 
 #include "hexdump.h"
 #include "raise.h"
-#include "malloc.h"
 
 static void _indent(size_t indent)
 {
@@ -98,7 +97,7 @@ vic_result_t vic_bin_to_ascii(const void* data_, size_t size, char** ascii_out)
     if (!data || !size)
         RAISE(VIC_BAD_PARAMETER);
 
-    if (!(ascii = vic_malloc(2 * size + 1)))
+    if (!(ascii = malloc(2 * size + 1)))
         RAISE(VIC_OUT_OF_MEMORY);
 
     for (size_t i = 0; i < size; i++)
@@ -135,7 +134,7 @@ vic_result_t vic_ascii_to_bin(
 
     size = len / 2;
 
-    if (!(data = vic_malloc(size)))
+    if (!(data = malloc(size)))
         RAISE(VIC_OUT_OF_MEMORY);
 
     for (size_t i = 0; i < size; i++)
@@ -155,7 +154,7 @@ vic_result_t vic_ascii_to_bin(
 done:
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }

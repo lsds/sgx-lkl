@@ -35,7 +35,6 @@
 #include "integrity.h"
 #include "round.h"
 #include "goto.h"
-#include "malloc.h"
 
 /*
 **==============================================================================
@@ -1467,7 +1466,7 @@ done:
         fclose(os);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return ret;
 }
@@ -1821,7 +1820,7 @@ static int _write_key_material(
         }
         else
         {
-            if (!(zeros = vic_calloc(ks->area.size, 1)))
+            if (!(zeros = calloc(ks->area.size, 1)))
                 GOTO(done);
 
             if (vic_blockdev_put(dev, blkno, zeros, nblocks) != 0)
@@ -1834,7 +1833,7 @@ static int _write_key_material(
 done:
 
     if (zeros)
-        vic_free(zeros);
+        free(zeros);
 
     return ret;
 }
@@ -1895,7 +1894,7 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
         const size_t json_size = hdr.hdr_size - sizeof(luks2_hdr_t);
 
         /* Allocate space for the header struct and the JSON area */
-        if (!(ext = vic_calloc(1, sizeof(luks2_ext_hdr_t) + json_size)))
+        if (!(ext = calloc(1, sizeof(luks2_ext_hdr_t) + json_size)))
             GOTO(done);
 
         memcpy(ext, &hdr, sizeof(luks2_hdr_t));
@@ -1955,15 +1954,15 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
         json_parser_t parser;
         static json_allocator_t allocator =
         {
-            vic_malloc,
-            vic_free,
+            malloc,
+            free,
         };
 
         json_callback_data_t callback_data = { ext, 0, { 0 } };
 
         /* Copy the JSON data since the parser destroys its input */
         {
-            if (!(data = vic_malloc(ext->json_size)))
+            if (!(data = malloc(ext->json_size)))
                 GOTO(done);
 
             memcpy(data, ext->json_data, ext->json_size);
@@ -2059,7 +2058,7 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
             if (ext->json_size != json_size)
                 GOTO(done);
 
-            if (!(json_data = vic_calloc(json_size, 1)))
+            if (!(json_data = calloc(json_size, 1)))
                 GOTO(done);
 
             if (_read_json_area(dev, shdr, json_data, json_size) != 0)
@@ -2077,13 +2076,13 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     if (json_data)
-        vic_free(json_data);
+        free(json_data);
 
     return ret;
 }
@@ -2393,7 +2392,7 @@ static vic_result_t _find_key_by_pwd(
 
         size = ks->area.size;
 
-        if (!(cipher = vic_calloc(size, 1)))
+        if (!(cipher = calloc(size, 1)))
             RAISE(VIC_OUT_OF_MEMORY);
 
         if (_read_key_material(
@@ -2405,7 +2404,7 @@ static vic_result_t _find_key_by_pwd(
             RAISE(VIC_KEY_MATERIAL_READ_FAILED);
         }
 
-        if (!(plain = vic_calloc(size, 1)))
+        if (!(plain = calloc(size, 1)))
             RAISE(VIC_OUT_OF_MEMORY);
 
         if (_decrypt(
@@ -2472,10 +2471,10 @@ static vic_result_t _find_key_by_pwd(
             break;
         }
 
-        vic_free(cipher);
+        free(cipher);
         cipher = NULL;
 
-        vic_free(plain);
+        free(plain);
         plain = NULL;
     }
 
@@ -2485,10 +2484,10 @@ static vic_result_t _find_key_by_pwd(
 done:
 
     if (cipher)
-        vic_free(cipher);
+        free(cipher);
 
     if (plain)
-        vic_free(plain);
+        free(plain);
 
     return result;
 }
@@ -2524,7 +2523,7 @@ vic_result_t luks2_recover_master_key(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     return result;
 }
@@ -2669,7 +2668,7 @@ static vic_result_t _initialize_hdr(
         if (subsystem)
             vic_strlcpy(hdr.subsystem, subsystem, sizeof(hdr.subsystem));
 
-        if (!(p = vic_calloc(1, sizeof(luks2_ext_hdr_t) + json_size)))
+        if (!(p = calloc(1, sizeof(luks2_ext_hdr_t) + json_size)))
             RAISE(VIC_OUT_OF_MEMORY);
 
         p->phdr = hdr;
@@ -2778,13 +2777,13 @@ static vic_result_t _initialize_hdr(
 
         if ((json_len = strlen(json)) >= p->json_size)
         {
-            vic_free(json);
+            free(json);
             RAISE(VIC_FAILED);
         }
 
         memset(p->json_data, 0, p->json_size);
         memcpy(p->json_data, json, json_len);
-        vic_free(json);
+        free(json);
     }
 
     /* Calculate hdr.csum */
@@ -2812,7 +2811,7 @@ static vic_result_t _initialize_hdr(
 done:
 
     if (p)
-        vic_free(p);
+        free(p);
 
     return result;
 }
@@ -2836,10 +2835,10 @@ static vic_result_t _generate_key_material(
     if (!ext || !ks || !key|| !pwd)
         RAISE(VIC_BAD_PARAMETER);
 
-    if (!(plain = vic_calloc(1, ks->area.size)))
+    if (!(plain = calloc(1, ks->area.size)))
         RAISE(VIC_OUT_OF_MEMORY);
 
-    if (!(cipher = vic_calloc(1, ks->area.size)))
+    if (!(cipher = calloc(1, ks->area.size)))
         RAISE(VIC_OUT_OF_MEMORY);
 
     if (strcmp(ks->kdf.type, "pbkdf2") == 0)
@@ -2922,10 +2921,10 @@ static vic_result_t _generate_key_material(
 done:
 
     if (plain)
-        vic_free(plain);
+        free(plain);
 
     if (cipher)
-        vic_free(cipher);
+        free(cipher);
 
     return result;
 }
@@ -3168,7 +3167,7 @@ done:
         close(fd);
 
     if (blk)
-        vic_free(blk);
+        free(blk);
 
     return result;
 }
@@ -3362,10 +3361,10 @@ vic_result_t luks2_format(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -3482,7 +3481,7 @@ static vic_result_t _write_hdr(vic_blockdev_t* dev, luks2_ext_hdr_t* ext)
 done:
 
     if (json)
-        vic_free(json);
+        free(json);
 
     return result;
 }
@@ -3578,10 +3577,10 @@ vic_result_t luks2_add_key(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -3668,10 +3667,10 @@ vic_result_t luks2_add_key_by_master_key(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -3719,10 +3718,10 @@ vic_result_t luks2_change_key(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -3784,10 +3783,10 @@ vic_result_t luks2_remove_key(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -3817,7 +3816,7 @@ vic_result_t luks2_stat(vic_blockdev_t* dev, vic_luks_stat_t* buf)
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     return result;
 }
@@ -3894,7 +3893,7 @@ vic_result_t luks2_open(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     return result;
 }
@@ -3974,7 +3973,7 @@ vic_result_t luks2_open_by_passphrase(
 done:
 
     if (ext)
-        vic_free(ext);
+        free(ext);
 
     return result;
 }

@@ -5,10 +5,10 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <sys/mount.h>
+#include <stdlib.h>
 
 #include "strings.h"
 #include "raise.h"
-#include "malloc.h"
 
 #define MAGIC 0xf3fcef718ce744bd
 
@@ -365,7 +365,7 @@ static vic_result_t _bd_close(vic_blockdev_t* bd_)
 
     close(bd->fd);
     memset(bd, 0, sizeof(blockdev_t));
-    vic_free(bd);
+    free(bd);
 
 done:
     return result;
@@ -424,7 +424,7 @@ vic_result_t vic_blockdev_open(
     if (!path || !_is_power_of_two(block_size) || !dev_out)
         RAISE(VIC_BAD_PARAMETER);
 
-    if (!(bd = vic_calloc(1, sizeof(blockdev_t))))
+    if (!(bd = calloc(1, sizeof(blockdev_t))))
         RAISE(VIC_OUT_OF_MEMORY);
 
     bd->magic = MAGIC;
@@ -464,7 +464,7 @@ vic_result_t vic_blockdev_open(
 done:
 
     if (bd)
-        vic_free(bd);
+        free(bd);
 
     return result;
 }

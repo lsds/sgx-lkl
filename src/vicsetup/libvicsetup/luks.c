@@ -16,7 +16,6 @@
 #include "integrity.h"
 #include "dm.h"
 #include "strings.h"
-#include "malloc.h"
 
 VIC_STATIC_ASSERT(VIC_OFFSETOF(vic_luks_hdr_t, magic) == 0);
 VIC_STATIC_ASSERT(VIC_OFFSETOF(vic_luks_hdr_t, version) == 6);
@@ -140,10 +139,10 @@ vic_result_t vic_luks_dump(vic_blockdev_t* device)
 done:
 
     if (hdr1)
-        vic_free(hdr1);
+        free(hdr1);
 
     if (hdr2)
-        vic_free(hdr2);
+        free(hdr2);
 
     return result;
 }

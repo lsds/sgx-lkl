@@ -13,7 +13,6 @@
 #include "loop.h"
 #include "integrity.h"
 #include "hexdump.h"
-#include "malloc.h"
 #include "trace.h"
 #include "uuid.h"
 
@@ -101,7 +100,7 @@ vic_result_t vic_dm_create_crypt(
 
     /* Convert the key to hex */
     {
-        if (!(hexkey = vic_malloc((key_bytes * 2) + 1)))
+        if (!(hexkey = malloc((key_bytes * 2) + 1)))
             RAISE(VIC_OUT_OF_MEMORY);
 
         for (size_t i = 0, j = 0; i < key_bytes; i++, j += 2)
@@ -208,7 +207,7 @@ vic_result_t vic_dm_create_crypt(
 done:
 
     if (hexkey)
-        vic_free(hexkey);
+        free(hexkey);
 
     if (dmt)
     {
@@ -336,7 +335,7 @@ vic_result_t vic_dm_create_integrity(
 done:
 
     if (hexkey)
-        vic_free(hexkey);
+        free(hexkey);
 
     if (dmt)
     {
@@ -468,10 +467,10 @@ vic_result_t vic_dm_create_verity(
 done:
 
     if (root_digest_ascii)
-        vic_free(root_digest_ascii);
+        free(root_digest_ascii);
 
     if (salt_ascii)
-        vic_free(salt_ascii);
+        free(salt_ascii);
 
     if (dmt)
     {
@@ -798,7 +797,7 @@ vic_result_t vic_dm_create_integrity(
         RAISE(VIC_OPEN_FAILED);
 
     /* Allocate instance of struct dm_ioctl */
-    if (!(dmi = vic_malloc(DM_DATA_SIZE)))
+    if (!(dmi = malloc(DM_DATA_SIZE)))
         RAISE(VIC_OUT_OF_MEMORY);
 
     memset(dmi, 0, DM_DATA_SIZE);
@@ -903,13 +902,13 @@ retry:
 done:
 
     if (hexkey)
-        vic_free(hexkey);
+        free(hexkey);
 
     if (ctl >= 0)
         close(ctl);
 
     if (dmi)
-        vic_free(dmi, DM_DATA_SIZE);
+        free(dmi, DM_DATA_SIZE);
 
     return result;
 }

@@ -28,7 +28,6 @@
 #include "dm.h"
 #include "round.h"
 #include "goto.h"
-#include "malloc.h"
 
 /*
 **==============================================================================
@@ -548,7 +547,7 @@ int luks1_read_hdr(vic_blockdev_t* device, luks1_hdr_t** hdr_out)
     /* Adjust byte order from big-endian to native */
     _fix_luks1_hdr_byte_order(&hdr);
 
-    if (!(*hdr_out = vic_calloc(1, sizeof(luks1_hdr_t))))
+    if (!(*hdr_out = calloc(1, sizeof(luks1_hdr_t))))
         GOTO(done);
 
     memcpy(*hdr_out, &hdr, sizeof(luks1_hdr_t));
@@ -607,7 +606,7 @@ static int _write_key_material(
         }
         else
         {
-            if (!(zeros = vic_calloc(ks->stripes * hdr->key_bytes, 1)))
+            if (!(zeros = calloc(ks->stripes * hdr->key_bytes, 1)))
                 GOTO(done);
 
             if (vic_blockdev_put(device, blkno, zeros, nblocks) != 0)
@@ -620,7 +619,7 @@ static int _write_key_material(
 done:
 
     if (zeros)
-        vic_free(zeros);
+        free(zeros);
 
     return ret;
 }
@@ -803,7 +802,7 @@ static int _add_key(
         }
     }
 
-    /* If no vic_free key slot found */
+    /* If no free key slot found */
     if (index == (size_t)-1)
         GOTO(done);
 
@@ -815,10 +814,10 @@ static int _add_key(
     if ((size = hdr->key_bytes * ks->stripes) == 0)
         GOTO(done);
 
-    if (!(plain = vic_calloc(1, size)))
+    if (!(plain = calloc(1, size)))
         GOTO(done);
 
-    if (!(cipher = vic_calloc(1, size)))
+    if (!(cipher = calloc(1, size)))
         GOTO(done);
 
     if (vic_pbkdf2(
@@ -865,10 +864,10 @@ static int _add_key(
 done:
 
     if (plain)
-        vic_free(plain);
+        free(plain);
 
     if (cipher)
-        vic_free(cipher);
+        free(cipher);
 
     return ret;
 }
@@ -918,13 +917,13 @@ static vic_result_t _find_key_by_pwd(
 
             size = ks->stripes * hdr->key_bytes;
 
-            if (!(cipher = vic_calloc(size, 1)))
+            if (!(cipher = calloc(size, 1)))
                 RAISE(VIC_OUT_OF_MEMORY);
 
             if (_read_key_material(device, hdr, ks, cipher) != 0)
                 RAISE(VIC_KEY_MATERIAL_READ_FAILED);
 
-            if (!(plain = vic_calloc(size, 1)))
+            if (!(plain = calloc(size, 1)))
                 RAISE(VIC_OUT_OF_MEMORY);
 
             if (_decrypt(hdr, &pbkdf2_key, cipher, plain, size, 0) != 0)
@@ -966,10 +965,10 @@ static vic_result_t _find_key_by_pwd(
                 break;
             }
 
-            vic_free(cipher);
+            free(cipher);
             cipher = NULL;
 
-            vic_free(plain);
+            free(plain);
             plain = NULL;
         }
     }
@@ -980,10 +979,10 @@ static vic_result_t _find_key_by_pwd(
 done:
 
     if (cipher)
-        vic_free(cipher);
+        free(cipher);
 
     if (plain)
-        vic_free(plain);
+        free(plain);
 
     return result;
 }
@@ -1069,7 +1068,7 @@ vic_result_t luks1_format(
 done:
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -1104,7 +1103,7 @@ vic_result_t luks1_recover_master_key(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     return result;
 }
@@ -1161,10 +1160,10 @@ vic_result_t luks1_add_key(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -1225,10 +1224,10 @@ vic_result_t luks1_add_key_by_master_key(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     if (data)
-        vic_free(data);
+        free(data);
 
     return result;
 }
@@ -1268,7 +1267,7 @@ vic_result_t luks1_remove_key(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     return result;
 }
@@ -1310,7 +1309,7 @@ vic_result_t luks1_kill_slot(vic_blockdev_t* device, size_t index)
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     return result;
 }
@@ -1348,10 +1347,10 @@ vic_result_t luks1_change_key(
     if ((size = hdr->key_bytes * ks->stripes) == 0)
         GOTO(done);
 
-    if (!(plain = vic_calloc(1, size)))
+    if (!(plain = calloc(1, size)))
         GOTO(done);
 
-    if (!(cipher = vic_calloc(1, size)))
+    if (!(cipher = calloc(1, size)))
         GOTO(done);
 
     if (vic_pbkdf2(
@@ -1392,13 +1391,13 @@ vic_result_t luks1_change_key(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     if (plain)
-        vic_free(plain);
+        free(plain);
 
     if (cipher)
-        vic_free(cipher);
+        free(cipher);
 
     return result;
 }
@@ -1428,7 +1427,7 @@ vic_result_t luks1_stat(vic_blockdev_t* device, vic_luks_stat_t* buf)
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     return result;
 }
@@ -1525,7 +1524,7 @@ vic_result_t luks1_open(
 done:
 
     if (hdr)
-        vic_free(hdr);
+        free(hdr);
 
     return result;
 }

@@ -15,7 +15,6 @@
 #include "crypto.h"
 #include "verity.h"
 #include "trace.h"
-#include "malloc.h"
 
 #define MAGIC 0xa8ea23c6
 
@@ -134,7 +133,7 @@ int __crypt_init(struct crypt_device** cd_out, const char* device)
         goto done;
     }
 
-    if (!(cd = vic_calloc(sizeof(struct crypt_device), 1)))
+    if (!(cd = calloc(sizeof(struct crypt_device), 1)))
     {
         ret = -ENOMEM;
         goto done;
@@ -197,7 +196,7 @@ void __crypt_free(struct crypt_device* cd)
             vic_blockdev_close(cd->hbd);
 
         memset(cd, 0, sizeof(struct crypt_device));
-        vic_free(cd);
+        free(cd);
     }
 
     LEAVE;
@@ -231,7 +230,7 @@ int __crypt_deactivate_by_name(
             }
 
             if (cd->luks1.hdr)
-                vic_free(cd->luks1.hdr);
+                free(cd->luks1.hdr);
 
             memset(&cd->luks1, 0, sizeof(cd->luks1));
         }
@@ -246,7 +245,7 @@ int __crypt_deactivate_by_name(
             }
 
             if (cd->luks2.hdr)
-                vic_free(cd->luks2.hdr);
+                free(cd->luks2.hdr);
 
             memset(&cd->luks2, 0, sizeof(cd->luks2));
         }
