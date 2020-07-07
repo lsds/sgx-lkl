@@ -14,7 +14,7 @@
 #include <mbedtls/ctr_drbg.h>
 #include <pthread.h>
 
-#include "../../../third_party/argon2/include/argon2.h"
+#include <argon2.h>
 #include "crypto.h"
 #include "hash.h"
 #include "byteorder.h"
