@@ -17,4 +17,7 @@ void lkl_mount_disks(
 /* Shutdown the running LKL kernel */
 void lkl_terminate(int exit_status);
 
+/* Return if LKL is currently terminating */
+bool is_lkl_terminating();
+
 #endif /* SETUP_H */

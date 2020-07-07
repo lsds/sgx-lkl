@@ -8,6 +8,7 @@
 #include <asm-generic/ucontext.h>
 
 #include <lkl_host.h>
+#include <lkl/setup.h>
 #include <string.h>
 #include "enclave/sgxlkl_t.h"
 #include "enclave/lthread.h"
@@ -151,10 +152,11 @@ static uint64_t sgxlkl_enclave_signal_handler(
 #endif
 
         /**
-         * If LKL has not yet been initialised, we cannot handle the
-         * exception and fail instead.
+         * If LKL has not yet been initialised or is terminating (and thus no
+         * longer accepts signals), we cannot handle the exception and fail
+         * instead.
          */
-        if (!lkl_is_running())
+        if (!lkl_is_running() || is_lkl_terminating())
         {
 #ifdef DEBUG
             sgxlkl_error("Exception received before LKL can handle it. "
