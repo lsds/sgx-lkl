@@ -4,7 +4,6 @@ ARCHIVE = libvicsetup.a
 
 CFLAGS += -Wno-type-limits
 
-INCLUDES += -I/usr/local/include
 INCLUDES += -I$(ARGON2_DIR)/include
 INCLUDES += -Iinclude
 INCLUDES += -I$(LIBJSON_DIR)/include
