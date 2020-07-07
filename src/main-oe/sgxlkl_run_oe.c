@@ -308,7 +308,7 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_WG_PEERS",
         "Comma-separated list of Wireguard peers in the format "
-        "\"key1:allowedips1:endpointhost1:port1, key2:allowedips2, key3:...\".\n");
+        "\"{key 1}:{allowed IPs 1}:{endpoint host 1}:{port 1}, {key 2}:{allowed IPs 2}, {key 3}:...\".\n");
     printf("## Disk ##\n");
     printf(
         "%-35s %s",
