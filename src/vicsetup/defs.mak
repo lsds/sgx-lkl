@@ -4,8 +4,16 @@ ifndef CC
 CC = gcc
 endif
 
+ifdef DEBUG
 CFLAGS += -g
+endif
+
+ifdef OPTIMIZE
+CFLAGS += $(OPTIMIZE)
+else
 CFLAGS += -O3
+endif
+
 CFLAGS += -Wall
 CFLAGS += -Werror
 CFLAGS += -Wextra
