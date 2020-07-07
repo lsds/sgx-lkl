@@ -1,9 +1,5 @@
 include ../defs.mak
 
-ifndef ARGON2_DIR
-ARGON2_DIR = ../../../third_party/argon2
-endif
-
 ARCHIVE = libvicsetup.a
 
 CFLAGS += -Wno-type-limits

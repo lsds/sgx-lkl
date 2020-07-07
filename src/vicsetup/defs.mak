@@ -10,7 +10,13 @@ CFLAGS += -Wall
 CFLAGS += -Werror
 CFLAGS += -Wextra
 
+ifndef LIBJSON_DIR
 LIBJSON_DIR = $(TOP)/../libjson
+endif
+
+ifndef ARGON2_DIR
+ARGON2_DIR = $(TOP)/../../third_party/argon2
+endif
 
 define NL
 
