@@ -1,3 +1,6 @@
+.PHONY: oecore
+.PHONY: oeenclave
+
 ##==============================================================================
 ##
 ## oeenclave.mak:
@@ -41,24 +44,40 @@ LIBOECORE = $(BUILDDIR)/output/lib/openenclave/enclave/liboecore.a
 ##==============================================================================
 
 # Hide these symbols:
-LOCAL =
-LOCAL += rand
-LOCAL += srand
-LOCAL += memcpy
-LOCAL += __memcpy_fwd
-LOCAL += memset
-LOCAL += memcmp
-LOCAL += memmove
-LOCAL += oe_free_sgx_endorsements
-LOCAL += oe_get_sgx_endorsements
-LOCAL += oe_parse_sgx_endorsements
-LOCAL += __stack_chk_fail
+LOCAL_OECORE =
+LOCAL_OECORE += rand
+LOCAL_OECORE += srand
+LOCAL_OECORE += memcpy
+LOCAL_OECORE += __memcpy_fwd
+LOCAL_OECORE += memset
+LOCAL_OECORE += memcmp
+LOCAL_OECORE += memmove
+LOCAL_OECORE += oe_free_sgx_endorsements
+LOCAL_OECORE += oe_get_sgx_endorsements
+LOCAL_OECORE += oe_parse_sgx_endorsements
+LOCAL_OECORE += __stack_chk_fail
+
+GLOBAL_OECORE += $(call syms,$(LIBOECORE))
+
+# Hide these symbols:
+LOCAL_OEENCLAVE =
+LOCAL_OEENCLAVE += rand
+LOCAL_OEENCLAVE += srand
+LOCAL_OEENCLAVE += memcpy
+LOCAL_OEENCLAVE += __memcpy_fwd
+LOCAL_OEENCLAVE += memset
+LOCAL_OEENCLAVE += memcmp
+LOCAL_OEENCLAVE += memmove
+LOCAL_OEENCLAVE += oe_free_sgx_endorsements
+LOCAL_OEENCLAVE += oe_get_sgx_endorsements
+LOCAL_OEENCLAVE += oe_parse_sgx_endorsements
+LOCAL_OEENCLAVE += __stack_chk_fail
 
 # Keep symbols from these archives:
-GLOBAL =
-GLOBAL += $(call syms,$(LIBOEENCLAVE))
-GLOBAL += $(call syms,$(LIBOESYSCALL))
-GLOBAL += $(call syms,$(LIBOECORE))
+GLOBAL_OEENCLAVE =
+GLOBAL_OEENCLAVE += $(call syms,$(LIBOEENCLAVE))
+GLOBAL_OEENCLAVE += $(call syms,$(LIBOESYSCALL))
+GLOBAL_OEENCLAVE += $(call syms,$(LIBOECORE))
 
 # Linker flags:
 LDFLAGS =
@@ -73,12 +92,13 @@ LDFLAGS += $(LIBOESYSCALL)
 LDFLAGS += $(LIBDIR)/oecore.o
 LDFLAGS += --no-whole-archive
 
-oeenclave:
-	rm -f $(LIBDIR)/oecore.o
-	rm -f $(LIBDIR)/oeenclave.o
-	echo ld -relocatable -o $(LIBDIR)/oecore.o --whole-archive $(LIBOECORE)
-	ld -relocatable -o $(LIBDIR)/oecore.o --whole-archive $(LIBOECORE)
-	objcopy $(addprefix -L,$(LOCAL)) $(LIBDIR)/oecore.o
+oeenclave: oecore
 	ld -relocatable -o $(LIBDIR)/oeenclave.o $(LDFLAGS)
-	objcopy $(addprefix -G,$(GLOBAL)) $(LIBDIR)/oeenclave.o
-	objcopy $(addprefix -L,$(LOCAL)) $(LIBDIR)/oeenclave.o
+	objcopy $(addprefix -L,$(LOCAL_OEENCLAVE)) $(LIBDIR)/oeenclave.o
+	objcopy $(addprefix -G,$(GLOBAL_OEENCLAVE)) $(LIBDIR)/oeenclave.o
+
+oecore:
+	ld -relocatable -o $(LIBDIR)/oecore.o --whole-archive $(LIBOECORE)
+	objcopy $(addprefix -L,$(LOCAL_OECORE)) $(LIBDIR)/oecore.o
+	objcopy $(addprefix -G,$(GLOBAL_OECORE)) $(LIBDIR)/oecore.o
+
