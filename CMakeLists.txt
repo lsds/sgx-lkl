@@ -413,10 +413,12 @@ add_library(e2fsprogs::ext2fs ALIAS ext2fs)
 ExternalProject_Add(curl-ep
 	URL https://curl.haxx.se/download/curl-7.66.0.tar.bz2
 	URL_HASH SHA256=6618234e0235c420a21f4cb4c2dd0badde76e6139668739085a70c4e2fe7a141
-	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
+	CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env curl_disallow_alarm=yes "<SOURCE_DIR>/configure" 
 		"CC=${MUSL_C_COMPILER}"
+		"CFLAGS=-DUSE_BLOCKING_SOCKETS"
 		"--prefix=<INSTALL_DIR>"
 		--disable-shared --with-pic
+		# TODO make conditional
 		--enable-debug
 		# FIXME A userspace variant of mbedtls needs to be used here.
 		--with-mbedtls=${OE_SDK_LIBS}/openenclave/enclave
