@@ -348,6 +348,7 @@ set(MUSL_LIBNAMES
 	libxnet.a
 )
 list(TRANSFORM MUSL_LIBNAMES PREPEND "<INSTALL_DIR>/lib/" OUTPUT_VARIABLE MUSL_BYPRODUCTS)
+set(LINUX_HEADERS_INC "/usr/include")
 ExternalProject_Add(sgx-lkl-musl-ep
 	# For now, this builds host-musl, while the relayering is in progress.
 	# Current sgx-lkl-musl has dependencies to SGX-LKL headers, OE, etc.
@@ -356,11 +357,15 @@ ExternalProject_Add(sgx-lkl-musl-ep
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
 		"CC=${CMAKE_C_COMPILER}"
 		"CFLAGS=${LIBC_CFLAGS_EXTRA}"
-		"--disable-shared"
 		"--prefix=<INSTALL_DIR>"
 		"--syslibdir=<INSTALL_DIR>/lib"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
+	COMMAND ln -sf "${LINUX_HEADERS_INC}/linux" "<INSTALL_DIR>/include/linux"
+	COMMAND ln -sf "${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm" "<INSTALL_DIR>/include/asm"
+	COMMAND ln -sf "${LINUX_HEADERS_INC}/asm-generic" "<INSTALL_DIR>/include/asm-generic"
+	# TODO Fix musl-gcc for gcc versions that have been built with --enable-default-pie
+	#gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_LIBC_BLD_DIR}/bin/musl-gcc || true
 	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
 	BUILD_ALWAYS TRUE
 )
