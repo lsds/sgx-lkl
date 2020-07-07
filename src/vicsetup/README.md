@@ -20,7 +20,7 @@ beyond this scope.
 libvicsetup
 ===========
 
-**Libvicsetup** provides features similar to **libcryptsetup.a**. the SGX-LKL
+**Libvicsetup** provides features similar to **libcryptsetup.a**. The SGX-LKL
 enclave image uses this library during setup (**src/lkl/setup.c**).
 
 vicsetup
