@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <stdlib.h>
 #include "vic.h"
 
 const char* vic_result_string(vic_result_t result)
@@ -122,6 +124,6 @@ const char* vic_result_string(vic_result_t result)
             return "VIC_BAD_INTEGRITY_TYPE";
     };
 
-    /* Unreachable */
-    return "UNKNOWN";
+    abort();
+    return NULL;
 }
