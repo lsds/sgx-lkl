@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.17)
-project(SGX-LKL C)
+
+# CXX is added here to avoid default compiler selection issues
+# when including Open Enclave via add_subdirectory.
+# SGX-LKL does not use C++ currently.
+project(SGX-LKL C CXX)
 
 # Conventions:
 # - All filenames/paths and variables containing them must be quoted.
