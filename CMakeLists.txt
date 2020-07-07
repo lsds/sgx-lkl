@@ -111,11 +111,11 @@ else()
 	message(FATAL_ERROR "${LIBC} is not a supported libc")
 endif()
 
+set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -fPIC -D__USE_GNU")
 
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 	set(LKL_CFLAGS_EXTRA "${LKL_CFLAGS_EXTRA} -g3 -ggdb3 -O0 -DDEBUG")
+	set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -g3 -ggdb3 -O0 -DDEBUG")
 endif()
 if(${LKL_DEBUG})
 	set(LKL_CFLAGS_EXTRA "${LKL_CFLAGS_EXTRA} -DLKL_DEBUG")
@@ -282,6 +282,7 @@ add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 
 include(ExternalProject)
 set_directory_properties(PROPERTIES EP_BASE "external")
+
 ExternalProject_Add(json-c-ep
 	URL https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz
 	URL_HASH SHA256=5d867baeb7f540abe8f3265ac18ed7a24f91fe3c5f4fd99ac3caba0708511b90
@@ -317,4 +318,71 @@ if(NOT LKL_HEADERS)
 	add_dependencies(${HOST_TOOL_NAME} build-lkl)
 endif()
 
+# TODO remove tools after relayering
+add_executable(lkl_bits tools/lkl_bits.c)
+target_include_directories(lkl_bits PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
+add_dependencies(lkl_bits build-lkl)
+
+add_executable(lkl_syscalls tools/lkl_syscalls.c)
+target_include_directories(lkl_syscalls PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
+add_dependencies(lkl_syscalls build-lkl)
+
+add_custom_command(
+	OUTPUT "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
+		   "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
+	COMMAND lkl_bits > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
+	COMMAND lkl_syscalls > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
+	DEPENDS lkl_bits lkl_syscalls
+)
+add_custom_target(gen-extra-lkl-headers DEPENDS 
+	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
+	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h")
+
+# sgx-lkl-musl is used as libc in userspace.
+set(MUSL_LIBNAMES
+	libc.a
+	libcrypt.a
+	libdl.a
+	libm.a
+	libpthread.a
+	libresolv.a
+	librt.a
+	libutil.a
+	libxnet.a
+)
+list(TRANSFORM MUSL_LIBNAMES PREPEND "<INSTALL_DIR>/lib/" OUTPUT_VARIABLE MUSL_BYPRODUCTS)
+ExternalProject_Add(sgx-lkl-musl-ep
+	# For now, this builds host-musl, while the relayering is in progress.
+	# Current sgx-lkl-musl has dependencies to SGX-LKL headers, OE, etc.
+	# TODO change to /sgx-lkl-musl
+	SOURCE_DIR "${CMAKE_SOURCE_DIR}/host-musl" # /sgx-lkl-musl
+	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
+		"CC=${CMAKE_C_COMPILER}"
+		"CFLAGS=${LIBC_CFLAGS_EXTRA}"
+		"--disable-shared"
+		"--prefix=<INSTALL_DIR>"
+		"--syslibdir=<INSTALL_DIR>/lib"
+	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
+	INSTALL_COMMAND make install
+	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
+	BUILD_ALWAYS TRUE
+)
+ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
+list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
+set(MUSL_INCLUDE_DIRS "${INSTALL_DIR}/include")
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+	set(MUSL_C_COMPILER "${INSTALL_DIR}/bin/musl-gcc")
+elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
+	# The clang wrapper adds unneeded flags only needed for executables
+	# and shared libraries. Any warnings related to that can be ignored.
+	set(MUSL_C_COMPILER "${INSTALL_DIR}/bin/musl-clang")
+elseif ()
+	message(FATAL_ERROR "Unsupported compiler: ${CMAKE_C_COMPILER_ID}")
+endif()
+# The following will be refined depending on how we build enclave images.
+add_library(sgx-lkl-musl INTERFACE)
+target_link_libraries(sgx-lkl-musl INTERFACE "${MUSL_LIBRARIES}")
+target_include_directories(sgx-lkl-musl INTERFACE "${MUSL_INCLUDE_DIRS}")
+add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
+add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
 
