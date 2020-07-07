@@ -132,14 +132,11 @@ include(cmake/DownloadAndExtract.cmake)
 # Generate rules to download and extract the tarballs that we need.
 # These are all downloaded into a downloads directory in the build directory
 # and extracted into a third_party directory in the build directory.
-download_and_extract_tarball("cryptsetup" "https://gitlab.com/cryptsetup/cryptsetup/repository/archive.tar.gz?ref=v2.0.2")
-download_and_extract_tarball("devicemapper" "https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz")
-download_and_extract_tarball("e2fsprogs" "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz")
-download_and_extract_tarball("util-linux" "https://git.kernel.org/pub/scm/utils/util-linux/util-linux.git/snapshot/util-linux-2.29.2.tar.gz")
-download_and_extract_tarball("popt" "https://deb.debian.org/debian/pool/main/p/popt/popt_1.16.orig.tar.gz")
+#download_and_extract_tarball("devicemapper" "https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz")
+#download_and_extract_tarball("e2fsprogs" "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz")
 #download_and_extract_tarball("json-c" "https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz")
 download_and_extract_tarball("wireguard" "https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz")
-download_and_extract_tarball("curl" "https://curl.haxx.se/download/curl-7.66.0.tar.bz2")
+#download_and_extract_tarball("curl" "https://curl.haxx.se/download/curl-7.66.0.tar.bz2")
 
 # Copy the LKL sources to the build directory.  This copies everything except
 # the files that we will modify and creates rules so that any modification of
@@ -386,3 +383,73 @@ target_include_directories(sgx-lkl-musl INTERFACE "${MUSL_INCLUDE_DIRS}")
 add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
 add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
 
+# libext2fs (part of e2fsprogs) is used in userspace to dynamically create disks with ext4 filesystems.
+ExternalProject_Add(e2fsprogs-ep
+	URL https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz
+	URL_HASH SHA256=0fd76e55c1196c1d97a2c01f2e84f463b8e99484541b43ff4197f5a695159fd3
+	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "CC=${CMAKE_C_COMPILER}"
+	COMMAND make -C "<BINARY_DIR>/util" # build-time tools that must not be built against musl
+	COMMAND "<SOURCE_DIR>/configure" "CC=${MUSL_C_COMPILER}" "CFLAGS=-DOMIT_COM_ERR" "--prefix=<INSTALL_DIR>"
+	BUILD_COMMAND make -j ${NUMBER_OF_CORES} libs
+	INSTALL_COMMAND make -C "<BINARY_DIR>/lib/ext2fs" install
+	COMMAND ${CMAKE_COMMAND} -E make_directory "<INSTALL_DIR>/include/et"
+	COMMAND ${CMAKE_COMMAND} -E touch "<INSTALL_DIR>/include/et/com_err.h"
+	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libext2fs.a"
+	DEPENDS sgx-lkl::musl
+)
+ExternalProject_Get_property(e2fsprogs-ep INSTALL_DIR)
+add_library(ext2fs INTERFACE)
+target_link_libraries(ext2fs INTERFACE "${INSTALL_DIR}/lib/libext2fs.a")
+target_include_directories(ext2fs INTERFACE "${INSTALL_DIR}/include")
+add_dependencies(ext2fs e2fsprogs-ep)
+add_library(e2fsprogs::ext2fs ALIAS ext2fs)
+
+# libcurl is used in userspace for fetching disk encryption keys.
+ExternalProject_Add(curl-ep
+	URL https://curl.haxx.se/download/curl-7.66.0.tar.bz2
+	URL_HASH SHA256=6618234e0235c420a21f4cb4c2dd0badde76e6139668739085a70c4e2fe7a141
+	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
+		"CC=${MUSL_C_COMPILER}"
+		"--prefix=<INSTALL_DIR>"
+		--disable-shared --with-pic
+		--enable-debug
+		# FIXME A userspace variant of mbedtls needs to be used here.
+		--with-mbedtls=${OE_SDK_LIBS}/openenclave/enclave
+		--without-zlib --without-ssl --without-ca-bundle --without-ca-path --without-libdl
+		--without-libssh2 --without-libidn2
+		--disable-unix-sockets --disable-threaded-resolver --disable-cookies --disable-rtsp
+		--disable-dict --disable-file --disable-rt --disable-ftp --disable-gopher
+		--disable-imap --disable-pop3 --disable-smtp --disable-telnet --disable-tftp
+		--disable-smb --disable-smbs --disable-netrc
+	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
+	INSTALL_COMMAND make install
+	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libcurl.a"
+	DEPENDS sgx-lkl::musl
+)
+ExternalProject_Get_property(curl-ep INSTALL_DIR)
+add_library(curl INTERFACE)
+target_link_libraries(curl INTERFACE "${INSTALL_DIR}/lib/libcurl.a")
+target_include_directories(curl INTERFACE "${INSTALL_DIR}/include")
+add_dependencies(curl curl-ep)
+add_library(curl::curl ALIAS curl)
+
+# libdevicemapper is used in userspace as dependency of libvicsetup.
+ExternalProject_Add(devicemapper-ep
+	URL https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz
+	URL_HASH SHA256=56db106cba31e3a143f758ae1b569f2df91fd3403ae7076374700ebadcfa6583
+	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
+		"CC=${MUSL_C_COMPILER}"
+		"CFLAGS=-Dptrdiff_t=intptr_t"
+		"--enable-static_link"
+		"--prefix=<INSTALL_DIR>"
+	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
+	INSTALL_COMMAND make install
+	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libdevicemapper.a"
+	DEPENDS sgx-lkl::musl
+)
+ExternalProject_Get_property(devicemapper-ep INSTALL_DIR)
+add_library(devicemapper INTERFACE)
+target_link_libraries(devicemapper INTERFACE "${INSTALL_DIR}/lib/libdevicemapper.a")
+target_include_directories(devicemapper INTERFACE "${INSTALL_DIR}/include")
+add_dependencies(devicemapper devicemapper-ep)
+add_library(devicemapper::devicemapper ALIAS devicemapper)
