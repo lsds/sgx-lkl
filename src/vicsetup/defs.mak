@@ -1,6 +1,8 @@
 TOP=$(abspath $(dir $(word 2, $(MAKEFILE_LIST))))
 
+ifndef CC
 CC = gcc
+endif
 
 CFLAGS += -g
 CFLAGS += -O3

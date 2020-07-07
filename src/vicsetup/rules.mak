@@ -2,7 +2,7 @@ OBJECTS = $(SOURCES:.c=.o)
 
 ifdef PROGRAM
 $(PROGRAM): dirs $(OBJECTS)
-	gcc -o $(PROGRAM) $(CFLAGS) $(OBJECTS) $(LDFLAGS)
+	$(CC) -o $(PROGRAM) $(CFLAGS) $(OBJECTS) $(LDFLAGS)
 endif
 
 ifdef ARCHIVE
@@ -18,7 +18,7 @@ clean:
 
 depend:
 	@ rm -f depend.mak
-	@ $(foreach i, $(SOURCES), gcc -M -MG $(DEFINES) $(INCLUDES) $(i) -MT $(i:.c=.o) >> depend.mak $(NL) )
+	@ $(foreach i, $(SOURCES), $(CC) -M -MG $(DEFINES) $(INCLUDES) $(i) -MT $(i:.c=.o) >> depend.mak $(NL) )
 
 ifdef DIRS
 dirs:
