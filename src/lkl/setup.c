@@ -419,7 +419,9 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 {
     int err;
     /* ATTN: vicsetup only supports 512 bytes sectors for integrity */
+    /* The sector size for the encrypted disk image */
     static const size_t SECTOR_SIZE = 512;
+    /* The number of iterations performed during key derivation (LUKS2) */
     static const size_t MIN_LUKS2_ITERATIONS = 1000;
 
     char* disk_path = lkl_cd->disk_path;
