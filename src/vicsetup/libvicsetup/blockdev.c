@@ -10,6 +10,7 @@
 #include "strings.h"
 #include "raise.h"
 
+/* A magic number for blockdev_t.magic used to verify valid blockdev structs */
 #define MAGIC 0xf3fcef718ce744bd
 
 #define DEFAULT_BLOCK_SIZE 512
@@ -17,6 +18,7 @@
 typedef struct _blockdev
 {
     vic_blockdev_t base;
+    /* Must be MAGIC */
     uint64_t magic;
     char path[PATH_MAX];
     size_t full_size;
