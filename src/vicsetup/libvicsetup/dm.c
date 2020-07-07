@@ -18,7 +18,11 @@
 
 #define DM_UUID_LEN 129
 
+// Uncomment to enable debug tracing (stdout) for dm-ioctl() create targets.
 // #define TRACE_TARGET
+
+// Uncomment to use experimental synchronization of dm-ioctl() create
+// operations. This does not seem to necessary at present.
 // #define USE_UDEV
 
 static vic_result_t _format_dev_uuid(
