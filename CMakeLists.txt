@@ -172,6 +172,7 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 add_library(lkl STATIC 
 	"${LKL_LIB_PATH}"
 	src/lkl/lkl_oe.c
+	src/lkl/oe_errno.c
 	)
 target_link_libraries(lkl PRIVATE openenclave::oecore)
 # Make internal OE headers available.
