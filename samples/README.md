@@ -13,7 +13,7 @@
 2. Containers
    
     a. [Alpine](containers/alpine) \
-        Miniroot is a quick way of building a small Alpine disk image, appropriate for use with sgx-musl hosting redis.
+        Miniroot is a quick way of building a small Alpine disk image, appropriate for use with sgx-lkl hosting redis.
         Some basic packages are installed by default and additions can be made
     
     b. [Encrypted](containers/encrypted) \
