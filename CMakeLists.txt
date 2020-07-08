@@ -8,15 +8,6 @@ project(SGX-LKL C CXX)
 # Conventions:
 # - All filenames/paths, and variables containing them, must be quoted.
 
-if (NOT CMAKE_GENERATOR STREQUAL "Ninja")
-	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
-endif()
-
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "No build type selected, default to Debug")
-  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
-endif()
-
 get_filename_component(real_binary_dir "${CMAKE_BINARY_DIR}" REALPATH)
 if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
 	message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
@@ -27,6 +18,7 @@ include(ProcessorCount)
 include(cmake/Helpers.cmake)
 include(cmake/RecursiveCopy.cmake)
 include(cmake/Constants.cmake)
+include(cmake/Options.cmake)
 include(cmake/BuildMetadata.cmake)
 
 set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
@@ -37,7 +29,6 @@ if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
     add_link_options("-fuse-ld=$ENV{LD}")
 endif()
 
-set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
 if (OE_PREFIX)
 	set(openenclave_DIR "${OE_PREFIX}/lib/openenclave/cmake")
 	find_package(openenclave REQUIRED)
@@ -61,13 +52,6 @@ else()
 		--search-path "${OPENENCLAVE_DIR}/include"
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
-
-set(LKL_DEBUG FALSE CACHE BOOL "Enable extra debugging for LKL")
-set(LIBC musl CACHE STRING "Libc implementation to build.  Currently only musl is supported")
-# Add "glibc" here once glibc is supported
-set_property(CACHE LIBC PROPERTY STRINGS "musl")
-set(SGXLKL_COPY_INDIVIDUAL_FILES FALSE CACHE BOOL
-	"Copy source files one at a time. This makes the initial build slower, but incremental builds faster.")
 
 if(LIBC STREQUAL "musl")
 	set(LIBC_IS_MUSL TRUE)

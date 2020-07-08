@@ -1,5 +1,3 @@
-include_guard(GLOBAL)
-
 # Paths
 set(LKL_SUBDIRECTORY "lkl")
 set(EXTERNAL_PROJECT_BASE_DIR "external")

@@ -24,7 +24,7 @@ function(copy_source_directory_to_output DIR EXCLUDE_PATHS)
 				list(APPEND ALL_COPIED_FILES ${NEW_FILES})
 			else()
 				list(APPEND FILES_COPIED ${DST})
-				if (SGXLKL_COPY_INDIVIDUAL_FILES)
+				if (COPY_INDIVIDUAL_FILES)
 					add_custom_command(OUTPUT ${DST}
 						COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" ${SRC} "${DEST_DIR}"
 						DEPENDS ${SRC}
