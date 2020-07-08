@@ -53,12 +53,6 @@ else()
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
 
-if(LIBC STREQUAL "musl")
-	set(LIBC_IS_MUSL TRUE)
-else()
-	message(FATAL_ERROR "${LIBC} is not a supported libc")
-endif()
-
 set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -fPIC -D__USE_GNU")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -240,7 +234,7 @@ target_link_libraries(${HOST_TOOL_NAME} PRIVATE
 	rt
 	json-c::json-c
 	openenclave::oehost
-	sgxlkl::build-metadata
+	sgx-lkl::build-metadata
 	)
 target_link_options(${HOST_TOOL_NAME} PRIVATE "LINKER:--gc-sections")
 # If we are configuring for the first build, add a fake dependency of this tool
@@ -304,6 +298,7 @@ ExternalProject_Add(sgx-lkl-musl-ep
 	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
 	BUILD_ALWAYS TRUE
 )
+set_target_properties(sgx-lkl-musl-ep PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
 list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
 set(MUSL_INCLUDE_DIRS "${INSTALL_DIR}/include")
@@ -321,7 +316,11 @@ add_library(sgx-lkl-musl INTERFACE)
 target_link_libraries(sgx-lkl-musl INTERFACE "${MUSL_LIBRARIES}")
 target_include_directories(sgx-lkl-musl INTERFACE "${MUSL_INCLUDE_DIRS}")
 add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
-add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
+
+if (LIBC STREQUAL "musl")
+	add_library(sgx-lkl::libc ALIAS sgx-lkl-musl)
+	set(SGXLKL_LIBC_COMPILER "${MUSL_C_COMPILER}")
+endif()
 
 # libext2fs (part of e2fsprogs) is used in userspace to dynamically create disks with ext4 filesystems.
 ExternalProject_Add(e2fsprogs-ep
@@ -329,13 +328,13 @@ ExternalProject_Add(e2fsprogs-ep
 	URL_HASH ${E2FSPROGS_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "CC=${CMAKE_C_COMPILER}"
 	COMMAND make -C "<BINARY_DIR>/util" # build-time tools that must not be built against musl
-	COMMAND "<SOURCE_DIR>/configure" "CC=${MUSL_C_COMPILER}" "CFLAGS=-DOMIT_COM_ERR" "--prefix=<INSTALL_DIR>"
+	COMMAND "<SOURCE_DIR>/configure" "CC=${SGXLKL_LIBC_COMPILER}" "CFLAGS=-DOMIT_COM_ERR" "--prefix=<INSTALL_DIR>"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES} libs
 	INSTALL_COMMAND make -C "<BINARY_DIR>/lib/ext2fs" install
 	COMMAND ${CMAKE_COMMAND} -E make_directory "<INSTALL_DIR>/include/et"
 	COMMAND ${CMAKE_COMMAND} -E touch "<INSTALL_DIR>/include/et/com_err.h"
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libext2fs.a"
-	DEPENDS sgx-lkl::musl
+	DEPENDS sgx-lkl::libc
 )
 ExternalProject_Get_property(e2fsprogs-ep INSTALL_DIR)
 add_library(ext2fs INTERFACE)
@@ -349,7 +348,7 @@ ExternalProject_Add(curl-ep
 	URL ${CURL_URL}
 	URL_HASH ${CURL_HASH}
 	CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env curl_disallow_alarm=yes "<SOURCE_DIR>/configure" 
-		"CC=${MUSL_C_COMPILER}"
+		"CC=${SGXLKL_LIBC_COMPILER}"
 		"CFLAGS=-DUSE_BLOCKING_SOCKETS"
 		"--prefix=<INSTALL_DIR>"
 		--disable-shared --with-pic
@@ -366,7 +365,7 @@ ExternalProject_Add(curl-ep
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libcurl.a"
-	DEPENDS sgx-lkl::musl
+	DEPENDS sgx-lkl::libc
 )
 ExternalProject_Get_property(curl-ep INSTALL_DIR)
 add_library(curl INTERFACE)
@@ -380,14 +379,14 @@ ExternalProject_Add(devicemapper-ep
 	URL ${DEVICEMAPPER_URL}
 	URL_HASH ${DEVICEMAPPER_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
-		"CC=${MUSL_C_COMPILER}"
+		"CC=${SGXLKL_LIBC_COMPILER}"
 		"CFLAGS=-Dptrdiff_t=intptr_t"
 		"--enable-static_link"
 		"--prefix=<INSTALL_DIR>"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libdevicemapper.a"
-	DEPENDS sgx-lkl::musl
+	DEPENDS sgx-lkl::libc
 )
 ExternalProject_Get_property(devicemapper-ep INSTALL_DIR)
 add_library(devicemapper INTERFACE)

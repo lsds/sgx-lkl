@@ -13,7 +13,11 @@ set(LKL_DEBUG FALSE CACHE BOOL "Enable extra debugging for LKL")
 
 set(LIBC musl CACHE STRING "Libc implementation to build.  Currently only musl is supported")
 # Add "glibc" here once glibc is supported
-set_property(CACHE LIBC PROPERTY STRINGS "musl")
+set(LIBC_NAMES "musl")
+set_property(CACHE LIBC PROPERTY STRINGS ${LIBC_NAMES})
+if(NOT LIBC IN_LIST LIBC_NAMES)
+    message(FATAL_ERROR "LIBC must be one of: ${LIBC_NAMES}")
+endif()
 
 set(COPY_INDIVIDUAL_FILES FALSE CACHE BOOL
     "Copy source files one at a time. This makes the initial build slower, but incremental builds faster.")

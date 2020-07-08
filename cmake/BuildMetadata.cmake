@@ -21,7 +21,7 @@ function(read_build_metadata)
         -DSGXLKL_VERSION="${SGXLKL_VERSION}"
         -DLKL_VERSION="${LKL_VERSION}"
         )
-    add_library(sgxlkl::build-metadata ALIAS sgxlkl_build_metadata)
+    add_library(sgx-lkl::build-metadata ALIAS sgxlkl_build_metadata)
 
     message(STATUS "SGX-LKL git commit: ${SGXLKL_GIT_COMMIT}")
     message(STATUS "SGX-LKL version: ${SGXLKL_VERSION}")
