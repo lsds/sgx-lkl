@@ -1,0 +1,4 @@
+{
+    "hd": "rootfs.img",
+    "hds": "data.img:/data:0"
+}

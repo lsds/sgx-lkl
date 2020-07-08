@@ -18,6 +18,7 @@ echo "SGX kernel module:"
 modinfo intel_sgx || echo "none"
 echo
 echo "Running SGX-LKL instances:"
+#shellcheck disable=SC2009
 ps -aux | grep sgx-lkl-run-oe | grep -v grep || echo "none"
 echo
 echo "Environment variables:"

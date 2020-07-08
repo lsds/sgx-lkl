@@ -6,12 +6,14 @@
 #define _GNU_SOURCE
 
 #include <sys/mman.h>
-#include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "shared/bitops.h"
 
+#include <enclave/lthread.h>
+
+#include "enclave/lthread_int.h"
 #include "enclave/enclave_mem.h"
 #include "enclave/enclave_util.h"
 #include "enclave/ticketlock.h"
@@ -164,6 +166,21 @@ void* syscall_SYS_mremap(
 
 int syscall_SYS_munmap(void* addr, size_t length)
 {
+    // During thread teardown, libc unmaps the stack of the current thread
+    // before doing an exit system call.  This works on a conventional system
+    // because it's possible to do an exit system call without a stack.  With
+    // LKL, the kernel and userspace share a stack and so any system call needs
+    // a stack.  We work around this by deferring any attempt to unmap the
+    // current stack.
+    register void *rsp __asm__ ("rsp");
+    if ((rsp > addr) && ((char*)rsp < ((char*)addr + length)))
+    {
+        struct lthread *lt = lthread_self();
+        SGXLKL_ASSERT(lt->attr.stack == NULL);
+        lt->attr.stack = addr;
+        lt->attr.stack_size = length;
+        return 0;
+    }
     enclave_munmap(addr, length);
     return 0;
 }
@@ -173,21 +190,10 @@ int syscall_SYS_msync(void* addr, size_t length, int flags)
     return 0;
 }
 
-int syscall_SYS_sysinfo(struct sysinfo* info)
+void enclave_mem_info(size_t* total, size_t* free)
 {
-    size_t total = mmap_num_pages * PAGESIZE;
-    size_t free = (mmap_num_pages - used_pages) * PAGESIZE;
-
-    info->totalram = total;
-    info->freeram = free;
-    info->totalswap = 0;
-    info->freeswap = 0;
-    info->procs = 1;
-    info->totalhigh = 0;
-    info->freehigh = 0;
-    info->mem_unit = 1;
-
-    return 0;
+    *total = mmap_num_pages * PAGESIZE;
+    *free = (mmap_num_pages - used_pages) * PAGESIZE;
 }
 
 /*

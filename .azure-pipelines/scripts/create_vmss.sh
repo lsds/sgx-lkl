@@ -31,8 +31,7 @@
 
 set -e
 
-expected_args=4
-if [[ $# != $expected_args ]]; then
+if [[ $# != 4 ]]; then
     echo "Usage: $0 <subscription> <region> <vmss-name> sgx|nosgx"
     echo "Example: $0 7150ce20-6afe... eastus ci-scaleset-sgx sgx"
     exit 1

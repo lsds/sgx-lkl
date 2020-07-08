@@ -15,7 +15,7 @@ EFAULT error behaviour is commented/disabled until github
 issue169 is fixed.
 
 diff --git a/testcases/kernel/syscalls/connect/connect01.c b/testcases/kernel/syscalls/connect/connect01.c
-index 0d7d15a83..9ff6d16da 100644
+index 0d7d15a83..8f45e257f 100644
 --- a/testcases/kernel/syscalls/connect/connect01.c
 +++ b/testcases/kernel/syscalls/connect/connect01.c
 @@ -44,6 +44,7 @@
@@ -79,8 +79,8 @@ index 0d7d15a83..9ff6d16da 100644
  void cleanup(void)
  {
 -	(void)kill(pid, SIGKILL);
-+	(void)close(sfd);
 +	SAFE_PTHREAD_JOIN(tid, NULL);
++	(void)close(sfd);
  
  }
  

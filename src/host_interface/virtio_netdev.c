@@ -227,15 +227,14 @@ static void virtio_net_fd_net_poll_hup(uint8_t netdev_id)
     close(nd_fd->pipe[1]);
 }
 
-// FIXME not called from anywhere
 /*
  * Function to close the net device
  */
-//static void virtio_net_fd_net_free(uint8_t netdev_id)
-//{
-//    struct netdev_fd* nd_fd = get_netdev_fd_instance(netdev_id);
-//    close(nd_fd->fd);
-//}
+static void virtio_net_fd_net_free(uint8_t netdev_id)
+{
+    struct netdev_fd* nd_fd = get_netdev_fd_instance(netdev_id);
+    close(nd_fd->fd);
+}
 
 /*
  * Function to perform tx operation
@@ -251,21 +250,37 @@ static int virtio_net_fd_net_tx(uint8_t netdev_id, struct iovec* iov, int cnt)
 
     if (ret < 0)
     {
-        if (errno != EAGAIN)
+        char tmp;
+
+        switch (errno)
         {
-            sgxlkl_host_fail(
-                "%s: write to fd failed: %s", __func__, strerror(errno));
-        }
-        else
-        {
-            char tmp;
-            nd_fd->poll_tx = 1;
-            int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
-            if (pipe_ret <= 0)
+            case EAGAIN:
+                nd_fd->poll_tx = 1;
+                int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
+
+                // Check if there was an error but the fd has not been closed
+                if (pipe_ret <= 0 && errno != EBADF)
+                    sgxlkl_host_fail(
+                        "%s: write to fd pipe failed: fd=%i ret=%i errno=%i %s",
+                        __func__,
+                        nd_fd->pipe[1],
+                        pipe_ret,
+                        errno,
+                        strerror(errno));
+                break;
+
+            // Check if the fd has been closed and return error
+            case EBADF:
+                break;
+
+            default:
                 sgxlkl_host_fail(
-                    "%s: Write to fd pipe failed: %s",
+                    "%s: write failed: fd=%i ret=%i errno=%i %s",
                     __func__,
-                    strerror(-pipe_ret));
+                    nd_fd->fd,
+                    ret,
+                    errno,
+                    strerror(errno));
         }
     }
     return ret;
@@ -286,22 +301,38 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
 
     if (ret < 0)
     {
-        if (errno != EAGAIN)
+
+        char tmp;
+
+        switch (errno)
         {
-            sgxlkl_host_info(
-                "%s: read failed fd: %d ret: %d errno: %d\n",
-                __func__,
-                nd_fd->fd,
-                ret,
-                errno);
-        }
-        else
-        {
-            char tmp;
-            nd_fd->poll_rx = 1;
-            int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
-            if (pipe_ret < 0)
-                sgxlkl_host_fail("%s: Write failed: %d\n", __func__, pipe_ret);
+            case EAGAIN:
+                nd_fd->poll_rx = 1;
+                int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
+
+                // Check if there was an error but the fd has not been closed
+                if (pipe_ret < 0 && errno != EBADF)
+                    sgxlkl_host_fail(
+                        "%s: write to fd pipe failed: fd=%i ret=%i errno=%i %s\n",
+                        __func__,
+                        nd_fd->pipe[1],
+                        pipe_ret,
+                        errno,
+                        strerror(errno));
+                break;
+
+            // Check if the fd has been closed and return error
+            case EBADF:
+                break;
+
+            default:
+                sgxlkl_host_info(
+                    "%s: read failed: fd=%d ret=%d errno=%i %s\n",
+                    __func__,
+                    nd_fd->fd,
+                    ret,
+                    errno,
+                    strerror(errno));
         }
     }
     return ret;
@@ -653,5 +684,6 @@ void net_dev_remove(uint8_t netdev_id)
 {
     struct virtio_net_dev* net_dev = get_virtio_netdev_instance(netdev_id);
     virtio_net_fd_net_poll_hup(netdev_id);
+    virtio_net_fd_net_free(netdev_id);
     pthread_join(net_dev->poll_tid, NULL);
 }

@@ -74,8 +74,8 @@ void syscall_register_fstat_overrides()
 {
     orig_fstat = (syscall_fstat_handler)lkl_replace_syscall(
         __lkl__NR_fstat,
-        (syscall_fstat_handler)syscall_fstat_override);
+        (lkl_syscall_handler_t)syscall_fstat_override);
     orig_newfstatat = (syscall_newfstatat_handler)lkl_replace_syscall(
         __lkl__NR_newfstatat,
-        (syscall_fstat_handler)syscall_newfstatat_override);
+        (lkl_syscall_handler_t)syscall_newfstatat_override);
 }

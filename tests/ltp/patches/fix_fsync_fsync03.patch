@@ -1,0 +1,15 @@
+Closing the open file descriptors in clean up
+
+diff --git a/testcases/kernel/syscalls/fsync/fsync03.c b/testcases/kernel/syscalls/fsync/fsync03.c
+index 60d15f429..aa42ec966 100644
+--- a/testcases/kernel/syscalls/fsync/fsync03.c
++++ b/testcases/kernel/syscalls/fsync/fsync03.c
+@@ -135,6 +135,8 @@ void setup(void)
+ void cleanup(void)
+ {
+ 
++	close(fd[0]);
++	close(fd[1]);
+ 	/* delete the test directory created in setup() */
+ 	tst_rmdir();
+ 

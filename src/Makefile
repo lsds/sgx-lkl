@@ -4,7 +4,7 @@ LIB_SGXLKL_BUILD ?= $(BUILD_DIR)
 
 srcdir = ${SGXLKL_ROOT}/src
 musl_srcdir = $(SGXLKL_LIBC_SRC_DIR)/src
-sgxlkl_toolsdir = ../tools
+sgxlkl_scriptsdir = ../scripts
 
 CC = gcc
 CROSS_COMPILE =
@@ -63,7 +63,8 @@ endif
 SGXLKL_OBJS=$(addprefix $(LIB_SGXLKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
 ${OE_ENCLAVE_CALLS}: sgxlkl.edl
-	${OE_OESIGN_TOOL_PATH}/oeedger8r --trusted $< --trusted-dir enclave/
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
+		--trusted $< --trusted-dir enclave/
 	mv enclave/sgxlkl_t.h include/enclave/; mv enclave/sgxlkl_args.h include/shared/
 	sed -i '/#include "sgxlkl_t.h"/c\#include "enclave/sgxlkl_t.h"' enclave/sgxlkl_t.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' enclave/sgxlkl_t.c
@@ -97,7 +98,8 @@ ifeq ($(findstring sgx_dcap_ql,$(OE_PKGCONFIG_OUTPUT)),sgx_dcap_ql)
 endif
 
 ${OE_HOST_CALLS}: sgxlkl.edl
-	${OE_OESIGN_TOOL_PATH}/oeedger8r --untrusted $< --untrusted-dir main-oe/
+	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
+		--untrusted $< --untrusted-dir main-oe/
 	mv main-oe/sgxlkl_u.h include/host/; mv main-oe/sgxlkl_args.h include/shared/
 	sed -i '/#include "sgxlkl_u.h"/c\#include "host/sgxlkl_u.h"' main-oe/sgxlkl_u.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' main-oe/sgxlkl_u.c
@@ -111,7 +113,7 @@ $(MAIN_OE_OBJS): $(LIB_SGXLKL_BUILD)/main-oe/%.o: %.c | ${OE_HOST_CALLS}
 $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET): $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a $(OE_SDK_LIBS)/openenclave/host/liboehost.a builddirs
 	@echo "CC $<"
 	@$(CC) $(CFLAGS_MAIN) -o $@ $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a -ljson-c -lcrypto $(LINK_MAIN) \
-	-pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_toolsdir)/sgx-lkl.ld -L$(OE_SDK_LIBS)/openenclave/host -rdynamic \
+	-pthread -ldl -lrt -lz -lm -Wl,-T $(sgxlkl_scriptsdir)/sgx-lkl.ld -L$(OE_SDK_LIBS)/openenclave/host -rdynamic \
 	-Wl,-z,noexecstack -loehost -ldl -lsgx_enclave_common -lsgx_urts -lssl -lcrypto $(DCAP_LIB)
 
 $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a: $(MAIN_OE_OBJS) builddirs
