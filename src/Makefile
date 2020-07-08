@@ -49,7 +49,7 @@ builddirs:
 
 # Build enclave static library: libsgxlkl.a
 
-SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
+SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) $(wildcard user/*.c) \
               $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
