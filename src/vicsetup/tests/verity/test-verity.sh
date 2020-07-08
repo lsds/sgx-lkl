@@ -36,20 +36,17 @@ if [ -z "${BLKSZ}" ]; then
     BLKSZ=4096
 fi
 
-BLKSZ_OPTS+="--data-block-size=${BLKSZ} "
-BLKSZ_OPTS+="--hash-block-size=${BLKSZ} "
-
 TMP=$(/bin/mktemp)
 
-veritysetup format ${BLKSZ_OPTS} verity verity.hash > ${TMP}
-if [ "$?" != "0" ]; then
+if ! veritysetup format --data-block-size="${BLKSZ}" --hash-block-size="${BLKSZ}" verity verity.hash > "${TMP}";
+then
     echo "$0: *** veritysetup failed"
     exit 1
 fi
 
-root=$(grep "Root hash:" ${TMP} | sed 's/Root hash:[\t ]*//g')
-salt=$(grep "Salt:" ${TMP} | sed 's/Salt:[\t ]*//g')
-uuid=$(grep "UUID:" ${TMP} | sed 's/UUID:[\t ]*//g')
+root=$(grep "Root hash:" "${TMP}" | sed 's/Root hash:[\t ]*//g')
+salt=$(grep "Salt:" "${TMP}" | sed 's/Salt:[\t ]*//g')
+uuid=$(grep "UUID:" "${TMP}" | sed 's/UUID:[\t ]*//g')
 
 #echo root=${root}
 #echo uuid=${uuid}
@@ -60,8 +57,8 @@ uuid=$(grep "UUID:" ${TMP} | sed 's/UUID:[\t ]*//g')
 ##
 ##==============================================================================
 
-vicsetup verityFormat --salt "${salt}" --uuid "${uuid}" ${BLKSZ_OPTS} verity hashtree > /dev/null
-if [ "$?" != "0" ]; then
+if ! vicsetup verityFormat --salt "${salt}" --uuid "${uuid}" --data-block-size="${BLKSZ}" --hash-block-size="${BLKSZ}" verity hashtree > /dev/null;
+then
     echo "$0: *** vicsetup hashtree failed"
     exit 1
 fi
@@ -72,8 +69,8 @@ fi
 ##
 ##==============================================================================
 
-cmp verity.hash hashtree
-if [ "$?" != "0" ]; then
+if ! cmp verity.hash hashtree;
+then
     echo "$0: *** hash tree comparison failed"
     exit 1
 fi
@@ -89,16 +86,16 @@ echo "success"
 ##==============================================================================
 
 dm_name=testverity
-vicsetup verityOpen verity ${dm_name} hashtree ${root}
-if [ "$?" != "0" ]; then
+if ! vicsetup verityOpen verity "${dm_name}" hashtree "${root}";
+then
     echo "$0: *** vicsetup verityOpen failed"
     exit 1
 fi
 
 TMP=$(/bin/mktemp)
 
-dd if=/dev/mapper/${dm_name} of=${TMP} > /dev/null 2> /dev/null
-cmp ${TMP} verity
-rm ${TMP}
+dd if=/dev/mapper/"${dm_name}" of="${TMP}" > /dev/null 2> /dev/null
+cmp "${TMP}" verity
+rm "${TMP}"
 
-vicsetup verityClose ${dm_name}
+vicsetup verityClose "${dm_name}"
