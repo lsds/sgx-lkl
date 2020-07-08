@@ -4,7 +4,7 @@
     Multi-threaded environment.
 
 diff --git a/testcases/kernel/syscalls/setreuid/setreuid07.c b/testcases/kernel/syscalls/setreuid/setreuid07.c
-index ff222cd00..57495d464 100644
+index ff222cd00..b1fdc1c59 100644
 --- a/testcases/kernel/syscalls/setreuid/setreuid07.c
 +++ b/testcases/kernel/syscalls/setreuid/setreuid07.c
 @@ -23,8 +23,8 @@
@@ -26,7 +26,7 @@ index ff222cd00..57495d464 100644
  
  #include "test.h"
  #include "safe_macros.h"
-@@ -49,34 +50,49 @@ static int fd = -1;
+@@ -49,34 +50,50 @@ static int fd = -1;
  
  static void setup(void);
  static void cleanup(void);
@@ -50,12 +50,12 @@ index ff222cd00..57495d464 100644
 -		do_master_child();
 -
 -	tst_record_childstatus(cleanup, pid);
-+        if(pthread_create(&threadid, NULL, do_master_thread, NULL))
-+        {
-+                tst_brkm(TBROK, cleanup, "Thread creation failed");
-+        }
-+        //wait for the thread to join
-+        pthread_join(threadid, NULL);
++	if (pthread_create(&threadid, NULL, do_master_thread, NULL))
++	{
++		tst_brkm(TBROK, cleanup, "Thread creation failed");
++	}
++	//wait for the thread to join
++	pthread_join(threadid, NULL);
  
 +	tst_resm(TPASS, "Test case passed");
  	cleanup();
@@ -65,20 +65,21 @@ index ff222cd00..57495d464 100644
 -static void do_master_child(void)
 +static void *do_sub_thread(void* arg)
 +{
-+        int tst_fd2;
++	int tst_fd2;
 +
 +        //Test to open the file in thread2 created by thread1
-+        TEST(tst_fd2 = open(testfile, O_RDWR));
++	TEST(tst_fd2 = open(testfile, O_RDWR));
 +
-+        if (TEST_RETURN != -1) {
-+                tst_resm(TPASS,
-+                        "open call succeeded as expected in thread2");
-+                close(tst_fd2);
-+        } else {
-+                tst_brkm(TBROK, cleanup,
-+                        "open failed unexpectedly in thread2");
-+        }
-+        pthread_exit(NULL);
++	if (TEST_RETURN != -1) {
++		tst_resm(TPASS,
++			"open call succeeded as expected in thread2");
++	} else {
++		tst_brkm(TBROK, cleanup,
++			"open failed unexpectedly in thread2");
++	}
++	if (tst_fd2 >= 0)
++		close(tst_fd2);
++	pthread_exit(NULL);
 +}
 +
 +static void* do_master_thread(void* arg)
@@ -90,25 +91,24 @@ index ff222cd00..57495d464 100644
  
  	for (lc = 0; TEST_LOOPING(lc); lc++) {
  		int tst_fd;
-@@ -84,8 +100,7 @@ static void do_master_child(void)
+@@ -84,8 +101,7 @@ static void do_master_child(void)
  		tst_count = 0;
  
  		if (SETREUID(NULL, 0, ltpuser->pw_uid) == -1) {
 -			perror("setreuid failed");
 -			exit(TFAIL);
-+                        tst_brkm(TBROK, cleanup, "setreuid failed");
++			tst_brkm(TBROK, cleanup, "setreuid failed");
  		}
  
  		/* Test 1: Check the process with new uid cannot open the file
-@@ -94,74 +109,45 @@ static void do_master_child(void)
+@@ -94,74 +110,49 @@ static void do_master_child(void)
  		TEST(tst_fd = open(testfile, O_RDWR));
  
  		if (TEST_RETURN != -1) {
 -			printf("open succeeded unexpectedly\n");
 -			close(tst_fd);
 -			exit(TFAIL);
-+                        close(tst_fd);
-+		        tst_brkm(TBROK, cleanup, "open succeeded unexpectedly");
++			tst_brkm(TBROK, cleanup, "open succeeded unexpectedly");
  		}
  
  		if (TEST_ERRNO == EACCES) {
@@ -118,6 +118,10 @@ index ff222cd00..57495d464 100644
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
 +			tst_brkm(TBROK, cleanup, "open failed unexpectedly");
++		}
++		if (tst_fd >=0 )
++		{
++			close(fd);
  		}
  
  		/* Test 2: Check a son process cannot open the file
@@ -154,14 +158,13 @@ index ff222cd00..57495d464 100644
 -			}
 -			if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0))
 -				exit(WEXITSTATUS(status));
--		}
 +
-+		if(pthread_create(&tid, NULL, do_sub_thread, NULL) != 0)
-+                {
-+                        tst_brkm(TBROK, cleanup, "Thread creation failed");
-+                }
-+                // wait for the thread to complete the test
-+                pthread_join(tid, NULL);
++		if (pthread_create(&tid, NULL, do_sub_thread, NULL) != 0)
++		{
++			tst_brkm(TBROK, cleanup, "Thread creation failed");
+ 		}
++	 	// wait for the thread to complete the test
++		pthread_join(tid, NULL);
  
  		/* Test 3: Fallback to initial uid and check we can again open
  		 *         the file with RDWR permissions.
@@ -178,16 +181,27 @@ index ff222cd00..57495d464 100644
  		if (TEST_RETURN == -1) {
 -			perror("open failed unexpectedly");
 -			exit(TFAIL);
-+		        tst_brkm(TBROK, cleanup, "open failed unexpectedly");
++			tst_brkm(TBROK, cleanup, "open failed unexpectedly");
  		} else {
 -			printf("open call succeeded\n");
 -			close(tst_fd);
-+		        tst_resm(TPASS, "open call succeeded");
-+                        close(tst_fd);
++			tst_resm(TPASS, "open call succeeded");
  		}
++		if (tst_fd >= 0)
++			close(tst_fd);
  	}
 -	exit(TPASS);
 +	pthread_exit(NULL);
  }
  
  static void setup(void)
+@@ -186,7 +177,8 @@ static void setup(void)
+ 
+ static void cleanup(void)
+ {
+-	close(fd);
++	if (fd >= 0)
++		close(fd);
+ 
+ 	tst_rmdir();
+ }

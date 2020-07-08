@@ -1,0 +1,16 @@
+Patch to add a TPASS message after test pass.
+diff --git a/testcases/kernel/syscalls/syslog/syslogtst.c b/testcases/kernel/syscalls/syslog/syslogtst.c
+index 6950419ce..e0bb4c559 100644
+--- a/testcases/kernel/syscalls/syslog/syslogtst.c
++++ b/testcases/kernel/syscalls/syslog/syslogtst.c
+@@ -297,7 +297,10 @@ int main(int argc, char *argv[])
+ 	if (exit_flag == 1)
+ 		exit(1);
+ 	else
++	{
++		tst_resm(TPASS, "syslogt passed all test cases");	
+ 		exit(0);
++	}
+ 
+ }
+ 

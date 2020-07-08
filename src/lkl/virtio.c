@@ -14,6 +14,8 @@
 #include <linux/virtio_blk.h>
 #include <linux/virtio_mmio.h>
 
+#include "openenclave/corelibc/oestring.h"
+
 #define VIRTIO_DEV_MAGIC 0x74726976
 #define VIRTIO_DEV_VERSION 2
 
@@ -311,7 +313,7 @@ int lkl_virtio_dev_setup(
     if (!lkl_is_running())
     {
         avail = sizeof(lkl_virtio_devs) - (devs - lkl_virtio_devs);
-        num_bytes = snprintf(
+        num_bytes = oe_snprintf(
             devs,
             avail,
             " virtio_mmio.device=%d@0x%" PRIxPTR ":%d",

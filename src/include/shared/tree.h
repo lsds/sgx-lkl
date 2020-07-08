@@ -23,6 +23,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// clang-format off
+
 #ifndef	_SYS_TREE_H_
 #define	_SYS_TREE_H_
 

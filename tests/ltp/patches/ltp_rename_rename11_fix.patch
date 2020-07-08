@@ -1,0 +1,42 @@
++ Patch Description: Tests were failing with kernel panic in loop filesystem. 
++ So modified the tests to use root file system.
+diff --git a/testcases/kernel/syscalls/rename/rename11.c b/testcases/kernel/syscalls/rename/rename11.c
+index 17cf04c85..04776b04d 100644
+--- a/testcases/kernel/syscalls/rename/rename11.c
++++ b/testcases/kernel/syscalls/rename/rename11.c
+@@ -53,8 +53,8 @@ char *TCID = "rename11";
+ static char elooppathname[sizeof(ELOPFILE) * 43] = ".";
+ static int max_subdirs;
+
+-static const char *device;
+-static const char *fs_type;
++static const char *device = "/dev/vda";
++static const char *fs_type = "ext4";
+ static int mount_flag;
+
+ static void cleanup(void);
+@@ -98,14 +98,6 @@ static void setup(void)
+
+        TEST_PAUSE;
+
+-       fs_type = tst_dev_fs_type();
+-       device = tst_acquire_device(cleanup);
+-
+-       if (!device)
+-               tst_brkm(TCONF, cleanup, "Failed to obtain block device");
+-
+-       tst_mkfs(cleanup, device, fs_type, NULL, NULL);
+-
+        SAFE_MKDIR(cleanup, MNTPOINT, 0755);
+        SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, NULL);
+        mount_flag = 1;
+@@ -180,8 +172,5 @@ static void cleanup(void)
+        if (mount_flag && tst_umount(MNTPOINT) < 0)
+                tst_resm(TWARN | TERRNO, "umount device:%s failed", device);
+
+-       if (device)
+-               tst_release_device(device);
+-
+        tst_rmdir();
+ }
+

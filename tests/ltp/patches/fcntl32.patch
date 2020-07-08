@@ -1,6 +1,6 @@
 Test was failing as it used RAMFS. Fix is to use root file system.
 diff --git a/testcases/kernel/syscalls/fcntl/fcntl32.c b/testcases/kernel/syscalls/fcntl/fcntl32.c
-index f567acc70..2d9b574cc 100644
+index f567acc70..eeea3896b 100644
 --- a/testcases/kernel/syscalls/fcntl/fcntl32.c
 +++ b/testcases/kernel/syscalls/fcntl/fcntl32.c
 @@ -31,6 +31,9 @@ static void verify_fcntl(int);
@@ -22,7 +22,7 @@ index f567acc70..2d9b574cc 100644
  
  int main(int ac, char **av)
  {
-@@ -77,29 +82,17 @@ int main(int ac, char **av)
+@@ -77,29 +82,16 @@ int main(int ac, char **av)
  static void setup(void)
  {
  	tst_sig(NOFORK, DEF_HANDLER, cleanup);
@@ -43,7 +43,6 @@ index f567acc70..2d9b574cc 100644
 -	}
 +	rmdir(MNTPOINT);
 +	SAFE_MKDIR(cleanup, MNTPOINT, DIR_MODE);
-+	SAFE_MOUNT(cleanup, device, MNTPOINT, fs_type, 0, NULL);
  
 -	SAFE_TOUCH(cleanup, "file", FILE_MODE, NULL);
 +	SAFE_TOUCH(cleanup, FILENAME, FILE_MODE, NULL);
@@ -58,12 +57,11 @@ index f567acc70..2d9b574cc 100644
  
  	TEST(fcntl(fd1, F_SETLEASE, F_WRLCK));
  
-@@ -132,6 +125,8 @@ static void cleanup(void)
+@@ -132,6 +124,7 @@ static void cleanup(void)
  
  	if (fd2 > 0 && close(fd2))
  		tst_resm(TWARN | TERRNO, "Failed to close file");
 +	remove(FILENAME);
-+	SAFE_UMOUNT(NULL, MNTPOINT);
 +	SAFE_RMDIR(NULL, MNTPOINT);
  
 -	tst_rmdir();

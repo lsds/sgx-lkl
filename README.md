@@ -58,7 +58,8 @@ echo "deb [trusted=yes] https://clcpackages.blob.core.windows.net/apt/1fa5fb889b
 Now, install with:
 ```sh
 sudo apt update
-sudo apt install clc
+# or: sgx-lkl-nonrelease (-release variant will follow)
+sudo apt install sgx-lkl-debug
 ```
 
 The FSGSBASE DKMS driver can be installed with:
@@ -93,7 +94,7 @@ sudo apt-get install make gcc g++ bc python xutils-dev bison flex libgcrypt20-de
 
 2. Clone the SGX-LKL git repository:
 ```
-git clone --branch oe_port git@github.com:lsds/sgx-lkl.git
+git clone --branch oe_port --recursive https://github.com/lsds/sgx-lkl.git
 cd sgx-lkl
 ```
 

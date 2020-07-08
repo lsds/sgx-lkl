@@ -9,6 +9,8 @@
 #define ENCLAVE_MMAP_FILES_PRIVATE 1
 #define ENCLAVE_MMAP_FILES_SHARED 2
 
+struct timespec;
+
 void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files);
 
 void* enclave_mmap(
@@ -29,7 +31,10 @@ void* enclave_mremap(
 
 int enclave_mmap_flags_supported(int flags, int fd);
 
-int syscall_SYS_sysinfo(struct sysinfo* info);
+/**
+ * Report memory usages (total and free bytes) in enclave
+ */
+void enclave_mem_info(size_t* total, size_t* free);
 
 int syscall_SYS_munmap(void* addr, size_t length);
 

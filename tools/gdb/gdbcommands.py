@@ -10,14 +10,15 @@ def gdb_execute(command):
         print(output)
         gdb.execute("refresh")
 
+
 class LKLFinishBreakpoint(gdb.FinishBreakpoint):
     """
         Replacement for FinishBreakpoint that works with the
         LKL thread scheduler.
     """
+
     def __init__(self, frame):
-        super(LKLFinishBreakpoint, self).__init__(frame,
-                                                  internal=True)
+        super(LKLFinishBreakpoint, self).__init__(frame, internal=True)
         # Set the breakpoint as having no specific thread so
         # that it is robust to LKL thread switching.
         self.thread = None
@@ -30,7 +31,7 @@ class LKLFinishBreakpoint(gdb.FinishBreakpoint):
         # the stack frames and hence RSP will be preserved. Thus the
         # caller RSP acts as a good unique identifier for this
         # finish breakpoint.
-        self.caller_rsp = frame.older().read_register('rsp')
+        self.caller_rsp = frame.older().read_register("rsp")
 
         # For host/enclave transition boundary, this seems to be needed.
         self.caller_frame_id = str(frame.older())
@@ -41,11 +42,13 @@ class LKLFinishBreakpoint(gdb.FinishBreakpoint):
             # If another thread hits this breakpoint, its caller RSP
             # will be different.
             frame = gdb.newest_frame()
-            current_rsp = frame.read_register('rsp')
+            current_rsp = frame.read_register("rsp")
             current_frame_id = str(frame)
-            if current_rsp == self.caller_rsp or \
-               current_frame_id == self.caller_frame_id:
-                #TODO: Better return value printing.
+            if (
+                current_rsp == self.caller_rsp
+                or current_frame_id == self.caller_frame_id
+            ):
+                # TODO: Better return value printing.
                 print("Value returned is " + str(self.return_value))
                 self.correct_hit_count = 1
                 return True
@@ -59,12 +62,15 @@ class LKLFinish(gdb.Command):
         A drop in replacement for GDB's 'finish' command that works
         with the LKL thread scheduler.
     """
+
     def __init__(self):
         # Override the 'finish' command. Change this to 'lkl-finish' if you
         # want to retain the original implementation.
-        command = 'finish'
-        print("Overriding 'finish' with LKL compatible 'lkl-finish'. "
-              "finish will now work with LKL.")
+        command = "finish"
+        print(
+            "Overriding 'finish' with LKL compatible 'lkl-finish'. "
+            "finish will now work with LKL."
+        )
         super(LKLFinish, self).__init__(command, gdb.COMMAND_USER)
 
     @staticmethod
@@ -87,7 +93,7 @@ class LKLFinish(gdb.Command):
         bp = LKLFinishBreakpoint(frame)
 
         # Continue execution
-        gdb_execute('continue')
+        gdb_execute("continue")
 
         # Check if we stopped due to finish breakpoint being hit
         # or due to some other reason
@@ -98,9 +104,11 @@ class LKLFinish(gdb.Command):
         return hit
 
     def print_advice(self):
-        print("lkl-finish could not determine what to do. "
-              "It is recommended that you manually place a breakpoint "
-              "and continue at this time.")
+        print(
+            "lkl-finish could not determine what to do. "
+            "It is recommended that you manually place a breakpoint "
+            "and continue at this time."
+        )
 
     def invoke(self, arg, from_tty):
         try:
@@ -120,9 +128,9 @@ class LKLBreakpoint(gdb.Breakpoint):
     """
         Thread-specific breakpoint that works LKL thread scheduler.
     """
+
     def __init__(self, where, frame):
-        super(LKLBreakpoint, self).__init__(where,
-                                            internal=True)
+        super(LKLBreakpoint, self).__init__(where, internal=True)
         # Set the breakpoint as having no specific thread so
         # that it is robust to LKL context switching.
         self.thread = None
@@ -150,27 +158,29 @@ class LKLBreakpoint(gdb.Breakpoint):
             frame_id = str(frame)
             caller_frame = frame.older()
             caller_frame_id = str(caller_frame) if caller_frame else None
-            if frame_id == self.frame_id \
-               or caller_frame_id == self.caller_frame_id:
+            if frame_id == self.frame_id or caller_frame_id == self.caller_frame_id:
                 self.correct_hit_count = 1
                 return True
         except:
             pass
         return False
 
+
 class LKLNext(gdb.Command):
     """
         A drop in replacement for GDB's 'next' command that works
         with the LKL thread scheduler.
     """
+
     def __init__(self):
         # Override the 'next' command. Change this to 'lkl-next' if you
         # want to retain the original implementation.
-        command = 'next'
-        print("Overriding 'next' with LKL compatible 'lkl-next'. "
-              "next and n will now work with LKL.")
+        command = "next"
+        print(
+            "Overriding 'next' with LKL compatible 'lkl-next'. "
+            "next and n will now work with LKL."
+        )
         super(LKLNext, self).__init__(command, gdb.COMMAND_USER)
-
 
     def current_frame(self):
         try:
@@ -205,14 +215,15 @@ class LKLNext(gdb.Command):
             return None
 
     def print_advice(self):
-        print("lkl-next could not determine what to do. "
-              "It is recommended that you manually place a breakpoint "
-              "and continue at this time.")
+        print(
+            "lkl-next could not determine what to do. "
+            "It is recommended that you manually place a breakpoint "
+            "and continue at this time."
+        )
 
     def intelligent_step(self, frame, sal):
         # Disassemble instructions at current pc.
-        asm = frame.architecture().disassemble(start_pc=frame.pc(),
-                                               end_pc=sal.last)
+        asm = frame.architecture().disassemble(start_pc=frame.pc(), end_pc=sal.last)
 
         # We want to put a breakpoint and then 'continue' execution
         # till that breakpoint. It is safe to 'continue' execution
@@ -222,16 +233,16 @@ class LKLNext(gdb.Command):
         # for jumps (all start with 'j') or ret instruction.
         bp_addr = None
         for a in asm[1:]:
-            ins = a['asm']
-            if ins.startswith('j') or ins.startswith('ret'):
-                bp_addr = a['addr']
+            ins = a["asm"]
+            if ins.startswith("j") or ins.startswith("ret"):
+                bp_addr = a["addr"]
                 break
 
         # gcc 8 and above generate endbr64 as the first instruction in
         # a function. An address breakpoint set immediately after it does
         # not work. It is better to do a step.
         # E.g: b lkl_poststart_net
-        if len(asm) == 1 and asm[0]['asm'].startswith('endbr64'):
+        if len(asm) == 1 and asm[0]["asm"].startswith("endbr64"):
             return False
 
         # Check if the current source line has a jump or return.
@@ -241,13 +252,13 @@ class LKLNext(gdb.Command):
             # step.
             if bp_addr == frame.pc():
                 return False
-            bp = LKLBreakpoint('*' + hex(a['addr']), frame)
+            bp = LKLBreakpoint("*" + hex(a["addr"]), frame)
         else:
             # The source line does not have branches or returns.
             # Set breakpoint at beyond the last instruction.
             last_insn = asm[-1]
-            location = last_insn['addr'] + last_insn['length']
-            bp = LKLBreakpoint('*' + hex(location), frame)
+            location = last_insn["addr"] + last_insn["length"]
+            bp = LKLBreakpoint("*" + hex(location), frame)
 
         # Continue execution till the breakpoint. But we could
         # stop due to some other reason (another breakpoint or exception)
@@ -287,21 +298,21 @@ class LKLNext(gdb.Command):
             # TODO: See if we can avoid stepping and use only
             # breakpoints and continue.
             while not done:
-                 # Check if the current location has a frame
+                # Check if the current location has a frame
                 cur_frame = self.current_frame()
                 if not cur_frame:
-                    gdb_execute('step')
+                    gdb_execute("step")
                     continue
 
                 # Check if the current location has line information.
                 cur_sal = self.current_sal()
                 if not cur_sal:
-                    gdb_execute('step')
+                    gdb_execute("step")
                     continue
 
                 # If we are still in the starting line, step again.
                 if cur_sal.line == start_sal.line:
-                    gdb_execute('step')
+                    gdb_execute("step")
                     continue
 
                 # The line number is different.
@@ -336,42 +347,46 @@ class LKLNexti(gdb.Command):
         A drop in replacement for GDB's 'nexti' command that works
         with the LKL thread scheduler.
     """
+
     def __init__(self):
         # Override the 'nexti' command. Change this to 'lkl-nexti' if you
         # want to retain the original implementation.
-        command = 'nexti'
-        print("Overriding 'nexti' with LKL compatible 'lkl-nexti'. "
-              "nexti and ni will now work with LKL.")
+        command = "nexti"
+        print(
+            "Overriding 'nexti' with LKL compatible 'lkl-nexti'. "
+            "nexti and ni will now work with LKL."
+        )
         super(LKLNexti, self).__init__(command, gdb.COMMAND_USER)
 
     def print_advice(self):
-        print("lkl-nexti could not determine what to do. "
-              "It is recommended that you manually place a breakpoint "
-              "and continue at this time.")
+        print(
+            "lkl-nexti could not determine what to do. "
+            "It is recommended that you manually place a breakpoint "
+            "and continue at this time."
+        )
 
     def invoke(self, arg, from_tty):
         try:
             # Disassemble two instructions from current pc.
             frame = gdb.newest_frame()
-            asm = frame.architecture().disassemble(start_pc=frame.pc(),
-                                                   count=2)
+            asm = frame.architecture().disassemble(start_pc=frame.pc(), count=2)
 
             # Determine if the current instruction is a call.
             # If false, invoke stepi.
             curr_ins = asm[0]
-            if curr_ins['asm'].find('call') == -1:
-                gdb.execute('stepi')
+            if curr_ins["asm"].find("call") == -1:
+                gdb.execute("stepi")
                 return
 
             # Special case: the very last instruction is a call. Invoke stepi.
             # Note that this should be a rare case.
             if len(asm) < 2:
-                gdb.execute('stepi')
+                gdb.execute("stepi")
                 return
 
             # If true, set a break point at the next instruction and continue.
             next_ins = asm[1]
-            bp = LKLBreakpoint('*' + hex(next_ins['addr']), frame)
+            bp = LKLBreakpoint("*" + hex(next_ins["addr"]), frame)
             if bp:
                 gdb.execute("continue")
                 if bp.is_valid():
@@ -385,10 +400,12 @@ class LKLNexti(gdb.Command):
             print(ex)
             self.print_advice()
 
+
 def register():
     LKLFinish()
     LKLNext()
     LKLNexti()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     register()

@@ -308,7 +308,7 @@ static void help_config()
         "%-35s %s",
         "  SGXLKL_WG_PEERS",
         "Comma-separated list of Wireguard peers in the format "
-        "\"key1:allowedips1:endpointhost1:port1, key2:allowedips2:...\".\n");
+        "\"{key 1}:{allowed IPs 1}:{endpoint host 1}:{port 1}, {key 2}:{allowed IPs 2}, {key 3}:...\".\n");
     printf("## Disk ##\n");
     printf(
         "%-35s %s",
@@ -876,9 +876,16 @@ void set_wg(sgxlkl_config_t* conf)
         char* ips = strchrnul(key, ':');
         *ips = '\0';
         ips++;
+
         char* ips_end = strchrnul(ips, ':');
-        *ips_end = '\0';
-        char* endpoint = ++ips_end;
+	// another ':', possible endpoint following, need to advance string
+        if (*ips_end == ':')
+        {
+	    *ips_end = '\0';
+	    ips_end++;
+        }
+
+        char* endpoint = ips_end;
         peers_str = strchrnul(endpoint, ',');
         if (*peers_str == ',')
         {
