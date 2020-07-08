@@ -1,3 +1,5 @@
+include_guard(GLOBAL)
+
 function(mkdir DIRECTORY)
 	execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${DIRECTORY}")
 endfunction()

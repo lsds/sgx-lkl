@@ -8,10 +8,6 @@ project(SGX-LKL C CXX)
 # Conventions:
 # - All filenames/paths, and variables containing them, must be quoted.
 
-if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
-    add_link_options("-fuse-ld=$ENV{LD}")
-endif()
-
 if (NOT CMAKE_GENERATOR STREQUAL "Ninja")
 	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
 endif()
@@ -27,13 +23,19 @@ if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
 endif()
 
 include(ExternalProject)
-set_directory_properties(PROPERTIES EP_BASE "external")
-
 include(ProcessorCount)
-ProcessorCount(NUMBER_OF_CORES)
-
 include(cmake/Helpers.cmake)
 include(cmake/RecursiveCopy.cmake)
+include(cmake/Constants.cmake)
+include(cmake/BuildMetadata.cmake)
+
+set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
+ProcessorCount(NUMBER_OF_CORES)
+read_build_metadata()
+
+if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
+    add_link_options("-fuse-ld=$ENV{LD}")
+endif()
 
 set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
 if (OE_PREFIX)
@@ -59,27 +61,6 @@ else()
 		--search-path "${OPENENCLAVE_DIR}/include"
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
-
-set(LKL_SUBDIRECTORY "lkl")
-set(THIRD_PARTY_DOWNLOADS_DIRECTORY "${CMAKE_BINARY_DIR}/third_party")
-
-execute_process(
-	COMMAND git rev-parse --short HEAD
-	OUTPUT_VARIABLE SGXLKL_GIT_COMMIT
-	WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-string(STRIP "${SGXLKL_GIT_COMMIT}" SGXLKL_GIT_COMMIT)
-
-file(READ "VERSION" SGXLKL_VERSION)
-string(STRIP "${SGXLKL_VERSION}" SGXLKL_VERSION)
-
-execute_process(
-	COMMAND make --quiet -C "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}" kernelversion
-	OUTPUT_VARIABLE LKL_VERSION)
-string(STRIP "${LKL_VERSION}" LKL_VERSION)
-
-message(STATUS "SGX-LKL git commit: ${SGXLKL_GIT_COMMIT}")
-message(STATUS "SGX-LKL version: ${SGXLKL_VERSION}")
-message(STATUS "LKL version: ${LKL_VERSION}")
 
 set(LKL_DEBUG FALSE CACHE BOOL "Enable extra debugging for LKL")
 set(LIBC musl CACHE STRING "Libc implementation to build.  Currently only musl is supported")
@@ -151,8 +132,8 @@ add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
 	COMMENT "Overriding LKL default configuration")
 
 ExternalProject_Add(wireguard-ep
-	URL https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz
-	URL_HASH SHA256=5aba6f0c38e97faa0b155623ba594bb0e4bd5e29deacd8d5ed8bda8d8283b0e7
+	URL ${WIREGUARD_URL}
+	URL_HASH ${WIREGUARD_HASH}
 	CONFIGURE_COMMAND ""
 	BUILD_COMMAND ""
 	INSTALL_COMMAND ""
@@ -206,16 +187,6 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
 
 add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
-add_custom_target(sgx-lkl ALL DEPENDS build-lkl)
-
-add_definitions(
-	-DSGXLKL_GIT_COMMIT="${SGXLKL_GIT_COMMIT}"
-	-DSGXLKL_VERSION="${SGXLKL_VERSION}"
-	-DLKL_VERSION="${LKL_VERSION}"
-	)
-
-
-set(HOST_TOOL_NAME sgx-lkl-run)
 
 file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
 file(GLOB HOSTINTERFACE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/host_interface/*.c")
@@ -253,8 +224,8 @@ add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 	)
 
 ExternalProject_Add(json-c-ep
-	URL https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz
-	URL_HASH SHA256=5d867baeb7f540abe8f3265ac18ed7a24f91fe3c5f4fd99ac3caba0708511b90
+	URL ${JSON_C_URL}
+	URL_HASH ${JSON_C_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "CC=${CMAKE_C_COMPILER}" "--prefix=<INSTALL_DIR>"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
@@ -267,6 +238,8 @@ target_include_directories(json-c INTERFACE "${INSTALL_DIR}/include")
 add_dependencies(json-c json-c-ep)
 add_library(json-c::json-c ALIAS json-c)
 
+find_package(Threads REQUIRED)
+
 add_executable(${HOST_TOOL_NAME}
 	${MAIN_C_SRCS}
 	${HOSTINTERFACE_C_SRCS}
@@ -278,7 +251,13 @@ target_include_directories(${HOST_TOOL_NAME} PRIVATE
 	"${CMAKE_BINARY_DIR}/geninclude"
 	"${CMAKE_BINARY_DIR}/lkl-headers/include"
 	)
-target_link_libraries(${HOST_TOOL_NAME} pthread json-c::json-c openenclave::oehost rt)
+target_link_libraries(${HOST_TOOL_NAME} PRIVATE
+	Threads::Threads
+	rt
+	json-c::json-c
+	openenclave::oehost
+	sgxlkl::build-metadata
+	)
 target_link_options(${HOST_TOOL_NAME} PRIVATE "LINKER:--gc-sections")
 # If we are configuring for the first build, add a fake dependency of this tool
 # on the LKL build.  For subsequent builds this will be picked up by the real
@@ -362,8 +341,8 @@ add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
 
 # libext2fs (part of e2fsprogs) is used in userspace to dynamically create disks with ext4 filesystems.
 ExternalProject_Add(e2fsprogs-ep
-	URL https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz
-	URL_HASH SHA256=0fd76e55c1196c1d97a2c01f2e84f463b8e99484541b43ff4197f5a695159fd3
+	URL ${E2FSPROGS_URL}
+	URL_HASH ${E2FSPROGS_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "CC=${CMAKE_C_COMPILER}"
 	COMMAND make -C "<BINARY_DIR>/util" # build-time tools that must not be built against musl
 	COMMAND "<SOURCE_DIR>/configure" "CC=${MUSL_C_COMPILER}" "CFLAGS=-DOMIT_COM_ERR" "--prefix=<INSTALL_DIR>"
@@ -383,8 +362,8 @@ add_library(e2fsprogs::ext2fs ALIAS ext2fs)
 
 # libcurl is used in userspace for fetching disk encryption keys.
 ExternalProject_Add(curl-ep
-	URL https://curl.haxx.se/download/curl-7.66.0.tar.bz2
-	URL_HASH SHA256=6618234e0235c420a21f4cb4c2dd0badde76e6139668739085a70c4e2fe7a141
+	URL ${CURL_URL}
+	URL_HASH ${CURL_HASH}
 	CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env curl_disallow_alarm=yes "<SOURCE_DIR>/configure" 
 		"CC=${MUSL_C_COMPILER}"
 		"CFLAGS=-DUSE_BLOCKING_SOCKETS"
@@ -414,8 +393,8 @@ add_library(curl::curl ALIAS curl)
 
 # libdevicemapper is used in userspace as dependency of libvicsetup.
 ExternalProject_Add(devicemapper-ep
-	URL https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz
-	URL_HASH SHA256=56db106cba31e3a143f758ae1b569f2df91fd3403ae7076374700ebadcfa6583
+	URL ${DEVICEMAPPER_URL}
+	URL_HASH ${DEVICEMAPPER_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
 		"CC=${MUSL_C_COMPILER}"
 		"CFLAGS=-Dptrdiff_t=intptr_t"
