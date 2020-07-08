@@ -263,7 +263,7 @@ void lthread_run(void)
         if (_lthread_should_stop)
         {
             SGXLKL_TRACE_THREAD(
-                "[tid=%-3d] lthread_run(): quiting\n", lt ? lt->tid : -1);
+                "[tid=%-3d] lthread_run(): quitting\n", lt ? lt->tid : -1);
             break;
         }
     }
