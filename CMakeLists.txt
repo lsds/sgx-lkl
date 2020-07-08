@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.17)
 project(SGX-LKL C CXX)
 
 # Conventions:
-# - All filenames/paths and variables containing them must be quoted.
+# - All filenames/paths, and variables containing them, must be quoted.
 
 if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
     add_link_options("-fuse-ld=$ENV{LD}")
@@ -26,8 +26,14 @@ if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
 	message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
 endif()
 
+include(ExternalProject)
+set_directory_properties(PROPERTIES EP_BASE "external")
+
 include(ProcessorCount)
 ProcessorCount(NUMBER_OF_CORES)
+
+include(cmake/Helpers.cmake)
+include(cmake/RecursiveCopy.cmake)
 
 set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
 if (OE_PREFIX)
@@ -53,29 +59,6 @@ else()
 		--search-path "${OPENENCLAVE_DIR}/include"
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
-
-get_cmake_property(_variableNames VARIABLES)
-#foreach (_variableName ${_variableNames})
-#message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()
-# OE_BASH=/bin/bash
-# OE_BINDIR=/opt/openenclave/bin
-# OE_BRANCH=refs/heads/feature.sgx-lkl
-# OE_BUILD_NUMBER=0
-# OE_COMMIT=2765e96a0a7159b2721653f2bbe997a01b4101d3
-# OE_DATADIR=/opt/openenclave/share
-# OE_INCLUDEDIR=/opt/openenclave/include
-# OE_LIBDIR=/opt/openenclave/lib
-# OE_SCRIPTSDIR=/opt/opene
-# OpenEnclave_VERSION_MAJOR=0
-# OpenEnclave_VERSION_MINOR=7
-# OpenEnclave_VERSION_PATCH=0
-# OpenEnclave_VERSION_TWEAK=0
-# PACKAGE_PREFIX_DIR=/opt/openenclave
-
-function(mkdir DIRECTORY)
-	execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${DIRECTORY}")
-endfunction()
 
 set(LKL_SUBDIRECTORY "lkl")
 set(THIRD_PARTY_DOWNLOADS_DIRECTORY "${CMAKE_BINARY_DIR}/third_party")
@@ -120,23 +103,6 @@ endif()
 if(${LKL_DEBUG})
 	set(LKL_CFLAGS_EXTRA "${LKL_CFLAGS_EXTRA} -DLKL_DEBUG")
 endif()
-
-function(touch FILE_NAME)
-	execute_process(COMMAND ${CMAKE_COMMAND} -E touch "${FILE_NAME}")
-endfunction()
-
-include(cmake/RecursiveCopy.cmake)
-include(cmake/DownloadAndExtract.cmake)
-
-
-# Generate rules to download and extract the tarballs that we need.
-# These are all downloaded into a downloads directory in the build directory
-# and extracted into a third_party directory in the build directory.
-#download_and_extract_tarball("devicemapper" "https://github.com/lvmteam/lvm2/archive/v2_02_98.tar.gz")
-#download_and_extract_tarball("e2fsprogs" "https://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git/snapshot/e2fsprogs-1.45.5.tar.gz")
-#download_and_extract_tarball("json-c" "https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz")
-download_and_extract_tarball("wireguard" "https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz")
-#download_and_extract_tarball("curl" "https://curl.haxx.se/download/curl-7.66.0.tar.bz2")
 
 # Copy the LKL sources to the build directory.  This copies everything except
 # the files that we will modify and creates rules so that any modification of
@@ -184,15 +150,24 @@ add_custom_command(OUTPUT ${DEFCONFIG_OVERRIDE_PATH}
 	MAIN_DEPENDENCY "${CMAKE_SOURCE_DIR}/src/lkl/override/defconfig"
 	COMMENT "Overriding LKL default configuration")
 
+ExternalProject_Add(wireguard-ep
+	URL https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz
+	URL_HASH SHA256=5aba6f0c38e97faa0b155623ba594bb0e4bd5e29deacd8d5ed8bda8d8283b0e7
+	CONFIGURE_COMMAND ""
+	BUILD_COMMAND ""
+	INSTALL_COMMAND ""
+)
+get_external_project_property(wireguard-ep SOURCE_DIR WIREGUARD_SOURCE_DIR)
+
 # Apply the wireguard patch into our copy of the kernel tree.  
 # Note, this can go away once our upstream LKL has the wireguard patches
 # already applied
 add_custom_command(
 	OUTPUT "lkl/net/wireguard" "lkl/net/Kconfig" "lkl/net/Makefile" "wireguard-patches-applied.stamp"
-	DEPENDS "${LKL_SUBDIRECTORY}/net/Makefile" "${LKL_SUBDIRECTORY}/net/Kconfig" fetch-and-extract-wireguard
+	DEPENDS "${LKL_SUBDIRECTORY}/net/Makefile" "${LKL_SUBDIRECTORY}/net/Kconfig" wireguard-ep
 	COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Makefile" "${CMAKE_SOURCE_DIR}/${LKL_SUBDIRECTORY}/net/Kconfig" "${CMAKE_BINARY_DIR}/lkl/net"
 	COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_BINARY_DIR}/lkl/net/wireguard"
-	COMMAND "${wireguard_LOCATION}/contrib/kernel-tree/create-patch.sh" | patch --forward -p1
+	COMMAND "${WIREGUARD_SOURCE_DIR}/contrib/kernel-tree/create-patch.sh" | patch --forward -p1
 	COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_BINARY_DIR}/wireguard-patches-applied.stamp"
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl" 
 	)
@@ -218,9 +193,9 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	COMMAND "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
 	COMMAND "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
 	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" ARCH=lkl "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
-	COMMAND echo "'set(LKL_HEADERS'" ">" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND find "${LKL_HEADER_PATH}" ">>" "${LKL_HEADERS_FILE}.tmp"
-	COMMAND echo "')'" ">>" "${LKL_HEADERS_FILE}.tmp"
+	COMMAND echo "'set(LKL_HEADERS'" > "${LKL_HEADERS_FILE}.tmp"
+	COMMAND find "${LKL_HEADER_PATH}" >> "${LKL_HEADERS_FILE}.tmp"
+	COMMAND echo "')'" >> "${LKL_HEADERS_FILE}.tmp"
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LKL_HEADERS_FILE}.tmp" "${LKL_HEADERS_FILE}"
 	COMMAND ${CMAKE_COMMAND} -E remove "${LKL_HEADERS_FILE}.tmp" 
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl"
@@ -276,9 +251,6 @@ add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 		--trusted-dir "${CMAKE_BINARY_DIR}/geninclude/enclave"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
-
-include(ExternalProject)
-set_directory_properties(PROPERTIES EP_BASE "external")
 
 ExternalProject_Add(json-c-ep
 	URL https://github.com/json-c/json-c/archive/json-c-0.13.1-20180305.tar.gz
