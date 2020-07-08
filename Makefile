@@ -53,11 +53,11 @@ ${THIRD_PARTY_LIB_CRYPTSETUP} ${THIRD_PARTY_LIB_POPT} ${THIRD_PARTY_LIB_DEVICE_M
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party $@
 
 # LKL's static library and include/ header directory
-lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_BUILD} | ${LKL}/.git ${LKL_BUILD} ${WIREGUARD} src/lkl/override/defconfig
+lkl ${LIBLKL} ${LKL_BUILD}/include: ${HOST_MUSL_BUILD} | ${LKL}/.git ${LKL_BUILD} ${WIREGUARD} src/kernel/lkl/override/defconfig
 	# Add Wireguard
 	cd ${LKL} && (if ! ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch -p1 --dry-run --reverse --force >/dev/null 2>&1; then ${WIREGUARD}/contrib/kernel-tree/create-patch.sh | patch --forward -p1; fi) && cd -
 	# Override lkl's defconfig with our own
-	cp -Rv src/lkl/override/defconfig ${LKL}/arch/lkl/configs/defconfig
+	cp -Rv src/kernel/lkl/override/defconfig ${LKL}/arch/lkl/configs/defconfig
 	+DESTDIR=${LKL_BUILD} ${MAKE} -C ${LKL}/tools/lkl -j`scripts/ncore.sh` CC=${HOST_CC} EXTRA_CFLAGS="$(LKL_CFLAGS_EXTRA)" PREFIX="" \
 		${LKL}/tools/lkl/liblkl.a
 	mkdir -p ${LKL_BUILD}/lib

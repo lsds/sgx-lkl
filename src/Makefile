@@ -31,7 +31,7 @@ CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-m
 
 CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
 CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/kernel/libjson/include
 
 # -----------------------------------------------------------------------------------------
 
@@ -49,10 +49,12 @@ builddirs:
 
 # Build enclave static library: libsgxlkl.a
 
-SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) $(wildcard user/*.c) \
-              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
+SGXLKL_SRCS = $(wildcard kernel/enclave/*.c) $(wildcard kernel/libjson/*.c) \
+              $(wildcard kernel/sched/*.c) $(wildcard kernel/lkl/*.c) \
+              $(wildcard user/*.c) $(wildcard user/wireguard/*.c) \
+              $(wildcard shared/*.c) \
 
-OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
+OE_ENCLAVE_CALLS = kernel/enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
   SGXLKL_SRCS += ${OE_ENCLAVE_CALLS}
 endif
@@ -61,10 +63,10 @@ SGXLKL_OBJS=$(addprefix $(LIB_SGXLKL_BUILD)/sgxlkl/,$(SGXLKL_SRCS:.c=.o))
 
 ${OE_ENCLAVE_CALLS}: sgxlkl.edl
 	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
-		--trusted $< --trusted-dir enclave/
-	mv enclave/sgxlkl_t.h include/enclave/; mv enclave/sgxlkl_args.h include/shared/
-	sed -i '/#include "sgxlkl_t.h"/c\#include "enclave/sgxlkl_t.h"' enclave/sgxlkl_t.c
-	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' enclave/sgxlkl_t.c
+		--trusted $< --trusted-dir kernel/enclave/
+	mv kernel/enclave/sgxlkl_t.h include/enclave/; mv kernel/enclave/sgxlkl_args.h include/shared/
+	sed -i '/#include "sgxlkl_t.h"/c\#include "enclave/sgxlkl_t.h"' kernel/enclave/sgxlkl_t.c
+	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' kernel/enclave/sgxlkl_t.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' include/enclave/sgxlkl_t.h
 
 $(SGXLKL_OBJS): $(LIB_SGXLKL_BUILD)/sgxlkl/%.o: %.c | $(SGXLKL_LIBC_BLD_DIR)/include ${OE_ENCLAVE_CALLS}
@@ -80,9 +82,9 @@ $(LIB_SGXLKL_BUILD)/sgxlkl/$(SGXLKL_STATIC_LIB): $(SGXLKL_OBJS) builddirs
 
 # Build run tool: sgx-lkl-run-oe
 
-MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c)
+MAIN_OE_SRCS = $(wildcard host/main-oe/*.c) $(wildcard shared/*.c) $(wildcard host/host_interface/*.c)
 
-OE_HOST_CALLS = main-oe/sgxlkl_u.c
+OE_HOST_CALLS = host/main-oe/sgxlkl_u.c
 ifeq (,$(findstring ${OE_HOST_CALLS},$(MAIN_OE_SRCS)))
   MAIN_OE_SRCS += ${OE_HOST_CALLS}
 endif
@@ -96,16 +98,16 @@ endif
 
 ${OE_HOST_CALLS}: sgxlkl.edl
 	${OE_OESIGN_TOOL_PATH}/oeedger8r --search-path $(OE_SDK_INCLUDES) \
-		--untrusted $< --untrusted-dir main-oe/
-	mv main-oe/sgxlkl_u.h include/host/; mv main-oe/sgxlkl_args.h include/shared/
-	sed -i '/#include "sgxlkl_u.h"/c\#include "host/sgxlkl_u.h"' main-oe/sgxlkl_u.c
-	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' main-oe/sgxlkl_u.c
+		--untrusted $< --untrusted-dir host/main-oe/
+	mv host/main-oe/sgxlkl_u.h include/host/; mv host/main-oe/sgxlkl_args.h include/shared/
+	sed -i '/#include "sgxlkl_u.h"/c\#include "host/sgxlkl_u.h"' host/main-oe/sgxlkl_u.c
+	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' host/main-oe/sgxlkl_u.c
 	sed -i '/#include "sgxlkl_args.h"/c\#include "shared/sgxlkl_args.h"' include/host/sgxlkl_u.h
 
 $(MAIN_OE_OBJS): $(LIB_SGXLKL_BUILD)/main-oe/%.o: %.c | ${OE_HOST_CALLS}
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
-	@$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/main-oe/ $(CFLAGS_MAIN) -c -o $@ $<
+	@$(CC) -I${LKL_BUILD}/include/ -I$(srcdir)/include -I$(srcdir)/host/main-oe/ $(CFLAGS_MAIN) -c -o $@ $<
 
 $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET): $(LIB_SGXLKL_BUILD)/main-oe/main-oe.a $(OE_SDK_LIBS)/openenclave/host/liboehost.a builddirs
 	@echo "CC $<"
@@ -127,6 +129,6 @@ clean:
 	rm -rf $(LIB_SGXLKL_BUILD)/main-oe
 	rm -rf $(LIB_SGXLKL_BUILD)/sgxlkl
 	rm -rf $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET)
-	rm -rf $(srcdir)/main-oe/sgxlkl_u.c $(srcdir)/include/host/sgxlkl_u.h $(srcdir)/enclave/sgxlkl_t.c $(srcdir)/include/enclave/sgxlkl_t.h
+	rm -rf $(srcdir)/host/main-oe/sgxlkl_u.c $(srcdir)/include/host/sgxlkl_u.h $(srcdir)/kernel/enclave/sgxlkl_t.c $(srcdir)/include/enclave/sgxlkl_t.h
 
 .PHONY: clean builddirs
