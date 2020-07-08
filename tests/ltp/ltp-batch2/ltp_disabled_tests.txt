@@ -529,7 +529,7 @@
 /ltp/testcases/kernel/syscalls/mknod/mknod08
 /ltp/testcases/kernel/syscalls/mknod/mknod09
 /ltp/testcases/kernel/syscalls/mknodat/mknodat01
-/ltp/testcases/kernel/syscalls/mknodat/mknodat02
+#/ltp/testcases/kernel/syscalls/mknodat/mknodat02
 /ltp/testcases/kernel/syscalls/mlock/mlock01
 /ltp/testcases/kernel/syscalls/mlock/mlock02
 /ltp/testcases/kernel/syscalls/mlock/mlock03
