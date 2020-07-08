@@ -145,12 +145,20 @@ touch("${LKL_HEADERS_FILE}")
 set(LKL_HEADERS "")
 include("${LKL_HEADERS_FILE}")
 
-set(LKL_LIB_PATH "lkl/tools/lkl/liblkl.a")
+# LKL's build system generates as main output liblkl.a.
+# liblkl.a contains lkl.o and liblkl-in.o.
+# lkl.o is the actual LKL and has two undefined symbols lkl_bug and lkl_printf.
+# Those two symbols are satisfied by liblkl-in.o by relying on an available libc.
+# In kernel space we do not have a libc available.
+# Therefore, we will only depend on lkl.o and re-implement lkl_bug and lkl_printf.
+# Open Enclave's oecore provides everything necessary for an implementation.
+# See lkl/tools/lkl/lib/utils.c for the original implementations.
+set(LKL_LIB_PATH "lkl/tools/lkl/lib/lkl.o")
 set(LKL_HEADER_PATH "${CMAKE_BINARY_DIR}/lkl-headers")
 add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	DEPENDS lkl-source-setup
-	COMMAND "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
-	COMMAND "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
+	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl" -j ${NUMBER_OF_CORES} V=1 "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
+	COMMAND ${CMAKE_COMMAND} -E env "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
 	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" ARCH=lkl "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
 	COMMAND echo "'set(LKL_HEADERS'" > "${LKL_HEADERS_FILE}.tmp"
 	COMMAND find "${LKL_HEADER_PATH}" >> "${LKL_HEADERS_FILE}.tmp"
@@ -161,6 +169,13 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	BYPRODUCTS ${LKL_HEADERS} "${LKL_HEADERS_FILE}" 
 	COMMENT "Compiling LKL"
 )
+add_library(lkl STATIC 
+	"${LKL_LIB_PATH}"
+	src/lkl/lkl_oe.c
+	)
+target_link_libraries(lkl PRIVATE openenclave::oecore)
+# Make internal OE headers available.
+target_include_directories(lkl PRIVATE src/include)
 
 add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
 
