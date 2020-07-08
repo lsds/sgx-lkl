@@ -1182,7 +1182,7 @@ static void display_mount_table()
 static struct lkl_sem* termination_sem;
 
 /* Record whether we are terminmating LKL */
-static _Atomic(bool) is_lkl_terminating = false;
+static _Atomic(bool) _is_lkl_terminating = false;
 
 /* Function to carry out the shutdown sequence */
 static void* lkl_termination_thread(void* args)
@@ -1344,14 +1344,20 @@ void lkl_terminate(int exit_status)
      * We only want to trigger the shutdown once. Since we are shutting down
      * the applicaton and the kernel, many other threads will be exiting now.
      */
-    if (!is_lkl_terminating)
+    if (!_is_lkl_terminating)
     {
         SGXLKL_VERBOSE("terminating LKL (exit_status=%i)\n", exit_status);
-        is_lkl_terminating = true;
+        _is_lkl_terminating = true;
         sgxlkl_exit_status = exit_status;
         /* Wake up LKL termination thread to carry out the work. */
         sgxlkl_host_ops.sem_up(termination_sem);
     }
+}
+
+/* Return if LKL is currently terminating */
+bool is_lkl_terminating()
+{
+    return _is_lkl_terminating;
 }
 
 static void init_enclave_clock()

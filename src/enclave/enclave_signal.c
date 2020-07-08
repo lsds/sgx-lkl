@@ -8,6 +8,7 @@
 #include <asm-generic/ucontext.h>
 
 #include <lkl_host.h>
+#include <lkl/setup.h>
 #include <string.h>
 #include "enclave/sgxlkl_t.h"
 #include "enclave/lthread.h"
@@ -151,13 +152,14 @@ static uint64_t sgxlkl_enclave_signal_handler(
 #endif
 
         /**
-         * If LKL has not yet been initialised, we cannot handle the
-         * exception and fail instead.
+         * If LKL has not yet been initialised or is terminating (and thus no
+         * longer accepts signals), we cannot handle the exception and fail
+         * instead.
          */
-        if (!lkl_is_running())
+        if (!lkl_is_running() || is_lkl_terminating())
         {
 #ifdef DEBUG
-            sgxlkl_error("Exception received before LKL can handle it. "
+            sgxlkl_error("Exception received but LKL is unable to handle it. "
                          "Printing stack trace saved by exception handler:\n");
             /**
              * Since we cannot unwind the frames in the OE exception handler,
@@ -169,7 +171,8 @@ static uint64_t sgxlkl_enclave_signal_handler(
 
             struct lthread* lt = lthread_self();
             sgxlkl_fail(
-                "Exception %s received before LKL is running (lt->tid=%i [%s] "
+                "Exception %s received before LKL initialisation/after LKL "
+                "shutdown (lt->tid=%i [%s] "
                 "code=%i "
                 "addr=0x%lx opcode=0x%x "
                 "ret=%i)\n",

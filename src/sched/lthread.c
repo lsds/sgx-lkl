@@ -225,9 +225,8 @@ void lthread_run(void)
                 pauses = sleepspins;
                 a_dec(&schedqueuelen);
                 SGXLKL_TRACE_THREAD(
-                    "[tid=%-3d] lthread_run() lthread_resume (dequeue sched "
-                    "queue) \n",
-                    lt->tid);
+                    "[tid=%-3d] lthread_run(): lthread_resume (dequeue)\n",
+                    lt ? lt->tid : -1);
                 _lthread_resume(lt);
             }
 
@@ -263,7 +262,8 @@ void lthread_run(void)
         /* Break out of scheduler loop when enclave is terminating */
         if (_lthread_should_stop)
         {
-            SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() quiting.\n", lt->tid);
+            SGXLKL_TRACE_THREAD(
+                "[tid=%-3d] lthread_run(): quitting\n", lt ? lt->tid : -1);
             break;
         }
     }
