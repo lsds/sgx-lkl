@@ -595,7 +595,7 @@ function encrypt() {
         echo "  Integrity: Disabled"
         type="luks2"
         pbkdf=${pbkdf:-pbkdf2}
-        pbkdf_cmd="--pbkdf=${pbkdf[0]}"
+        pbkdf_cmd[0]="--pbkdf=${pbkdf}"
     fi
 
     keyfile_cmd=( )
