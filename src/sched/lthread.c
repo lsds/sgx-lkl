@@ -35,7 +35,6 @@
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
 
 #include "pthread_impl.h"
 #include "stdio_impl.h"
@@ -48,7 +47,10 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "shared/tree.h"
+
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
+#include "openenclave/internal/safecrt.h"
 
 extern int vio_enclave_wakeup_event_channel(void);
 
@@ -223,9 +225,8 @@ void lthread_run(void)
                 pauses = sleepspins;
                 a_dec(&schedqueuelen);
                 SGXLKL_TRACE_THREAD(
-                    "[tid=%-3d] lthread_run() lthread_resume (dequeue sched "
-                    "queue) \n",
-                    lt->tid);
+                    "[tid=%-3d] lthread_run(): lthread_resume (dequeue)\n",
+                    lt ? lt->tid : -1);
                 _lthread_resume(lt);
             }
 
@@ -261,7 +262,8 @@ void lthread_run(void)
         /* Break out of scheduler loop when enclave is terminating */
         if (_lthread_should_stop)
         {
-            SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() quiting.\n", lt->tid);
+            SGXLKL_TRACE_THREAD(
+                "[tid=%-3d] lthread_run(): quitting\n", lt ? lt->tid : -1);
             break;
         }
     }
@@ -369,7 +371,7 @@ void _lthread_free(struct lthread* lt)
         enclave_munmap(lt->attr.stack, lt->attr.stack_size);
         lt->attr.stack = NULL;
     }
-    memset(lt, 0, sizeof(*lt));
+    oe_memset_s(lt, sizeof(*lt), 0, sizeof(*lt));
     if (a_fetch_add(&libc.threads_minus_1, -1) == 0)
     {
         libc.threads_minus_1 = 0;
@@ -562,7 +564,8 @@ int _lthread_sched_init(size_t stack_size)
 
     c->sched.default_timeout = 3000000u;
 
-    memset(&c->sched.ctx, 0, sizeof(struct cpu_ctx));
+    oe_memset_s(
+        &c->sched.ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
 
     return (0);
 }
@@ -634,7 +637,11 @@ int lthread_create_primitive(
     lt->robust_list.head = &lt->robust_list.head;
 
     static unsigned long long n = 0;
-    snprintf(lt->funcname, 64, "cloned host task %llu", __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
+    oe_snprintf(
+        lt->funcname,
+        64,
+        "cloned host task %llu",
+        __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
 
     if (new_lt)
     {
@@ -898,7 +905,7 @@ void lthread_detach2(struct lthread* lt)
 
 void lthread_set_funcname(struct lthread* lt, const char* f)
 {
-    strncpy(lt->funcname, f, 64);
+    oe_strncpy_s(lt->funcname, 64, f, 64);
     lt->funcname[64 - 1] = 0;
 }
 
@@ -1079,3 +1086,28 @@ void lthread_set_expired(struct lthread* lt)
 {
     lt->attr.state |= BIT(LT_ST_EXPIRED);
 }
+
+#ifdef DEBUG
+void lthread_dump_all_threads(void)
+{
+    struct lthread_queue* lt_queue = __active_lthreads;
+
+    sgxlkl_info("=============================================================\n");
+    sgxlkl_info("Stack traces for all lthreads:\n");
+
+    for (int i = 1; lt_queue; i++)
+    {
+        struct lthread* lt = lt_queue->lt;
+        SGXLKL_ASSERT(lt);
+        int tid = lt->tid;
+        char* funcname = lt->funcname;
+        sgxlkl_info("-------------------------------------------------------------\n");
+        sgxlkl_info("%s%i: tid=%i [%s]\n", lt == lthread_self() ? "*" : "", i, tid, funcname);
+        sgxlkl_print_backtrace(lt == lthread_self() ? __builtin_frame_address(0) : lt->ctx.ebp);
+
+        lt_queue = lt_queue->next;
+    }
+
+    sgxlkl_info("=============================================================\n");
+}
+#endif

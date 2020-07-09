@@ -16,7 +16,7 @@ Also, a test related to shutdown a local endpoint is also
 disabled until issue 405.
 url:https://github.com/lsds/sgx-lkl/issues/405
 diff --git a/testcases/kernel/syscalls/send/send01.c b/testcases/kernel/syscalls/send/send01.c
-index 2e0ae2177..9d7caa4a3 100644
+index 2e0ae2177..b34ba478f 100644
 --- a/testcases/kernel/syscalls/send/send01.c
 +++ b/testcases/kernel/syscalls/send/send01.c
 @@ -43,7 +43,8 @@
@@ -190,7 +190,7 @@ index 2e0ae2177..9d7caa4a3 100644
  	setup();
  
  	for (lc = 0; TEST_LOOPING(lc); ++lc) {
-@@ -293,21 +283,18 @@ int main(int ac, char *av[])
+@@ -293,21 +283,20 @@ int main(int ac, char *av[])
  	tst_exit();
  }
  
@@ -212,6 +212,17 @@ index 2e0ae2177..9d7caa4a3 100644
 -
 +	kill_thread = 1;
 +	sched_yield();
++	if (sfd >= 0)
++		close(sfd);
  }
  
  static void setup0(void)
+@@ -320,6 +309,8 @@ static void setup0(void)
+ 
+ static void cleanup0(void)
+ {
++	if (s != 400 && s >= 0)
++		close(s);	
+ 	s = -1;
+ }
+ 

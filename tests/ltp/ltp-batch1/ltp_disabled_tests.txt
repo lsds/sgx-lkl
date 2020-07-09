@@ -469,8 +469,8 @@
 /ltp/testcases/kernel/syscalls/linkat/linkat01
 /ltp/testcases/kernel/syscalls/linkat/linkat02
 #/ltp/testcases/kernel/syscalls/listen/listen01
-/ltp/testcases/kernel/syscalls/listxattr/listxattr01
-/ltp/testcases/kernel/syscalls/listxattr/listxattr02
+#/ltp/testcases/kernel/syscalls/listxattr/listxattr01
+#/ltp/testcases/kernel/syscalls/listxattr/listxattr02
 #/ltp/testcases/kernel/syscalls/listxattr/listxattr03
 #/ltp/testcases/kernel/syscalls/llistxattr/llistxattr01
 #/ltp/testcases/kernel/syscalls/llistxattr/llistxattr02

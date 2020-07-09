@@ -8,8 +8,10 @@
 #include <asm-generic/ucontext.h>
 
 #include <lkl_host.h>
+#include <lkl/setup.h>
 #include <string.h>
 #include "enclave/sgxlkl_t.h"
+#include "enclave/lthread.h"
 #include "shared/env.h"
 
 #define RDTSC_OPCODE 0x310F
@@ -133,7 +135,7 @@ static uint64_t sgxlkl_enclave_signal_handler(
 
     memset(&trap_info, 0, sizeof(trap_info));
     ret = get_trap_details(exception_record->code, &trap_info);
-    if (ret != -1 && lkl_is_running())
+    if (ret != -1)
     {
         SGXLKL_TRACE_SIGNAL(
             "Exception %s received (code=%d address=0x%lx opcode=0x%x)\n",
@@ -141,6 +143,47 @@ static uint64_t sgxlkl_enclave_signal_handler(
             exception_record->code,
             exception_record->address,
             opcode);
+
+#ifdef DEBUG
+        if (sgxlkl_trace_signal)
+        {
+            sgxlkl_print_backtrace((void*)oe_ctx->rbp);
+        }
+#endif
+
+        /**
+         * If LKL has not yet been initialised or is terminating (and thus no
+         * longer accepts signals), we cannot handle the exception and fail
+         * instead.
+         */
+        if (!lkl_is_running() || is_lkl_terminating())
+        {
+#ifdef DEBUG
+            sgxlkl_error("Exception received but LKL is unable to handle it. "
+                         "Printing stack trace saved by exception handler:\n");
+            /**
+             * Since we cannot unwind the frames in the OE exception handler,
+             * we need to print a backtrace with the frame pointer from the
+             * saved exception context.
+             */
+            sgxlkl_print_backtrace((void*)oe_ctx->rbp);
+#endif
+
+            struct lthread* lt = lthread_self();
+            sgxlkl_fail(
+                "Exception %s received before LKL initialisation/after LKL "
+                "shutdown (lt->tid=%i [%s] "
+                "code=%i "
+                "addr=0x%lx opcode=0x%x "
+                "ret=%i)\n",
+                trap_info.description,
+                lt ? lt->tid : -1,
+                lt ? lt->funcname : "(?)",
+                exception_record->code,
+                (void*)exception_record->address,
+                opcode,
+                ret);
+        }
 
         memset(&uctx, 0, sizeof(uctx));
         serialize_ucontext(oe_ctx, &uctx);
@@ -150,19 +193,27 @@ static uint64_t sgxlkl_enclave_signal_handler(
         info.si_addr = (void*)exception_record->address;
         info.si_signo = trap_info.signo;
 
+        /**
+         * The trap is is passed to LKL. If it can be handled, excecution will continue,
+         * otherwise LKL will abort the process.
+         */
         lkl_do_trap(trap_info.trapnr, trap_info.signo, NULL, &uctx, 0, &info);
         deserialize_ucontext(&uctx, oe_ctx);
     }
     else
     {
-        sgxlkl_warn(
-            "Unhandled exception %s received (code=%i addr=0x%lx opcode=0x%x "
-            "lkl_is_running()=%i ret=%i)\n",
+        struct lthread* lt = lthread_self();
+        sgxlkl_fail(
+            "Unknown exception %s received (lt->tid=%i [%s]"
+            "code=%i "
+            "addr=0x%lx opcode=0x%x "
+            "ret=%i)\n",
             trap_info.description,
+            lt ? lt->tid : -1,
+            lt ? lt->funcname : "(?)",
             exception_record->code,
             (void*)exception_record->address,
             opcode,
-            lkl_is_running(),
             ret);
     }
 

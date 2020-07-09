@@ -12,6 +12,7 @@
 #include "enclave/vio_enclave_event_channel.h"
 
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/corelibc/oestring.h"
 
 static struct ticketlock** evt_chn_lock;
 
@@ -43,20 +44,27 @@ static inline void set_thread_state(void* lth)
 }
 
 /*
- * Function to yeild the virtio event channel task
+ * Function to yield the virtio event channel task
  */
 static inline void vio_wait_for_host_event(
     uint8_t dev_id,
     evt_t* evt_chn,
     evt_t val)
 {
-    struct lthread* lt = vio_tasks[dev_id];
+    SGXLKL_ASSERT(vio_tasks);
+    SGXLKL_ASSERT(evt_chn);
 
-    /* return if the event channel was signaled */
+    struct lthread* lt = vio_tasks[dev_id];
+    SGXLKL_ASSERT(lt);
+
+    /* Return if the event channel was signaled */
     if ((__atomic_load_n(evt_chn, __ATOMIC_SEQ_CST) != val) ||
         vio_shutdown_requested())
+    {
         return;
-    /* release cpu for other tasks */
+    }
+
+    /* Release CPU for other tasks */
     _lthread_yield_cb(lt, set_thread_state, lt);
 }
 
@@ -87,6 +95,10 @@ static inline int vio_signal_evt_channel(uint8_t dev_id)
 static void vio_enclave_process_host_event(uint8_t* param)
 {
     uint8_t dev_id = *param;
+
+    char thread_name[16];
+    oe_snprintf(thread_name, sizeof(thread_name), "vio-%i", dev_id);
+    lthread_set_funcname(lthread_self(), thread_name);
 
     /* release memory after extracting dev_id */
     oe_free(param);
@@ -143,30 +155,39 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
-    evt_chn_lock = (struct ticketlock**)oe_calloc(
-        evt_channel_num, sizeof(struct ticketlock*));
+    evt_chn_lock = (struct ticketlock**)oe_calloc_or_die(
+        evt_channel_num,
+        sizeof(struct ticketlock*),
+        "Could not allocate memory for evt_chn_lock\n");
 
-    vio_tasks =
-        (struct lthread**)oe_calloc(evt_channel_num, sizeof(struct lthread*));
+    vio_tasks = (struct lthread**)oe_calloc_or_die(
+        evt_channel_num,
+        sizeof(struct lthread*),
+        "Could not allocate memory for vio_tasks\n");
 
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
     {
-        evt_chn_lock[i] =
-            (struct ticketlock*)oe_calloc(1, sizeof(struct ticketlock));
-        memset(evt_chn_lock[i], 0, sizeof(struct ticketlock));
+        evt_chn_lock[i] = (struct ticketlock*)oe_calloc_or_die(
+            1,
+            sizeof(struct ticketlock),
+            "Could not allocate memory for evt_chn_lock[%i]\n",
+            i);
 
-        dev_id = (uint8_t*)oe_calloc(1, sizeof(uint8_t));
+        dev_id = (uint8_t*)oe_calloc_or_die(
+            1, sizeof(uint8_t), "Could not allocate memory for dev_id\n");
+
         *dev_id = enc_dev_config[i].dev_id;
 
-        struct lthread* lt = NULL;
         if (lthread_create(
-                &lt, NULL, vio_enclave_process_host_event, (void*)dev_id) != 0)
+                &vio_tasks[i],
+                NULL,
+                vio_enclave_process_host_event,
+                (void*)dev_id) != 0)
         {
             oe_free(vio_tasks);
             sgxlkl_fail("Failed to create lthread for event channel\n");
         }
-        vio_tasks[i] = lt;
     }
     /* Mark event channel as initialized to be picked up by scheduler */
     _event_channel_initialized = true;

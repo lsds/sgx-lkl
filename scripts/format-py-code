@@ -44,6 +44,9 @@ fi
 if [[ ${quiet} -eq 1 ]]; then
     args+=("--quiet")
 fi
+if [[ ${quiet} -ne 1 ]] && [[ ${whatif} -eq 1 ]]; then
+    args+=("--diff")
+fi
 if [[ ${verbose} -eq 1 ]]; then
     args+=("--verbose")
 fi
