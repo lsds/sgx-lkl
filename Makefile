@@ -17,11 +17,8 @@ all: update-git-submodules install-git-pre-commit-hook $(addprefix $(OE_SDK_ROOT
 ifeq ($(OE_SDK_ROOT),$(OE_SDK_ROOT_DEFAULT))
 # Build and install Open Enclave locally
 $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
-	# Don't build tests.
-	# TODO replace with build option https://github.com/openenclave/openenclave/issues/2894
-	cd $(OE_SUBMODULE) && sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
 	mkdir -p $(OE_SUBMODULE)/build
-	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DENABLE_REFMAN=OFF -DCOMPILE_SYSTEM_EDL=OFF -DWITH_EEID=ON ..
+	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DENABLE_REFMAN=OFF -DCOMPILE_SYSTEM_EDL=OFF -DWITH_EEID=ON -DBUILD_TESTS=OFF -DUSE_DEBUG_MALLOC=OFF ..
 	$(MAKE) -C $(OE_SUBMODULE)/build -j$(scripts/ncore.sh) && $(MAKE) -C $(OE_SUBMODULE)/build install
 endif
 
