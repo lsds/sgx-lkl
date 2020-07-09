@@ -697,6 +697,7 @@ static void host_free(void *ptr)
 		enclave_munmap(kernel_mem, kernel_mem_size);
 		kernel_mem = 0;
 		kernel_mem_size = 0;
+    return;
 	}
 	oe_free(ptr);
 }
