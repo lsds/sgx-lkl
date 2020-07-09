@@ -68,6 +68,10 @@ endif()
 # the source files will trigger a re-copy and rebuild.
 # Note: We probably could exclude a load of directories for architectures and
 # drivers that we don't care about if we want to reduce the binary code size.
+# Note 2: It might be better to simply symlink the files that we're not
+# modifying into the build directory at configure time (though driving this
+# from CMake will be a lot slower than from Ninja and avoiding re-doing the
+# copy on subsequent builds is harder).
 set(LKL_EXCLUDE
 	# Files we modify or generate.
 	arch/lkl/configs/defconfig
