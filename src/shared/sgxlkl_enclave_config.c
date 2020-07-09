@@ -285,7 +285,10 @@ static json_result_t json_read_callback(
             break;
         case JSON_REASON_BEGIN_OBJECT:
             if (data->enforce_format)
+            {
+                free(last_path);
                 last_path = make_path(parser);
+            }
             break;
         case JSON_REASON_END_OBJECT:
             break;
@@ -306,7 +309,10 @@ static json_result_t json_read_callback(
             break;
         case JSON_REASON_END_ARRAY:
             if (data->enforce_format)
+            {
+                free(last_path);
                 last_path = make_path(parser);
+            }
             break;
         case JSON_REASON_VALUE:
         {
@@ -526,7 +532,7 @@ void sgxlkl_read_enclave_config(
     if (enforce_format)
         check_required_elements(callback_data.seen);
     check_config(to);
-    string_list_free(callback_data.seen);
+    string_list_free(callback_data.seen, true);
 }
 
 #define NONDEFAULT_FREE(X)              \
@@ -540,6 +546,8 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
 
     NONDEFAULT_FREE(net_ip4);
     NONDEFAULT_FREE(net_gw4);
+    NONDEFAULT_FREE(net_mask4);
+    NONDEFAULT_FREE(hostname);
 
     NONDEFAULT_FREE(wg.ip);
     for (size_t i = 0; i < config->wg.num_peers; i++)
@@ -552,6 +560,7 @@ void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
 
     NONDEFAULT_FREE(kernel_cmd);
     NONDEFAULT_FREE(sysctl);
+    NONDEFAULT_FREE(cwd);
 
     for (size_t i = 0; i < config->num_args; i++)
         free(config->args[i]);

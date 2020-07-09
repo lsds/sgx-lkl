@@ -13,6 +13,6 @@ bool string_list_contains(const string_list_t* list, const char* str);
 
 size_t string_list_len(string_list_t* list);
 
-void string_list_free(string_list_t* list);
+void string_list_free(string_list_t* list, bool free_elements);
 
 #endif /* _STRING_LIST_H_ */

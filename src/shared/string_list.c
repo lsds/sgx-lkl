@@ -42,12 +42,13 @@ size_t string_list_len(string_list_t* list)
     return r;
 }
 
-void string_list_free(string_list_t* list)
+void string_list_free(string_list_t* list, bool free_elements)
 {
     while (list)
     {
         string_list_t* n = list->next;
-        // no freeing of list->element.
+        if (free_elements)
+            free((char*)list->element);
         free(list);
         list = n;
     }

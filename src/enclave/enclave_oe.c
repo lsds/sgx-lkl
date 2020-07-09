@@ -297,10 +297,26 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         char** tmp = oe_malloc(sizeof(char*) * (henvc + 1));
         CHECK_ALLOC(tmp);
         for (size_t i = 0; i < henvc; i++)
-            tmp[i] = host->env[i];
+            tmp[i] = oe_strdup(host->env[i]);
         tmp[henvc] = NULL;
         enc->env = tmp;
     }
+}
+
+static void _free_shared_memory()
+{
+    sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
+
+    for (size_t i = 0; i < shm->num_virtio_blk_dev; i++)
+        oe_free(shm->virtio_blk_dev_names[i]);
+
+    oe_free(shm->virtio_blk_dev_mem);
+    oe_free(shm->virtio_blk_dev_names);
+
+    char* const* p = shm->env;
+    while (*p != 0)
+        oe_free(*p);
+    oe_free((char**)shm->env);
 }
 
 int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
@@ -368,4 +384,6 @@ void sgxlkl_free_enclave_state()
     oe_free(state->disk_state);
 
     state->libc_state = libc_not_started;
+
+    _free_shared_memory();
 }
