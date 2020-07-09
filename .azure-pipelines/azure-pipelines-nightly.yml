@@ -10,6 +10,9 @@ schedules:
 
 extends:
   template: template.yml
+  variables:
+  - name: SGXLKL_NIGHTLY_RUN
+    value: true
   parameters:
     publish: false
     test_timeout_minutes: 120 # ethread==1 takes longer to run
