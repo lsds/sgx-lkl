@@ -25,7 +25,7 @@ set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
 ProcessorCount(NUMBER_OF_CORES)
 read_build_metadata()
 
-if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND DEFINED ENV{LD})
+if (DEFINED ENV{LD})
     add_link_options("-fuse-ld=$ENV{LD}")
 endif()
 
