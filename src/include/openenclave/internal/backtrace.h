@@ -26,6 +26,11 @@ int oe_backtrace(void** buffer, int size);
 char** oe_backtrace_symbols(void* const* buffer, int size);
 
 /**
+ * Free symbols allocated with oe_backtrace_symbols
+ */
+void oe_backtrace_symbols_free(char** ptr);
+
+/**
  * Print a backtrace for the current function.
  */
 oe_result_t oe_print_backtrace(void);

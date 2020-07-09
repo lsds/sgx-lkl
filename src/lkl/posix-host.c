@@ -695,7 +695,10 @@ static void host_free(void *ptr)
 		kernel_mem = 0;
 		kernel_mem_size = 0;
 	}
-	oe_free(ptr);
+    else
+    {
+        oe_free(ptr);
+    }
 }
 
 struct lkl_host_operations sgxlkl_host_ops = {

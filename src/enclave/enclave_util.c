@@ -98,7 +98,7 @@ void sgxlkl_print_backtrace(void** start_frame)
     for (i = 0; i < size; i++)
         sgxlkl_info("    #%ld: %p in %s(...)\n", i, buf[i], strings[i]);
 
-    oe_free(strings);
+    oe_backtrace_symbols_free(strings);
 }
 #endif
 
