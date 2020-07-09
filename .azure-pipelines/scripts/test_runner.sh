@@ -161,7 +161,7 @@ test_folder_name="tests"
 test_folder_identifier="Makefile"
 test_runner_script="$SGXLKL_ROOT/.azure-pipelines/scripts/run_test.sh"
 disabled_tests_file="$SGXLKL_ROOT/.azure-pipelines/scripts/disabled_tests.txt"
-nighlty_tests_file="$SGXLKL_ROOT/.azure-pipelines/other/nighlty_run_only_tests.txt"
+nightly_tests_file="$SGXLKL_ROOT/.azure-pipelines/other/nightly_run_only_tests.txt"
 # test which needs not to be executed as part of CI e.g (test_name1\|test_name2...)
 test_exception_list="ltp"
 
