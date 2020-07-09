@@ -1,22 +1,21 @@
 {
-  "run": "/usr/bin/python3",
   "args": [
+    "/usr/bin/python3",
     "/src/app.py",
     "John"
   ],
-  "environment": {
-    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-    "GREETING": "Hello"
-  },
-  "disk_config": [
+  "env": [
+    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "GREETING=Hello"
+  ],
+  "mounts": [
     {
-      "disk": "/",
-      "readonly": false
-    },
-    {
-      "disk": "/data_1",
-      "readonly": false
+      "readonly": false,
+      "destination": "/data_1"
     }
   ],
+  "root": {
+    "readonly": false
+  },
   "cwd": "/src"
 }

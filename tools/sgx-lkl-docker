@@ -8,7 +8,7 @@ sgxlkl_root="${cmd_root}/.."
 
 sub_cmd=
 cc_name=
-cc_app_cfg=
+cc_enclave_cfg=
 cc_host_cfg=
 
 # Support windows msys environments
@@ -23,10 +23,10 @@ function usage() {
     echo "$(basename "$0") <command>"
     echo
     echo "where <command> is one of the following:"
-    echo "  build                                              Re-package disk images and configuration as Docker image" 
+    echo "  build                                              Re-package disk images and configuration as Docker image"
     echo "    --name=<name>                                    Name of Docker image to be created."
     echo "    --host-cfg=<path>                                Path to host configuration file."
-    echo "    --app-cfg=<path>                                 Path to app configuration file."
+    echo "    --enclave-cfg=<path>                             Path to enclave configuration file."
     echo
     echo " [-?]                                                Display this help message."
     exit 1
@@ -77,24 +77,24 @@ WORKDIR \${HOME}
 ENTRYPOINT ["/opt/sgx-lkl/lib/external/ld-linux-x86-64", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
     "--enclave-image=/opt/sgx-lkl/lib/libsgxlkl.so.signed",\
     "--host-config=host-cfg.json",\
-    "--app-config=app-cfg.json"]
+    "--enclave-config=enclave-cfg.json"]
 CMD ["--hw-release"]
 EOF
 
-    cp "${cc_app_cfg}" "${context_dir}/app-cfg.json"
+    cp "${cc_enclave_cfg}" "${context_dir}/enclave-cfg.json"
 
     disk_paths=$("${cmd_root}/sgx-lkl-cfg" dockerize \
         --host-cfg=${cc_host_cfg} \
         --host-cfg-docker="${context_dir}/host-cfg.json" \
         --print-disk-paths)
-    
+
     while IFS= read -r line; do
         IFS=':' read -ra entry <<< "$line"
         img_path=${entry[0]}
         img_docker_path=${entry[1]}
         cp "$img_path" "$context_dir/$img_docker_path"
     done <<< "${disk_paths}"
-    
+
     docker build -t $cc_name "$context_dir"
 
     echo "Done. Tagged '$cc_name'."
@@ -117,9 +117,9 @@ function main() {
             --name=?*)
                 cc_name=${1#*=}
                 ;;
-            --app-cfg=?*)
-                cc_app_cfg=${1#*=}
-                ;; 
+            --enclave-cfg=?*)
+                cc_enclave_cfg=${1#*=}
+                ;;
             --host-cfg=?*)
                 cc_host_cfg=${1#*=}
                 ;;

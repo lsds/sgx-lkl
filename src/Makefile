@@ -12,9 +12,11 @@ RANLIB  = $(CROSS_COMPILE)ranlib
 
 # TODO remove -Wno-error flags
 CFLAGS_MAIN = -I$(OE_SDK_INCLUDES) -Wall -Werror -Wno-error=incompatible-pointer-types -Wno-error=pointer-to-int-cast -Wno-error=strict-aliasing
+CFLAGS_MAIN += -DOE_WITH_EXPERIMENTAL_EEID -I$(srcdir)/libjson/include -I$(LIB_SGXLKL_BUILD)/config
 # TODO add -nostdinc after relayering work complete
 #      cannot use -nostdinc currently as stdatomic.h is included which is missing
-CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE
+CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE -DSGXLKL_ENCLAVE
+CFLAGS_ENCLAVE += -DOE_WITH_EXPERIMENTAL_EEID -I$(srcdir)/libjson/include -I$(LIB_SGXLKL_BUILD)/config
 LINK_MAIN =
 
 SGXLKL_VERSION = "$(shell cat ${SGXLKL_ROOT}/VERSION)"
@@ -46,11 +48,32 @@ builddirs:
 	@mkdir -p $(LIB_SGXLKL_BUILD)/main-oe
 	@mkdir -p $(LIB_SGXLKL_BUILD)/sgxlkl
 	@mkdir -p $(LIB_SGXLKL_BUILD)/deploy
+	@mkdir -p $(LIB_SGXLKL_BUILD)/config
+
+# Auto-generated enclave config
+CFGGEN = $(abspath $(TOOLS)/generate_config.py)
+CFGSCHEMA = $(abspath $(TOOLS)/schemas/enclave-config.schema.json)
+CFGH = $(LIB_SGXLKL_BUILD)/config/sgxlkl_enclave_config_gen.h
+CFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_enclave_config_gen.c
+$(CFGH): $(CFGGEN) $(CFGSCHEMA)
+	cd $(LIB_SGXLKL_BUILD)/config; python3 $(CFGGEN) --header sgxlkl_enclave_config_gen.h --source sgxlkl_enclave_config_gen.c $(CFGSCHEMA)
+$(CFGC): $(CFGH)
+shared/sgxlkl_enclave_config.c main-oe/serialize_enclave_config.c: $(CFGH)
+
+# Auto-generated host config
+HCFGSCHEMA = $(abspath $(TOOLS)/schemas/host-config.schema.json)
+HCFGH = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.h
+HCFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.c
+$(HCFGH): $(CFGGEN) $(HCFGSCHEMA)
+	cd $(LIB_SGXLKL_BUILD)/config; python3 $(CFGGEN) --header sgxlkl_host_config_gen.h --source sgxlkl_host_config_gen.c $(HCFGSCHEMA)
+$(HCFGC): $(HCFGH)
+main-oe/sgxlkl_host_config.c main-oe/sgxlkl_run_oe.c: $(HCFGH)
 
 # Build enclave static library: libsgxlkl.a
 
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
-              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c)
+              $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c) \
+							$(CFGC)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))
@@ -80,7 +103,7 @@ $(LIB_SGXLKL_BUILD)/sgxlkl/$(SGXLKL_STATIC_LIB): $(SGXLKL_OBJS) builddirs
 
 # Build run tool: sgx-lkl-run-oe
 
-MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c)
+MAIN_OE_SRCS = $(wildcard main-oe/*.c) $(wildcard shared/*.c) $(wildcard host_interface/*.c) $(wildcard libjson/*.c) $(CFGC) $(HCFGC)
 
 OE_HOST_CALLS = main-oe/sgxlkl_u.c
 ifeq (,$(findstring ${OE_HOST_CALLS},$(MAIN_OE_SRCS)))
@@ -126,6 +149,7 @@ clean:
 	rm -rf $(LIB_SGXLKL_BUILD)/enclave
 	rm -rf $(LIB_SGXLKL_BUILD)/main-oe
 	rm -rf $(LIB_SGXLKL_BUILD)/sgxlkl
+	rm -rf $(LIB_SGXLKL_BUILD)/config
 	rm -rf $(LIB_SGXLKL_BUILD)/$(SGXLKL_RUN_TARGET)
 	rm -rf $(srcdir)/main-oe/sgxlkl_u.c $(srcdir)/include/host/sgxlkl_u.h $(srcdir)/enclave/sgxlkl_t.c $(srcdir)/include/enclave/sgxlkl_t.h
 

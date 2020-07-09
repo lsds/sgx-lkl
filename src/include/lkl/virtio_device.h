@@ -1,13 +1,17 @@
 #ifndef __LKL_VIRTIO_DEVICE_H__
 #define __LKL_VIRTIO_DEVICE_H__
 
-struct enclave_disk_config;
 struct virtio_dev;
+struct sgxlkl_enclave_root_config;
+struct sgxlkl_enclave_mount_config;
 
 /*
  * Function to setup the block device and register it with virtio drivers
  */
-void lkl_add_disks(struct enclave_disk_config* disks, size_t num_disks);
+void lkl_add_disks(
+    const struct sgxlkl_enclave_root_config* root,
+    const struct sgxlkl_enclave_mount_config* disks,
+    size_t num_disks);
 
 /*
  * Function to register the block device with mmio drivers and acquire irq

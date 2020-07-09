@@ -1,9 +1,13 @@
 #include <errno.h>
-#include <host/sgxlkl_util.h>
-#include <shared/sgxlkl_config.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include <host/sgxlkl_util.h>
+#include <shared/sgxlkl_enclave_config.h>
+#include <shared/shared_memory.h>
+#include <shared/timer_dev.h>
 
 #define NSEC_PER_SEC 1000000000
 
@@ -20,7 +24,7 @@ static uint64_t host_nanos()
 /*
  * Initializes our monotonic time generator's shared memory data structure
  */
-int timerdev_init(sgxlkl_config_t* config)
+int timerdev_init(sgxlkl_shared_memory_t* shared_memory)
 {
     struct timer_dev* timer_dev_mem =
         (struct timer_dev*)malloc(sizeof(struct timer_dev));
@@ -42,7 +46,7 @@ int timerdev_init(sgxlkl_config_t* config)
     timer_dev_mem->init_walltime_sec = ts.tv_sec;
     timer_dev_mem->init_walltime_nsec = ts.tv_nsec;
 
-    config->shared_memory.timer_dev_mem = timer_dev_mem;
+    shared_memory->timer_dev_mem = timer_dev_mem;
 
     return 0;
 }

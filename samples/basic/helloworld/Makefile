@@ -45,13 +45,13 @@ $(DISK_IMAGE): $(PROG) $(PROG_NONPIE)
 run: run-hw
 
 run-hw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(PROG)
+	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug --enclave-config enclave_config.json $(DISK_IMAGE)
 
 run-hw-gdb: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(PROG)
+	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug --enclave-config enclave_config.json $(DISK_IMAGE)
 
 run-sw: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(PROG)
+	${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug --enclave-config enclave_config.json $(DISK_IMAGE)
 
 run-sw-gdb: $(DISK_IMAGE)
-	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(DISK_IMAGE) $(PROG)
+	${SGXLKL_ENV} ${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug --enclave-config enclave_config.json $(DISK_IMAGE)

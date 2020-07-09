@@ -176,8 +176,8 @@ static errcode_t wipe_unwiped_blocks(
 }
 
 // The following functions implement a new io_manager named "unix_wipe_io".
-// This manager wraps the existing unix_io io_manager and proxies all calls to it
-// while ensuring that all reads/writes happen on previously wiped blocks.
+// This manager wraps the existing unix_io io_manager and proxies all calls to
+// it while ensuring that all reads/writes happen on previously wiped blocks.
 // This custom io_manager was implemented to work around issues with
 // directly writing to an unwiped/sparse dm-integrity device.
 
@@ -195,7 +195,9 @@ static errcode_t unix_wipe_open(
     if (retval)
         return EXT2_ET_NO_MEMORY;
     memset(data, 0, sizeof(struct unix_wipe_private_data));
-    unix_io_manager->open(name, flags, &data->unix_io_channel);
+    retval = unix_io_manager->open(name, flags, &data->unix_io_channel);
+    if (retval)
+        return retval;
     // corresponds to 4 GB with 4 KB blocks, expanded on-demand
     data->wipe_bitmap_size = 16384;
     data->wipe_bitmap = calloc(data->wipe_bitmap_size, sizeof(bitmap_word_t));

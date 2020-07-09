@@ -4,7 +4,6 @@
 #include <host/sgxlkl_util.h>
 #include <host/vio_host_event_channel.h>
 #include <host/virtio_debug.h>
-#include <shared/sgxlkl_config.h>
 
 #define LKL_SHUTDOWN_NOTIFICATION 1
 

@@ -1,6 +1,6 @@
 #include <asm-generic/errno.h>
 #include <sys/syscall.h>
-#include "lkl/lkl_util.h"
+#include "enclave/enclave_util.h"
 #include "lkl/posix-host.h"
 #include "lkl/syscall-overrides-fstat.h"
 #include "lkl/syscall-overrides-sysinfo.h"
@@ -67,10 +67,10 @@
             a6);                                              \
     }
 #else
-#define UNSUPPORTED_SYSCALL(name, args)                       \
-    static long unsupported##name()                           \
-    {                                                         \
-        return -ENOSYS;                                       \
+#define UNSUPPORTED_SYSCALL(name, args) \
+    static long unsupported##name()     \
+    {                                   \
+        return -ENOSYS;                 \
     }
 #endif
 

@@ -1,3 +1,5 @@
+// clang-format off
+
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* This file is based on posix-host.c from LKL, modified to provide a host
  * interface for enclave environments. */
@@ -22,7 +24,7 @@
 
 #include "enclave/enclave_timer.h"
 #include "enclave/enclave_util.h"
-#include "enclave/sgxlkl_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 #include "enclave/sgxlkl_t.h"
 #include "lkl/iomem.h"
 #include "lkl/jmp_buf.h"
@@ -43,9 +45,10 @@ int enclave_futex(
 
 static void panic(void)
 {
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
     sgxlkl_fail(
         "Kernel panic!%s Aborting...\n",
-        sgxlkl_enclave->kernel_verbose
+        cfg->kernel_verbose
             ? ""
             : " Run DEBUG build with SGXLKL_KERNEL_VERBOSE=1 for more "
               "information.");
@@ -694,6 +697,7 @@ static void host_free(void *ptr)
 		enclave_munmap(kernel_mem, kernel_mem_size);
 		kernel_mem = 0;
 		kernel_mem_size = 0;
+    return;
 	}
 	oe_free(ptr);
 }

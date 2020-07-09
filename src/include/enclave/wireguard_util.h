@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 #include "enclave/wireguard.h"
-#include "shared/sgxlkl_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 bool wgu_parse_ip(wg_allowedip* allowedip, const char* value);
 
@@ -17,7 +17,7 @@ bool wgu_parse_endpoint(struct sockaddr* endpoint, const char* value);
 
 int wgu_add_peers(
     wg_device* dev,
-    enclave_wg_peer_config_t* peers,
+    sgxlkl_enclave_wg_peer_config_t* peers,
     size_t num_peers,
     bool set_device);
 

@@ -1,16 +1,13 @@
 include ../../../common.mk
 
 CC_APP=/usr/bin/python3
-CC_APP_CONFIG=app-config.json
+CC_APP_CONFIG=enclave-config.json
 
 CC_IMAGE_SIZE=128M
 
 CC_IMAGE_DATA=data.img
 CC_IMAGE_DATA_SIZE=100G
 CC_IMAGE_DATA_KEY_FILE=data.key
-
-SGXLKL_ENV_APP_CONFIG=\
-SGXLKL_HDS=${CC_IMAGE_DATA}:/data:0
 
 VERBOSE_OPTS=SGXLKL_VERBOSE=1 SGXLKL_KERNEL_VERBOSE=1
 
@@ -33,7 +30,7 @@ $(CC_IMAGE_DATA):
 	truncate -s ${CC_IMAGE_DATA_SIZE} ${CC_IMAGE_DATA}
 
 run-hw: $(CC_IMAGE) ${CC_IMAGE_DATA}
-	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --hw-debug $(CC_IMAGE)
+	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --host-config=host-config.json --enclave-config=${CC_APP_CONFIG} --hw-debug $(CC_IMAGE)
 
 run-sw: $(CC_IMAGE) ${CC_IMAGE_DATA}
-	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE)
+	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --host-config=host-config.json --enclave-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE)
