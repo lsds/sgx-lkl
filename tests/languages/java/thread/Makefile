@@ -28,5 +28,9 @@ run-sw: $(DISK_IMAGE)
 	@echo "sgx-lkl-java --sw-debug ${DISK_IMAGE} ${PROG}"
 	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} ${PROG}
 
+run-hw-gdb: $(DISK_IMAGE)
+	@echo "sgx-lkl-java --hw-debug ${DISK_IMAGE} ${PROG}"
+	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} --debug ${PROG}
+
 clean:
 	rm -f $(DISK_IMAGE)
