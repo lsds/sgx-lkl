@@ -12,7 +12,6 @@
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
 #include "enclave/lthread_int.h"
-#include "enclave/sgxlkl_config.h"
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 

@@ -564,7 +564,7 @@ int _lthread_sched_init(size_t stack_size)
     sched->default_timeout = 3000000u;
 
     oe_memset_s(
-        &c->sched.ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
+        &sched->ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
 
     return (0);
 }
