@@ -177,9 +177,9 @@ add_library(lkl STATIC
 target_link_libraries(lkl PRIVATE openenclave::oecore)
 # Make internal OE headers available.
 target_include_directories(lkl PRIVATE src/include)
+add_library(sgx-lkl::lkl ALIAS lkl)
 
 add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
-
 add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
 
 file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
@@ -216,6 +216,111 @@ add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 		--trusted-dir "${CMAKE_BINARY_DIR}/geninclude/enclave"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
+
+add_library(sgxlkl_edl_enclave STATIC ${GENERATED_ENCLAVE_EDGE_FILES})
+target_include_directories(sgxlkl_edl_enclave PUBLIC "${CMAKE_SOURCE_DIR}/src/include")
+target_link_libraries(sgxlkl_edl_enclave PRIVATE openenclave::oecore)
+# FIXME remove this (needed due to including wrong headers in src/include/shared/sgxlkl_config.h)
+target_link_libraries(sgxlkl_edl_enclave PRIVATE openenclave::oeenclave)
+add_library(sgx-lkl::edl-enclave ALIAS sgxlkl_edl_enclave)
+
+add_library(sgxlkl_edl_host STATIC ${GENERATED_HOST_EDGE_FILES})
+target_include_directories(sgxlkl_edl_host PUBLIC "${CMAKE_SOURCE_DIR}/src/include")
+target_link_libraries(sgxlkl_edl_host PRIVATE openenclave::oehost)
+add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
+
+# The enclave image of SGX-LKL is separated into two parts:
+# 1. Kernel space
+#   - OE (oecore, mbedtls)
+#   - LKL
+#   - Enclave entrypoint
+# 2. User space
+#   - libc (musl, or later glibc)
+#   - vicsetup
+#   - libcurl
+#   - mbedtls
+#   - libdevicemapper
+#   - libext2fs
+#   - Linux init "process"
+# The only dependency from user space to kernel space is via the lkl_syscall function.
+# The only dependency from kernel space to user space is via the libc entrypoint function (TODO name?).
+# To enforce this separation and to allow having two copies of mbedtls we need to:
+# - Partially link all kernel space archives into a single object file.
+# - Partially link all user space archives into a single object file.
+# - Verify no unresolved symbols exist:
+#     ! nm -g libsgxlkl_kernel.o | grep ' U '  # ignore ECALLs and oe_*?
+#     ! nm -g libsgxlkl_user.o | grep ' U '
+# - Hide all kernel space symbols except lkl_syscall (and ECALLs?).
+# - Hide all user space symbols except libc entrypoint and libc itself (apps need libc).
+# - Fully link both object files into an enclave image.
+# `ld -r` can be used for partial linking, `objcopy --keep-global-symbol=..` for hiding symbols.
+
+# Enclave entrypoint.
+touch(${CMAKE_BINARY_DIR}/dummy.c)
+add_library(sgxlkl_enclave_init STATIC
+	# TODO
+	${CMAKE_BINARY_DIR}/dummy.c
+)
+target_link_libraries(sgxlkl_enclave_init PRIVATE openenclave::oecore sgx-lkl::lkl)
+add_library(sgx-lkl::enclave-init ALIAS sgxlkl_enclave_init)
+
+# Kernel space object.
+# TODO the following symbols are still unresolved:
+#   _GLOBAL_OFFSET_TABLE_
+#   __fini_array_end
+#   __fini_array_start
+#   __init_array_end
+#   __init_array_start
+#   oe_cert_chain_free
+#   oe_cert_chain_get_cert
+#   oe_cert_chain_get_leaf_cert
+#   oe_cert_free
+#   oe_datetime_now
+#   oe_datetime_to_string
+#   oe_free_sgx_quote_verification_collateral_args
+#   oe_get_quote_cert_chain_internal
+#   oe_get_report_v2_ecall
+#   oe_get_sgx_quote_verification_collateral_from_certs
+#   oe_realloc_ocall
+#   oe_sgx_thread_wake_wait_ocall
+#   oe_verify_local_report_ecall
+#   oe_verify_report_ecall
+#   sgxlkl_enclave_init -> will come from sgx-lkl::enclave-init
+#   sgxlkl_ethread_init -> will come from sgx-lkl::enclave-init
+set(SGXLKL_KERNEL_OBJ "libsgxlkl_kernel.o")
+add_custom_command(
+	OUTPUT "${SGXLKL_KERNEL_OBJ}"
+	COMMENT "Building kernel space object"
+	COMMAND ld -r -o "${SGXLKL_KERNEL_OBJ}" --whole-archive
+		# TODO what about order?
+		$<TARGET_FILE:sgx-lkl::edl-enclave>
+		$<TARGET_FILE:sgx-lkl::enclave-init>
+		$<TARGET_FILE:sgx-lkl::lkl>
+		# TODO mbedtls
+		# TODO really?
+		#$<TARGET_FILE:openenclave::oeenclave>
+		#$<TARGET_FILE:openenclave::oecore>
+	# TODO enable again, see notes above
+	#COMMAND echo "Checking for unresolved symbols"
+	#COMMAND ! nm -g "${SGXLKL_KERNEL_OBJ}" | grep ' U '
+	COMMAND echo "Hiding symbols"
+	COMMAND objcopy --keep-global-symbol=lkl_syscall "${SGXLKL_KERNEL_OBJ}"
+	COMMAND_EXPAND_LISTS
+	DEPENDS
+		sgx-lkl::edl-enclave
+		sgx-lkl::enclave-init
+		sgx-lkl::lkl
+		openenclave::oecore
+	)
+
+# Enclave image.
+if (FALSE)
+add_library(sgxlkl_enclave SHARED "${SGXLKL_KERNEL_OBJ}")
+set_target_properties(sgxlkl_enclave PROPERTIES LINKER_LANGUAGE C)
+# TODO Is oeenclave correct?
+target_link_libraries(sgxlkl_enclave PRIVATE openenclave::oeenclave)
+add_library(sgx-lkl::enclave ALIAS sgxlkl_enclave)
+endif()
 
 ExternalProject_Add(json-c-ep
 	URL ${JSON_C_URL}
