@@ -1,5 +1,10 @@
+Test case was using multiple processes to create and delete
+directories. SGX-LKL environment multiple processes are not supported.
+Hence modified the test case to use multiple threads instead of multiple
+processes.
+
 diff --git a/testcases/kernel/syscalls/mkdir/mkdir09.c b/testcases/kernel/syscalls/mkdir/mkdir09.c
-index 88034d29e..e6f3eef20 100644
+index 88034d29e..d09a3016a 100644
 --- a/testcases/kernel/syscalls/mkdir/mkdir09.c
 +++ b/testcases/kernel/syscalls/mkdir/mkdir09.c
 @@ -45,7 +45,9 @@
@@ -134,13 +139,13 @@ index 88034d29e..e6f3eef20 100644
 +		count++;
  	}
  
-+	//free the memory allocated for list of thread ids
++	// free the memory allocated for list of thread ids
 +	free(tidlist);
 +
  	/*
  	 * Make sure correct number of children exited.
  	 */
-@@ -263,73 +220,39 @@ int runtest(void)
+@@ -263,101 +220,64 @@ int runtest(void)
  
  int getchild(int group, int child, int children)
  {
@@ -235,8 +240,13 @@ index 88034d29e..e6f3eef20 100644
 +	while (!terminate_thread) {
  		for (j = 0; j < nfiles; j += NCHILD) {
  			sprintf(tmpdir, DIR_NAME, j);
- 			TEST(mkdir(tmpdir, MODE_RWX));
-@@ -340,24 +263,22 @@ int dochild1(void)
+-			TEST(mkdir(tmpdir, MODE_RWX));
+ 
+-			if (TEST_RETURN < 0) {
++			if (mkdir(tmpdir, MODE_RWX) < 0) {
+ 
+-				if (TEST_ERRNO != EEXIST) {
++				if (errno != EEXIST) {
  					tst_brkm(TFAIL, cleanup,
  						 "MKDIR %s, errno = %d; Wrong error detected.",
  						 tmpdir, TEST_ERRNO);
@@ -266,7 +276,7 @@ index 88034d29e..e6f3eef20 100644
  	 * error is not detected or if the remove operation is
  	 * successful.
  	 */
-@@ -365,7 +286,7 @@ int dochild2(void)
+@@ -365,7 +285,7 @@ int dochild2(void)
  	int j;
  	char tmpdir[MAXPATHLEN];
  
@@ -275,7 +285,7 @@ index 88034d29e..e6f3eef20 100644
  		for (j = 1; j < nfiles; j += NCHILD) {
  			sprintf(tmpdir, DIR_NAME, j);
  			if (rmdir(tmpdir) < 0) {
-@@ -373,34 +294,31 @@ int dochild2(void)
+@@ -373,46 +293,41 @@ int dochild2(void)
  					tst_brkm(TFAIL, cleanup,
  						 "RMDIR %s, errno = %d; Wrong error detected.",
  						 tmpdir, errno);
@@ -304,7 +314,7 @@ index 88034d29e..e6f3eef20 100644
 +	 * Detects error if the expected condition
  	 * is not encountered.
  	 */
--
+ 
 +	long group = (long)parm;
  	int j;
  
@@ -316,7 +326,12 @@ index 88034d29e..e6f3eef20 100644
  		for (j = 2; j < nfiles; j += NCHILD) {
  			strcpy(tmp, DIR_NAME);
  			strcat(tmp, ".%d");
-@@ -412,7 +330,6 @@ int dochild3(int group)
+ 			sprintf(tmpdir, tmp, j, group);
+ 
+-			TEST(mkdir(tmpdir, MODE_RWX));
+-
+-			if (TEST_RETURN < 0) {
++			if (mkdir(tmpdir, MODE_RWX) < 0) {
  				tst_brkm(TFAIL, cleanup,
  					 "MKDIR %s, errno = %d; Wrong error detected.",
  					 tmpdir, TEST_ERRNO);
@@ -324,7 +339,7 @@ index 88034d29e..e6f3eef20 100644
  			}
  		}
  		for (j = 2; j < nfiles; j += NCHILD) {
-@@ -423,26 +340,10 @@ int dochild3(int group)
+@@ -423,26 +338,10 @@ int dochild3(int group)
  				tst_brkm(TFAIL, cleanup,
  					 "RMDIR %s, errno = %d; Wrong error detected.",
  					 tmpdir, errno);
