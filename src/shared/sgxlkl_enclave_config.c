@@ -265,6 +265,8 @@ static sgxlkl_enclave_mount_config_t* _mount(
     return &cfg->mounts[i];
 }
 
+static char* last_path = NULL;
+
 static json_result_t json_read_callback(
     json_parser_t* parser,
     json_reason_t reason,
@@ -272,7 +274,6 @@ static json_result_t json_read_callback(
     const json_union_t* un,
     void* callback_data)
 {
-    static char* last_path = NULL;
     json_callback_data_t* data = (json_callback_data_t*)callback_data;
     size_t i = parser->path[parser->depth - 1].index;
     sgxlkl_enclave_config_t* cfg = data->config;
@@ -527,6 +528,7 @@ void sgxlkl_read_enclave_config(
     if (parser.depth != 0)
         FAIL("unterminated json objects\n");
 
+    free(last_path);
     free(json_copy);
 
     if (enforce_format)

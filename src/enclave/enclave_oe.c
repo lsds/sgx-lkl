@@ -14,10 +14,6 @@
 
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
-#define CHECK_ALLOC(X) \
-    if (!X)            \
-        sgxlkl_fail("out of memory\n");
-
 bool sgxlkl_in_sw_debug_mode()
 {
     return sgxlkl_enclave_state.config->mode == SW_DEBUG_MODE;
@@ -52,21 +48,20 @@ static int _strncmp(const char* x, const char* y, size_t n)
     return *px == *py ? 0 : *px < *py ? -1 : +1;
 }
 
-static void prepare_elf_stack()
+static void _prepare_elf_stack()
 {
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
     const sgxlkl_enclave_config_t* cfg = state->config;
 
-    state->num_imported_env = 0;
-    state->imported_env = NULL;
+    size_t num_imported_env = 0;
+    const char** imported_env = NULL;
 
     if (sgxlkl_enclave_state.shared_memory.env && cfg->num_host_import_env > 0)
     {
-        state->imported_env =
-            oe_malloc(sizeof(char*) * cfg->num_host_import_env);
-        if (!state->imported_env)
-            sgxlkl_fail(
-                "Could not allocate memory for imported host environment\n");
+        imported_env = oe_calloc_or_die(
+            cfg->num_host_import_env,
+            sizeof(char*),
+            "Could not allocate memory for imported host environment\n");
 
         for (size_t i = 0; i < cfg->num_host_import_env; i++)
         {
@@ -79,11 +74,7 @@ static void prepare_elf_stack()
                 if (_strncmp(name, *p, n) == 0 && (*p)[n] == '=')
                 {
                     const char* str = *p;
-                    size_t len = oe_strlen(str);
-                    char* cpy = oe_malloc(len + 1);
-                    CHECK_ALLOC(cpy);
-                    memcpy(cpy, str, len + 1);
-                    state->imported_env[state->num_imported_env++] = cpy;
+                    imported_env[num_imported_env++] = str;
                 }
             }
         }
@@ -97,18 +88,24 @@ static void prepare_elf_stack()
     for (size_t i = 0; i < cfg->num_env; i++)
         num_bytes += oe_strlen(cfg->env[i]) + 1;
     num_ptrs += cfg->num_env + 1;
-    for (size_t i = 0; i < state->num_imported_env; i++)
-        num_bytes += oe_strlen(state->imported_env[i]) + 1;
-    num_ptrs += state->num_imported_env + 1;
+    for (size_t i = 0; i < num_imported_env; i++)
+        num_bytes += oe_strlen(imported_env[i]) + 1;
+    num_ptrs += num_imported_env + 1;
     num_ptrs += 2; // auxv terminator
     num_ptrs += 1; // end marker
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
-    char* buf = oe_calloc(num_bytes, sizeof(char));
-    char** out = oe_calloc(num_ptrs, sizeof(char*));
+    stack->data = oe_calloc_or_die(
+        num_bytes,
+        sizeof(char),
+        "Could not allocate memory for ELF stack strings\n");
+    char** out = oe_calloc_or_die(
+        num_ptrs,
+        sizeof(char*),
+        "Could not allocate memory for ELF stack string array\n");
 
     size_t j = 0;
-    char* buf_ptr = buf;
+    char* buf_ptr = stack->data;
 
 #define ADD_STRING(S)                  \
     {                                  \
@@ -129,9 +126,8 @@ static void prepare_elf_stack()
     stack->envp = out + j;
     for (size_t i = 0; i < cfg->num_env; i++)
         ADD_STRING(cfg->env[i]);
-    for (size_t i = 0; i < state->num_imported_env; i++)
-        // Is this the right order for imported vars?
-        ADD_STRING(state->imported_env[i]);
+    for (size_t i = 0; i < num_imported_env; i++)
+        ADD_STRING(imported_env[i]);
     out[j++] = NULL;
 
     // auxv
@@ -141,6 +137,15 @@ static void prepare_elf_stack()
 
     // end marker
     out[j++] = NULL;
+
+    oe_free(imported_env);
+}
+
+static void _free_elf_stack()
+{
+    elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
+    // stack->argv[0] is apparently freed during __libc_init_enclave()
+    oe_free(stack->data);
 }
 
 // We need to have a separate function here
@@ -149,11 +154,15 @@ int __sgx_init_enclave()
     const sgxlkl_enclave_config_t* config = sgxlkl_enclave_state.config;
     _register_enclave_signal_handlers(config->mode);
 
-    prepare_elf_stack();
+    _prepare_elf_stack();
 
-    return __libc_init_enclave(
+    int r = __libc_init_enclave(
         sgxlkl_enclave_state.elf64_stack.argc,
         sgxlkl_enclave_state.elf64_stack.argv);
+
+    _free_elf_stack();
+
+    return r;
 }
 
 #ifdef DEBUG
@@ -273,18 +282,23 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     {
         enc->num_virtio_blk_dev = host->num_virtio_blk_dev;
 
-        enc->virtio_blk_dev_mem =
-            oe_malloc(sizeof(void*) * enc->num_virtio_blk_dev);
-        CHECK_ALLOC(enc->virtio_blk_dev_mem);
-        enc->virtio_blk_dev_names =
-            oe_calloc(enc->num_virtio_blk_dev, sizeof(char*));
-        CHECK_ALLOC(enc->virtio_blk_dev_names);
+        enc->virtio_blk_dev_mem = oe_calloc_or_die(
+            enc->num_virtio_blk_dev,
+            sizeof(void*),
+            "Could not allocate memory for virtio block devices\n");
+        enc->virtio_blk_dev_names = oe_calloc_or_die(
+            enc->num_virtio_blk_dev,
+            sizeof(char*),
+            "Could not allocate memory for virtio block devices\n");
         for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
         {
             enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
             const char* name = host->virtio_blk_dev_names[i];
             size_t name_len = oe_strlen(name) + 1;
-            enc->virtio_blk_dev_names[i] = oe_malloc(name_len);
+            enc->virtio_blk_dev_names[i] = oe_calloc_or_die(
+                name_len,
+                sizeof(char),
+                "Could not allocate memory for virtio block device name\n");
             memcpy(enc->virtio_blk_dev_names[i], name, name_len);
         }
     }
@@ -294,8 +308,10 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         size_t henvc = 0;
         while (host->env[henvc++] != 0)
             ;
-        char** tmp = oe_malloc(sizeof(char*) * (henvc + 1));
-        CHECK_ALLOC(tmp);
+        char** tmp = oe_calloc_or_die(
+            henvc + 1,
+            sizeof(char*),
+            "Could not allocate memory for host import environment variable\n");
         for (size_t i = 0; i < henvc; i++)
             tmp[i] = oe_strdup(host->env[i]);
         tmp[henvc] = NULL;
@@ -313,9 +329,8 @@ static void _free_shared_memory()
     oe_free(shm->virtio_blk_dev_mem);
     oe_free(shm->virtio_blk_dev_names);
 
-    char* const* p = shm->env;
-    while (*p != 0)
-        oe_free(*p);
+    for (size_t i = 0; shm->env[i] != 0; i++)
+        oe_free(shm->env[i]);
     oe_free((char**)shm->env);
 }
 
@@ -373,9 +388,6 @@ void sgxlkl_free_enclave_state()
 
     sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
     state->config = NULL;
-
-    state->num_imported_env = 0;
-    oe_free(state->imported_env);
 
     state->elf64_stack.argc = 0;
     oe_free(state->elf64_stack.argv); /* includes envp/auxv */

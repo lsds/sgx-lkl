@@ -26,15 +26,12 @@ typedef struct
     char** argv;        /* Arguments */
     char** envp;        /* Environment variables */
     Elf64_auxv_t* auxv; /* ELF64 auxiliary vector */
+    char* data;         /* Buffer that holds all strings on the stack */
 } elf64_stack_t;
 
 typedef struct sgxlkl_enclave_state
 {
     const sgxlkl_enclave_config_t* config;
-
-    /* Imported environment variables */
-    char** imported_env;
-    size_t num_imported_env;
 
     /* Flattened ELF64 process stack */
     elf64_stack_t elf64_stack;
