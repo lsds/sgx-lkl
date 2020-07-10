@@ -1,0 +1,8 @@
+{
+  "args": [
+    "app/helloworld"
+  ],
+  "root": {
+    "readonly": false
+  }
+}

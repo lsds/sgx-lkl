@@ -3,7 +3,6 @@
 
 #include <host/virtio_dev.h>
 #include <inttypes.h>
-#include <shared/sgxlkl_config.h>
 #include <shared/virtio_ring_buff.h>
 
 #define PAGE_SIZE 4096

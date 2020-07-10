@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_BACKTRACE_H
@@ -14,6 +14,26 @@ OE_EXTERNC_BEGIN
 #define OE_BACKTRACE_MAX 32
 
 /**
+ * This function is intended to be called by GNU **backtrace** (oelibc) and
+ * **oe_backtrace** (oecore) functions.
+ */
+int oe_backtrace_impl(void** start_frame, void** buffer, int size);
+
+/**
+ * This function implements GNU **backtrace_symbols** (oelibc) and
+ * **oe_backtrace** (oecore) functions. The debug_malloc feature gathers
+ * backtraces when memory is allocated. debug-malloc itself must not be used to
+ * allocate symbol buffer in this case. This internal function debug-malloc to
+ * use the lower level dlmalloc functions for creating backtrace symbols.
+ */
+char** oe_backtrace_symbols_impl(
+    void* const* buffer,
+    int size,
+    void* (*malloc_fcn)(size_t),
+    void* (*realloc_fcn)(void*, size_t),
+    void (*free_fcn)(void*));
+
+/**
  * This function behaves like the GNU **backtrace** function. See the
  * **backtrace** manpage for more information.
  */
@@ -21,9 +41,15 @@ int oe_backtrace(void** buffer, int size);
 
 /**
  * This function behaves like the GNU **backtrace_symbols** function. See the
- * **backtrace_symbols** manpage for more information.
+ * **backtrace_symbols** manpage for more information. The return value must
+ * released with oe_backtrace_symbols_free().
  */
 char** oe_backtrace_symbols(void* const* buffer, int size);
+
+/**
+ * Free a buffer obtained with **oe_backtrace_symbols()**.
+ */
+void oe_backtrace_symbols_free(char** ptr);
 
 /**
  * Print a backtrace for the current function.

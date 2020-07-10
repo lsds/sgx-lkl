@@ -1,16 +1,21 @@
-#include <openenclave/enclave.h>
-#include "openenclave/internal/calls.h"
-
-#include "enclave/enclave_util.h"
-
 #include <signal.h>
+#include <string.h>
+
 #include <asm/sigcontext.h>
+
 #include <asm-generic/ucontext.h>
 
 #include <lkl_host.h>
+#include <lkl/setup.h>
 #include <string.h>
-#include "enclave/sgxlkl_t.h"
+
+#include <openenclave/enclave.h>
+#include <openenclave/internal/cpuid.h>
+
+#include "enclave/enclave_oe.h"
+#include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
+#include "enclave/sgxlkl_t.h"
 #include "shared/env.h"
 
 #define RDTSC_OPCODE 0x310F
@@ -25,6 +30,7 @@ struct oe_hw_exception_map
     char* description; /* Description string */
 };
 
+// clang-format off
 /* Encapsulating the exception information to a datastructure.
  * supported field is marked a true/false based on the current
  * support. Once all signal support is enabled from OE, then
@@ -41,6 +47,7 @@ static struct oe_hw_exception_map exception_map[] = {
     {OE_EXCEPTION_MISALIGNMENT, X86_TRAP_AC, SIGBUS, true, "SIGBUS (misalignment)"},
     {OE_EXCEPTION_SIMD_FLOAT_POINT, X86_TRAP_XF, SIGFPE, true, "SIGFPE (SIMD float point)"},
 };
+// clang-format on
 
 static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context);
 
@@ -115,7 +122,7 @@ static uint64_t sgxlkl_enclave_signal_handler(
     struct ucontext uctx;
     struct oe_hw_exception_map trap_info;
     oe_context_t* oe_ctx = exception_record->context;
-    uint16_t *instr_addr = ((uint16_t*)exception_record->context->rip);
+    uint16_t* instr_addr = ((uint16_t*)exception_record->context->rip);
     uint16_t opcode = instr_addr ? *instr_addr : 0;
 
     /* Emulate illegal instructions in SGX hardware mode */
@@ -151,13 +158,14 @@ static uint64_t sgxlkl_enclave_signal_handler(
 #endif
 
         /**
-         * If LKL has not yet been initialised, we cannot handle the
-         * exception and fail instead.
+         * If LKL has not yet been initialised or is terminating (and thus no
+         * longer accepts signals), we cannot handle the exception and fail
+         * instead.
          */
-        if (!lkl_is_running())
+        if (!lkl_is_running() || is_lkl_terminating())
         {
 #ifdef DEBUG
-            sgxlkl_error("Exception received before LKL can handle it. "
+            sgxlkl_error("Exception received but LKL is unable to handle it. "
                          "Printing stack trace saved by exception handler:\n");
             /**
              * Since we cannot unwind the frames in the OE exception handler,
@@ -169,7 +177,8 @@ static uint64_t sgxlkl_enclave_signal_handler(
 
             struct lthread* lt = lthread_self();
             sgxlkl_fail(
-                "Exception %s received before LKL is running (lt->tid=%i [%s] "
+                "Exception %s received before LKL initialisation/after LKL "
+                "shutdown (lt->tid=%i [%s] "
                 "code=%i "
                 "addr=0x%lx opcode=0x%x "
                 "ret=%i)\n",
@@ -191,8 +200,8 @@ static uint64_t sgxlkl_enclave_signal_handler(
         info.si_signo = trap_info.signo;
 
         /**
-         * The trap is is passed to LKL. If it can be handled, excecution will continue,
-         * otherwise LKL will abort the process.
+         * The trap is is passed to LKL. If it can be handled, excecution will
+         * continue, otherwise LKL will abort the process.
          */
         lkl_do_trap(trap_info.trapnr, trap_info.signo, NULL, &uctx, 0, &info);
         deserialize_ucontext(&uctx, oe_ctx);
@@ -264,7 +273,7 @@ void _register_enclave_signal_handlers(int mode)
 
     SGXLKL_VERBOSE("Registering OE exception handler...\n");
 
-    if (mode == SW_DEBUG_MODE)
+    if (sgxlkl_in_sw_debug_mode())
     {
         sgxlkl_host_sw_register_signal_handler(
             (void*)sgxlkl_enclave_signal_handler);

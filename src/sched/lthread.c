@@ -47,6 +47,7 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "shared/tree.h"
+#include "openenclave/corelibc/oemalloc.h"
 
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -93,8 +94,8 @@ static size_t sleeptime_ns = 1600;
 static size_t futex_wake_spins = 500;
 static volatile int schedqueuelen = 0;
 
-#if DEBUG
 int thread_count = 1;
+#if DEBUG
 struct lthread_queue* __active_lthreads = NULL;
 struct lthread_queue* __active_lthreads_tail = NULL;
 #endif
@@ -174,12 +175,11 @@ void __schedqueue_inc()
 
 void lthread_sched_global_init(
     size_t sleepspins_,
-    size_t sleeptime_ns_,
-    size_t futex_wake_spins_)
+    size_t sleeptime_ns_)
 {
     sleepspins = sleepspins_;
     sleeptime_ns = sleeptime_ns_;
-    futex_wake_spins = futex_wake_spins_;
+    futex_wake_spins = DEFAULT_FUTEX_WAKE_SPINS;
     RB_INIT(&_lthread_sleeping);
 }
 
@@ -225,9 +225,8 @@ void lthread_run(void)
                 pauses = sleepspins;
                 a_dec(&schedqueuelen);
                 SGXLKL_TRACE_THREAD(
-                    "[tid=%-3d] lthread_run() lthread_resume (dequeue sched "
-                    "queue) \n",
-                    lt->tid);
+                    "[tid=%-3d] lthread_run(): lthread_resume (dequeue)\n",
+                    lt ? lt->tid : -1);
                 _lthread_resume(lt);
             }
 
@@ -263,7 +262,8 @@ void lthread_run(void)
         /* Break out of scheduler loop when enclave is terminating */
         if (_lthread_should_stop)
         {
-            SGXLKL_TRACE_THREAD("[tid=%-3d] lthread_run() quiting.\n", lt->tid);
+            SGXLKL_TRACE_THREAD(
+                "[tid=%-3d] lthread_run(): quitting\n", lt ? lt->tid : -1);
             break;
         }
     }
@@ -426,7 +426,7 @@ void set_tls_tp(struct lthread* lt)
 
     tp->schedctx = __scheduler_self();
 
-    if (sgxlkl_enclave->mode != SW_DEBUG_MODE)
+    if (!sgxlkl_in_sw_debug_mode())
     {
         __asm__ volatile("wrfsbase %0" ::"r"(tp));
     }
@@ -435,7 +435,7 @@ void set_tls_tp(struct lthread* lt)
         int r = __set_thread_area(TP_ADJ(tp));
         if (r < 0)
         {
-            sgxlkl_fail( "Could not set thread area %p\n", tp);
+            sgxlkl_fail("Could not set thread area %p\n", tp);
         }
     }
 }
@@ -450,7 +450,7 @@ void reset_tls_tp(struct lthread* lt)
     // The scheduler context is at a fixed offset from its ethread's fsbase.
     char* tp = (char*)sp - SCHEDCTX_OFFSET;
 
-    if (sgxlkl_enclave->mode != SW_DEBUG_MODE)
+    if (!sgxlkl_in_sw_debug_mode())
     {
         __asm__ volatile("wrfsbase %0" ::"r"(tp));
     }
@@ -459,7 +459,7 @@ void reset_tls_tp(struct lthread* lt)
         int r = __set_thread_area(TP_ADJ(tp));
         if (r < 0)
         {
-            sgxlkl_fail( "Could not set thread area %p: %s\n", tp);
+            sgxlkl_fail("Could not set thread area %p: %s\n", tp);
         }
     }
 }

@@ -3,9 +3,9 @@
 #include <errno.h>
 #include <linux/virtio_mmio.h>
 #include <string.h>
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/ticketlock.h"
 #include "lkl/virtio.h"
 
@@ -16,7 +16,8 @@ static struct ticketlock __event_notifier_lock;
  */
 static void lkl_deliver_irq(uint64_t dev_id)
 {
-    struct virtio_dev* dev = sgxlkl_enclave->shared_memory.virtio_console_mem;
+    struct virtio_dev* dev =
+        sgxlkl_enclave_state.shared_memory.virtio_console_mem;
 
     ticket_lock(&__event_notifier_lock);
 

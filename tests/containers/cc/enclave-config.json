@@ -1,0 +1,16 @@
+{
+  "args": [
+    "/usr/bin/python3",
+    "/app/python-helloworld.py"
+  ],
+  "env": {},
+  "root": {
+    "readonly": false
+  },
+  "mounts": [
+    {
+      "destination": "/data",
+      "readonly": false
+    }
+  ]
+}

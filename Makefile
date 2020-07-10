@@ -17,11 +17,8 @@ all: update-git-submodules install-git-pre-commit-hook $(addprefix $(OE_SDK_ROOT
 ifeq ($(OE_SDK_ROOT),$(OE_SDK_ROOT_DEFAULT))
 # Build and install Open Enclave locally
 $(addprefix $(OE_SDK_ROOT)/lib/openenclave/, $(OE_LIBS)):
-	# Don't build tests.
-	# TODO replace with build option https://github.com/openenclave/openenclave/issues/2894
-	cd $(OE_SUBMODULE) && sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
 	mkdir -p $(OE_SUBMODULE)/build
-	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DENABLE_REFMAN=OFF -DCOMPILE_SYSTEM_EDL=OFF ..
+	cd $(OE_SUBMODULE)/build && cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(OE_SDK_ROOT) -DENABLE_REFMAN=OFF -DCOMPILE_SYSTEM_EDL=OFF -DWITH_EEID=ON -DBUILD_TESTS=OFF -DUSE_DEBUG_MALLOC=OFF ..
 	$(MAKE) -C $(OE_SUBMODULE)/build -j$(scripts/ncore.sh) && $(MAKE) -C $(OE_SUBMODULE)/build install
 endif
 
@@ -103,7 +100,7 @@ sgx-lkl-musl-config: ${OPENENCLAVE}
 		--prefix=${SGXLKL_LIBC_BLD_DIR} \
 		--lklheaderdir=${LKL_BUILD}/include/ \
 		--lkllib=${LIBLKL} \
-		--sgxlklincludes="${SGXLKL_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal" \
+		--sgxlklincludes="${SGXLKL_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal ${BUILD_DIR}/config" \
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/${SGXLKL_STATIC_LIB} \
 		--sgxlkllibs="${THIRD_PARTY_LIB_CRYPTSETUP} ${THIRD_PARTY_LIB_POPT} ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_UUID} ${THIRD_PARTY_LIB_JSON} \
 								  ${THIRD_PARTY_LIB_CURL} ${OE_STUBS} ${OE_SDK_LIBS}/openenclave/enclave/libmbedtls.a" \
@@ -126,8 +123,8 @@ $(SGXLKL_LIB_TARGET): $(SGXLKL_BUILD_VARIANT)
 $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED): $(SGXLKL_LIB_TARGET)
 	@echo "openssl genrsa -out private.pem -3 3072"
 	@openssl genrsa -out $(BUILD_DIR)/private.pem -3 3072
-	@echo "oesign sign -e $(SGXLKL_LIB_TARGET) -c config/params.conf -k private.pem"
-	@$(OE_OESIGN_TOOL_PATH)/oesign sign -e $(BUILD_DIR)/$(SGXLKL_LIB_TARGET) -c $(OESIGN_CONFIG_PATH)/params.conf -k $(BUILD_DIR)/private.pem
+	@echo "oesign sign -e $(SGXLKL_LIB_TARGET) -c config/eeid-params.conf -k private.pem"
+	@$(OE_OESIGN_TOOL_PATH)/oesign sign -e $(BUILD_DIR)/$(SGXLKL_LIB_TARGET) -c $(OESIGN_CONFIG_PATH)/eeid-params.conf -k $(BUILD_DIR)/private.pem
 
 # Create a link named build to appropiate build directory.
 create-build-link:
@@ -164,7 +161,7 @@ install:
 	cp $(TOOLS)/gdb/gdbcommands.py $(PREFIX)/lib/gdb
 	cp $(TOOLS)/gdb/sgx-lkl-gdb.py $(PREFIX)/lib/gdb
 	cp -r $(OE_SDK_ROOT)/lib/openenclave/debugger/* $(PREFIX)/lib/gdb/openenclave
-	cp ${TOOLS}/schemas/app-config.schema.json $(PREFIX)/share/schemas
+	cp ${TOOLS}/schemas/enclave-config.schema.json $(PREFIX)/share/schemas
 	cp ${TOOLS}/schemas/host-config.schema.json $(PREFIX)/share/schemas
 
 uninstall:

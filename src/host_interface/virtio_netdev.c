@@ -18,17 +18,18 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <host/host_state.h>
 #include <host/sgxlkl_util.h>
 #include <host/vio_host_event_channel.h>
 #include <host/virtio_debug.h>
 #include <host/virtio_netdev.h>
 #include <poll.h>
 #include <shared/env.h>
-#include <shared/sgxlkl_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 
 /* We always have 2 queues on a netdev: one for tx, one for rx. */
 #define RX_QUEUE_IDX 0
@@ -301,7 +302,6 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
 
     if (ret < 0)
     {
-
         char tmp;
 
         switch (errno)
@@ -313,7 +313,8 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
                 // Check if there was an error but the fd has not been closed
                 if (pipe_ret < 0 && errno != EBADF)
                     sgxlkl_host_fail(
-                        "%s: write to fd pipe failed: fd=%i ret=%i errno=%i %s\n",
+                        "%s: write to fd pipe failed: fd=%i ret=%i errno=%i "
+                        "%s\n",
                         __func__,
                         nd_fd->pipe[1],
                         pipe_ret,
@@ -544,18 +545,35 @@ void* poll_thread(void* arg)
  * function allocates the memory for virtio device & virtio ring buffer.
  * The shared memory is shared between host & enclave.
  */
-int netdev_init(sgxlkl_config_t* config)
+int netdev_init(sgxlkl_host_state_t* host_state)
 {
     void* netdev_vq_mem = NULL;
     struct virtio_net_dev* net_dev = NULL;
-    char mac[6] = {0xCA, 0xFE, 0x00, 0x00, 0x00, 0x01};
+    char mac[6];
+    // Generate a completely random MAC address
+    size_t b = 0;
+    while (b < sizeof(mac)) {
+        ssize_t ret = getrandom(&mac[b], sizeof(mac) - b, GRND_RANDOM);
+        if (ret < 0) {
+            sgxlkl_host_fail("%s: get random MAC address failed: %s\n", __func__, strerror(errno));
+            return -1;
+        }
+        b += ret;
+    }
+    // Set the locally administered bit:
+    mac[0] |= 2;
+    // Clear the multicast bit (give a unicast MAC address)
+    mac[0] &= 0xfe;
 
     size_t host_netdev_size = next_pow2(sizeof(struct virtio_net_dev));
     size_t netdev_vq_size = NUM_QUEUES * sizeof(struct virtq);
     netdev_vq_size = next_pow2(netdev_vq_size);
 
     if (!_netdev_id)
-        _netdev_base_id = _netdev_id = config->num_disks;
+    {
+        /* Net devices get the IDs following disks (root + mounts) */
+        _netdev_base_id = _netdev_id = host_state->num_disks;
+    }
 
     /* Allocate memory for net device */
     net_dev = mmap(
@@ -601,10 +619,10 @@ int netdev_init(sgxlkl_config_t* config)
     net_dev->dev.device_features |=
         BIT(VIRTIO_F_VERSION_1) | BIT(VIRTIO_RING_F_EVENT_IDX);
 
-    if (config->shared_memory.enable_swiotlb)
+    if (host_state->enclave_config.swiotlb)
         net_dev->dev.device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);
 
-    if (config->tap_offload)
+    if (host_state->config.tap_offload)
     {
         has_vnet_hdr = 1;
         net_dev->dev.device_features |=
@@ -630,7 +648,7 @@ int netdev_init(sgxlkl_config_t* config)
         virtio_set_queue_max_merge_len(&net_dev->dev, RX_QUEUE_IDX, 65536);
 
     /* Register the netdev fd */
-    register_net_device(net_dev, config->net_fd);
+    register_net_device(net_dev, host_state->net_fd);
 
     int* netdev_id = (int*)malloc(sizeof(int));
     assert(netdev_id != NULL);
@@ -648,7 +666,7 @@ int netdev_init(sgxlkl_config_t* config)
     /* Hold memory allocated for virtio netdev to be used in enclave.
      * currently one net device is supported, at somepoint when multiple devices
      * are supported then virtio_net_dev_mem should hold array of devices */
-    config->shared_memory.virtio_net_dev_mem = &net_dev->dev;
+    host_state->shared_memory.virtio_net_dev_mem = &net_dev->dev;
 
     /* return netdev index */
     return registered_dev_idx++;

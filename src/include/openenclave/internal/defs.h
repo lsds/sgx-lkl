@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
 #ifndef _OE_INTERNAL_DEFS_H
@@ -7,8 +7,22 @@
 #include <openenclave/bits/defs.h>
 
 /* OE_WEAK_ALIAS */
+#ifdef __GNUC__
 #define OE_WEAK_ALIAS(OLD, NEW) \
     extern __typeof(OLD) NEW __attribute__((__weak__, alias(#OLD)))
+#elif _MSC_VER
+#define OE_WEAK_ALIAS(OLD, NEW) \
+    __pragma(comment(linker, "/alternatename:" #NEW "=" #OLD))
+#else
+#error OE_WEAK_ALIAS not implemented
+#endif
+
+/* OE_WEAK */
+#ifdef __GNUC__
+#define OE_WEAK __attribute__((weak))
+#else
+#define OE_WEAK
+#endif
 
 /* OE_ZERO_SIZED_ARRAY */
 #ifdef _WIN32
@@ -18,22 +32,6 @@
 #define OE_ZERO_SIZED_ARRAY /* empty */
 #endif
 
-/*
- * Define packed types, such as:
- *     OE_PACK_BEGIN
- *     struct foo {int a,b};
- *     OE_PACK_END
- */
-#if defined(__GNUC__)
-#define OE_PACK_BEGIN _Pragma("pack(push, 1)")
-#define OE_PACK_END _Pragma("pack(pop)")
-#elif _MSC_VER
-#define OE_PACK_BEGIN __pragma(pack(push, 1))
-#define OE_PACK_END __pragma(pack(pop))
-#else
-#error "OE_PACK_BEGIN and OE_PACK_END not implemented"
-#endif
-
 /* OE_CHECK_SIZE */
 #define OE_CHECK_SIZE(N, M)          \
     typedef unsigned char OE_CONCAT( \
@@ -41,6 +39,11 @@
 
 /* OE_FIELD_SIZE */
 #define OE_FIELD_SIZE(TYPE, FIELD) (sizeof(((TYPE*)0)->FIELD))
+
+/* OE_CHECK_FIELD */
+#define OE_CHECK_FIELD(T1, T2, F)                               \
+    OE_STATIC_ASSERT(OE_OFFSETOF(T1, F) == OE_OFFSETOF(T2, F)); \
+    OE_STATIC_ASSERT(sizeof(((T1*)0)->F) == sizeof(((T2*)0)->F));
 
 /* OE_PAGE_SIZE */
 #define OE_PAGE_SIZE 0x1000

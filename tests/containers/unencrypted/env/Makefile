@@ -1,7 +1,7 @@
 include ../../../common.mk
 
 CC_APP=/usr/bin/python3
-CC_APP_CONFIG=app-config.json
+CC_APP_CONFIG=enclave-config.json
 
 CC_IMAGE_SIZE=128M
 
@@ -25,7 +25,7 @@ $(CC_IMAGE):
 	${SGXLKL_DISK_TOOL} create --size=${CC_IMAGE_SIZE} --alpine="python3" ${CC_IMAGE}
 
 run-hw: $(CC_IMAGE) ${CC_IMAGE_DATA}
-	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --hw-debug $(CC_IMAGE)
+	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --enclave-config=${CC_APP_CONFIG} --hw-debug $(CC_IMAGE)
 
 run-sw: $(CC_IMAGE) ${CC_IMAGE_DATA}
-	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE)
+	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --enclave-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE)

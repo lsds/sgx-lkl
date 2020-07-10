@@ -1,27 +1,90 @@
 {
-  "run": "/usr/bin/python3",
   "args": [
+    "/usr/bin/python3",
     "/src/app.py",
     "John"
   ],
-  "environment": {
-    "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-    "GREETING": "Hello"
-  },
-  "disk_config": [
+  "env": [
+    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "GREETING=Hello"
+  ],
+  "mounts": [
     {
-      "disk": "/",
       "readonly": false,
-      "overlay": false,
-      "create": false
-    },
-    {
-      "disk": "/data_1",
-      "readonly": false,
-      "overlay": false,
-      "create": false
+      "destination": "/data_1"
     }
   ],
+  "root": {
+    "readonly": false,
+    "key": "",
+    "key_id": null,
+    "roothash": null,
+    "roothash_offset": 0,
+    "overlay": false
+  },
   "cwd": "/src",
-  "exit_status": "full"
+  "format_version": 1,
+  "mode": "hw_release",
+  "net_ip4": "10.0.1.1",
+  "net_gw4": "10.0.1.254",
+  "net_mask4": "24",
+  "hostname": "lkl",
+  "hostnet": false,
+  "tap_mtu": 0,
+  "wg": {
+    "ip": "10.0.2.1",
+    "listen_port": 56002,
+    "key": null,
+    "peers": []
+  },
+  "ethreads": 1,
+  "max_user_threads": 256,
+  "espins": 500,
+  "esleep": 16000,
+  "clock_res": [
+    {
+      "resolution": "0000000000000001"
+    },
+    {
+      "resolution": "0000000000000001"
+    },
+    {
+      "resolution": "0000000000000000"
+    },
+    {
+      "resolution": "0000000000000000"
+    },
+    {
+      "resolution": "0000000000000001"
+    },
+    {
+      "resolution": "00000000003d0900"
+    },
+    {
+      "resolution": "00000000003d0900"
+    },
+    {
+      "resolution": "0000000000000001"
+    }
+  ],
+  "stacksize": 524288,
+  "mmap_files": "none",
+  "oe_heap_pagecount": 8192,
+  "fsgsbase": true,
+  "verbose": false,
+  "kernel_verbose": false,
+  "kernel_cmd": "mem=32M",
+  "sysctl": null,
+  "swiotlb": true,
+  "host_import_env": [],
+  "exit_status": "full",
+  "image_sizes": {
+    "num_heap_pages": 262144,
+    "num_stack_pages": 1024
+  },
+  "io": {
+    "network": true,
+    "block": true,
+    "console": true
+  }
 }

@@ -6,120 +6,95 @@
 #include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_mem.h"
+#include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
-#include "enclave/sgxlkl_app_config.h"
-#include "enclave/sgxlkl_config.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-
-_Atomic(enum sgxlkl_libc_state) __libc_state = libc_not_started;
-
-int sgxlkl_verbose = 1;
-
-_Atomic(int)
-    sgxlkl_exit_status = 0; /* Exit status returned when LKL terminates */
-
-struct lkl_host_operations lkl_host_ops;
-struct lkl_host_operations sgxlkl_host_ops;
+#include "shared/env.h"
 
 extern struct mpmcq __scheduler_queue;
 
-_Noreturn void __dls3(sgxlkl_app_config_t* conf, void* tos);
+_Noreturn void __dls3(elf64_stack_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
-/* Copy the application setting/conf to enclave memory */
-static void __sgxlkl_enclave_copy_app_config(
-    sgxlkl_app_config_t* app_config,
-    const sgxlkl_config_t* sgxlkl_config)
+static void find_and_mount_disks()
 {
-    int i = 0, envc = 0;
-    char** envp = NULL;
-    size_t total_size = 0;
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+    size_t n = cfg->num_mounts + 1;
 
-    app_config->argc = sgxlkl_config->argc;
+    sgxlkl_enclave_state_t* estate = &sgxlkl_enclave_state;
+    const sgxlkl_shared_memory_t* shm = &estate->shared_memory;
 
-    for (i = 0; i < app_config->argc; i++)
-        total_size += oe_strlen(sgxlkl_config->argv[i]) + 1;
+    estate->disk_state = oe_calloc(n, sizeof(sgxlkl_enclave_disk_state_t));
+    estate->num_disk_state = n;
 
-    envp = sgxlkl_config->argv + sgxlkl_config->argc + 1;
-    while (envp[envc] != NULL)
+    // root disk index
+    estate->disk_state[0].host_disk_index = 0;
+
+    for (int i = 0; i < cfg->num_mounts; i++)
     {
-        total_size += oe_strlen(envp[envc]) + 1;
-        envc++;
+        const sgxlkl_enclave_mount_config_t* cfg_disk = &cfg->mounts[i];
+
+        if (oe_strcmp(cfg_disk->destination, "/") == 0)
+            sgxlkl_fail("root disk should not be in 'mounts'.\n");
+
+        bool found = false;
+        for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
+        {
+            if (oe_strcmp(
+                    cfg_disk->destination, shm->virtio_blk_dev_names[j]) == 0)
+            {
+                estate->disk_state[i + 1].host_disk_index = j;
+                found = true;
+            }
+        }
+        if (!found)
+            sgxlkl_fail(
+                "Disk image for mount point '%s' has not been provided by "
+                "host.\n",
+                cfg_disk->destination);
     }
 
-    char* buf = oe_malloc((total_size + 1) * sizeof(char*));
-    app_config->argv =
-        oe_malloc((sgxlkl_config->argc + envc + 2) * sizeof(char*));
-    size_t remaining = total_size + 1;
-
-    char* p = buf;
-    for (i = 0; i < app_config->argc; i++)
-    {
-        app_config->argv[i] = p;
-        p += oe_snprintf(p, remaining, "%s", sgxlkl_config->argv[i]) + 1;
-        remaining -= p - app_config->argv[i];
-    }
-    app_config->argv[i] = NULL;
-
-    app_config->envp = &app_config->argv[i + 1];
-    for (i = 0; i < envc; i++)
-    {
-        app_config->envp[i] = p;
-        p += oe_snprintf(p, remaining, "%s", envp[i]) + 1;
-        remaining -= p - app_config->envp[i];
-    }
-    app_config->envp[i] = NULL;
-
-    app_config->cwd = oe_strdup(sgxlkl_config->cwd);
-
-    return;
+    lkl_mount_disks(&cfg->root, cfg->mounts, cfg->num_mounts, cfg->cwd);
 }
 
-static void enclave_get_app_config(sgxlkl_app_config_t* app_config)
+static void init_wireguard()
 {
-    /* Get the application configuration & HDD param from remote server */
-    if (sgxlkl_enclave->mode == HW_RELEASE_MODE)
-    {
-        sgxlkl_fail("Remote configuration not supported.\n");
-    }
-    else
-    {
-        if (sgxlkl_enclave->app_config_str)
-        {
-            char* err_desc;
-            int ret = parse_sgxlkl_app_config_from_str(
-                sgxlkl_enclave->app_config_str, app_config, &err_desc);
-            if (ret)
-                sgxlkl_fail(
-                    "Failed to parse application configuration: %s\n",
-                    err_desc);
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
-            /* Validate the app config after parsing */
-            ret = validate_sgxlkl_app_config(app_config);
-            if (ret)
-                sgxlkl_fail("Application configuration is not proper\n");
-        }
-        else
-        {
-            __sgxlkl_enclave_copy_app_config(app_config, sgxlkl_enclave);
-        }
+    /* Get WG public key */
+    wg_device* wg_dev;
+    if (wg_get_device(&wg_dev, "wg0"))
+        sgxlkl_fail("Failed to locate Wireguard interface 'wg0'.\n");
+
+    if (cfg->verbose)
+    {
+        wg_key_b64_string key;
+        wg_key_to_base64(key, wg_dev->public_key);
+        sgxlkl_info("wg0 has public key %s\n", key);
     }
-    return;
+
+    /* Add peers */
+    if (wg_dev)
+    {
+        wgu_add_peers(wg_dev, cfg->wg.peers, cfg->wg.num_peers, 1);
+    }
+    else if (cfg->wg.num_peers)
+    {
+        sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
+    }
+    if (cfg->wg.num_peers && cfg->verbose)
+        wgu_list_devices();
 }
 
 static int startmain(void* args)
 {
-    sgxlkl_app_config_t app_config = {0};
-
-    SGXLKL_VERBOSE("enter\n");
-
     __libc_start_init();
     a_barrier();
 
     /* Indicate that libc initialization has finished */
-    __libc_state = libc_initialized;
+    sgxlkl_enclave_state.libc_state = libc_initialized;
 
     /* Setup LKL (hd, net, memory) and start kernel */
 
@@ -129,110 +104,49 @@ static int startmain(void* args)
     lkl_start_init();
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
 
-    /* Get WG public key */
-    wg_device* wg_dev;
-    if (wg_get_device(&wg_dev, "wg0"))
-        sgxlkl_fail("Failed to locate Wireguard interface 'wg0'.\n");
-
-    if (sgxlkl_verbose)
-    {
-        wg_key_b64_string key;
-        wg_key_to_base64(key, wg_dev->public_key);
-        sgxlkl_info("wg0 has public key %s\n", key);
-    }
-
-    /* Get the application configuration & disk param from remote server */
-    enclave_get_app_config(&app_config);
-
-    /* Disk config has been set through app config
-     * Merge host-provided disk info (fd, capacity, mmap) */
-    if (app_config.disks)
-    {
-        for (int i = 0; i < app_config.num_disks; i++)
-        {
-            enclave_disk_config_t* disk = &app_config.disks[i];
-            // Initialize fd with -1 to make sure we don't try to mount disks
-            // for which no fd has been provided by the host.
-            disk->fd = -1;
-            for (int j = 0; j < sgxlkl_enclave->num_disks; j++)
-            {
-                enclave_disk_config_t* disk_untrusted =
-                    &sgxlkl_enclave->disks[j];
-                if (!oe_strcmp(disk->mnt, disk_untrusted->mnt))
-                {
-                    disk->fd = disk_untrusted->fd;
-                    disk->capacity = disk_untrusted->capacity;
-                    disk->mmap = disk_untrusted->mmap;
-                    /* restore the virtio memory allocated by loader */
-                    disk->virtio_blk_dev_mem =
-                        sgxlkl_enclave->disks[j].virtio_blk_dev_mem;
-                    break;
-                }
-            }
-            // TODO Propagate error (message) back to remote user.
-            if (disk->fd == -1)
-                sgxlkl_fail(
-                    "Disk image for mount point '%s' has not been provided by "
-                    "host.\n",
-                    disk->mnt);
-        }
-    }
-    else
-    {
-        app_config.num_disks = sgxlkl_enclave->num_disks;
-        app_config.disks = sgxlkl_enclave->disks;
-    }
-
-    // Mount disks
-    lkl_mount_disks(app_config.disks, app_config.num_disks, app_config.cwd);
-
-    // Add Wireguard peers
-    if (wg_dev)
-    {
-        wgu_add_peers(wg_dev, app_config.peers, app_config.num_peers, 1);
-    }
-    else if (app_config.num_peers)
-    {
-        sgxlkl_warn("Failed to add wireguard peers: No device 'wg0' found.\n");
-    }
-    if (app_config.num_peers && sgxlkl_verbose)
-        wgu_list_devices();
+    init_wireguard();
+    find_and_mount_disks();
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
-    __dls3(&app_config, __builtin_frame_address(0));
+    __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
 }
 
 int __libc_init_enclave(int argc, char** argv)
 {
     struct lthread* lt;
     char** envp = argv + argc + 1;
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
     /* Upper heap memory area is allotted to OE and rest is used by SGXLKL */
-    const size_t oe_allotted_heapsize =
-        sgxlkl_enclave->oe_heap_pagecount * PAGESIZE;
+    const size_t oe_allotted_heapsize = cfg->oe_heap_pagecount * PAGESIZE;
     const void* sgxlkl_heap_base =
         (void*)((unsigned char*)__oe_get_heap_base() + oe_allotted_heapsize);
+
+    if (oe_allotted_heapsize >= __oe_get_heap_size())
+        sgxlkl_fail("Not enough heap memory for Open Enclave heap\n");
+
     const size_t sgxlkl_heap_size =
         (__oe_get_heap_size() - oe_allotted_heapsize);
 
     SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
-        sgxlkl_heap_base,
-        sgxlkl_heap_size / PAGESIZE,
-        sgxlkl_enclave->mmap_files);
+        sgxlkl_heap_base, sgxlkl_heap_size / PAGESIZE, cfg->mmap_files);
 
-    libc.vvar_base = sgxlkl_enclave->shared_memory.vvar;
-    libc.user_tls_enabled =
-        sgxlkl_enclave->mode == SW_DEBUG_MODE ? 1 : sgxlkl_enclave->fsgsbase;
+    libc.user_tls_enabled = sgxlkl_in_sw_debug_mode() ? 1 : cfg->fsgsbase;
 
-    init_sysconf(
-        sgxlkl_enclave->sysconf_nproc_conf, sgxlkl_enclave->sysconf_nproc_onln);
+    init_sysconf(cfg->ethreads, cfg->ethreads);
 
-    init_clock_res(sgxlkl_enclave->clock_res);
+    struct timespec tmp[8] = {0};
+    for (size_t i = 0; i < 8; i++)
+    {
+        tmp[i].tv_sec = hex_to_int(cfg->clock_res[i].resolution, 8);
+        tmp[i].tv_nsec = hex_to_int(cfg->clock_res[i].resolution + 8, 8);
+    }
+    init_clock_res(tmp);
 
     size_t max_lthreads =
-        sgxlkl_enclave->max_user_threads * sizeof(*__scheduler_queue.buffer);
+        cfg->max_user_threads * sizeof(*__scheduler_queue.buffer);
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
@@ -240,13 +154,12 @@ int __libc_init_enclave(int argc, char** argv)
     __init_libc(envp, argv[0]);
     __init_tls();
 
-    size_t futex_wake_spins = sgxlkl_enclave->shared_memory.vvar ? 1 : 500;
-    size_t espins = sgxlkl_enclave->espins;
-    size_t esleep = sgxlkl_enclave->esleep;
-    lthread_sched_global_init(espins, esleep, futex_wake_spins);
+    size_t espins = cfg->espins;
+    size_t esleep = cfg->esleep;
+    lthread_sched_global_init(espins, esleep);
 
     SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
-    _lthread_sched_init(sgxlkl_enclave->stacksize);
+    _lthread_sched_init(cfg->stacksize);
 
     if (lthread_create(&lt, NULL, startmain, NULL) != 0)
     {
@@ -255,5 +168,5 @@ int __libc_init_enclave(int argc, char** argv)
 
     lthread_run();
 
-    return sgxlkl_exit_status;
+    return sgxlkl_enclave_state.exit_status;
 }

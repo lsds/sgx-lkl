@@ -1,20 +1,20 @@
 {
-    "run": "/usr/bin/python3",
     "args": [
+      "/usr/bin/python3",
       "-c",
       "f = open('/data/test', 'w'); f.write('test'); f.close(); print('TEST PASSED !')"
     ],
-    "environment": {},
-    "disk_config": [
+    "env": {},
+    "root": {
+      "readonly": false
+    },
+    "mounts": [
       {
-        "disk": "/",
-        "readonly": false
-      },
-      {
-        "disk": "/data",
+        "destination": "/data",
         "readonly": false,
         "create": true,
-        "size": 107374182400
+        "size": "3221225472",
+        "key": "123456"
       }
     ]
 }
