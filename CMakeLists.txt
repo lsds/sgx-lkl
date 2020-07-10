@@ -235,7 +235,7 @@ add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
 
 # The enclave image of SGX-LKL is separated into two parts:
 # 1. Kernel space
-#   - OE (oecore, mbedtls)
+#   - Open Enclave (oecore, mbedtls)
 #   - LKL
 #   - Enclave entrypoint
 # 2. User space
@@ -246,16 +246,24 @@ add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
 #   - libdevicemapper
 #   - libext2fs
 #   - Linux init "process"
+# Note on libc:
+#   In the future we will have dynamically linked variants
+#   of libc for user processes, while the init "process" and
+#   its required libraries (libcurl etc.) rely on a statically linked musl.
+# Note on Open Enclave:
+#   Due to architectural issues we will have to include oeenclave
+#   and hence oelibc as well. To avoid duplicate libc symbols we
+#   will hide them and leave only oe_*.
 # The only dependency from user space to kernel space is via the lkl_syscall function.
 # The only dependency from kernel space to user space is via the libc entrypoint function (TODO name?).
 # To enforce this separation and to allow having two copies of mbedtls we need to:
-# - Partially link all kernel space archives into a single object file.
-# - Partially link all user space archives into a single object file.
+# - Partially link all kernel space objects into a single object file.
+# - Partially link all user space objects into a single object file.
 # - Verify no unresolved symbols exist:
-#     ! nm -g libsgxlkl_kernel.o | grep ' U '  # ignore ECALLs and oe_*?
+#     ! nm -g libsgxlkl_kernel.o | grep ' U '
 #     ! nm -g libsgxlkl_user.o | grep ' U '
-# - Hide all kernel space symbols except lkl_syscall (and ECALLs?).
-# - Hide all user space symbols except libc entrypoint and libc itself (apps need libc).
+# - Hide all kernel space symbols except lkl_syscall and the enclave entrypoint.
+# - Hide all user space symbols except the libc entrypoint and libc itself (apps need libc).
 # - Fully link both object files into an enclave image.
 # `ld -r` can be used for partial linking, `objcopy --keep-global-symbol=..` for hiding symbols.
 
@@ -443,8 +451,11 @@ target_include_directories(sgx-lkl-musl INTERFACE "${MUSL_INCLUDE_DIRS}")
 add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
 
 if (LIBC STREQUAL "musl")
-	add_library(sgx-lkl::libc ALIAS sgx-lkl-musl)
-	set(SGXLKL_LIBC_COMPILER "${MUSL_C_COMPILER}")
+	# Eventually init components will always use a statically linked musl,
+	# while apps can use a dynamically linked musl/glibc.
+	# For now, both the init components and apps are required to use the same libc.
+	add_library(sgx-lkl::libc-init ALIAS sgx-lkl-musl)
+	set(SGXLKL_LIBC_INIT_COMPILER "${MUSL_C_COMPILER}")
 endif()
 
 # libext2fs (part of e2fsprogs) is used in userspace to dynamically create disks with ext4 filesystems.
@@ -453,13 +464,13 @@ ExternalProject_Add(e2fsprogs-ep
 	URL_HASH ${E2FSPROGS_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" "CC=${CMAKE_C_COMPILER}"
 	COMMAND make -C "<BINARY_DIR>/util" # build-time tools that must not be built against musl
-	COMMAND "<SOURCE_DIR>/configure" "CC=${SGXLKL_LIBC_COMPILER}" "CFLAGS=-DOMIT_COM_ERR" "--prefix=<INSTALL_DIR>"
+	COMMAND "<SOURCE_DIR>/configure" "CC=${SGXLKL_LIBC_INIT_COMPILER}" "CFLAGS=-DOMIT_COM_ERR" "--prefix=<INSTALL_DIR>"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES} libs
 	INSTALL_COMMAND make -C "<BINARY_DIR>/lib/ext2fs" install
 	COMMAND ${CMAKE_COMMAND} -E make_directory "<INSTALL_DIR>/include/et"
 	COMMAND ${CMAKE_COMMAND} -E touch "<INSTALL_DIR>/include/et/com_err.h"
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libext2fs.a"
-	DEPENDS sgx-lkl::libc
+	DEPENDS sgx-lkl::libc-init
 )
 ExternalProject_Get_property(e2fsprogs-ep INSTALL_DIR)
 add_library(ext2fs INTERFACE)
@@ -473,7 +484,7 @@ ExternalProject_Add(curl-ep
 	URL ${CURL_URL}
 	URL_HASH ${CURL_HASH}
 	CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env curl_disallow_alarm=yes "<SOURCE_DIR>/configure" 
-		"CC=${SGXLKL_LIBC_COMPILER}"
+		"CC=${SGXLKL_LIBC_INIT_COMPILER}"
 		"CFLAGS=-DUSE_BLOCKING_SOCKETS"
 		"--prefix=<INSTALL_DIR>"
 		--disable-shared --with-pic
@@ -490,7 +501,7 @@ ExternalProject_Add(curl-ep
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libcurl.a"
-	DEPENDS sgx-lkl::libc
+	DEPENDS sgx-lkl::libc-init
 )
 ExternalProject_Get_property(curl-ep INSTALL_DIR)
 add_library(curl INTERFACE)
@@ -504,14 +515,14 @@ ExternalProject_Add(devicemapper-ep
 	URL ${DEVICEMAPPER_URL}
 	URL_HASH ${DEVICEMAPPER_HASH}
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
-		"CC=${SGXLKL_LIBC_COMPILER}"
+		"CC=${SGXLKL_LIBC_INIT_COMPILER}"
 		"CFLAGS=-Dptrdiff_t=intptr_t"
 		"--enable-static_link"
 		"--prefix=<INSTALL_DIR>"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libdevicemapper.a"
-	DEPENDS sgx-lkl::libc
+	DEPENDS sgx-lkl::libc-init
 )
 ExternalProject_Get_property(devicemapper-ep INSTALL_DIR)
 add_library(devicemapper INTERFACE)
