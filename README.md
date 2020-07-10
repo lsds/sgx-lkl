@@ -34,16 +34,11 @@ without hardware security guarantees.
 A. Installing SGX-LKL-OE
 ------------------------
 
-SGX-LKL-OE and the FSGSBASE DKMS driver are distributed as Debian packages.
-These packages are alpha quality and not meant for production.
+SGX-LKL-OE is distributed as Debian package.
+This package is alpha quality and not meant for production.
 
 The SGX-LKL-OE package contains the runtime, tools, and all its dependencies
 and can be run on any Linux distribution.
-
-The FSGSBASE DKMS driver enables the FSGSBASE bit in Intel CPUs and allows
-to use thread-local storage in SGX-LKL applications.
-On newer Linux kernels (to be released) installing this driver will not be
-necessary anymore.
 
 To use development releases (updated on every commit to `master`), run:
 ```sh
@@ -62,13 +57,6 @@ sudo apt update
 sudo apt install sgx-lkl-debug
 ```
 
-The FSGSBASE DKMS driver can be installed with:
-```sh
-sudo apt install enable-fsgsbase-dkms
-echo "enable_fsgsbase" | sudo tee -a /etc/modules
-sudo modprobe enable_fsgsbase
-```
-
 To make the SGX-LKL commands available from any directory, add an entry to 
 the `PATH` environment variable:
 ```
@@ -79,6 +67,13 @@ Finally, setup the host environment by running:
 ```
 sgx-lkl-setup
 ```
+
+SGX-LKL works most performant with a Linux kernel that has support for userspace FSGSBASE instructions. Otherwise, support for thread local storage (TLS) must use emulated instructions, which reduces performance.
+SGX-LKL outputs a message on start-up if the currently running Linux kernel does not support FSGSBASE instructions.
+
+FSGSBASE support is not part of the mainline Linux kernel yet.
+Azure VMs run on Linux kernels [with FSGSBASE support](https://bugs.launchpad.net/ubuntu/+source/linux-azure/+bug/1877425) based on a proposed Linux kernel patch.
+To apply the latest patch version to non-Azure systems you may follow the instructions [here](tools/ubuntu-patched-kernel-fsgsbase).
 
 B. Building SGX-LKL-OE from source
 ----------------------------------
@@ -176,8 +171,7 @@ sgx-lkl-setup
 ```
 
 This has to be done after each reboot. It configures the host networking to 
-forward packets from SGX-LKL instances and also loads the FSGSBASE kernel 
-module for support of thread-local storage (TLS) in multi-threaded applications.
+forward packets from SGX-LKL instances.
 
 C. Running applications with SGX-LKL
 ------------------------------------
