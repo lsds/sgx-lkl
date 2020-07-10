@@ -29,12 +29,14 @@ if (DEFINED ENV{LD})
     add_link_options("-fuse-ld=$ENV{LD}")
 endif()
 
+find_package(Python COMPONENTS Interpreter REQUIRED)
+
 if (OE_PREFIX)
 	set(openenclave_DIR "${OE_PREFIX}/lib/openenclave/cmake")
 	find_package(openenclave REQUIRED)
 else()
 	# OE should prefix public options.
-	set(WITH_EEID OFF CACHE BOOL "" FORCE) # TODO enable once compile errors fixed
+	set(WITH_EEID ON CACHE BOOL "" FORCE)
 	set(COMPILE_SYSTEM_EDL OFF CACHE BOOL "" FORCE)
 	set(ENABLE_REFMAN OFF CACHE BOOL "" FORCE)
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -43,15 +45,24 @@ else()
 	add_subdirectory("${OPENENCLAVE_DIR}" EXCLUDE_FROM_ALL)
 	
 	# OE should provide aliased targets.
+	add_library(openenclave::oe_includes ALIAS oe_includes)
 	add_library(openenclave::oecore ALIAS oecore)
 	add_library(openenclave::oeenclave ALIAS oeenclave)
 	add_library(openenclave::oehost ALIAS oehost)
+	add_library(openenclave::oesyscall ALIAS oesyscall)
+	add_library(openenclave::oelibc ALIAS oelibc)
+	add_library(openenclave::oecryptombed ALIAS oecryptombed)
+	add_library(openenclave::mbedtls ALIAS mbedtls)
+	add_library(openenclave::mbedcrypto_static ALIAS mbedcrypto_static)
+	add_library(openenclave::mbedx509 ALIAS mbedx509)
 	add_executable(openenclave::oeedger8r ALIAS edger8r)
 	
 	set(oeedger8r_search_path_args 
 		--search-path "${OPENENCLAVE_DIR}/include"
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
+
+include(cmake/oeenclave.cmake)
 
 set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -fPIC -D__USE_GNU")
 
@@ -62,6 +73,20 @@ endif()
 if(${LKL_DEBUG})
 	set(LKL_CFLAGS_EXTRA "${LKL_CFLAGS_EXTRA} -DLKL_DEBUG")
 endif()
+
+# Common properties for code that is part of the enclave image.
+add_library(sgxlkl_enclave INTERFACE)
+target_compile_definitions(sgxlkl_enclave INTERFACE -DSGXLKL_ENCLAVE -DOE_WITH_EXPERIMENTAL_EEID)
+target_include_directories(sgxlkl_enclave INTERFACE "src/include" "${CMAKE_BINARY_DIR}/generated")
+target_link_libraries(sgxlkl_enclave INTERFACE sgx-lkl::oeenclave)
+add_library(sgx-lkl::enclave ALIAS sgxlkl_enclave)
+
+# Common properties for code that is part of the host tool.
+add_library(sgxlkl_host INTERFACE)
+target_compile_definitions(sgxlkl_host INTERFACE -DOE_WITH_EXPERIMENTAL_EEID)
+target_include_directories(sgxlkl_host INTERFACE "src/include" "${CMAKE_BINARY_DIR}/generated")
+target_link_libraries(sgxlkl_host INTERFACE openenclave::oehost)
+add_library(sgx-lkl::host ALIAS sgxlkl_host)
 
 # Copy the LKL sources to the build directory.  This copies everything except
 # the files that we will modify and creates rules so that any modification of
@@ -176,11 +201,9 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 add_library(lkl STATIC 
 	"${LKL_LIB_PATH}"
 	src/lkl/lkl_oe.c
-	src/lkl/oe_errno.c
+	#src/lkl/oe_errno.c
 	)
-target_link_libraries(lkl PRIVATE openenclave::oecore)
-# Make internal OE headers available.
-target_include_directories(lkl PRIVATE src/include)
+target_link_libraries(lkl PRIVATE sgx-lkl::enclave)
 add_library(sgx-lkl::lkl ALIAS lkl)
 
 add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
@@ -196,41 +219,80 @@ file(GLOB KERNEL_C_SRCS CONFIGURE_DEPENDS
 	"${CMAKE_SOURCE_DIR}/src/wireguard/*.c")
 
 set(GENERATED_HOST_EDGE_FILES 
-	"geninclude/host/sgxlkl_args.h"
-	"geninclude/host/sgxlkl_u.c"
-	"geninclude/host/sgxlkl_u.h"
+	"generated/host/sgxlkl_args.h"
+	"generated/host/sgxlkl_u.c"
+	"generated/host/sgxlkl_u.h"
 	)
 set(GENERATED_ENCLAVE_EDGE_FILES 
-	"geninclude/enclave/sgxlkl_args.h"
-	"geninclude/enclave/sgxlkl_t.c"
-	"geninclude/enclave/sgxlkl_t.h"
+	"generated/enclave/sgxlkl_args.h"
+	"generated/enclave/sgxlkl_t.c"
+	"generated/enclave/sgxlkl_t.h"
 	)
+set(GENERATED_HOST_CONFIG_FILES
+	"generated/host/sgxlkl_host_config_gen.h"
+	"generated/host/sgxlkl_host_config_gen.c"
+)
+set(GENERATED_ENCLAVE_CONFIG_FILES
+	"generated/enclave/sgxlkl_enclave_config_gen.h"
+	"generated/enclave/sgxlkl_enclave_config_gen.c"
+)
+
+set(HOST_CONFIG_SCHEMA "${CMAKE_SOURCE_DIR}/tools/schemas/host-config.schema.json")
+set(ENCLAVE_CONFIG_SCHEMA "${CMAKE_SOURCE_DIR}/tools/schemas/enclave-config.schema.json")
+
+mkdir("generated/host")
+mkdir("generated/enclave")
+add_custom_command(OUTPUT ${GENERATED_HOST_CONFIG_FILES}
+	COMMAND Python::Interpreter	"${CMAKE_SOURCE_DIR}/tools/generate_config.py"
+		--header "host/sgxlkl_host_config_gen.h"
+		--source "host/sgxlkl_host_config_gen.c"
+		"${HOST_CONFIG_SCHEMA}"
+	WORKING_DIRECTORY "generated"
+	DEPENDS "${CMAKE_SOURCE_DIR}/tools/generate_config.py" "${HOST_CONFIG_SCHEMA}"
+)
+add_custom_command(OUTPUT ${GENERATED_ENCLAVE_CONFIG_FILES}
+	COMMAND ${CMAKE_COMMAND} -E make_directory "generated/enclave"
+	COMMAND Python::Interpreter	"${CMAKE_SOURCE_DIR}/tools/generate_config.py"
+		--header "enclave/sgxlkl_enclave_config_gen.h"
+		--source "enclave/sgxlkl_enclave_config_gen.c"
+		"${ENCLAVE_CONFIG_SCHEMA}"
+	WORKING_DIRECTORY "generated"
+	DEPENDS "${CMAKE_SOURCE_DIR}/tools/generate_config.py" "${ENCLAVE_CONFIG_SCHEMA}"
+)
+
+add_library(sgxlkl_host_config STATIC ${GENERATED_HOST_CONFIG_FILES})
+target_link_libraries(sgxlkl_host_config PRIVATE sgx-lkl::host)
+add_library(sgx-lkl::host-config ALIAS sgxlkl_host_config)
+
+add_library(sgxlkl_enclave_config_enclave STATIC ${GENERATED_ENCLAVE_CONFIG_FILES})
+target_link_libraries(sgxlkl_enclave_config_enclave PRIVATE sgx-lkl::enclave)
+add_library(sgx-lkl::enclave-config-enclave ALIAS sgxlkl_enclave_config_enclave)
+
+add_library(sgxlkl_enclave_config_host STATIC ${GENERATED_ENCLAVE_CONFIG_FILES})
+target_link_libraries(sgxlkl_enclave_config_host PRIVATE sgx-lkl::host)
+add_library(sgx-lkl::enclave-config-host ALIAS sgxlkl_enclave_config_host)
 
 add_custom_command(OUTPUT ${GENERATED_HOST_EDGE_FILES}
 	COMMAND openenclave::oeedger8r
 		${oeedger8r_search_path_args}
 		--untrusted "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-		--untrusted-dir "${CMAKE_BINARY_DIR}/geninclude/host"
+		--untrusted-dir "${CMAKE_BINARY_DIR}/generated/host"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 	COMMAND openenclave::oeedger8r
 		${oeedger8r_search_path_args}
 		--trusted "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-		--trusted-dir "${CMAKE_BINARY_DIR}/geninclude/enclave"
+		--trusted-dir "${CMAKE_BINARY_DIR}/generated/enclave"
 	DEPENDS "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 
 add_library(sgxlkl_edl_enclave STATIC ${GENERATED_ENCLAVE_EDGE_FILES})
-target_include_directories(sgxlkl_edl_enclave PUBLIC "${CMAKE_SOURCE_DIR}/src/include")
-target_link_libraries(sgxlkl_edl_enclave PRIVATE openenclave::oecore)
-# FIXME remove this (needed due to including wrong headers in src/include/shared/sgxlkl_config.h)
-target_link_libraries(sgxlkl_edl_enclave PRIVATE openenclave::oeenclave)
+target_link_libraries(sgxlkl_edl_enclave PRIVATE sgx-lkl::enclave)
 add_library(sgx-lkl::edl-enclave ALIAS sgxlkl_edl_enclave)
 
 add_library(sgxlkl_edl_host STATIC ${GENERATED_HOST_EDGE_FILES})
-target_include_directories(sgxlkl_edl_host PUBLIC "${CMAKE_SOURCE_DIR}/src/include")
-target_link_libraries(sgxlkl_edl_host PRIVATE openenclave::oehost)
+target_link_libraries(sgxlkl_edl_host PRIVATE sgx-lkl::host)
 add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
 
 # The enclave image of SGX-LKL is separated into two parts:
@@ -273,7 +335,10 @@ add_library(sgxlkl_enclave_init STATIC
 	# TODO
 	${CMAKE_BINARY_DIR}/dummy.c
 )
-target_link_libraries(sgxlkl_enclave_init PRIVATE openenclave::oecore sgx-lkl::lkl)
+target_link_libraries(sgxlkl_enclave_init PRIVATE
+	sgx-lkl::enclave
+	sgx-lkl::lkl
+	sgx-lkl::enclave-config-enclave)
 add_library(sgx-lkl::enclave-init ALIAS sgxlkl_enclave_init)
 
 # Kernel space object.
@@ -308,31 +373,60 @@ add_custom_command(
 		$<TARGET_FILE:sgx-lkl::edl-enclave>
 		$<TARGET_FILE:sgx-lkl::enclave-init>
 		$<TARGET_FILE:sgx-lkl::lkl>
-		# TODO mbedtls
-		# TODO really?
-		#$<TARGET_FILE:openenclave::oeenclave>
-		#$<TARGET_FILE:openenclave::oecore>
+		$<TARGET_FILE:sgx-lkl::oeenclave>
 	# TODO enable again, see notes above
-	#COMMAND echo "Checking for unresolved symbols"
-	#COMMAND ! nm -g "${SGXLKL_KERNEL_OBJ}" | grep ' U '
-	COMMAND echo "Hiding symbols"
-	COMMAND objcopy --keep-global-symbol=lkl_syscall "${SGXLKL_KERNEL_OBJ}"
+	COMMAND echo "Checking for unresolved symbols"
+	COMMAND ! nm -g "${SGXLKL_KERNEL_OBJ}" | grep ' U '
+	#COMMAND echo "Hiding symbols"
+	#COMMAND objcopy --keep-global-symbol=lkl_syscall "${SGXLKL_KERNEL_OBJ}"
 	COMMAND_EXPAND_LISTS
 	DEPENDS
 		sgx-lkl::edl-enclave
 		sgx-lkl::enclave-init
 		sgx-lkl::lkl
-		openenclave::oecore
+		sgx-lkl::oeenclave
 	)
 
+add_library(sgxlkl_kernel STATIC "${SGXLKL_KERNEL_OBJ}")
+set_target_properties(sgxlkl_kernel PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::kernel ALIAS sgxlkl_kernel)
+
+touch("dummy.c")
+add_library(sgxlkl_user_init STATIC "dummy.c")
+target_link_libraries(sgxlkl_user_init PRIVATE
+	sgx-lkl::libc-init
+	curl::curl
+	devicemapper::devicemapper
+	e2fsprogs::ext2fs
+)
+add_library(sgx-lkl::user-init ALIAS sgxlkl_user_init)
+
+set(SGXLKL_USER_OBJ "libsgxlkl_user.o")
+add_custom_command(
+	OUTPUT "${SGXLKL_USER_OBJ}"
+	COMMENT "Building user space object"
+	COMMAND ld -r -o "${SGXLKL_USER_OBJ}" --whole-archive
+		$<TARGET_FILE:sgx-lkl::user-init>
+	# TODO enable again, see notes above
+	#COMMAND echo "Checking for unresolved symbols"
+	#COMMAND ! nm -g "${SGXLKL_USER_OBJ}" | grep ' U '
+	#COMMAND echo "Hiding symbols"
+	#COMMAND objcopy --keep-global-symbol=lkl_syscall "${SGXLKL_USER_OBJ}"
+	COMMAND_EXPAND_LISTS
+	DEPENDS
+		sgx-lkl::user-init
+	)
+
+add_library(sgxlkl_user STATIC "${SGXLKL_USER_OBJ}")
+set_target_properties(sgxlkl_user PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::user ALIAS sgxlkl_user)
+
 # Enclave image.
-if (FALSE)
-add_library(sgxlkl_enclave SHARED "${SGXLKL_KERNEL_OBJ}")
-set_target_properties(sgxlkl_enclave PROPERTIES LINKER_LANGUAGE C)
-# TODO Is oeenclave correct?
-target_link_libraries(sgxlkl_enclave PRIVATE openenclave::oeenclave)
-add_library(sgx-lkl::enclave ALIAS sgxlkl_enclave)
-endif()
+touch("dummy.c")
+add_library(sgxlkl_enclave_image SHARED "dummy.c")
+target_link_libraries(sgxlkl_enclave_image PRIVATE sgx-lkl::kernel sgx-lkl::user)
+set_target_properties(sgxlkl_enclave_image PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::enclave-image ALIAS sgxlkl_enclave_image)
 
 ExternalProject_Add(json-c-ep
 	URL ${JSON_C_URL}
@@ -349,6 +443,11 @@ target_include_directories(json-c INTERFACE "${INSTALL_DIR}/include")
 add_dependencies(json-c json-c-ep)
 add_library(json-c::json-c ALIAS json-c)
 
+add_library(sgxlkl_json_host STATIC "src/libjson/json.c")
+target_include_directories(sgxlkl_json_host PUBLIC "src/libjson/include")
+target_link_libraries(sgxlkl_json_host PRIVATE sgx-lkl::host)
+add_library(sgx-lkl::json-host ALIAS sgxlkl_json_host)
+
 find_package(Threads REQUIRED)
 
 add_executable(${HOST_TOOL_NAME}
@@ -359,14 +458,16 @@ add_executable(${HOST_TOOL_NAME}
 	)
 target_include_directories(${HOST_TOOL_NAME} PRIVATE
 	"src/include"
-	"${CMAKE_BINARY_DIR}/geninclude"
 	"${CMAKE_BINARY_DIR}/lkl-headers/include"
 	)
 target_link_libraries(${HOST_TOOL_NAME} PRIVATE
 	Threads::Threads
 	rt
-	json-c::json-c
-	openenclave::oehost
+	sgx-lkl::host
+	sgx-lkl::edl-host
+	sgx-lkl::json-host
+	sgx-lkl::host-config
+	sgx-lkl::enclave-config-host
 	sgx-lkl::build-metadata
 	)
 target_link_options(${HOST_TOOL_NAME} PRIVATE "LINKER:--gc-sections")
