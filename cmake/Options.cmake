@@ -2,6 +2,10 @@ if (NOT CMAKE_GENERATOR STREQUAL "Ninja")
 	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
 endif()
 
+if (NOT CMAKE_C_COMPILER_ID STREQUAL Clang)
+  message(WARNING "Clang is the preferred compiler for this project, use: CC=clang")
+endif()
+
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "No build type selected, default to Debug")
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
