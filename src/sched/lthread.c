@@ -408,23 +408,34 @@ static void init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
 	tcb->self = mem;
 }
 
+static void set_fsbase(void* tp){
+
+    if (!sgxlkl_in_sw_debug_mode())
+    {
+        __asm__ volatile("wrfsbase %0" ::"r"(tp));
+    }
+    else
+    {
+        int res;
+        __asm__ volatile(
+            "mov %1, %%rsi\n\t"
+            "movl $0x1002, %%edi\n\t"       /* SET_FS register */
+            "movl $158, %%eax\n\t"          /* set fs segment to */
+            "syscall"                       /* arch_prctl(SET_FS, arg)*/
+            : "=a" (res)
+            : "r" (tp)
+        );
+        if (res < 0)
+        {
+            sgxlkl_fail( "Could not set thread area %p\n", tp);
+        }
+    }
+}
 void set_tls_tp(struct lthread* lt)
 {
     if (!lt->itls)
         return;
-    
-    if (!sgxlkl_in_sw_debug_mode())
-    {
-        __asm__ volatile("wrfsbase %0" ::"r"(lt->tp));
-    }
-    else
-    {
-        int r = __set_thread_area(TP_ADJ(lt->tp));
-        if (r < 0)
-        {
-            sgxlkl_fail( "Could not set thread area %p\n", lt->tp);
-        }
-    }
+    set_fsbase(lt->tp);
 }
 
 void reset_tls_tp(struct lthread* lt)
@@ -436,19 +447,7 @@ void reset_tls_tp(struct lthread* lt)
 
     // The scheduler context is at a fixed offset from its ethread's gsbase.
     char* tp = (char*)sp - SCHEDCTX_OFFSET;
-
-    if (!sgxlkl_in_sw_debug_mode())
-    {
-        __asm__ volatile("wrfsbase %0" ::"r"(tp));
-    }
-    else
-    {
-        int r = __set_thread_area(TP_ADJ(tp));
-        if (r < 0)
-        {
-            sgxlkl_fail("Could not set thread area %p: %s\n", tp);
-        }
-    }
+    set_fsbase(tp);
 }
 
 int _lthread_resume(struct lthread* lt)
