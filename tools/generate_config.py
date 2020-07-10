@@ -75,6 +75,15 @@ def need_size_var(jtype):
 
 num_settings = 0
 
+header_includes = """
+#ifdef SGXLKL_ENCLAVE
+#include <shared/oe_compat.h>
+#else
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#endif
+"""
 
 def generate_header(schema_file_name, root, args):
     global num_settings
@@ -94,10 +103,8 @@ def generate_header(schema_file_name, root, args):
             % schema_file_name
         )
 
-        header.write("#include <inttypes.h>\n")
-        header.write("#include <stdbool.h>\n")
-        header.write("#include <stddef.h>\n")
-        header.write("#include <elf.h>\n\n")
+        header.write(header_includes)
+        header.write("\n")
 
         top = root["$ref"].rsplit("/")[-1]
 
