@@ -53,8 +53,7 @@ typedef enum _json_result
     JSON_UNKNOWN_VALUE,
     JSON_OUT_OF_BOUNDS,
     JSON_NO_MATCH,
-}
-json_result_t;
+} json_result_t;
 
 typedef enum _json_type
 {
@@ -63,19 +62,16 @@ typedef enum _json_type
     JSON_TYPE_INTEGER,
     JSON_TYPE_REAL,
     JSON_TYPE_STRING,
-}
-json_type_t;
+} json_type_t;
 
 const char* json_result_string(json_result_t result);
 
-typedef union _json_union
-{
+typedef union _json_union {
     unsigned char boolean;
     int64_t integer;
     double real;
     char* string;
-}
-json_union_t;
+} json_union_t;
 
 typedef enum _json_reason
 {
@@ -86,8 +82,7 @@ typedef enum _json_reason
     JSON_REASON_BEGIN_ARRAY,
     JSON_REASON_END_ARRAY,
     JSON_REASON_VALUE
-}
-json_reason_t;
+} json_reason_t;
 
 typedef struct _json_parser json_parser_t;
 
@@ -101,9 +96,8 @@ typedef json_result_t (*json_parser_callback_t)(
 typedef struct _json_allocator
 {
     void* (*ja_malloc)(size_t size);
-    void (*ja_free)(void *ptr);
-}
-json_allocator_t;
+    void (*ja_free)(void* ptr);
+} json_allocator_t;
 
 typedef struct _json_node
 {
@@ -118,8 +112,12 @@ typedef struct _json_node
 
     /* The array index (if an array) */
     size_t index;
-}
-json_node_t;
+} json_node_t;
+
+typedef struct _json_parser_options
+{
+    int allow_whitespace;
+} json_parser_options_t;
 
 struct _json_parser
 {
@@ -139,6 +137,7 @@ struct _json_parser
         unsigned int line,
         const char* func,
         const char* message);
+    json_parser_options_t options;
 };
 
 /* This function initializes the JSON parser. The parser destroys its input
@@ -148,6 +147,7 @@ struct _json_parser
  *     - callback - called repeatedly during parsing.
  *     - callback_data - user data passed to the callback.
  *     - allocator - required custom allocator.
+ *     - allow_whitespace - allow whitespace.
  */
 json_result_t json_parser_init(
     json_parser_t* parser,
@@ -155,7 +155,8 @@ json_result_t json_parser_init(
     size_t json_size,
     json_parser_callback_t callback,
     void* callback_data,
-    json_allocator_t* allocator);
+    json_allocator_t* allocator,
+    json_parser_options_t* options);
 
 /* This function performs parsing which calls the callback passed to
  * json_parser_init() as elements are recognized. The following is the
@@ -250,10 +251,7 @@ json_result_t json_parser_parse(json_parser_t* parser);
  */
 json_result_t json_match(json_parser_t* parser, const char* pattern);
 
-typedef void (*json_write_t)(
-    void* stream,
-    const void* buf,
-    size_t count);
+typedef void (*json_write_t)(void* stream, const void* buf, size_t count);
 
 /* This function prints the value contained in a JSON union.
  *     - write - callback responsible for writing the output.
@@ -292,9 +290,23 @@ json_result_t json_print(
  *
  *     widget.1.gadget.color
  */
-void json_dump_path(
-    json_write_t write,
-    void* stream,
-    json_parser_t* parser);
+void json_dump_path(json_write_t write, void* stream, json_parser_t* parser);
+
+/* This function retrieves the index of the current array element */
+unsigned long json_get_array_index(json_parser_t* parser);
+
+/* Self-contained string conversion functions */
+extern json_result_t json_conversion_error;
+long int _strtol(
+    const char* nptr,
+    char** endptr,
+    int base,
+    int allow_whitespace);
+unsigned long int _strtoul(
+    const char* nptr,
+    char** endptr,
+    int base,
+    int allow_whitespace);
+double _strtod(const char* nptr, char** endptr, int allow_whitespace);
 
 #endif /* _JSON_H */

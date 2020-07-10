@@ -3,8 +3,8 @@
 
 #include <stdarg.h>
 
-#include "openenclave/internal/print.h"
 #include "openenclave/corelibc/oemalloc.h"
+#include "openenclave/internal/print.h"
 #ifdef DEBUG
 #include "openenclave/internal/backtrace.h"
 #endif
@@ -77,8 +77,9 @@ void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...)
 
 #ifdef DEBUG
 /**
- * Provide access to an internal OE function. We cannot use the public oe_backtrace
- * function because we need to pass in custom frame pointers of other lthreads.
+ * Provide access to an internal OE function. We cannot use the public
+ * oe_backtrace function because we need to pass in custom frame pointers of
+ * other lthreads.
  */
 extern int oe_backtrace_impl(void** start_frame, void** buffer, int size);
 

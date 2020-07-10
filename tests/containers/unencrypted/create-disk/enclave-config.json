@@ -1,0 +1,19 @@
+{
+    "args": [
+      "/usr/bin/python3",
+      "-c",
+      "f = open('/data/test', 'w'); f.write('test'); f.close(); print('TEST PASSED !')"
+    ],
+    "env": {},
+    "root": {
+      "readonly": false
+    },
+    "mounts": [
+      {
+        "destination": "/data",
+        "readonly": false,
+        "create": true,
+        "size": "107374182400"
+      }
+    ]
+}

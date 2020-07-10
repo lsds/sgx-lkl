@@ -1,5 +1,3 @@
-#include "lkl/lkl_util.h"
-
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -106,7 +104,12 @@ static void parse_epoll_event_flags(
     buf[0] = '\0';
 }
 
-long __sgxlkl_log_syscall(sgxlkl_syscall_kind type, long n, long res, int params_len, ...)
+long __sgxlkl_log_syscall(
+    sgxlkl_syscall_kind type,
+    long n,
+    long res,
+    int params_len,
+    ...)
 {
     const char* name = NULL;
     char errmsg[255] = {0};
@@ -282,6 +285,6 @@ long __sgxlkl_log_syscall(sgxlkl_syscall_kind type, long n, long res, int params
             res,
             errmsg);
     }
-	return res;
+    return res;
 }
 #endif /* DEBUG */

@@ -1,0 +1,550 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SGX-LKL enclave config schema",
+  "required": [
+    "args"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "safe_uint32_t": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 10,
+      "minimum": 0,
+      "maximum": 4294967296,
+      "multipleOf": 1.0
+    },
+    "safe_uint64_t": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 20,
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "multipleOf": 1.0
+    },
+    "safe_size_t": {
+      "type": [
+        "string",
+        "number"
+      ],
+      "pattern": "^0$|^[1-9][0-9]*$",
+      "maxLength": 20,
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "multipleOf": 1.0
+    },
+    "hex_string": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]*$"
+    },
+    "sgxlkl_enclave_mode_t": {
+      "enum": [
+        "unknown",
+        "sw_debug",
+        "hw_debug",
+        "hw_release"
+      ],
+      "c_enum": [
+        "UNKNOWN_MODE",
+        "SW_DEBUG_MODE",
+        "HW_DEBUG_MODE",
+        "HW_RELEASE_MODE"
+      ]
+    },
+    "sgxlkl_enclave_mmap_files_t": {
+      "enum": [
+        "none",
+        "private",
+        "shared"
+      ],
+      "c_enum": [
+        "ENCLAVE_MMAP_FILES_NONE",
+        "ENCLAVE_MMAP_FILES_PRIVATE",
+        "ENCLAVE_MMAP_FILES_SHARED"
+      ]
+    },
+    "sgxlkl_exit_status_mode_t": {
+      "enum": [
+        "full",
+        "binary",
+        "none"
+      ],
+      "c_enum": [
+        "EXIT_STATUS_FULL",
+        "EXIT_STATUS_BINARY",
+        "EXIT_STATUS_NONE"
+      ]
+    },
+    "sgxlkl_clock_res_config_t": {
+      "type": "object",
+      "properties": {
+        "resolution": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 16,
+          "pattern": "^[0-9A-Fa-f]+$",
+          "default": "0000000000000000"
+        }
+      }
+    },
+    "sgxlkl_enclave_mount_config_t": {
+      "type": "object",
+      "description": "Disk configuration",
+      "required": [
+        "destination"
+      ],
+      "additionalProperties": false,
+      "dependencies": {
+        "roothash": [
+          "roothash_offset"
+        ],
+        "roothash_offset": [
+          "roothash"
+        ],
+        "create": [
+          "size"
+        ],
+        "size": [
+          "create"
+        ]
+      },
+      "properties": {
+        "create": {
+          "type": "boolean",
+          "description": "Whether to dynamically create the disk (note that an empty image file must exist).",
+          "default": false
+        },
+        "destination": {
+          "type": "string",
+          "description": "Mount point",
+          "pattern": "^/.*$",
+          "maxLength": 255
+        },
+        "key": {
+          "$ref": "#/definitions/hex_string",
+          "description": "Disk encryption key (hex-encoded).",
+          "default": ""
+        },
+        "key_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name/identifier of disk encryption key.",
+          "default": null
+        },
+        "fresh_key": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether to generate a fresh key for encryption of newly created disks."
+        },
+        "readonly": {
+          "type": "boolean",
+          "description": "Whether to mount the disk read-only",
+          "default": false
+        },
+        "roothash": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "dm-verity hash.",
+          "default": null
+        },
+        "roothash_offset": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "dm-verity hash offset.",
+          "default": 0
+        },
+        "size": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Size of the ext4 filesystem in the dynamically created disk when \"create\": true.",
+          "default": 0
+        }
+      }
+    },
+    "sgxlkl_enclave_root_config_t": {
+      "type": "object",
+      "description": "Root disk configuration",
+      "additionalProperties": false,
+      "dependencies": {
+        "roothash": [
+          "roothash_offset"
+        ],
+        "roothash_offset": [
+          "roothash"
+        ],
+        "create": [
+          "size"
+        ],
+        "size": [
+          "create"
+        ]
+      },
+      "properties": {
+        "key": {
+          "$ref": "#/definitions/hex_string",
+          "description": "Disk encryption key (hex-encoded).",
+          "default": ""
+        },
+        "key_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Name/identifier of disk encryption key.",
+          "default": null
+        },
+        "roothash": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "dm-verity hash.",
+          "default": null
+        },
+        "roothash_offset": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "dm-verity hash offset.",
+          "default": 0
+        },
+        "readonly": {
+          "type": "boolean",
+          "description": "Whether to mount the disk read-only",
+          "default": false
+        },
+        "overlay": {
+          "type": "boolean",
+          "description": "Set to 1 to create an in-memory writable overlay for a read-only root file system.",
+          "default": false,
+          "overridable": "SGXLKL_HD_OVERLAY"
+        }
+      }
+    },
+    "sgxlkl_enclave_wg_peer_config_t": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "WG peer public key."
+        },
+        "allowed_ips": {
+          "type": "string",
+          "description": "Allowed IPs for a WG peer."
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "WG peer endpoint."
+        }
+      }
+    },
+    "sgxlkl_enclave_wg_config_t": {
+      "type": "object",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "description": "IPv4 address to assign to Wireguard interface.",
+          "default": "10.0.2.1",
+          "overridable": "SGXLKL_WG_IP"
+        },
+        "listen_port": {
+          "$ref": "#/definitions/safe_uint32_t",
+          "description": "Port to use on eth0 interface for the Wireguard endpoint.",
+          "default": 56002,
+          "overridable": "SGXLKL_WG_PORT"
+        },
+        "key": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Private Wireguard key. Will be ignored in release mode in which a new key pair is generated inside the enclave on startup.",
+          "default": null,
+          "overridable": "SGXLKL_WG_KEY"
+        },
+        "peers": {
+          "type": "array",
+          "description": "Array of wireguard peer configurations.",
+          "items": {
+            "$ref": "#/definitions/sgxlkl_enclave_wg_peer_config_t"
+          },
+          "default": [],
+          "overridable": "SGXLKL_WG_PEERS"
+        }
+      }
+    },
+    "sgxlkl_image_sizes_config_t": {
+      "type": "object",
+      "properties": {
+        "num_heap_pages": {
+          "$ref": "#/definitions/safe_uint64_t",
+          "description": "Number of heap pages of the enclave.",
+          "default": 262144
+        },
+        "num_stack_pages": {
+          "$ref": "#/definitions/safe_uint64_t",
+          "description": "Number of stack pages of the enclave.",
+          "default": 1024
+        }
+      }
+    },
+    "sgxlkl_io_config_t": {
+      "type": "object",
+      "properties": {
+        "network": {
+          "type": "boolean",
+          "description": "Enables shared memory for the network device",
+          "default": true
+        },
+        "block": {
+          "type": "boolean",
+          "description": "Enables shared memory for block devices",
+          "default": true
+        },
+        "console": {
+          "type": "boolean",
+          "description": "Enables shared memory for the console",
+          "default": true
+        }
+      }
+    },
+    "sgxlkl_enclave_config_t": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Version number of the enclave config type.",
+          "default": 1
+        },
+        "mode": {
+          "$ref": "#/definitions/sgxlkl_enclave_mode_t",
+          "description": "Enclave execution mode.",
+          "default": "hw_release"
+        },
+        "net_ip4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "IPv4 address to assign inside the enclave.",
+          "default": "10.0.1.1",
+          "overridable": "SGXLKL_IP4"
+        },
+        "net_gw4": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "IPv4 gateway to assign inside the enclave.",
+          "default": "10.0.1.254",
+          "overridable": "SGXLKL_GW4"
+        },
+        "net_mask4": {
+          "type": "string",
+          "description": "CIDR mask to use inside the enclave.",
+          "pattern": "1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32",
+          "default": "24",
+          "overridable": "SGXLKL_MASK4"
+        },
+        "hostname": {
+          "type": "string",
+          "description": "Host name to use inside the enclave.",
+          "default": "lkl",
+          "overridable": "SGXLKL_HOSTNAME"
+        },
+        "hostnet": {
+          "type": "boolean",
+          "description": "Hostnet",
+          "default": false,
+          "overridable": "SGXLKL_HOSTNET"
+        },
+        "tap_mtu": {
+          "$ref": "#/definitions/safe_uint32_t",
+          "description": "Sets MTU on the SGX-LKL side of the TAP interface. Must be set on the host separately (e.g. ifconfig sgxlkl_tap0 mtu 9000).",
+          "default": 0,
+          "overridable": "SGXLKL_TAP_MTU"
+        },
+        "wg": {
+          "$ref": "#/definitions/sgxlkl_enclave_wg_config_t",
+          "description": "Wireguard configuration."
+        },
+        "ethreads": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Number of enclave threads.",
+          "default": 1,
+          "overridable": "SGXLKL_ETHREADS"
+        },
+        "max_user_threads": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Max. number of user-level thread inside the enclave.",
+          "default": 256,
+          "overridable": "SGXLKL_MAX_USER_THREADS"
+        },
+        "espins": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Number of spins inside scheduler before sleeping begins.",
+          "default": 500,
+          "overridable": "SGXLKL_ESPINS"
+        },
+        "esleep": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Sleep timeout in the scheduler (in ns).",
+          "default": 16000,
+          "overridable": "SGXLKL_ESLEEP"
+        },
+        "clock_res": {
+          "type": "array",
+          "description": "",
+          "minLength": 8,
+          "maxLength": 8,
+          "items": {
+            "$ref": "#/definitions/sgxlkl_clock_res_config_t"
+          },
+          "default": [
+            {
+              "resolution": "0000000000000001"
+            },
+            {
+              "resolution": "0000000000000001"
+            },
+            {
+              "resolution": "0000000000000000"
+            },
+            {
+              "resolution": "0000000000000000"
+            },
+            {
+              "resolution": "0000000000000001"
+            },
+            {
+              "resolution": "00000000003d0900"
+            },
+            {
+              "resolution": "00000000003d0900"
+            },
+            {
+              "resolution": "0000000000000001"
+            }
+          ]
+        },
+        "stacksize": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "Stack size of in-enclave user-level threads.",
+          "default": 524288,
+          "overridable": "SGXLKL_STACK_SIZE"
+        },
+        "mmap_files": {
+          "$ref": "#/definitions/sgxlkl_enclave_mmap_files_t",
+          "description": "Set to \"private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"shared\" to mmap files with 'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'. (Default: not supported)",
+          "default": "none",
+          "overridable": "SGXLKL_MMAP_FILES"
+        },
+        "oe_heap_pagecount": {
+          "$ref": "#/definitions/safe_size_t",
+          "description": "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=<n>",
+          "default": 8192,
+          "overridable": "SGXLKL_OE_HEAP_PAGE_COUNT"
+        },
+        "fsgsbase": {
+          "type": "boolean",
+          "description": "",
+          "default": true
+        },
+        "verbose": {
+          "type": "boolean",
+          "description": "",
+          "default": false,
+          "overridable": "SGXLKL_VERBOSE"
+        },
+        "kernel_verbose": {
+          "type": "boolean",
+          "description": "Set to 1 to print LKL kernel messages.",
+          "default": false,
+          "overridable": "SGXLKL_KERNEL_VERBOSE"
+        },
+        "kernel_cmd": {
+          "type": "string",
+          "description": "",
+          "default": "mem=32M",
+          "overridable": "SGXLKL_CMDLINE"
+        },
+        "sysctl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "'sysctl' configurations. Semicolon-separated list of key value pairs in the form 'key1=value1;key2=value2;[...]'.",
+          "default": null,
+          "overridable": "SGXLKL_SYSCTL"
+        },
+        "swiotlb": {
+          "type": "boolean",
+          "description": "Enable DMA bounce buffer support, even in sw mode.",
+          "default": true,
+          "overridable": "SGXLKL_ENABLE_SWIOTLB"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "The working directory.",
+          "default": "/",
+          "overridable": "SGXLKL_CWD"
+        },
+        "args": {
+          "type": "array",
+          "description": "Application arguments.",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "env": {
+          "type": "array",
+          "description": "Environment variables (VAR=VALUE).",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "host_import_env": {
+          "type": "array",
+          "description": "Comma-separated list of environment variables to import from the host.",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "overridable": "SGXLKL_HOST_IMPORT_ENV"
+        },
+        "exit_status": {
+          "$ref": "#/definitions/sgxlkl_exit_status_mode_t",
+          "description": "Whether and how the enclave exit code is reported to the host.",
+          "default": "full"
+        },
+        "root": {
+          "$ref": "#/definitions/sgxlkl_enclave_root_config_t",
+          "description": "Root disk configuration."
+        },
+        "mounts": {
+          "type": "array",
+          "description": "Disks to mount.",
+          "items": {
+            "$ref": "#/definitions/sgxlkl_enclave_mount_config_t"
+          },
+          "default": []
+        },
+        "image_sizes": {
+          "$ref": "#/definitions/sgxlkl_image_sizes_config_t",
+          "description": "Image memory size configuration."
+        },
+        "io": {
+          "$ref": "#/definitions/sgxlkl_io_config_t",
+          "description": "I/O configuration."
+        }
+      }
+    }
+  },
+  "$ref": "#/definitions/sgxlkl_enclave_config_t",
+  "description": "SGX-LKL enclave configuration."
+}

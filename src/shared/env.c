@@ -5,6 +5,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+uint64_t hex_to_int(const char* digits, size_t num_digits)
+{
+    uint64_t r = 0;
+    for (size_t i = 0; i < num_digits; i++)
+    {
+        char c = digits[i];
+        r <<= 4;
+        if (c >= '0' && c <= '9')
+            r |= (c - '0') & 0xFF;
+        else if (c >= 'a' && c <= 'f')
+            r |= (0xA + (c - 'a')) & 0xFF;
+        else if (c >= 'A' && c <= 'F')
+            r |= (0xA + (c - 'A')) & 0xFF;
+    }
+    return r;
+}
+
 uint64_t size_str_to_uint64(const char* str, uint64_t def, uint64_t max)
 {
     uint64_t r;
@@ -54,7 +71,7 @@ void size_uint64_to_str(uint64_t size, char* buf, uint64_t len)
 
 uint64_t getenv_uint64(const char* var, uint64_t def, uint64_t max)
 {
-    char *val;
+    char* val;
     if (!(val = getenv(var)))
         return def;
 
@@ -89,9 +106,10 @@ uint64_t next_pow2(uint64_t x)
     return n;
 }
 
-ssize_t hex_to_bytes(const char* hex, char** result)
+ssize_t hex_to_bytes(const char* hex, uint8_t** result)
 {
-    char buf[3] = "xx\0", *endp, *bytes;
+    char buf[3] = "xx\0", *endp;
+    uint8_t* bytes;
     size_t i, len;
     int odd = 0;
 

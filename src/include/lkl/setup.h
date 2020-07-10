@@ -1,7 +1,7 @@
 #ifndef SETUP_H
 #define SETUP_H
 
-#include "shared/sgxlkl_config.h"
+#include "shared/sgxlkl_enclave_config.h"
 
 #define DEFAULT_LKL_CMDLINE ""
 
@@ -10,8 +10,9 @@ void lkl_start_init();
 
 /* Mount all LKL disks */
 void lkl_mount_disks(
-    struct enclave_disk_config* disks,
-    size_t num_disks,
+    const sgxlkl_enclave_root_config_t* root,
+    const sgxlkl_enclave_mount_config_t* mounts,
+    size_t num_mounts,
     const char* cwd);
 
 /* Shutdown the running LKL kernel */

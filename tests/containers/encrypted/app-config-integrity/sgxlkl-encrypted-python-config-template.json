@@ -1,20 +1,19 @@
 {
-    "run": "/usr/bin/python3",
-    "args": [
-      "-c",
-      "print(\"SGX Encrypted Confidential Container app-config-integrity TEST PASSED !\")"
-    ],
-    "environment": {},
-    "disk_config": [
-      {
-        "disk": "/",
-        "readonly": false,
-        "key": ""
-      },
-      {
-        "disk": "/data",
-        "readonly": false,
-        "key": ""
-      }
-    ]
+  "args": [
+    "/usr/bin/python3",
+    "-c",
+    "print(\"SGX Encrypted Confidential Container app-config-integrity TEST PASSED !\")"
+  ],
+  "env": {},
+  "root": {
+    "readonly": false,
+    "key": ""
+  },
+  "mounts": [
+    {
+      "disk": "/data",
+      "readonly": false,
+      "key": ""
+    }
+  ]
 }

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "host/sgxlkl_params.h"
+#include "host/host_state.h"
 
 void sgxlkl_host_fail(char* msg, ...)
 {
@@ -40,7 +40,7 @@ void sgxlkl_host_info(char* msg, ...)
 
 void sgxlkl_host_verbose(char* msg, ...)
 {
-    if (sgxlkl_config_bool(SGXLKL_VERBOSE))
+    if (sgxlkl_host_state.config.verbose)
     {
         va_list(args);
         fprintf(stderr, "[   SGX-LKL  ] ");
@@ -51,7 +51,7 @@ void sgxlkl_host_verbose(char* msg, ...)
 
 void sgxlkl_host_verbose_raw(char* msg, ...)
 {
-    if (sgxlkl_config_bool(SGXLKL_VERBOSE))
+    if (sgxlkl_host_state.config.verbose)
     {
         va_list(args);
         va_start(args, msg);

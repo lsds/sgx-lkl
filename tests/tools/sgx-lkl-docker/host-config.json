@@ -1,4 +1,12 @@
 {
-    "hd": "rootfs.img",
-    "hds": "data.img:/data:0"
+  "root": {
+    "image_path": "rootfs.img"
+  },
+  "mounts": [
+    {
+      "image_path": "data.img",
+      "destination": "/data",
+      "readonly": false
+    }
+  ]
 }

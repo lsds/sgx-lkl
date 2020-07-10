@@ -27,7 +27,7 @@ $(DATA_IMAGE): $(DISK_IMAGE)
 	cp $(DISK_IMAGE) $(DATA_IMAGE)
 
 $(WRAP_DOCKER_IMAGE_STAMP): $(DISK_IMAGE) $(DATA_IMAGE)
-	$(SGXLKL_DOCKER_TOOL) build --name=$(WRAP_DOCKER_IMAGE) --host-cfg=host-config.json --app-cfg=app-config.json
+	$(SGXLKL_DOCKER_TOOL) build --name=$(WRAP_DOCKER_IMAGE) --host-cfg=host-config.json --enclave-cfg=enclave-config.json
 	touch $(WRAP_DOCKER_IMAGE_STAMP)
 
 run: run-hw run-sw
