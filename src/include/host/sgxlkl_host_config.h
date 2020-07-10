@@ -1,7 +1,7 @@
 #ifndef SGXLKL_HOST_CONFIG_H
 #define SGXLKL_HOST_CONFIG_H
 
-#include <sgxlkl_host_config_gen.h>
+#include "host/sgxlkl_host_config_gen.h"
 
 /* Read host config (from string) */
 int sgxlkl_read_host_config(
