@@ -1,7 +1,7 @@
 #ifndef SGXLKL_SHARED_MEMORY_H
 #define SGXLKL_SHARED_MEMORY_H
 
-#include <stddef.h>
+#include "openenclave/bits/types.h"
 
 #include <shared/vio_event_channel.h>
 
