@@ -510,7 +510,7 @@ target_include_directories(curl INTERFACE "${INSTALL_DIR}/include")
 add_dependencies(curl curl-ep)
 add_library(curl::curl ALIAS curl)
 
-# libdevicemapper is used in userspace as dependency of libvicsetup.
+# libdevmapper is used in userspace as dependency of libvicsetup.
 ExternalProject_Add(devicemapper-ep
 	URL ${DEVICEMAPPER_URL}
 	URL_HASH ${DEVICEMAPPER_HASH}
@@ -521,12 +521,12 @@ ExternalProject_Add(devicemapper-ep
 		"--prefix=<INSTALL_DIR>"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
-	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libdevicemapper.a"
+	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libdevmapper.a"
 	DEPENDS sgx-lkl::libc-init
 )
 ExternalProject_Get_property(devicemapper-ep INSTALL_DIR)
 add_library(devicemapper INTERFACE)
-target_link_libraries(devicemapper INTERFACE "${INSTALL_DIR}/lib/libdevicemapper.a")
+target_link_libraries(devicemapper INTERFACE "${INSTALL_DIR}/lib/libdevmapper.a")
 target_include_directories(devicemapper INTERFACE "${INSTALL_DIR}/include")
 add_dependencies(devicemapper devicemapper-ep)
 add_library(devicemapper::devicemapper ALIAS devicemapper)
