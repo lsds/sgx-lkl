@@ -388,9 +388,10 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 void sgxlkl_free_enclave_state()
 {
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
-
-    sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
-    state->config = NULL;
+    
+    // This is still too early. TODO: Find right place to do this.
+    // sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
+    // state->config = NULL;
 
     state->elf64_stack.argc = 0;
     oe_free(state->elf64_stack.argv); /* includes envp/auxv */
