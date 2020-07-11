@@ -18,6 +18,10 @@ if [ -z "$SGXLKL_BUILD_MODE" ]; then
     echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<mode>"
     exit 1
 fi
+if [ -z "$SGXLKL_NIGHTLY_BUILD" ]; then
+    echo "ERROR: 'SGXLKL_NIGHTLY_BUILD' is undefined. Please export SGXLKL_NIGHTLY_BUILD_MODE=true|false"
+    exit 1
+fi
 
 #shellcheck source=.azure-pipelines/scripts/test_utils.sh
 . "$SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh"
@@ -142,7 +146,7 @@ function SkipTestIfDisabled()
     fi
 
     # If this test is in $nightly_tests_file and this is not a nightly build skip it
-    if [[ $is_test_disabled -eq 0 &&  "$SGXLKL_NIGHTLY_RUN" = "false" ]]; then
+    if [[ $is_test_disabled -eq 0 && "$SGXLKL_NIGHTLY_BUILD" = "false" ]]; then
         is_test_nightly_only=$(grep -c "$file" "$nightly_tests_file")
         if [[ $is_test_nightly_only -ge 1 ]]; then
             echo "Test $file is marked nighlty build only. Skipping test..."
