@@ -146,7 +146,7 @@ function SkipTestIfDisabled()
     fi
 
     # If this test is in $nightly_tests_file and this is not a nightly build skip it
-    if [[ $is_test_disabled -eq 0 && "$SGXLKL_NIGHTLY_BUILD" = "false" ]]; then
+    if [[ $is_test_disabled -eq 0 && $SGXLKL_NIGHTLY_BUILD -eq 1 ]]; then
         is_test_nightly_only=$(grep -c "$file" "$nightly_tests_file")
         if [[ $is_test_nightly_only -ge 1 ]]; then
             echo "Test $file is marked nighlty build only. Skipping test..."
@@ -200,7 +200,7 @@ suite_test_start_time=$(date +%s)
 
 failure_identifiers=()
 while IFS= read -r line; do failure_identifiers+=("$line"); done < "$failure_identifiers_file"
-echo "Nightly build: $SGXLKL_NIGHTLY_BUILD"
+echo "This is Nightly Build: $SGXLKL_NIGHTLY_BUILD"
 for file in "${file_list[@]}";
 do
     SkipTestIfDisabled

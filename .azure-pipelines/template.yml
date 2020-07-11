@@ -48,8 +48,8 @@ parameters:
   type: boolean
   default: false
 - name: 'nightly_build'
-  type: boolean
-  default: false
+  type: number
+  default: 0
 - name: 'apt_repo_blob_container'
   type: string
   default: 'apt-dev'
