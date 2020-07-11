@@ -151,7 +151,7 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
-                SGXLKL_NIGHTLY_BUILD: ${{ nightly_build }}
+                SGXLKL_NIGHTLY_BUILD: ${{ parameters.nightly_build }}
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
