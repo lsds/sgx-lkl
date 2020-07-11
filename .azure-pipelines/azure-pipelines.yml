@@ -12,3 +12,4 @@ extends:
   template: template.yml
   parameters:
     publish: false
+    nightly_build: false
