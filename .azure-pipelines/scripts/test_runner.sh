@@ -135,11 +135,21 @@ function SkipTestIfDisabled()
 {
     skip_test=false
     is_test_disabled=$(grep -c "$file" "$disabled_tests_file")
-    # if this test is disabled set counters and skip to next test
     if [[ $is_test_disabled -ge 1 ]]; then
         echo "Test $file is disabled. Skipping test..."
         echo "To enable the test remove $file from $disabled_tests_file"
+    fi
 
+    if [[ $is_test_disabled -eq 0 &&  "$SGXLKL_NIGHTLY_RUN" = "true" ]]; then
+        is_test_nightly_only=$(grep -c "$file" "$nightly_tests_file")
+        if [[ $is_test_nightly_only -ge 1 ]]; then
+            echo "Test $file is marked nighlty build only. Skipping test..."
+            echo "To enable the test remove $file from $nightly_tests_file"
+        fi
+    fi
+
+    # if this test is disabled set counters and skip to next test
+    if [[ $is_test_disabled -ge 1 || $is_test_nightly_only -ge 1 ]]; then
         total_disabled=$((total_disabled + 1))
         counter=$((counter + 1))
         total_remaining=$((total_tests - counter))
@@ -151,6 +161,7 @@ test_folder_name="tests"
 test_folder_identifier="Makefile"
 test_runner_script="$SGXLKL_ROOT/.azure-pipelines/scripts/run_test.sh"
 disabled_tests_file="$SGXLKL_ROOT/.azure-pipelines/scripts/disabled_tests.txt"
+nightly_tests_file="$SGXLKL_ROOT/.azure-pipelines/other/nightly_run_only_tests.txt"
 # test which needs not to be executed as part of CI e.g (test_name1\|test_name2...)
 test_exception_list="ltp"
 
