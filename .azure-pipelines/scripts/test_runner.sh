@@ -134,13 +134,15 @@ function GetReadyToRunNextTest()
 function SkipTestIfDisabled()
 {
     skip_test=false
+    # If this test is in $disabled_tests_file skip it
     is_test_disabled=$(grep -c "$file" "$disabled_tests_file")
     if [[ $is_test_disabled -ge 1 ]]; then
         echo "Test $file is disabled. Skipping test..."
         echo "To enable the test remove $file from $disabled_tests_file"
     fi
 
-    if [[ $is_test_disabled -eq 0 &&  "$SGXLKL_NIGHTLY_RUN" = "true" ]]; then
+    # If this test is in $nightly_tests_file and this is not a nightly build skip it
+    if [[ $is_test_disabled -eq 0 &&  "$SGXLKL_NIGHTLY_RUN" = "false" ]]; then
         is_test_nightly_only=$(grep -c "$file" "$nightly_tests_file")
         if [[ $is_test_nightly_only -ge 1 ]]; then
             echo "Test $file is marked nighlty build only. Skipping test..."
