@@ -149,7 +149,7 @@ function SkipTestIfDisabled()
     if [[ $is_test_disabled -eq 0 && $SGXLKL_NIGHTLY_BUILD -eq 0 ]]; then
         is_test_nightly_only=$(grep -c "$file" "$nightly_tests_file")
         if [[ $is_test_nightly_only -ge 1 ]]; then
-            echo "Test $file is marked nighlty build only. Skipping test..."
+            echo "Test $file is marked nightly build only. Skipping test..."
             echo "To enable the test remove $file from $nightly_tests_file"
         fi
     fi
