@@ -19,8 +19,7 @@ if [ -z "$SGXLKL_BUILD_MODE" ]; then
     exit 1
 fi
 if [ -z "$SGXLKL_NIGHTLY_BUILD" ]; then
-    echo "ERROR: 'SGXLKL_NIGHTLY_BUILD' is undefined. Please export SGXLKL_NIGHTLY_BUILD_MODE=0|1"
-    exit 1
+    export SGXLKL_NIGHTLY_BUILD=0
 fi
 
 #shellcheck source=.azure-pipelines/scripts/test_utils.sh
@@ -147,15 +146,15 @@ function SkipTestIfDisabled()
 
     # If this test is in $nightly_tests_file and this is not a nightly build skip it
     if [[ $is_test_disabled -eq 0 && $SGXLKL_NIGHTLY_BUILD -eq 0 ]]; then
-        is_test_nightly_only=$(grep -c "$file" "$nightly_tests_file")
-        if [[ $is_test_nightly_only -ge 1 ]]; then
+        is_test_disabled=$(grep -c "$file" "$nightly_tests_file")
+        if [[ $is_test_disabled -ge 1 ]]; then
             echo "Test $file is marked nightly build only. Skipping test..."
             echo "To enable the test remove $file from $nightly_tests_file"
         fi
     fi
 
     # if this test is disabled set counters and skip to next test
-    if [[ $is_test_disabled -ge 1 || $is_test_nightly_only -ge 1 ]]; then
+    if [[ $is_test_disabled -ge 1 ]]; then
         total_disabled=$((total_disabled + 1))
         counter=$((counter + 1))
         total_remaining=$((total_tests - counter))
@@ -200,7 +199,8 @@ suite_test_start_time=$(date +%s)
 
 failure_identifiers=()
 while IFS= read -r line; do failure_identifiers+=("$line"); done < "$failure_identifiers_file"
-echo "This is Nightly Build: $SGXLKL_NIGHTLY_BUILD"
+[[ $SGXLKL_NIGHTLY_BUILD -eq 1 ]] && echo "This is Nightly Build. Tests marked for nightly build only will be run."
+
 for file in "${file_list[@]}";
 do
     SkipTestIfDisabled
