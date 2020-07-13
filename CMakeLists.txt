@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.17)
+include(cmake/Constants.cmake)
+
+cmake_minimum_required(VERSION ${MIN_CMAKE_VERSION})
 
 # CXX is added here to avoid default compiler selection issues
 # when including Open Enclave via add_subdirectory.

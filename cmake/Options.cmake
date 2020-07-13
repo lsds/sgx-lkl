@@ -1,4 +1,18 @@
-if (NOT CMAKE_GENERATOR STREQUAL "Ninja")
+if (CMAKE_GENERATOR STREQUAL "Ninja")
+  execute_process(
+    COMMAND "${CMAKE_MAKE_PROGRAM}" --version
+    OUTPUT_VARIABLE ninja_out
+    ERROR_VARIABLE ninja_out
+    RESULT_VARIABLE ninja_res
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if (NOT ninja_res EQUAL 0)
+    message(FATAL_ERROR "'ninja --version' reported:\n${ninja_out}")
+  endif()
+  if (ninja_out VERSION_LESS "${MIN_NINJA_VERSION}")
+    message(WARNING "Your Ninja version (${ninja_out}) is too old, please use >= ${MIN_NINJA_VERSION}")
+  endif()
+else()
 	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
 endif()
 

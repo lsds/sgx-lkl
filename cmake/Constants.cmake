@@ -1,3 +1,7 @@
+# Minimum versions
+set(MIN_CMAKE_VERSION "3.17")
+set(MIN_NINJA_VERSION "1.10.0")
+
 # Paths
 set(LKL_SUBDIRECTORY "lkl")
 set(EXTERNAL_PROJECT_BASE_DIR "external")
