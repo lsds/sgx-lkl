@@ -23,6 +23,8 @@ if(NOT LIBC IN_LIST LIBC_NAMES)
     message(FATAL_ERROR "LIBC must be one of: ${LIBC_NAMES}")
 endif()
 
+set(USE_LLD CACHE BOOL "Use LLVM's lld linker")
+
 set(COPY_INDIVIDUAL_FILES FALSE CACHE BOOL
     "Copy source files one at a time. This makes the initial build slower, but incremental builds faster.")
     

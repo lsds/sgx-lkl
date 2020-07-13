@@ -25,8 +25,17 @@ set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
 ProcessorCount(NUMBER_OF_CORES)
 read_build_metadata()
 
-if (DEFINED ENV{LD})
-    add_link_options("-fuse-ld=$ENV{LD}")
+if (USE_LLD)
+	find_program(LINKER NAMES ld.lld-10 ld.lld-9 ld.lld-8 ld.lld-7 ld.lld REQUIRED)
+	if (CMAKE_C_COMPILER_ID STREQUAL Clang)
+		set(LINKER_CFLAG "-fuse-ld=${LINKER}")
+	elseif()
+		# GCC does not support absolute paths.
+		set(LINKER_CFLAG "-fuse-ld=lld")
+	endif()
+	add_link_options("${LINKER_CFLAG}")
+else()
+	set(LINKER "ld")
 endif()
 
 find_package(Python COMPONENTS Interpreter REQUIRED)
@@ -297,7 +306,7 @@ add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
 
 # The enclave image of SGX-LKL is separated into two parts:
 # 1. Kernel space
-#   - Open Enclave (oecore, mbedtls)
+#   - Open Enclave
 #   - LKL
 #   - Enclave entrypoint
 # 2. User space
@@ -333,55 +342,93 @@ add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
 touch(${CMAKE_BINARY_DIR}/dummy.c)
 add_library(sgxlkl_enclave_init STATIC
 	# TODO
+	#${ENCLAVE_C_SRCS}
 	${CMAKE_BINARY_DIR}/dummy.c
 )
 target_link_libraries(sgxlkl_enclave_init PRIVATE
 	sgx-lkl::enclave
 	sgx-lkl::lkl
-	sgx-lkl::enclave-config-enclave)
+	sgx-lkl::enclave-config-enclave
+	)
 add_library(sgx-lkl::enclave-init ALIAS sgxlkl_enclave_init)
 
 # Kernel space object.
-# TODO the following symbols are still unresolved:
-#   _GLOBAL_OFFSET_TABLE_
-#   __fini_array_end
-#   __fini_array_start
-#   __init_array_end
-#   __init_array_start
-#   oe_cert_chain_free
-#   oe_cert_chain_get_cert
-#   oe_cert_chain_get_leaf_cert
-#   oe_cert_free
-#   oe_datetime_now
-#   oe_datetime_to_string
-#   oe_free_sgx_quote_verification_collateral_args
-#   oe_get_quote_cert_chain_internal
-#   oe_get_report_v2_ecall
-#   oe_get_sgx_quote_verification_collateral_from_certs
-#   oe_realloc_ocall
-#   oe_sgx_thread_wake_wait_ocall
-#   oe_verify_local_report_ecall
-#   oe_verify_report_ecall
-#   sgxlkl_enclave_init -> will come from sgx-lkl::enclave-init
-#   sgxlkl_ethread_init -> will come from sgx-lkl::enclave-init
 set(SGXLKL_KERNEL_OBJ "libsgxlkl_kernel.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_KERNEL_OBJ}"
 	COMMENT "Building kernel space object"
-	COMMAND ld -r -o "${SGXLKL_KERNEL_OBJ}" --whole-archive
-		# TODO what about order?
+	COMMAND "${LINKER}" -r -o "${SGXLKL_KERNEL_OBJ}"
+		-m elf_x86_64
+
+		# Only those objects reachable from the enclave entrypoint will be included
+		# in the relocatable object file. This is because we use static archives.
+		# Object files would always be included in full.
+		--entry=_start
+
+		# It would be nice if we could use --gc-sections during partial linking to avoid
+		# pulling in unused undefined symbols and also keep the object size small
+		# at this stage already. However, this is not possible for the following reasons:
+		# gold and lld don't support -r together with --gc-sections.
+		# ld supports it but crashes.
+		#   gold: "error: cannot mix -r with --gc-sections or --icf"
+		#   lld: "error: -r and --gc-sections may not be used together"
+		#   ld: "BFD (GNU Binutils for Ubuntu) 2.30 assertion fail ../../bfd/elflink.c:8723"
+		# Note that ld also required --gc-keep-exported if --gc-sections is used:
+		#   "startfiles:.debug_info: error: relocation references symbol 
+		#     mbedtls_cipher_supported which was removed by garbage collection.
+		#    startfiles:.debug_info: error: try relinking with --gc-keep-exported enabled."
+		# Solution: We will use --gc-sections only during the final link.
+		# For this to work we need to work around two OE issues:
+		# https://github.com/openenclave/openenclave/issues/3254
+		# https://github.com/openenclave/openenclave/issues/3255
+		# While the OE issues are not resolved yet we can either
+		# - provide empty definitions ourselves for the two ocall symbols, or
+		# - allow those two symbols to be undefined and rely on --gc-sections
+		#   to remove them during the final link.
+		# We use the second option for now.
+
+		# Subset of oecore flags compatible with -r.
+		-nostdlib
+		-nodefaultlibs
+		-nostartfiles
+		-Bstatic
+		-Bsymbolic
+		--export-dynamic
+
+		# TODO use proper order
+		--start-group
 		$<TARGET_FILE:sgx-lkl::edl-enclave>
+		$<TARGET_FILE:sgx-lkl::enclave-config-enclave>
 		$<TARGET_FILE:sgx-lkl::enclave-init>
 		$<TARGET_FILE:sgx-lkl::lkl>
-		$<TARGET_FILE:sgx-lkl::oeenclave>
-	# TODO enable again, see notes above
+		# Linking against the partially linked oeenclave.o (see cmake/oeenclave.cmake)
+		# has the disadvantage that all its symbols are included.
+		# This would lead to a lot more undefined symbols since we can't
+		# use --gc-sections during partial linking (see note above).
+		#$<TARGET_FILE:sgx-lkl::oeenclave>
+		$<TARGET_FILE:openenclave::oeenclave>
+		$<TARGET_FILE:openenclave::oecryptombed>
+		$<TARGET_FILE:openenclave::mbedtls>
+		$<TARGET_FILE:openenclave::mbedx509>
+		$<TARGET_FILE:openenclave::mbedcrypto_static>
+		$<TARGET_FILE:openenclave::oelibc>
+		$<TARGET_FILE:openenclave::oesyscall>
+		$<TARGET_FILE:openenclave::oecore>
+		--end-group
 	COMMAND echo "Checking for unresolved symbols"
-	COMMAND ! nm -g "${SGXLKL_KERNEL_OBJ}" | grep ' U '
-	#COMMAND echo "Hiding symbols"
-	#COMMAND objcopy --keep-global-symbol=lkl_syscall "${SGXLKL_KERNEL_OBJ}"
-	COMMAND_EXPAND_LISTS
+	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
+		| grep ' U ' # filter to undefined symbols
+		| grep -v -E -e "'__(fini|init)_array_(start|end)'" # available at final link only
+		  # TODO remove once OE issues resolved (see comments above)
+		  -e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
+	COMMAND echo "Hiding symbols"
+	COMMAND "${CMAKE_OBJCOPY}"
+		--keep-global-symbol=_start
+	    --keep-global-symbol=lkl_syscall
+	   "${SGXLKL_KERNEL_OBJ}"
 	DEPENDS
 		sgx-lkl::edl-enclave
+		sgx-lkl::enclave-config-enclave
 		sgx-lkl::enclave-init
 		sgx-lkl::lkl
 		sgx-lkl::oeenclave
@@ -405,13 +452,13 @@ set(SGXLKL_USER_OBJ "libsgxlkl_user.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_USER_OBJ}"
 	COMMENT "Building user space object"
-	COMMAND ld -r -o "${SGXLKL_USER_OBJ}" --whole-archive
+	COMMAND "${LINKER}" -r -o "${SGXLKL_USER_OBJ}" --whole-archive
 		$<TARGET_FILE:sgx-lkl::user-init>
 	# TODO enable again, see notes above
 	#COMMAND echo "Checking for unresolved symbols"
-	#COMMAND ! nm -g "${SGXLKL_USER_OBJ}" | grep ' U '
+	#COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_USER_OBJ}" | grep ' U '
 	#COMMAND echo "Hiding symbols"
-	#COMMAND objcopy --keep-global-symbol=lkl_syscall "${SGXLKL_USER_OBJ}"
+	#COMMAND "${CMAKE_OBJCOPY}" --keep-global-symbol=lkl_syscall "${SGXLKL_USER_OBJ}"
 	COMMAND_EXPAND_LISTS
 	DEPENDS
 		sgx-lkl::user-init

@@ -1,3 +1,7 @@
+
+# NOTE:
+# THIS FILE IS *NOT USED* CURRENTLY, SEE NOTES IN CMakeLists.txt.
+
 # This file creates oeenclave.o, which contains all objects from the
 # entire OE enclave-side stack. It only exports select symbols. It omits
 # symbols from oelibc and mbedtls.
@@ -16,7 +20,7 @@ set(LOCAL_OECORE
     oe_free_sgx_endorsements
     oe_get_sgx_endorsements
     oe_parse_sgx_endorsements
-    __stack_chk_fail
+    #__stack_chk_fail
 )
 list(TRANSFORM LOCAL_OECORE PREPEND "--localize-symbol=" OUTPUT_VARIABLE LOCAL_OECORE)
 
@@ -24,11 +28,11 @@ set(OECORE_OBJ "oecore.o")
 add_custom_command(
 	OUTPUT "${OECORE_OBJ}"
 	COMMENT "Building oecore object"
-    COMMAND ld -r -o "${OECORE_OBJ}" 
+    COMMAND "${LINKER}" -r -o "${OECORE_OBJ}" 
         --whole-archive
         $<TARGET_FILE:openenclave::oecore>
 	COMMAND echo "Hiding symbols"
-    COMMAND objcopy ${LOCAL_OECORE} "${OECORE_OBJ}"
+    COMMAND "${CMAKE_OBJCOPY}" ${LOCAL_OECORE} "${OECORE_OBJ}"
 	DEPENDS
 		openenclave::oecore
     )
@@ -39,7 +43,7 @@ set(OEENCLAVE_OBJ "oeenclave.o")
 add_custom_command(
 	OUTPUT "${OEENCLAVE_OBJ}"
 	COMMENT "Building oeenclave object"
-    COMMAND ld -r -o "${OEENCLAVE_OBJ}"
+    COMMAND "${LINKER}" -r -o "${OEENCLAVE_OBJ}"
         --whole-archive
 		$<TARGET_FILE:openenclave::oeenclave>
 		$<TARGET_FILE:openenclave::oecryptombed>
@@ -53,16 +57,19 @@ add_custom_command(
     # At this stage, various symbols are still (correctly) undefined:
     # - Platform OCALLs (oe_*_ocall)
     # - ECALL table (__oe_ecalls_table[_size])
-    # FIXME There are also some unexpected undefined symbols:
-    # - pthread_setcancelstate, _pthread_cleanup_pop, _pthread_cleanup_push
-    # - lstat
-    # - __h_errno_location
-    # - __res_send
-    # - __init_array_start, __init_array_end, __fini_array_start, __fini_array_end
+    # - Initializers/finalizers (__(init|fini)_array_(start|end))
+    # - Other symbols that would be removed via --gc-sections in later links:
+    #  - pthread_setcancelstate, _pthread_cleanup_pop, _pthread_cleanup_push
+    #  - lstat
+    #  - __h_errno_location
+    #  - __res_send 
 	#COMMAND echo "Checking for unresolved symbols"
-	#COMMAND ! nm -g "${OEENCLAVE_OBJ}" | grep ' U '
+	#COMMAND ! "${CMAKE_NM}" -g "${OEENCLAVE_OBJ}" | grep ' U '
 	COMMAND echo "Hiding symbols"
-	COMMAND objcopy -w --keep-global-symbol='oe_*' "${OEENCLAVE_OBJ}"
+    COMMAND "${CMAKE_OBJCOPY}" -w 
+        --keep-global-symbol='*oe_*'
+        --keep-global-symbol='__stack_chk_fail'
+        "${OEENCLAVE_OBJ}"
     DEPENDS
         openenclave::oeenclave
         openenclave::oecryptombed
