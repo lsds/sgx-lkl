@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.17)
 # CXX is added here to avoid default compiler selection issues
 # when including Open Enclave via add_subdirectory.
 # SGX-LKL does not use C++ currently.
-project(SGX-LKL C CXX)
+project(SGX-LKL C CXX ASM)
 
 # Conventions:
 # - All filenames/paths, and variables containing them, must be quoted.
@@ -352,11 +352,15 @@ target_link_libraries(sgxlkl_enclave_init PRIVATE
 	)
 add_library(sgx-lkl::enclave-init ALIAS sgxlkl_enclave_init)
 
+add_library(sgxlkl_kernel_init_fini_stubs STATIC src/lkl/init_fini_stubs.s)
+add_library(sgx-lkl::kernel-init-fini-stubs ALIAS sgxlkl_kernel_init_fini_stubs)
+
 # Kernel space object.
 set(SGXLKL_KERNEL_OBJ "libsgxlkl_kernel.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_KERNEL_OBJ}"
 	COMMENT "Building kernel space object"
+	COMMAND "${CMAKE_COMMAND}" -E rm -f "${SGXLKL_KERNEL_OBJ}"
 	COMMAND "${LINKER}" -r -o "${SGXLKL_KERNEL_OBJ}"
 		-m elf_x86_64
 
@@ -389,8 +393,9 @@ add_custom_command(
 
 		# Subset of oecore flags compatible with -r.
 		-nostdlib
-		-nodefaultlibs
-		-nostartfiles
+		# FIXME why doesn't it work with it?
+		#-nodefaultlibs
+		#-nostartfiles
 		-Bstatic
 		-Bsymbolic
 		--export-dynamic
@@ -414,13 +419,17 @@ add_custom_command(
 		$<TARGET_FILE:openenclave::oelibc>
 		$<TARGET_FILE:openenclave::oesyscall>
 		$<TARGET_FILE:openenclave::oecore>
+		$<TARGET_FILE:sgx-lkl::kernel-init-fini-stubs>
 		--end-group
 	COMMAND echo "Checking for unresolved symbols"
 	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
 		| grep ' U ' # filter to undefined symbols
-		| grep -v -E -e "'__(fini|init)_array_(start|end)'" # available at final link only
-		  # TODO remove once OE issues resolved (see comments above)
-		  -e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
+		# TODO remove once OE issues resolved (see comments above)
+		| grep -v -e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
+	COMMAND echo "Checking for initializer/teardown sections"
+	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
+		| grep -e '.ctors' -e '.preinit_array' -e '.init_array'
+		       -e '.dtors' -e '.fini_array'
 	COMMAND echo "Hiding symbols"
 	COMMAND "${CMAKE_OBJCOPY}"
 		--keep-global-symbol=_start
@@ -432,6 +441,7 @@ add_custom_command(
 		sgx-lkl::enclave-init
 		sgx-lkl::lkl
 		sgx-lkl::oeenclave
+		sgx-lkl::kernel-init-fini-stubs
 	)
 
 add_library(sgxlkl_kernel STATIC "${SGXLKL_KERNEL_OBJ}")
@@ -457,6 +467,7 @@ add_custom_command(
 	# TODO enable again, see notes above
 	#COMMAND echo "Checking for unresolved symbols"
 	#COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_USER_OBJ}" | grep ' U '
+	#| grep -v -E -e "'__(fini|init)_array_(start|end)'" # available at final link only
 	#COMMAND echo "Hiding symbols"
 	#COMMAND "${CMAKE_OBJCOPY}" --keep-global-symbol=lkl_syscall "${SGXLKL_USER_OBJ}"
 	COMMAND_EXPAND_LISTS
