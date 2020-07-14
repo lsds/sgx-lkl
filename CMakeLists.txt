@@ -72,8 +72,6 @@ else()
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
 
-include(cmake/oeenclave.cmake)
-
 set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -fPIC -D__USE_GNU")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -88,7 +86,7 @@ endif()
 add_library(sgxlkl_enclave INTERFACE)
 target_compile_definitions(sgxlkl_enclave INTERFACE -DSGXLKL_ENCLAVE -DOE_WITH_EXPERIMENTAL_EEID)
 target_include_directories(sgxlkl_enclave INTERFACE "src/include" "${CMAKE_BINARY_DIR}/generated")
-target_link_libraries(sgxlkl_enclave INTERFACE sgx-lkl::oeenclave)
+target_link_libraries(sgxlkl_enclave INTERFACE openenclave::oeenclave)
 add_library(sgx-lkl::enclave ALIAS sgxlkl_enclave)
 
 # Common properties for code that is part of the host tool.
@@ -323,9 +321,8 @@ add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
 #   of libc for user processes, while the init "process" and
 #   its required libraries (libcurl etc.) rely on a statically linked musl.
 # Note on Open Enclave:
-#   Due to architectural issues we will have to include oeenclave
-#   and hence oelibc as well. To avoid duplicate libc symbols we
-#   will hide them and leave only oe_*.
+#   Due to architectural issues we will have to include oelibc as well (oembedtls dependency).
+#   Since we hide all symbols in the kernel object this will not interfere with user space.
 # The only dependency from user space to kernel space is via the lkl_syscall function.
 # The only dependency from kernel space to user space is via the libc entrypoint function (TODO name?).
 # To enforce this separation and to allow having two copies of mbedtls we need to:
@@ -392,26 +389,12 @@ add_custom_command(
 		#   to remove them during the final link.
 		# We use the second option for now.
 
-		# Subset of oecore flags compatible with -r.
-		-nostdlib
-		# FIXME why doesn't it work with it?
-		#-nodefaultlibs
-		#-nostartfiles
-		-Bstatic
-		-Bsymbolic
-		--export-dynamic
-
-		# TODO use proper order
 		--start-group
 		$<TARGET_FILE:sgx-lkl::edl-enclave>
 		$<TARGET_FILE:sgx-lkl::enclave-config-enclave>
 		$<TARGET_FILE:sgx-lkl::enclave-init>
 		$<TARGET_FILE:sgx-lkl::lkl>
-		# Linking against the partially linked oeenclave.o (see cmake/oeenclave.cmake)
-		# has the disadvantage that all its symbols are included.
-		# This would lead to a lot more undefined symbols since we can't
-		# use --gc-sections during partial linking (see note above).
-		#$<TARGET_FILE:sgx-lkl::oeenclave>
+		$<TARGET_FILE:sgx-lkl::kernel-init-fini-stubs>
 		$<TARGET_FILE:openenclave::oeenclave>
 		$<TARGET_FILE:openenclave::oecryptombed>
 		$<TARGET_FILE:openenclave::mbedtls>
@@ -420,7 +403,6 @@ add_custom_command(
 		$<TARGET_FILE:openenclave::oelibc>
 		$<TARGET_FILE:openenclave::oesyscall>
 		$<TARGET_FILE:openenclave::oecore>
-		$<TARGET_FILE:sgx-lkl::kernel-init-fini-stubs>
 		--end-group
 	COMMAND echo "Checking for unresolved symbols"
 	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
@@ -441,8 +423,8 @@ add_custom_command(
 		sgx-lkl::enclave-config-enclave
 		sgx-lkl::enclave-init
 		sgx-lkl::lkl
-		sgx-lkl::oeenclave
 		sgx-lkl::kernel-init-fini-stubs
+		openenclave::oeenclave
 	)
 
 add_library(sgxlkl_kernel STATIC "${SGXLKL_KERNEL_OBJ}")
