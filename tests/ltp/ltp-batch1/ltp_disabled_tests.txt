@@ -40,7 +40,7 @@
 /ltp/testcases/kernel/syscalls/chmod/chmod03
 /ltp/testcases/kernel/syscalls/chmod/chmod04
 #/ltp/testcases/kernel/syscalls/chmod/chmod05
-/ltp/testcases/kernel/syscalls/chmod/chmod06
+#/ltp/testcases/kernel/syscalls/chmod/chmod06
 #/ltp/testcases/kernel/syscalls/chmod/chmod07
 #/ltp/testcases/kernel/syscalls/chown/chown01
 #/ltp/testcases/kernel/syscalls/chown/chown02
@@ -86,7 +86,7 @@
 #/ltp/testcases/kernel/syscalls/creat/creat03
 #/ltp/testcases/kernel/syscalls/creat/creat04
 #/ltp/testcases/kernel/syscalls/creat/creat05
-/ltp/testcases/kernel/syscalls/creat/creat06
+#/ltp/testcases/kernel/syscalls/creat/creat06
 /ltp/testcases/kernel/syscalls/creat/creat07
 /ltp/testcases/kernel/syscalls/creat/creat07_child
 #/ltp/testcases/kernel/syscalls/creat/creat08
