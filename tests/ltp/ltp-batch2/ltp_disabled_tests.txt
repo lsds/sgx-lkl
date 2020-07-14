@@ -909,7 +909,7 @@
 #/ltp/testcases/kernel/syscalls/socketpair/socketpair02
 /ltp/testcases/kernel/syscalls/sockioctl/sockioctl01
 #/ltp/testcases/kernel/syscalls/splice/splice01
-/ltp/testcases/kernel/syscalls/splice/splice02
+#/ltp/testcases/kernel/syscalls/splice/splice02
 #/ltp/testcases/kernel/syscalls/splice/splice03
 #/ltp/testcases/kernel/syscalls/splice/splice04
 #/ltp/testcases/kernel/syscalls/splice/splice05
