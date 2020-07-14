@@ -525,7 +525,7 @@
 #/ltp/testcases/kernel/syscalls/mknod/mknod04
 #/ltp/testcases/kernel/syscalls/mknod/mknod05
 #/ltp/testcases/kernel/syscalls/mknod/mknod06
-/ltp/testcases/kernel/syscalls/mknod/mknod07
+#/ltp/testcases/kernel/syscalls/mknod/mknod07
 #/ltp/testcases/kernel/syscalls/mknod/mknod08
 #/ltp/testcases/kernel/syscalls/mknod/mknod09
 #/ltp/testcases/kernel/syscalls/mknodat/mknodat01
