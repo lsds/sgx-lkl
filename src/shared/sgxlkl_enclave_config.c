@@ -1,19 +1,15 @@
 #ifdef SGXLKL_ENCLAVE
 #include <enclave/enclave_util.h>
-#include <shared/oe_compat.h>
 #define FAIL sgxlkl_fail
 #define WARN sgxlkl_warn
 #else
 #include <host/sgxlkl_util.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #define FAIL sgxlkl_host_fail
 #define WARN sgxlkl_host_warn
 #endif
 
-#include <enclave/enclave_util.h>
 #include <json.h>
+#include <shared/oe_compat.h>
 #include <shared/env.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
@@ -281,7 +277,7 @@ static json_result_t json_read_callback(
     switch (reason)
     {
         case JSON_REASON_NONE:
-            SGXLKL_ASSERT("unreachable");
+            FAIL("unreachable");
         case JSON_REASON_NAME:
             break;
         case JSON_REASON_BEGIN_OBJECT:

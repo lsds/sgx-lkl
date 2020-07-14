@@ -9,11 +9,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "shared/bitops.h"
 #include "shared/sgxlkl_enclave_config.h"
 
-#include <enclave/lthread.h>
-
+#include "enclave/bitops.h"
+#include "enclave/lthread.h"
 #include "enclave/enclave_mem.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread_int.h"

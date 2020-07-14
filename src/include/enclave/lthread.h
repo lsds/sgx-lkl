@@ -42,7 +42,7 @@
 #include "atomic.h"
 #include "locale_impl.h"
 
-#include "shared/mpmc_queue.h"
+#include "enclave/mpmc_queue.h"
 #include "shared/queue.h"
 #include "shared/tree.h"
 

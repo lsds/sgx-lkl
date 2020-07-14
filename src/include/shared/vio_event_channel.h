@@ -1,7 +1,7 @@
 #ifndef _VIO_EVENT_CHANNEL_H
 #define _VIO_EVENT_CHANNEL_H
 
-#include "openenclave/bits/types.h"
+#include "shared/oe_compat.h"
 
 #define NSEC_PER_SECOND 1000000000UL
 
