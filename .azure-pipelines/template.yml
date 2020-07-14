@@ -47,6 +47,9 @@ parameters:
 - name: 'publish'
   type: boolean
   default: false
+- name: 'nightly_build'
+  type: number
+  default: 0
 - name: 'apt_repo_blob_container'
   type: string
   default: 'apt-dev'
@@ -148,6 +151,7 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
+                SGXLKL_NIGHTLY_BUILD: ${{ parameters.nightly_build }}
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
@@ -194,11 +198,6 @@ stages:
           downloadType: specific
           itemPattern: 'deb/*'
 
-      - bash: .azure-pipelines/scripts/create_fsgsbase_dkms_deb_pkg.sh
-        displayName: Create FSGSBASE Debian package
-        env:
-          SGXLKL_DEB_DIR: $(Build.SourcesDirectory)/deb
-      
       - bash: .azure-pipelines/scripts/create_deb_apt_repository.sh
         displayName: Create APT repository
         env:

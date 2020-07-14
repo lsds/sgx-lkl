@@ -332,62 +332,6 @@ static void help_enclave_config()
     }
 }
 
-static void help_tls()
-{
-    printf("Support for Thread-Local Storage (TLS) in hardware mode\n"
-           "\n"
-           "On x86-64 platforms thread-local storage for applications and "
-           "their initially\n"
-           "available dependencies is expected to be accessible via fixed "
-           "offsets from the\n"
-           "current value of the FS segment base. Whenever a switch from one "
-           "thread to\n"
-           "another occurs, the FS segment base has to be changed accordingly. "
-           "Typically\n"
-           "this is done by the privileged kernel. However, with SGX the FS "
-           "segment base is\n"
-           "explicitly set when entering the enclave (OFSBASE field of the TCS "
-           "page) and\n"
-           "reset when leaving the enclave. SGX-LKL schedules application "
-           "threads within\n"
-           "the enclaves without leaving the enclave. It therefore needs to be "
-           "able to set\n"
-           "the FS segment base on context switches. This can be done with the "
-           "WRFSBASE\n"
-           "instruction that allows to set the FS segment base at any "
-           "privilege level.\n"
-           "However, this is only possible if the control register bit "
-           "CR4.FSGSBASE is set\n"
-           "to 1. On current Linux kernels this bit is not set as the kernel "
-           "is not able to\n"
-           "handle FS segment base changes by userspace applications. Note "
-           "that changes to\n"
-           "the segment from within an enclave are transparent to the kernel.\n"
-           "\n"
-           "In order to allow SGX-LKL to set the segment base from within the "
-           "enclave, the\n"
-           "CR4.FSGSBASE bit has to be set to 1. SGX-LKL provides a kernel "
-           "module to do\n"
-           "this. In order to build the module and set the CR4.FSGSBASE to 1 "
-           "run the\n"
-           "following:\n"
-           "\n"
-           "  cd tools/kmod-set-fsgsbase; make set-cr4-fsgsbase\n"
-           "\n"
-           "In order to set it back to 0, run:\n"
-           "\n"
-           "  cd tools/kmod-set-fsgsbase; make unset-cr4-fsgsbase\n"
-           "\n"
-           "WARNING: While using WRFSBASE within the enclave should have no "
-           "impact on the\n"
-           "host OS, allowing other userspace applications to use it can "
-           "impact the\n"
-           "stability of those applications and potentially the kernel itself. "
-           "Enabling\n"
-           "FSGSBASE should be done with care.\n"
-           "\n");
-}
-
 #if DEBUG && VIRTIO_TEST_HOOK
 /* Control the event channel notification between host & guest */
 
@@ -1784,9 +1728,6 @@ int main(int argc, char* argv[], char* envp[])
                 exit(EXIT_SUCCESS);
             case 'E':
                 help_enclave_config();
-                exit(EXIT_SUCCESS);
-            case 't':
-                help_tls();
                 exit(EXIT_SUCCESS);
             case 'H':
                 host_config_path = optarg;

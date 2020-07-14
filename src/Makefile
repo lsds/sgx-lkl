@@ -67,7 +67,7 @@ HCFGC = $(LIB_SGXLKL_BUILD)/config/sgxlkl_host_config_gen.c
 $(HCFGH): $(CFGGEN) $(HCFGSCHEMA)
 	cd $(LIB_SGXLKL_BUILD)/config; python3 $(CFGGEN) --header sgxlkl_host_config_gen.h --source sgxlkl_host_config_gen.c $(HCFGSCHEMA)
 $(HCFGC): $(HCFGH)
-main-oe/sgxlkl_host_config.c main-oe/sgxlkl_run_oe.c: $(HCFGH)
+main-oe/sgxlkl_host_config.c main-oe/sgxlkl_run_oe.c main-oe/sgxlkl_util.c: $(HCFGH)
 
 # Build enclave static library: libsgxlkl.a
 

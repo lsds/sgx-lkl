@@ -136,12 +136,12 @@ function JunitTestFinished()
         fi
 	# Replace STACK_TRACE place holder with stack trace file
         AddLogFileToJunit "$stack_trace_file_path" "$junit_file_path" "STACK_TRACE"
-    fi
 
-    # Add stdout file to junit if exist
-    if [[ -f "$stdout_file_path" ]]; then
-        echo "      <system-out>STD_OUT_MESSAGE</system-out>" >> "$junit_file_path"
-        AddLogFileToJunit "$stdout_file_path" "$junit_file_path" "STD_OUT_MESSAGE"
+        # Add stdout file to junit if exist
+        if [[ -f "$stdout_file_path" ]]; then
+            echo "      <system-out>STD_OUT_MESSAGE</system-out>" >> "$junit_file_path"
+            AddLogFileToJunit "$stdout_file_path" "$junit_file_path" "STD_OUT_MESSAGE"
+        fi
     fi
 
     {
