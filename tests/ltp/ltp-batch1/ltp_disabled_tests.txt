@@ -977,8 +977,8 @@
 /ltp/testcases/kernel/syscalls/timer_delete/timer_delete02
 /ltp/testcases/kernel/syscalls/timer_getoverrun/timer_getoverrun01
 #/ltp/testcases/kernel/syscalls/timer_gettime/timer_gettime01
-/ltp/testcases/kernel/syscalls/timer_settime/timer_settime01
-/ltp/testcases/kernel/syscalls/timer_settime/timer_settime02
+#/ltp/testcases/kernel/syscalls/timer_settime/timer_settime01
+#/ltp/testcases/kernel/syscalls/timer_settime/timer_settime02
 /ltp/testcases/kernel/syscalls/timerfd/timerfd01
 /ltp/testcases/kernel/syscalls/timerfd/timerfd02
 /ltp/testcases/kernel/syscalls/timerfd/timerfd03
