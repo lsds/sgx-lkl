@@ -27,3 +27,5 @@ function(read_build_metadata)
     message(STATUS "SGX-LKL version: ${SGXLKL_VERSION}")
     message(STATUS "LKL version: ${LKL_VERSION}")
 endfunction()
+
+read_build_metadata()
