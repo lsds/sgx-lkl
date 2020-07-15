@@ -29,6 +29,8 @@ if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.14")
 	# LOG_OUTPUT_ON_FAILURE is available in 3.14 onwards only.
 	set(COMMON_EP_OPTIONS
 		# Log all output to files instead of printing.
+		# Note that this still prints a single line even on success.
+		# See also https://gitlab.kitware.com/cmake/cmake/-/issues/20958.
 		LOG_DOWNLOAD ON
 		LOG_UPDATE ON
 		LOG_PATCH ON
