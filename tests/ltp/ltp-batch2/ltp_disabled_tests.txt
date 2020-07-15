@@ -844,7 +844,7 @@
 /ltp/testcases/kernel/syscalls/setpriority/setpriority01
 #/ltp/testcases/kernel/syscalls/setpriority/setpriority02
 #/ltp/testcases/kernel/syscalls/setregid/setregid01
-/ltp/testcases/kernel/syscalls/setregid/setregid02
+#/ltp/testcases/kernel/syscalls/setregid/setregid02
 #/ltp/testcases/kernel/syscalls/setregid/setregid03
 #/ltp/testcases/kernel/syscalls/setregid/setregid04
 #/ltp/testcases/kernel/syscalls/setresgid/setresgid01
