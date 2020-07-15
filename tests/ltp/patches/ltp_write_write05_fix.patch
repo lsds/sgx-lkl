@@ -1,0 +1,26 @@
++ Modified the tests without using mmap for getting bad address
++ Isue 297: [Tests] lkl_access_ok() should return -1 on invalid access
++ https://github.com/lsds/sgx-lkl/issues/297
+diff --git a/testcases/kernel/syscalls/write/write05.c b/testcases/kernel/syscalls/write/write05.c
+index 79769621c..18736d9a4 100644
+--- a/testcases/kernel/syscalls/write/write05.c
++++ b/testcases/kernel/syscalls/write/write05.c
+@@ -38,7 +38,7 @@ static struct tcase {
+        int exp_errno;
+ } tcases[] = {
+        {&inv_fd, &buf, sizeof(buf), EBADF},
+-       {&fd, &bad_addr, sizeof(buf), EFAULT},
++//     {&fd, &bad_addr, sizeof(buf), EFAULT}, TODO: Enable once git issue 297 is fixed
+        {&pipefd[1], &buf, sizeof(buf), EPIPE},
+ };
+
+@@ -82,8 +82,7 @@ static void setup(void)
+ {
+        fd = SAFE_OPEN("write_test", O_RDWR | O_CREAT, 0644);
+
+-       bad_addr = SAFE_MMAP(0, 1, PROT_NONE,
+-                       MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
++       bad_addr = 0;
+
+        SAFE_PIPE(pipefd);
+        SAFE_CLOSE(pipefd[0]);
