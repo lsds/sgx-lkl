@@ -1,5 +1,3 @@
-include(cmake/Constants.cmake)
-
 # We follow Open Enclave's minimum CMake version requirement.
 # See openenclave/scripts/ansible/roles/linux/openenclave/tasks/environment-setup.yml.
 cmake_minimum_required(VERSION 3.13.1 FATAL_ERROR)
@@ -19,6 +17,7 @@ endif()
 
 include(ExternalProject)
 include(ProcessorCount)
+include(cmake/Constants.cmake)
 include(cmake/Helpers.cmake)
 include(cmake/RecursiveCopy.cmake)
 include(cmake/Options.cmake)
@@ -69,6 +68,8 @@ else()
 	# OE should prefix public options.
 	set(WITH_EEID ON CACHE BOOL "" FORCE)
 	set(COMPILE_SYSTEM_EDL OFF CACHE BOOL "" FORCE)
+	# See https://github.com/lsds/sgx-lkl/issues/617.
+	set(USE_DEBUG_MALLOC OFF CACHE BOOL "" FORCE)
 	set(ENABLE_REFMAN OFF CACHE BOOL "" FORCE)
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
