@@ -25,19 +25,22 @@ include(cmake/Options.cmake)
 include(cmake/BuildMetadata.cmake)
 
 set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
-set(COMMON_EP_OPTIONS
-	# Log all output to files instead of printing.
-	LOG_DOWNLOAD ON
-	LOG_UPDATE ON
-	LOG_PATCH ON
-	LOG_CONFIGURE ON
-	LOG_BUILD ON
-	LOG_INSTALL ON
-	LOG_TEST ON
-	LOG_MERGED_STDOUTERR ON
-	# Print log in case of errors.
-	LOG_OUTPUT_ON_FAILURE ON
-	)
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.14")
+	# LOG_OUTPUT_ON_FAILURE is available in 3.14 onwards only.
+	set(COMMON_EP_OPTIONS
+		# Log all output to files instead of printing.
+		LOG_DOWNLOAD ON
+		LOG_UPDATE ON
+		LOG_PATCH ON
+		LOG_CONFIGURE ON
+		LOG_BUILD ON
+		LOG_INSTALL ON
+		LOG_TEST ON
+		LOG_MERGED_STDOUTERR ON
+		# Print log in case of errors.
+		LOG_OUTPUT_ON_FAILURE ON
+		)
+endif()
 
 ProcessorCount(NUMBER_OF_CORES)
 read_build_metadata()
