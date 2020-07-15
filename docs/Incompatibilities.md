@@ -12,7 +12,7 @@ Some features are not supported at all and so applications that depend on them w
 
 ### Single process
 
-The SGX-LKL environment provides a single process.
+The SGX-LKL environment provides a single process due to the lack of certain virtual memory features inside SGX enclaves.
 Any application that depends on spawning child processes will not work.
 
 In some future version, we expect to be able to support multiple processes but there will be no isolation between them.
@@ -20,15 +20,14 @@ This means that using multiple processes for privilege separation will not be po
 
 ### No MMU support
 
-A conventional x86-64 system exposes multiple privilege domains ('rings') and provides a memory management unit that allows each userspace process to have a separate virtual address space.
+A conventional x86-64 system exposes multiple privilege domains ('rings') and provides a memory management unit (MMU) that allows each userspace process to have a separate virtual address space.
 This includes the ability to alias pages such that the same physical page is in several different locations in the virtual address space.
 In contrast, SGX exposes a single virtual address space and does not allow page mappings to be modified.
 
 At the system call layer, this means that there are some restrictions on `mmap`:
 
- - Mapping anonymous memory works reliably.
- - Shared mappings are not automatically written back.
- - `MAP_FIXED` mappings should only be done over existing mappings: the kernel and userspace share an address space.
+ - Shared mappings (`MAP_SHARED`) are not automatically written back.
+ - Fixed mappings (`MAP_FIXED`) should only be done over existing mappings: the kernel and userspace share an address space.
    It is currently possible to do `MAP_FIXED` over kernel mappings, this will be fixed in a future version.
 
 These restrictions are close to those of uCLinux and SGX-LKL will eventually use the no-MMU code from Linux.
@@ -45,7 +44,7 @@ The SGX-LKL runtime uses an enclave thread (ethread) abstraction that roughly co
 In a conventional Linux system, the Linux scheduler runs userspace threads, switching to another thread either when a thread makes a blocking system call or when an interrupt fires.
 SGX; however, does not provide a mechanism for receiving timer interrupts and so cannot efficiently run a preemptive scheduler.
 
-SGX-LKL uses the lthread scheduler to provide a cooperative threading implementation, multiplexing lthreads on top of ethreads.
+SGX-LKL uses a cooperative scheduler ('lthreads') to provide a cooperative threading implementation, multiplexing cooperative lthreads on top of hardware enclave threads ('ethreads').
 The lthread scheduler running on each ethread will switch the running lthread on any system call.
 The main impact of this on userspace code is that threads that run without any system calls will not be interrupted and can consume all of the CPU resources.
 Spin locks that do not have a fallback futex path for the contended case, for example, may fail to make progress when there is a single ethread and may consume excessive amounts of CPU time in all uses.
@@ -59,7 +58,8 @@ Attempting to set CPU affinity will report success but silently fail.
 ### Calling system calls
 
 On x86-64 Linux, userspace makes system calls by placing the arguments and system call number in registers and then issuing a `syscall` instruction.
-With SGX, the `syscall` instruction is not permitted and so will raise an illegal instruction trap, which will be delivered to the host, resulting in an enclave exit and an enclave resume with the host.
+With SGX, the `syscall` instruction is not permitted and so will raise an illegal instruction trap.
+The trap will be delivered to the host, resulting in an enclave exit and an enclave resume with the host.
 We do not yet emulate the syscall instruction and so any code that attempts to make system calls directly will fail.
 
 The libc `syscall` function has been modified to use the LKL system call mechanism and so any code that does system calls via this function will work.
@@ -101,10 +101,11 @@ A malicious host can cause spurious illegal instruction, floating point, or segm
 
 SGX does not give a trusted time source and, as described above, the `rdtsc` instruction is not allowed.
 SGX-LKL uses a variable in untrusted memory to provide a monotonic counter.
-The host updates this periodically (approximately every 5ms) and the enclave code advances it by 1ns on every query if the host has not changed the update.
-The in-enclave code ensures that time always goes forwards.
-This means that time within the enclave will always go forward but may jump forward.
-All of the Linux clocks are driven from this time source, so anything depending on smooth time (e.g. video / audio playback) would not be reliable.
+The host updates this periodically (approximately every 500μs, subject to host scheduler variation) and the enclave code advances it by 1ns on every query if the host has not changed the update.
+The in-enclave code ensures that the monotonic counter always goes forward.
+This means that the clock source provided to the in-enclave kernel will always go forward but may jump forward.
+Software running on the kernel is still free to set the wall-clock time to any value.
+All of the Linux clocks are driven from the monotonic counter, so anything depending on smooth time (e.g. video / audio playback) would not be reliable.
 
 Additionally, the time exposed in the enclave is untrusted.
 The enclave may communicate with an external trusted time source but that can give only a lower bound on the current time: a malicious host could cause the enclave to sleep for an unbounded amount of time.
