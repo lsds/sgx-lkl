@@ -25,6 +25,20 @@ include(cmake/Options.cmake)
 include(cmake/BuildMetadata.cmake)
 
 set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
+set(COMMON_EP_OPTIONS
+	# Log all output to files instead of printing.
+	LOG_DOWNLOAD ON
+	LOG_UPDATE ON
+	LOG_PATCH ON
+	LOG_CONFIGURE ON
+	LOG_BUILD ON
+	LOG_INSTALL ON
+	LOG_TEST ON
+	LOG_MERGED_STDOUTERR ON
+	# Print log in case of errors.
+	LOG_OUTPUT_ON_FAILURE ON
+	)
+
 ProcessorCount(NUMBER_OF_CORES)
 read_build_metadata()
 
@@ -154,6 +168,7 @@ ExternalProject_Add(wireguard-ep
 	CONFIGURE_COMMAND ""
 	BUILD_COMMAND ""
 	INSTALL_COMMAND ""
+	${COMMON_EP_OPTIONS}
 )
 get_external_project_property(wireguard-ep SOURCE_DIR WIREGUARD_SOURCE_DIR)
 
@@ -478,6 +493,7 @@ ExternalProject_Add(json-c-ep
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libjson-c.so"
+	${COMMON_EP_OPTIONS}
 )
 ExternalProject_Get_property(json-c-ep INSTALL_DIR)
 add_library(json-c INTERFACE)
@@ -574,6 +590,7 @@ ExternalProject_Add(sgx-lkl-musl-ep
 	#gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_LIBC_BLD_DIR}/bin/musl-gcc || true
 	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
 	BUILD_ALWAYS TRUE
+	${COMMON_EP_OPTIONS}
 )
 set_target_properties(sgx-lkl-musl-ep PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
@@ -615,6 +632,7 @@ ExternalProject_Add(e2fsprogs-ep
 	COMMAND ${CMAKE_COMMAND} -E touch "<INSTALL_DIR>/include/et/com_err.h"
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libext2fs.a"
 	DEPENDS sgx-lkl::libc-init
+	${COMMON_EP_OPTIONS}
 )
 ExternalProject_Get_property(e2fsprogs-ep INSTALL_DIR)
 add_library(ext2fs INTERFACE)
@@ -646,6 +664,7 @@ ExternalProject_Add(curl-ep
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libcurl.a"
 	DEPENDS sgx-lkl::libc-init
+	${COMMON_EP_OPTIONS}
 )
 ExternalProject_Get_property(curl-ep INSTALL_DIR)
 add_library(curl INTERFACE)
@@ -667,6 +686,7 @@ ExternalProject_Add(devicemapper-ep
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libdevmapper.a"
 	DEPENDS sgx-lkl::libc-init
+	${COMMON_EP_OPTIONS}
 )
 ExternalProject_Get_property(devicemapper-ep INSTALL_DIR)
 add_library(devicemapper INTERFACE)
