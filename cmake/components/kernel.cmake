@@ -1,3 +1,5 @@
+include(cmake/Helpers.cmake)
+
 #file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
 #file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/enclave/*.c")
 #file(GLOB KERNEL_C_SRCS CONFIGURE_DEPENDS

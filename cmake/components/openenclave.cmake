@@ -1,5 +1,3 @@
-find_package(Python COMPONENTS Interpreter REQUIRED)
-
 if (OE_PREFIX)
 	set(openenclave_DIR "${OE_PREFIX}/lib/openenclave/cmake")
     find_package(openenclave REQUIRED CONFIG)

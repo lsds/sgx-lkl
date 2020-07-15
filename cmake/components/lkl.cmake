@@ -1,3 +1,5 @@
+include(ExternalProject)
+include(cmake/Helpers.cmake)
 include(cmake/RecursiveCopy.cmake)
 
 # Copy the LKL sources to the build directory.  This copies everything except

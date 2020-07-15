@@ -1,3 +1,7 @@
+include(cmake/Helpers.cmake)
+
+find_package(Python COMPONENTS Interpreter REQUIRED)
+
 set(GENERATED_HOST_CONFIG_FILES
 	"generated/host/sgxlkl_host_config_gen.h"
 	"generated/host/sgxlkl_host_config_gen.c"

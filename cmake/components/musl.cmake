@@ -1,3 +1,5 @@
+include(ExternalProject)
+
 # sgx-lkl-musl is used as libc in userspace.
 set(MUSL_LIBNAMES
 	libc.a

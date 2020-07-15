@@ -1,3 +1,5 @@
+include(cmake/Helpers.cmake)
+
 touch("dummy.c")
 add_library(sgxlkl_user_init STATIC "dummy.c")
 target_link_libraries(sgxlkl_user_init PRIVATE
