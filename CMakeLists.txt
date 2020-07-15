@@ -1,6 +1,8 @@
 include(cmake/Constants.cmake)
 
-cmake_minimum_required(VERSION ${MIN_CMAKE_VERSION})
+# We follow Open Enclave's minimum CMake version requirement.
+# See openenclave/scripts/ansible/roles/linux/openenclave/tasks/environment-setup.yml.
+cmake_minimum_required(VERSION 3.13.1 FATAL_ERROR)
 
 # CXX is added here to avoid default compiler selection issues
 # when including Open Enclave via add_subdirectory.
@@ -358,7 +360,7 @@ set(SGXLKL_KERNEL_OBJ "libsgxlkl_kernel.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_KERNEL_OBJ}"
 	COMMENT "Building kernel space object"
-	COMMAND "${CMAKE_COMMAND}" -E rm -f "${SGXLKL_KERNEL_OBJ}"
+	COMMAND "${CMAKE_COMMAND}" -E remove -f "${SGXLKL_KERNEL_OBJ}"
 	COMMAND "${LINKER}" -r -o "${SGXLKL_KERNEL_OBJ}"
 		-m elf_x86_64
 

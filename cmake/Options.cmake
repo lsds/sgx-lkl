@@ -9,15 +9,17 @@ if (CMAKE_GENERATOR STREQUAL "Ninja")
   if (NOT ninja_res EQUAL 0)
     message(FATAL_ERROR "'ninja --version' reported:\n${ninja_out}")
   endif()
-  if (ninja_out VERSION_LESS "${MIN_NINJA_VERSION}")
-    message(WARNING "Your Ninja version (${ninja_out}) is too old, please use >= ${MIN_NINJA_VERSION}")
+  if (ninja_out VERSION_LESS "1.10.0")
+    message(WARNING
+      "You use an old Ninja version (${ninja_out}). "
+      "You may need to re-run 'cmake .' explicitly if you change any CMake build scripts.")
   endif()
 else()
 	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
 endif()
 
 if (NOT CMAKE_C_COMPILER_ID STREQUAL Clang)
-  message(WARNING "Clang is the preferred compiler for this project, use: CC=clang")
+  message(WARNING "Clang is the preferred compiler for this project, use: CC=clang CXX=clang++")
 endif()
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
