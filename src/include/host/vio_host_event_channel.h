@@ -1,11 +1,28 @@
 #ifndef _VIO_HOST_EVENT_CHANNEL_H
 #define _VIO_HOST_EVENT_CHANNEL_H
 
+#include <pthread.h>
 #include <shared/shared_memory.h>
 #include <shared/vio_event_channel.h>
 
 #define HOST_NETWORK_DEV_COUNT 1
 #define HOST_CONSOLE_DEV_COUNT 1
+
+typedef struct host_evt_channel
+{
+    evt_t host_evt_channel;
+    evt_t* enclave_evt_channel;
+    uint32_t qidx_p;
+} host_evt_channel_t;
+
+typedef struct host_dev_config
+{
+    uint8_t dev_id;
+    host_evt_channel_t* host_evt_chn;
+    evt_t evt_processed;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+} host_dev_config_t;
 
 /*
  * Function to initialize the host device configuration. This function

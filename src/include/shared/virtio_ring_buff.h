@@ -1,7 +1,7 @@
 #ifndef VIRTIO_RING_BUFF_H
 #define VIRTIO_RING_BUFF_H
 
-#include <inttypes.h>
+#include "shared/oe_compat.h"
 
 /* This marks a buffer as continuing via the next field. */
 #define LKL_VRING_DESC_F_NEXT 1
