@@ -1,7 +1,7 @@
 #ifndef _ENV_H
 #define _ENV_H
 
-#include <inttypes.h>
+#include "shared/oe_compat.h"
 
 uint64_t hex_to_int(const char* digits, size_t num_digits);
 

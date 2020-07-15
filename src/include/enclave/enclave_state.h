@@ -1,11 +1,10 @@
 #ifndef ENCLAVE_STATE_H
 #define ENCLAVE_STATE_H
 
-//#include <elf.h>
+#include <elf.h>
+
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/shared_memory.h>
-
-typedef void Elf64_auxv_t;
 
 /* Indicates different states during sgxlkl startup sequence */
 typedef enum sgxlkl_libc_state

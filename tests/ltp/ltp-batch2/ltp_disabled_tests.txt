@@ -844,7 +844,7 @@
 /ltp/testcases/kernel/syscalls/setpriority/setpriority01
 #/ltp/testcases/kernel/syscalls/setpriority/setpriority02
 #/ltp/testcases/kernel/syscalls/setregid/setregid01
-/ltp/testcases/kernel/syscalls/setregid/setregid02
+#/ltp/testcases/kernel/syscalls/setregid/setregid02
 #/ltp/testcases/kernel/syscalls/setregid/setregid03
 #/ltp/testcases/kernel/syscalls/setregid/setregid04
 #/ltp/testcases/kernel/syscalls/setresgid/setresgid01
@@ -909,7 +909,7 @@
 #/ltp/testcases/kernel/syscalls/socketpair/socketpair02
 /ltp/testcases/kernel/syscalls/sockioctl/sockioctl01
 #/ltp/testcases/kernel/syscalls/splice/splice01
-/ltp/testcases/kernel/syscalls/splice/splice02
+#/ltp/testcases/kernel/syscalls/splice/splice02
 #/ltp/testcases/kernel/syscalls/splice/splice03
 #/ltp/testcases/kernel/syscalls/splice/splice04
 #/ltp/testcases/kernel/syscalls/splice/splice05
@@ -918,10 +918,10 @@
 #/ltp/testcases/kernel/syscalls/stat/stat02
 #/ltp/testcases/kernel/syscalls/stat/stat03
 #/ltp/testcases/kernel/syscalls/statfs/statfs01
-/ltp/testcases/kernel/syscalls/statfs/statfs02
+#/ltp/testcases/kernel/syscalls/statfs/statfs02
 #/ltp/testcases/kernel/syscalls/statfs/statfs03
 #/ltp/testcases/kernel/syscalls/statvfs/statvfs01
-/ltp/testcases/kernel/syscalls/statvfs/statvfs02
+#/ltp/testcases/kernel/syscalls/statvfs/statvfs02
 #/ltp/testcases/kernel/syscalls/statx/statx01
 #/ltp/testcases/kernel/syscalls/statx/statx02
 #/ltp/testcases/kernel/syscalls/statx/statx03
@@ -1050,7 +1050,7 @@
 #/ltp/testcases/kernel/syscalls/write/write02
 /ltp/testcases/kernel/syscalls/write/write03
 #/ltp/testcases/kernel/syscalls/write/write04
-/ltp/testcases/kernel/syscalls/write/write05
+#/ltp/testcases/kernel/syscalls/write/write05
 #/ltp/testcases/kernel/syscalls/writev/writev01
 /ltp/testcases/kernel/syscalls/writev/writev02
 /ltp/testcases/kernel/syscalls/writev/writev05

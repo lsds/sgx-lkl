@@ -76,14 +76,9 @@ def need_size_var(jtype):
 num_settings = 0
 
 header_includes = """
-#ifdef SGXLKL_ENCLAVE
-#include <shared/oe_compat.h>
-#else
-#include <inttypes.h>
-#include <stdbool.h>
-#include <stddef.h>
-#endif
+#include "shared/oe_compat.h"
 """
+
 
 def generate_header(schema_file_name, root, args):
     global num_settings
@@ -174,14 +169,13 @@ def generate_header(schema_file_name, root, args):
 
 
 source_includes = """
+#include "shared/oe_compat.h"
 #ifdef SGXLKL_ENCLAVE
-#include <enclave/enclave_util.h>
-#include <shared/oe_compat.h>
-#define FAIL sgxlkl_fail
+# include "enclave/enclave_util.h"
+# define FAIL sgxlkl_fail
 #else
-#include <host/sgxlkl_util.h>
-#include <string.h>
-#define FAIL sgxlkl_host_fail
+# include "host/sgxlkl_util.h"
+# define FAIL sgxlkl_host_fail
 #endif
 """
 

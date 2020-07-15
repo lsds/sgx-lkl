@@ -1,11 +1,7 @@
 #ifndef _VIO_EVENT_CHANNEL_H
 #define _VIO_EVENT_CHANNEL_H
 
-#ifdef SGXLKL_ENCLAVE
-#include <shared/oe_compat.h>
-#else
-#include <stdint.h>
-#endif
+#include "shared/oe_compat.h"
 
 #define NSEC_PER_SECOND 1000000000UL
 
