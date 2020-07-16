@@ -79,15 +79,15 @@ add_custom_command(
 		$<TARGET_FILE:openenclave::oesyscall>
 		$<TARGET_FILE:openenclave::oecore>
 		--end-group
-	#COMMAND echo "Checking for unresolved symbols"
-	#COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
-	#	| grep ' U ' # filter to undefined symbols
-	#	# TODO remove once OE issues resolved (see comments above)
-	#	| grep -v -e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
-	#COMMAND echo "Checking for initializer/teardown sections"
-	#COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
-	#	| grep -e '.ctors' -e '.preinit_array' -e '.init_array'
-	#	       -e '.dtors' -e '.fini_array'
+	COMMAND echo "Checking for unresolved symbols"
+	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
+		| grep ' U ' # filter to undefined symbols
+		# TODO remove once OE issues resolved (see comments above)
+		| grep -v -e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
+	COMMAND echo "Checking for initializer/teardown sections"
+	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
+		| grep -e '.ctors' -e '.preinit_array' -e '.init_array'
+		       -e '.dtors' -e '.fini_array'
 	COMMAND echo "Hiding symbols"
 	COMMAND "${CMAKE_OBJCOPY}"
 		--keep-global-symbol=_start
