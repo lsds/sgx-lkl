@@ -93,7 +93,7 @@ void* syscall_SYS_mmap(
     }
     else
     {
-        mem = mmap_fn(addr, length, prot, flags, fd, offset);
+        mem = mmap_fn(addr, length, prot, MAP_PRIVATE, fd, offset);
     }
     return mem;
 }
