@@ -24,8 +24,6 @@ set(MUSL_LIBNAMES
 )
 list(TRANSFORM MUSL_LIBNAMES PREPEND "<INSTALL_DIR>/lib/" OUTPUT_VARIABLE MUSL_BYPRODUCTS)
 
-set(LINUX_HEADERS_INC "/usr/include")
-
 ExternalProject_Add(sgx-lkl-musl-ep
 	# For now, this builds host-musl, while the relayering is in progress.
 	# Current sgx-lkl-musl has dependencies to SGX-LKL headers, OE, etc.
@@ -38,10 +36,8 @@ ExternalProject_Add(sgx-lkl-musl-ep
 		"--prefix=<INSTALL_DIR>"
 		"--syslibdir=<INSTALL_DIR>/lib"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
-	INSTALL_COMMAND make install
-	COMMAND ln -sf "${LINUX_HEADERS_INC}/linux" "<INSTALL_DIR>/include/linux"
-	COMMAND ln -sf "${LINUX_HEADERS_INC}/x86_64-linux-gnu/asm" "<INSTALL_DIR>/include/asm"
-	COMMAND ln -sf "${LINUX_HEADERS_INC}/asm-generic" "<INSTALL_DIR>/include/asm-generic"
+	INSTALL_COMMAND 
+	COMMAND make install
 	# TODO Fix musl-gcc for gcc versions that have been built with --enable-default-pie
 	#gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_LIBC_BLD_DIR}/bin/musl-gcc || true
 	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
@@ -51,15 +47,22 @@ ExternalProject_Add(sgx-lkl-musl-ep
 set_target_properties(sgx-lkl-musl-ep PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
 list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
-set(MUSL_INCLUDE_DIR "${INSTALL_DIR}/include")
+set(MUSL_INCLUDE_DIRS 
+	"${INSTALL_DIR}/include"
+	# TODO should these come from LKL?
+	"/usr/include/linux"
+	"/usr/include/x86_64-linux-gnu/asm"
+	"/usr/include/asm-generic"
+	)
 
-# The following will be refined depending on how we build user space libraries.
 add_library(sgx-lkl-musl INTERFACE)
 target_compile_options(sgx-lkl-musl INTERFACE "-nostdinc")
-target_include_directories(sgx-lkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIR}")
+target_include_directories(sgx-lkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIRS}")
 target_link_libraries(sgx-lkl-musl INTERFACE "${MUSL_LIBRARIES}")
 add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
 add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
 
 # For third-party Make-based projects. See libc.cmake.
-set(MUSL_CFLAGS "-nostdinc -isystem ${MUSL_INCLUDE_DIR}")
+list(TRANSFORM MUSL_INCLUDE_DIRS PREPEND "-isystem " OUTPUT_VARIABLE MUSL_INCLUDE_DIRS_CFLAGS)
+list(JOIN MUSL_INCLUDE_DIRS_CFLAGS " " MUSL_INCLUDE_DIRS_CFLAGS)
+set(MUSL_CFLAGS "-nostdinc ${MUSL_INCLUDE_DIRS_CFLAGS}")
