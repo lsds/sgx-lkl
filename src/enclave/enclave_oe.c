@@ -388,10 +388,6 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 void sgxlkl_free_enclave_state()
 {
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
-    
-    // This is still too early. TODO: Find right place to do this.
-    // sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
-    // state->config = NULL;
 
     state->elf64_stack.argc = 0;
     oe_free(state->elf64_stack.argv); /* includes envp/auxv */
@@ -410,4 +406,12 @@ void sgxlkl_debug_dump_stack_traces(void)
     SGXLKL_VERBOSE("Dumping all stack traces from threads...\n");
     lthread_dump_all_threads(false);
 #endif
+}
+void cleanup_sgxlkl_enclave_config()
+{
+    // Do this after lthread scheduler shuts down, as it requires the config
+    //  object to find whether its running in hw or sw mode. 
+    sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
+    sgxlkl_free_enclave_config((sgxlkl_enclave_config_t*)state->config);
+    state->config = NULL;
 }
