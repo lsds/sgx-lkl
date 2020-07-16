@@ -154,3 +154,10 @@ CONFIG_IP_NF_NAT=y
 CONFIG_IP_NF_TARGET_MASQUERADE=y
 CONFIG_NETFILTER_XT_NAT=y
 CONFIG_ADVISE_SYSCALLS=y
+
+# Sets -ffunction-sections -fdata-sections.
+CONFIG_LD_DEAD_CODE_DATA_ELIMINATION=y
+# Sets -fstack-protector-strong.
+CONFIG_STACKPROTECTOR_STRONG=y
+# Sets -fno-omit-frame-pointer -fno-optimize-sibling-calls.
+CONFIG_FRAME_POINTER=y

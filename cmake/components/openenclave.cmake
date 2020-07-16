@@ -1,7 +1,9 @@
+include_guard(GLOBAL)
+
 if (OE_PREFIX)
 	set(openenclave_DIR "${OE_PREFIX}/lib/openenclave/cmake")
     find_package(openenclave REQUIRED CONFIG)
-    set(oeedger8r_extra_search_path_args)
+    set(OEEDGER8R_EXTRA_FLAGS)
 else()
 	# OE should prefix public options.
 	set(WITH_EEID ON CACHE BOOL "" FORCE)
@@ -28,12 +30,7 @@ else()
 	add_executable(openenclave::oeedger8r ALIAS edger8r)
     
     # oeedger8r won't locate default includes when run from a build.
-	set(oeedger8r_extra_search_path_args 
+	set(OEEDGER8R_EXTRA_FLAGS
 		--search-path "${OPENENCLAVE_DIR}/include"
 		--search-path "${OPENENCLAVE_DIR}/include/openenclave/edl/sgx")
 endif()
-
-# Note that custom targets cannot be namespaced.
-add_custom_target(sgxlkl_oeedger8r_props)
-set_target_properties(sgxlkl_oeedger8r_props PROPERTIES 
-    EXTRA_OEEDGER8R_FLAGS "${oeedger8r_extra_search_path_args}")

@@ -1,3 +1,6 @@
+include_guard(GLOBAL)
+include(cmake/components/openenclave.cmake)
+
 set(GENERATED_HOST_EDGE_FILES 
 	"generated/host/sgxlkl_args.h"
 	"generated/host/sgxlkl_u.c"
@@ -8,8 +11,6 @@ set(GENERATED_ENCLAVE_EDGE_FILES
 	"generated/enclave/sgxlkl_t.c"
 	"generated/enclave/sgxlkl_t.h"
 	)
-
-set(OEEDGER8R_EXTRA_FLAGS $<TARGET_PROPERTY:sgxlkl_oeedger8r_props,EXTRA_OEEDGER8R_FLAGS>)
 
 add_custom_command(OUTPUT ${GENERATED_HOST_EDGE_FILES}
 	COMMAND openenclave::oeedger8r

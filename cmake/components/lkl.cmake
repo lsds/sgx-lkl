@@ -1,6 +1,24 @@
+include_guard(GLOBAL)
+
 include(ExternalProject)
 include(cmake/Helpers.cmake)
 include(cmake/RecursiveCopy.cmake)
+
+# Note that most compile flags can be set via defconfig options. See below.
+set(LKL_EXTRA_CFLAGS "-fPIE")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+	string(APPEND LKL_EXTRA_CFLAGS " -g3 -ggdb3 -O0 -DDEBUG")
+endif()
+if (LKL_DEBUG)
+	string(APPEND LKL_EXTRA_CFLAGS " -DLKL_DEBUG")
+endif()
+
+# See src/lkl/override/defconfig for all other options.
+# Here we only add additional defconfig options that depend on CMake options.
+set(LKL_EXTRA_DEFCONFIG_OPTIONS)
+if (CMAKE_C_COMPILER_ID STREQUAL "Clang")
+	list(APPEND LKL_EXTRA_DEFCONFIG_OPTIONS "CONFIG_CC_IS_CLANG=y")
+endif()
 
 # Copy the LKL sources to the build directory.  This copies everything except
 # the files that we will modify and creates rules so that any modification of
@@ -101,7 +119,7 @@ set(LKL_LIB_PATH "lkl/tools/lkl/lib/lkl.o")
 set(LKL_HEADER_PATH "${CMAKE_BINARY_DIR}/lkl-headers")
 add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	DEPENDS lkl-source-setup
-	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl" -j ${NUMBER_OF_CORES} V=1 "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
+	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl" -j ${NUMBER_OF_CORES} V=1 EXTRA_CFLAGS="${LKL_EXTRA_CFLAGS}" ${LKL_EXTRA_DEFCONFIG_OPTIONS} "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
 	COMMAND ${CMAKE_COMMAND} -E env "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
 	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" ARCH=lkl "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
 	COMMAND echo "'set(LKL_HEADERS'" > "${LKL_HEADERS_FILE}.tmp"
@@ -116,10 +134,29 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 add_library(lkl STATIC 
 	"${LKL_LIB_PATH}"
 	src/lkl/lkl_oe.c
-	#src/lkl/oe_errno.c
 	)
 target_link_libraries(lkl PRIVATE sgx-lkl::common-enclave)
 add_library(sgx-lkl::lkl ALIAS lkl)
 
 add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
 add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
+
+# TODO remove tools after relayering
+add_executable(lkl_bits tools/lkl_bits.c)
+target_include_directories(lkl_bits PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
+add_dependencies(lkl_bits build-lkl)
+
+add_executable(lkl_syscalls tools/lkl_syscalls.c)
+target_include_directories(lkl_syscalls PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
+add_dependencies(lkl_syscalls build-lkl)
+
+add_custom_command(
+	OUTPUT "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
+		   "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
+	COMMAND lkl_bits > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
+	COMMAND lkl_syscalls > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
+	DEPENDS lkl_bits lkl_syscalls
+)
+add_custom_target(gen-extra-lkl-headers DEPENDS 
+	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
+	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h")

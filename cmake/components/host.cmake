@@ -1,3 +1,5 @@
+include_guard(GLOBAL)
+
 find_package(Threads REQUIRED)
 
 file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
@@ -9,10 +11,6 @@ add_executable(${HOST_TOOL_NAME}
 	${HOSTINTERFACE_C_SRCS}
 	${SHARED_C_SRCS}
 	)
-target_include_directories(${HOST_TOOL_NAME} PRIVATE
-	"src/include"
-	"${CMAKE_BINARY_DIR}/lkl-headers/include"
-	)
 target_link_libraries(${HOST_TOOL_NAME} PRIVATE
 	Threads::Threads
 	rt
@@ -23,7 +21,6 @@ target_link_libraries(${HOST_TOOL_NAME} PRIVATE
 	sgx-lkl::enclave-config-host
 	sgx-lkl::build-metadata
 	)
-target_link_options(${HOST_TOOL_NAME} PRIVATE "LINKER:--gc-sections")
 # If we are configuring for the first build, add a fake dependency of this tool
 # on the LKL build.  For subsequent builds this will be picked up by the real
 # LKL header dependencies.

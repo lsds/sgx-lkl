@@ -1,3 +1,6 @@
+include_guard(GLOBAL)
+include(cmake/components/kernel.cmake)
+include(cmake/components/user.cmake)
 
 # The enclave image of SGX-LKL is separated into two parts:
 # 1. Kernel space
@@ -32,10 +35,26 @@
 # - Fully link both object files into an enclave image.
 # `ld -r` can be used for partial linking, `objcopy --keep-global-symbol=..` for hiding symbols.
 
-add_library(sgxlkl_enclave_image SHARED 
+# Open Enclave treats enclave images as executables.
+# Their entry point is the _start symbol.
+# This symbol is provided by OE and part of the kernel object.
+add_executable(sgxlkl_enclave_image
     $<TARGET_OBJECTS:sgx-lkl::kernel>
     $<TARGET_OBJECTS:sgx-lkl::user>
     )
-target_link_options(sgxlkl_enclave_image PRIVATE "LINKER:--gc-sections")
+target_link_options(sgxlkl_enclave_image PRIVATE
+    -nostdlib
+    -nodefaultlibs
+    -nostartfiles
+    LINKER:--gc-sections
+    LINKER:--no-undefined
+    LINKER:-Bstatic
+    LINKER:-Bsymbolic
+    LINKER:--export-dynamic
+    LINKER:-pie
+    LINKER:--build-id
+    LINKER:-z,noexecstack
+    LINKER:-z,now
+    )
 set_target_properties(sgxlkl_enclave_image PROPERTIES LINKER_LANGUAGE C)
-add_library(sgx-lkl::enclave-image ALIAS sgxlkl_enclave_image)
+add_executable(sgx-lkl::enclave-image ALIAS sgxlkl_enclave_image)

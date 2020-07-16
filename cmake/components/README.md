@@ -15,20 +15,9 @@ This is not a strict rule but a recommendation to make finding target definition
 
 ### Exposing variables
 
-Components *shall not* expose variables for public consumption.
-Variables impose ordering constraints and are brittle.
-Instead of variables, add custom properties on targets and use generator expressions to refer to them.
+Components may expose variables for consumption in other components.
+Typically variables are needed for driving external build systems where CMake targets cannot be used.
 
-See `openenclave.cmake` and `edl.cmake` for an example where a custom target is used.
-Note that custom targets cannot be namespaced.
-
-See `musl.cmake` for an example where an `INTERFACE` library target is used.
-Note that custom properties on `INTERFACE` targets need to be prefixed with `INTERFACE_`.
-
-## Using helper functions and variables
+## Includes
 
 Each component shall include *all* the CMake modules/scripts it needs.
-These are typically built-in modules or files from the parent folder, like `RecursiveCopy.cmake`.
-
-Note that a component script *shall not* include other component scripts.
-Targets from other components are automatically available globally.

@@ -1,6 +1,16 @@
-include(ExternalProject)
-
 # sgx-lkl-musl is used as libc in userspace.
+
+include_guard(GLOBAL)
+include(ExternalProject)
+include(cmake/components/common.cmake)
+
+# Flags for building musl itself.
+set(CFLAGS 
+	${CMAKE_C_FLAGS_BUILD_TYPE}
+	${COMMON_ENCLAVE_CFLAGS}
+	)
+list(JOIN CFLAGS " " CFLAGS)
+
 set(MUSL_LIBNAMES
 	libc.a
 	libcrypt.a
@@ -13,7 +23,9 @@ set(MUSL_LIBNAMES
 	libxnet.a
 )
 list(TRANSFORM MUSL_LIBNAMES PREPEND "<INSTALL_DIR>/lib/" OUTPUT_VARIABLE MUSL_BYPRODUCTS)
+
 set(LINUX_HEADERS_INC "/usr/include")
+
 ExternalProject_Add(sgx-lkl-musl-ep
 	# For now, this builds host-musl, while the relayering is in progress.
 	# Current sgx-lkl-musl has dependencies to SGX-LKL headers, OE, etc.
@@ -21,7 +33,8 @@ ExternalProject_Add(sgx-lkl-musl-ep
 	SOURCE_DIR "${CMAKE_SOURCE_DIR}/host-musl" # /sgx-lkl-musl
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
 		"CC=${CMAKE_C_COMPILER}"
-		"CFLAGS=${LIBC_CFLAGS_EXTRA}"
+		"CFLAGS=${CFLAGS}"
+		"--disable-shared"
 		"--prefix=<INSTALL_DIR>"
 		"--syslibdir=<INSTALL_DIR>/lib"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
@@ -38,29 +51,15 @@ ExternalProject_Add(sgx-lkl-musl-ep
 set_target_properties(sgx-lkl-musl-ep PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
 list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
-set(MUSL_INCLUDE_DIRS "${INSTALL_DIR}/include")
-if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-	set(MUSL_C_COMPILER "${INSTALL_DIR}/bin/musl-gcc")
-elseif (CMAKE_C_COMPILER_ID STREQUAL "Clang")
-	# The clang wrapper adds unneeded flags only needed for executables
-	# and shared libraries. Any warnings related to that can be ignored.
-	set(MUSL_C_COMPILER "${INSTALL_DIR}/bin/musl-clang")
-elseif ()
-	message(FATAL_ERROR "Unsupported compiler: ${CMAKE_C_COMPILER_ID}")
-endif()
+set(MUSL_INCLUDE_DIR "${INSTALL_DIR}/include")
 
 # The following will be refined depending on how we build user space libraries.
 add_library(sgx-lkl-musl INTERFACE)
+target_compile_options(sgx-lkl-musl INTERFACE "-nostdinc")
+target_include_directories(sgx-lkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIR}")
 target_link_libraries(sgx-lkl-musl INTERFACE "${MUSL_LIBRARIES}")
-target_include_directories(sgx-lkl-musl INTERFACE "${MUSL_INCLUDE_DIRS}")
-# Note that custom properties in INTERFACE libraries need to be prefixed with INTERFACE_.
-set_target_properties(sgx-lkl-musl PROPERTIES INTERFACE_COMPILER_WRAPPER "${MUSL_C_COMPILER}")
 add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
 add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
 
-if (LIBC STREQUAL "musl")
-	# Eventually init components will always use a statically linked musl,
-	# while apps can use a dynamically linked musl/glibc.
-	# For now, both the init components and apps are required to use the same libc.
-	add_library(sgx-lkl::libc-init ALIAS sgx-lkl-musl)
-endif()
+# For third-party Make-based projects. See libc.cmake.
+set(MUSL_CFLAGS "-nostdinc -isystem ${MUSL_INCLUDE_DIR}")

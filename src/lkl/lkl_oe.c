@@ -21,6 +21,8 @@ int lkl_printf(const char *fmt, ...)
 	return n;
 }
 
+void oe_abort();
+
 void lkl_bug(const char *fmt, ...)
 {
 	oe_va_list args;

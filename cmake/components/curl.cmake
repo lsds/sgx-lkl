@@ -1,17 +1,24 @@
+include_guard(GLOBAL)
+
 include(ExternalProject)
 include(cmake/Constants.cmake)
+include(cmake/components/common.cmake)
+
+set(CFLAGS
+	${THIRD_PARTY_USERSPACE_CFLAGS}
+	-DUSE_BLOCKING_SOCKETS
+	)
+list(JOIN CFLAGS " " CFLAGS)
 
 # libcurl is used in userspace for fetching disk encryption keys.
 ExternalProject_Add(curl-ep
 	URL ${CURL_URL}
 	URL_HASH ${CURL_HASH}
 	CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env curl_disallow_alarm=yes "<SOURCE_DIR>/configure" 
-		"CC=${SGXLKL_LIBC_INIT_COMPILER}"
-		"CFLAGS=-DUSE_BLOCKING_SOCKETS"
+		"CC=${CMAKE_C_COMPILER}"
+		"CFLAGS=${CFLAGS}"
 		"--prefix=<INSTALL_DIR>"
-		--disable-shared --with-pic
-		# TODO make conditional
-		--enable-debug
+		--disable-shared
 		# FIXME A userspace variant of mbedtls needs to be used here.
 		--with-mbedtls=${OE_SDK_LIBS}/openenclave/enclave
 		--without-zlib --without-ssl --without-ca-bundle --without-ca-path --without-libdl
@@ -23,7 +30,7 @@ ExternalProject_Add(curl-ep
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	BUILD_BYPRODUCTS "<INSTALL_DIR>/lib/libcurl.a"
-	DEPENDS sgx-lkl::libc-init
+	DEPENDS ${THIRD_PARTY_USERSPACE_DEPENDS}
 	${COMMON_EP_OPTIONS}
 )
 ExternalProject_Get_property(curl-ep INSTALL_DIR)

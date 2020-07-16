@@ -1,4 +1,7 @@
+include_guard(GLOBAL)
+
 include(cmake/Helpers.cmake)
+include(cmake/components/common.cmake)
 
 find_package(Python COMPONENTS Interpreter REQUIRED)
 

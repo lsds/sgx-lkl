@@ -1,3 +1,5 @@
+include_guard(GLOBAL)
+
 if (CMAKE_GENERATOR STREQUAL "Ninja")
   execute_process(
     COMMAND "${CMAKE_MAKE_PROGRAM}" --version

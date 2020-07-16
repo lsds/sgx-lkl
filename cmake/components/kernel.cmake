@@ -1,4 +1,10 @@
+include_guard(GLOBAL)
 include(cmake/Helpers.cmake)
+include(cmake/components/common.cmake)
+include(cmake/components/openenclave.cmake)
+include(cmake/components/lkl.cmake)
+include(cmake/components/edl.cmake)
+include(cmake/components/config.cmake)
 
 #file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
 #file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/enclave/*.c")

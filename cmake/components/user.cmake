@@ -1,4 +1,10 @@
+include_guard(GLOBAL)
 include(cmake/Helpers.cmake)
+include(cmake/components/common.cmake)
+include(cmake/components/curl.cmake)
+include(cmake/components/devicemapper.cmake)
+include(cmake/components/ext2fs.cmake)
+include(cmake/components/json.cmake)
 
 touch("dummy.c")
 add_library(sgxlkl_user_init STATIC "dummy.c")
@@ -16,6 +22,7 @@ add_custom_command(
 	COMMENT "Building user space object"
 	COMMAND "${LINKER}" -r -o "${SGXLKL_USER_OBJ}" --whole-archive
 		$<TARGET_FILE:sgx-lkl::user-init>
+		$<TARGET_PROPERTY:sgx-lkl::libc-init,INTERFACE_LINK_LIBRARIES>
 	# TODO enable again, see notes above
 	#COMMAND echo "Checking for unresolved symbols"
 	#COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_USER_OBJ}" | grep ' U '

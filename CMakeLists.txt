@@ -20,6 +20,26 @@ include(cmake/Helpers.cmake)
 include(cmake/Options.cmake)
 include(cmake/BuildMetadata.cmake)
 
+# Global compile options for both enclave and host code.
+# See cmake/components/common.cmake for enclave/host-specific options.
+foreach(LANG C CXX)
+	set(CMAKE_${LANG}_FLAGS "-Wall -Werror")
+	set(CMAKE_${LANG}_FLAGS_DEBUG "-O0 -g3 -ggdb3")
+	set(CMAKE_${LANG}_FLAGS_RELWITHDEBINFO "-O3 -g3 -ggdb3 -DNDEBUG")
+	set(CMAKE_${LANG}_FLAGS_RELEASE "-O3 -DNDEBUG")
+endforeach()
+string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE_UPPER)
+set(CMAKE_C_FLAGS_BUILD_TYPE "${CMAKE_C_FLAGS_${BUILD_TYPE_UPPER}}")
+
+# The linker is used for partially linking the kernel and user space object files
+# and for fully linking the enclave image and host launcher.
+# The code below does two things:
+# - If lld is requested, set -fuse-ld=... as global linker option for all targets.
+# - A LINKER variable is made available for manually invoking the linker executable.
+# Note that invoking the linker executable manually is only required
+# because CMake does not have a library type for partially linked objects.
+# See https://gitlab.kitware.com/cmake/cmake/-/issues/16977.
+# For more details on partial linking see cmake/components/enclave.cmake.
 if (USE_LLD)
 	find_program(LINKER NAMES ld.lld-10 ld.lld-9 ld.lld-8 ld.lld-7 ld.lld REQUIRED)
 	if (CMAKE_C_COMPILER_ID STREQUAL Clang)
@@ -30,46 +50,13 @@ if (USE_LLD)
 		set(LINKER_CFLAG "-fuse-ld=lld")
 	endif()
 	add_link_options("${LINKER_CFLAG}")
+	unset(LINKER_CFLAG)
 else()
-	set(LINKER "ld")
+	find_program(LINKER NAMES ld REQUIRED)
 endif()
 
-# TODO clean up flags, add -Wall etc., make sure they are consistently used everywhere
-
-set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -fPIC -D__USE_GNU")
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-	set(LKL_CFLAGS_EXTRA "${LKL_CFLAGS_EXTRA} -g3 -ggdb3 -O0 -DDEBUG")
-	set(LIBC_CFLAGS_EXTRA "${LIBC_CFLAGS_EXTRA} -g3 -ggdb3 -O0 -DDEBUG")
-endif()
-if(${LKL_DEBUG})
-	set(LKL_CFLAGS_EXTRA "${LKL_CFLAGS_EXTRA} -DLKL_DEBUG")
-endif()
-
-# Include all SGX-LKL components.
-file(GLOB COMPONENT_CMAKE_FILES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/cmake/components/*.cmake")
-foreach (cmake_file IN LISTS COMPONENT_CMAKE_FILES)
-	include("${cmake_file}")
-endforeach()
+# Include all top-level SGX-LKL components.
+#include(cmake/components/host.cmake)
+include(cmake/components/enclave.cmake)
 
 # TODO Install build outputs to the right folders.
-
-# TODO remove tools after relayering
-add_executable(lkl_bits tools/lkl_bits.c)
-target_include_directories(lkl_bits PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
-add_dependencies(lkl_bits build-lkl)
-
-add_executable(lkl_syscalls tools/lkl_syscalls.c)
-target_include_directories(lkl_syscalls PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
-add_dependencies(lkl_syscalls build-lkl)
-
-add_custom_command(
-	OUTPUT "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
-		   "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
-	COMMAND lkl_bits > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
-	COMMAND lkl_syscalls > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
-	DEPENDS lkl_bits lkl_syscalls
-)
-add_custom_target(gen-extra-lkl-headers DEPENDS 
-	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
-	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h")

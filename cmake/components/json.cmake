@@ -1,3 +1,5 @@
+include_guard(GLOBAL)
+
 set(JSON_C_SRCS "src/libjson/json.c")
 set(JSON_INCLUDE_DIRS "src/libjson/include")
 
