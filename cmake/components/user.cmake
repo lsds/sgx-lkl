@@ -37,5 +37,6 @@ add_custom_command(
 		sgx-lkl::user-init
 	)
 
-add_library(sgx-lkl::user OBJECT IMPORTED GLOBAL)
-set_target_properties(sgx-lkl::user PROPERTIES IMPORTED_OBJECTS "${SGXLKL_USER_OBJ}")
+add_library(sgxlkl_user STATIC "${SGXLKL_USER_OBJ}")
+set_target_properties(sgxlkl_user PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::user ALIAS sgxlkl_user)

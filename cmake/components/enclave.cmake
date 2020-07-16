@@ -38,11 +38,18 @@ include(cmake/components/user.cmake)
 # Open Enclave treats enclave images as executables.
 # Their entry point is the _start symbol.
 # This symbol is provided by OE and part of the kernel object.
-add_executable(sgxlkl_enclave_image
-    $<TARGET_OBJECTS:sgx-lkl::kernel>
-    $<TARGET_OBJECTS:sgx-lkl::user>
-    )
-target_link_libraries(sgxlkl_enclave_image PRIVATE 
+
+# CMake requires at least one source file.
+add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/empty.c"
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/empty.c)
+
+add_executable(sgxlkl_enclave_image "${CMAKE_BINARY_DIR}/empty.c")
+target_link_libraries(sgxlkl_enclave_image PRIVATE
+    --whole-archive
+    sgx-lkl::kernel
+    sgx-lkl::user
+    --no-whole-archive
+    
     # libgcc provides compiler runtime symbols like __muldc3.
     # libc/musl in the user space object pulls those in.
     # Ideally we would already link against libgcc during the partial link
@@ -65,5 +72,4 @@ target_link_options(sgxlkl_enclave_image PRIVATE
     LINKER:-z,noexecstack
     LINKER:-z,now
     )
-set_target_properties(sgxlkl_enclave_image PROPERTIES LINKER_LANGUAGE C)
 add_executable(sgx-lkl::enclave-image ALIAS sgxlkl_enclave_image)

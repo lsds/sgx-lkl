@@ -102,5 +102,6 @@ add_custom_command(
 		openenclave::oeenclave
 	)
 
-add_library(sgx-lkl::kernel OBJECT IMPORTED GLOBAL)
-set_target_properties(sgx-lkl::kernel PROPERTIES IMPORTED_OBJECTS "${SGXLKL_KERNEL_OBJ}")
+add_library(sgxlkl_kernel STATIC "${SGXLKL_KERNEL_OBJ}")
+set_target_properties(sgxlkl_kernel PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::kernel ALIAS sgxlkl_kernel)
