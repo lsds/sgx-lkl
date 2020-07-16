@@ -24,9 +24,12 @@ add_custom_command(
 		$<TARGET_FILE:sgx-lkl::user-init>
 		$<TARGET_PROPERTY:sgx-lkl::libc-init,INTERFACE_LINK_LIBRARIES>
 	# TODO enable again, see notes above
-	#COMMAND echo "Checking for unresolved symbols"
-	#COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_USER_OBJ}" | grep ' U '
-	#| grep -v -E -e "'__(fini|init)_array_(start|end)'" # available at final link only
+	COMMAND echo "Checking for unresolved symbols"
+	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_USER_OBJ}" 
+		| grep ' U ' # filter to undefined symbols
+		| grep -v -E
+			-e "'__(fini|init)_array_(start|end)'" # available at final link only
+			-e "__muldc3" -e "__mulsc3" -e "__mulxc3" # provided by libgcc in final link		 
 	#COMMAND echo "Hiding symbols"
 	#COMMAND "${CMAKE_OBJCOPY}" --keep-global-symbol=lkl_syscall "${SGXLKL_USER_OBJ}"
 	COMMAND_EXPAND_LISTS

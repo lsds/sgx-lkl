@@ -42,6 +42,15 @@ add_executable(sgxlkl_enclave_image
     $<TARGET_OBJECTS:sgx-lkl::kernel>
     $<TARGET_OBJECTS:sgx-lkl::user>
     )
+target_link_libraries(sgxlkl_enclave_image PRIVATE 
+    # libgcc provides compiler runtime symbols like __muldc3.
+    # libc/musl in the user space object pulls those in.
+    # Ideally we would already link against libgcc during the partial link
+    # of the user object, but to do that we would need to know the compiler-specific
+    # location of libgcc, which the linker (ld) does not automatically add.
+    # Here we use the compiler for the final link, and it does add the right search path.
+    gcc
+    )
 target_link_options(sgxlkl_enclave_image PRIVATE
     -nostdlib
     -nodefaultlibs
