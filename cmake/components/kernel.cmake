@@ -15,7 +15,8 @@ file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/enclave/*.
 
 add_library(sgxlkl-kernel-enclave-init STATIC
 	# TODO add other sources
-	${ENCLAVE_C_SRCS}
+	#${ENCLAVE_C_SRCS}
+	src/enclave/ecall_stubs.c
 )
 target_link_libraries(sgxlkl-kernel-enclave-init PRIVATE
 	sgx-lkl::common-enclave
@@ -82,12 +83,13 @@ add_custom_command(
 	COMMAND echo "Checking for unresolved symbols"
 	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
 		| grep ' U ' # filter to undefined symbols
-		# TODO remove once OE issues resolved (see comments above)
-		| grep -v -e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
+		| grep -v
+			# TODO remove once OE issues resolved (see comments above)
+			-e "oe_realloc_ocall" -e "oe_sgx_thread_wake_wait_ocall"
 	COMMAND echo "Checking for initializer/teardown sections"
 	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_KERNEL_OBJ}" 
-		| grep -e '.ctors' -e '.preinit_array' -e '.init_array'
-		       -e '.dtors' -e '.fini_array'
+		| grep -F -e '.ctors' -e '.preinit_array' -e '.init_array'
+		          -e '.dtors' -e '.fini_array'
 	COMMAND echo "Hiding symbols"
 	COMMAND "${CMAKE_OBJCOPY}"
 		--keep-global-symbol=_start

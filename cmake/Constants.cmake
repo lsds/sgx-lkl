@@ -6,6 +6,8 @@ set(EXTERNAL_PROJECT_BASE_DIR "external")
 
 # Target names
 set(HOST_TOOL_NAME sgx-lkl-run)
+set(ENCLAVE_IMAGE_NAME sgx-lkl-enclave)
+set(ENCLAVE_IMAGE_PATH_SIGNED "${CMAKE_CURRENT_BINARY_DIR}/${ENCLAVE_IMAGE_NAME}.signed")
 
 # External projects
 set(WIREGUARD_URL "https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz")

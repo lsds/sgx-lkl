@@ -27,7 +27,7 @@ if (IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
        DESTINATION "${PROJECT_SOURCE_DIR}/.git/hooks")
 endif()
 
-# Global compile options for both enclave and host code.
+# Global compile options for both enclave and host code (except LKL).
 # See cmake/components/common.cmake for enclave/host-specific options.
 foreach(LANG C CXX)
     set(CMAKE_${LANG}_FLAGS "-Wall -Werror")
@@ -64,9 +64,7 @@ endif()
 
 # Include all top-level SGX-LKL components.
 include(cmake/components/host.cmake)
-#include(cmake/components/enclave.cmake)
-
-# TODO sign enclave image
+include(cmake/components/enclave.cmake)
 
 # CMake does not allow to reference namespaced targets here.
 # See https://gitlab.kitware.com/cmake/cmake/-/issues/20979.
@@ -74,8 +72,8 @@ install(TARGETS	sgxlkl-host-launcher
         RUNTIME DESTINATION "bin")
 
 if (TARGET sgxlkl-enclave-image)
-    install(TARGETS	sgxlkl-enclave-image
-            RUNTIME DESTINATION "lib")
+    install(FILES "${ENCLAVE_IMAGE_PATH_SIGNED}"
+            DESTINATION "lib")
 endif()
 
 install(PROGRAMS "tools/sgx-lkl-cfg"

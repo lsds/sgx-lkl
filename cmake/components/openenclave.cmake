@@ -27,6 +27,7 @@ else()
 	add_library(openenclave::mbedtls ALIAS mbedtls)
 	add_library(openenclave::mbedcrypto_static ALIAS mbedcrypto_static)
 	add_library(openenclave::mbedx509 ALIAS mbedx509)
+	add_executable(openenclave::oesign ALIAS oesign)
 	add_executable(openenclave::oeedger8r ALIAS edger8r)
 
 	# Enable build of liboe_ptrace.so so that we can install it.
