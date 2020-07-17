@@ -1,4 +1,9 @@
 include_guard(GLOBAL)
+include(cmake/components/common.cmake)
+include(cmake/components/edl.cmake)
+include(cmake/components/json.cmake)
+include(cmake/components/config.cmake)
+include(cmake/components/lkl.cmake)
 
 find_package(Threads REQUIRED)
 
@@ -20,10 +25,5 @@ target_link_libraries(${HOST_TOOL_NAME} PRIVATE
 	sgx-lkl::host-config
 	sgx-lkl::enclave-config-host
 	sgx-lkl::build-metadata
+	sgx-lkl::lkl-headers
 	)
-# If we are configuring for the first build, add a fake dependency of this tool
-# on the LKL build.  For subsequent builds this will be picked up by the real
-# LKL header dependencies.
-if(NOT LKL_HEADERS)
-	add_dependencies(${HOST_TOOL_NAME} build-lkl)
-endif()
