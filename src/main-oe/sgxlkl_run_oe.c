@@ -1403,7 +1403,7 @@ void find_root_disk_file(int* argc, char*** argv, char** root_hd)
         sgxlkl_host_err(
             "Insufficient arguments: no root disk image path provided.\n");
         printf("\n");
-        usage(SGXLKL_LAUNCHER_NAME);
+        usage();
         exit(EXIT_FAILURE);
     }
 }
