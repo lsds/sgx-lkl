@@ -21,6 +21,12 @@ include(cmake/Helpers.cmake)
 include(cmake/Options.cmake)
 include(cmake/BuildMetadata.cmake)
 
+if (IS_DIRECTORY "${PROJECT_SOURCE_DIR}/.git")
+  # Install Git pre-commit hook.
+  file(COPY "scripts/pre-commit"
+       DESTINATION "${PROJECT_SOURCE_DIR}/.git/hooks")
+endif()
+
 # Global compile options for both enclave and host code.
 # See cmake/components/common.cmake for enclave/host-specific options.
 foreach(LANG C CXX)
