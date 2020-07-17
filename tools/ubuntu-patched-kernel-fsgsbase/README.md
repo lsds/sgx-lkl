@@ -24,7 +24,7 @@ $ sudo apt-get install libncurses-dev flex bison openssl libssl-dev dkms libelf-
 
 3. Install the Ubuntu kernel source for the currently active kernel:
 ```
-$ cd tools/ubuntu-kernel-patched-fsgsbase/
+$ cd tools/ubuntu-patched-kernel-fsgsbase/
 $ apt-get source linux-image-unsigned-$(uname -r)
 ```
 
