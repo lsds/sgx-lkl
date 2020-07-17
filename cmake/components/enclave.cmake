@@ -40,9 +40,7 @@ include(cmake/components/user.cmake)
 # This symbol is provided by OE and part of the kernel object.
 
 # CMake requires at least one source file.
-add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/empty.c"
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/empty.c)
-
+create_empty("${CMAKE_BINARY_DIR}/empty.c")
 add_executable(sgxlkl_enclave_image "${CMAKE_BINARY_DIR}/empty.c")
 target_link_libraries(sgxlkl_enclave_image PRIVATE
     --whole-archive
