@@ -79,6 +79,8 @@ add_dependencies(sgxlkl_common_enclave copy-c-compiler-include-dir)
 target_include_directories(sgxlkl_common_enclave INTERFACE
     "src/include"
     "${CMAKE_BINARY_DIR}/generated"
+)
+target_include_directories(sgxlkl_common_enclave SYSTEM INTERFACE
     "$<TARGET_PROPERTY:openenclave::oe_includes,INTERFACE_INCLUDE_DIRECTORIES>"
     "${C_COMPILER_INCLUDE_DIR_COPY}"
     )

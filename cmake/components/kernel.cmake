@@ -7,17 +7,15 @@ include(cmake/components/edl.cmake)
 include(cmake/components/config.cmake)
 
 #file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
-#file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/enclave/*.c")
+file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/enclave/*.c")
 #file(GLOB KERNEL_C_SRCS CONFIGURE_DEPENDS
 #	"${CMAKE_SOURCE_DIR}/src/lkl/*.c"
 #	"${CMAKE_SOURCE_DIR}/src/sched/*.c"
 #	"${CMAKE_SOURCE_DIR}/src/wireguard/*.c")
 
-touch(${CMAKE_BINARY_DIR}/dummy.c)
 add_library(sgxlkl_kernel_enclave_init STATIC
-	# TODO
-	#${ENCLAVE_C_SRCS}
-	${CMAKE_BINARY_DIR}/dummy.c
+	# TODO add other sources
+	${ENCLAVE_C_SRCS}
 )
 target_link_libraries(sgxlkl_kernel_enclave_init PRIVATE
 	sgx-lkl::common-enclave

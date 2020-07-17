@@ -56,7 +56,7 @@ else()
 endif()
 
 # Include all top-level SGX-LKL components.
-#include(cmake/components/host.cmake)
+include(cmake/components/host.cmake)
 include(cmake/components/enclave.cmake)
 
 # TODO Install build outputs to the right folders.
