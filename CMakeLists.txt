@@ -1,6 +1,7 @@
 # We follow Open Enclave's minimum CMake version requirement.
 # See openenclave/scripts/ansible/roles/linux/openenclave/tasks/environment-setup.yml.
 cmake_minimum_required(VERSION 3.13.1 FATAL_ERROR)
+message(STATUS "CMake version: ${CMAKE_VERSION}")
 
 # CXX is added here to avoid default compiler selection issues
 # when including Open Enclave via add_subdirectory.

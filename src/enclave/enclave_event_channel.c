@@ -1,4 +1,4 @@
-#include <stdatomic.h>
+#include <atomic.h>
 #include <string.h>
 
 #include "pthread_impl.h"

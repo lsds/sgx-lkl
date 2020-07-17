@@ -1,7 +1,7 @@
 #ifndef TICKETLOCK_H
 #define TICKETLOCK_H
 
-#include <stdatomic.h>
+#include <atomic.h>
 
 #if DEBUG
 #include "lthread.h"

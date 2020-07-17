@@ -22,7 +22,9 @@ include(ProcessorCount)
 ProcessorCount(NUMBER_OF_CORES)
 
 set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
-set(COMMON_EP_OPTIONS)
+set(COMMON_EP_OPTIONS
+	EXCLUDE_FROM_ALL ON
+	)
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.14")
 	# LOG_OUTPUT_ON_FAILURE is available in 3.14 onwards only.
 	list(APPEND COMMON_EP_OPTIONS

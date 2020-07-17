@@ -36,15 +36,16 @@ ExternalProject_Add(sgx-lkl-musl-ep
 		"--prefix=<INSTALL_DIR>"
 		"--syslibdir=<INSTALL_DIR>/lib"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
-	INSTALL_COMMAND 
-	COMMAND make install
-	# TODO Fix musl-gcc for gcc versions that have been built with --enable-default-pie
-	#gcc -v 2>&1 | grep "\-\-enable-default-pie" > /dev/null && sed -i 's/"$$@"/-fpie -pie "\$$@"/g' ${HOST_LIBC_BLD_DIR}/bin/musl-gcc || true
+	INSTALL_COMMAND make install
+	# TODO Replace atomic.h includes with C11 stdatomic.h, then remove the following copy.
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+		"<SOURCE_DIR>/src/internal/atomic.h"
+		"<SOURCE_DIR>/arch/x86_64/atomic_arch.h"
+		"<INSTALL_DIR>/include"
 	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
 	BUILD_ALWAYS TRUE
 	${COMMON_EP_OPTIONS}
 )
-set_target_properties(sgx-lkl-musl-ep PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
 list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
 set(MUSL_INCLUDE_DIR "${INSTALL_DIR}/include")
