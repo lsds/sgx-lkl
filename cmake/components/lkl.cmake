@@ -5,19 +5,19 @@ include(cmake/Helpers.cmake)
 include(cmake/RecursiveCopy.cmake)
 
 # Note that most compile flags can be set via defconfig options. See below.
+# Important: Don't try to set optimization flags like -O0 here.
+# The Linux kernel makes assumptions about optimizations used and overriding them will fail.
 set(LKL_EXTRA_CFLAGS "-fPIE")
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-	string(APPEND LKL_EXTRA_CFLAGS " -g3 -ggdb3 -O0 -DDEBUG")
-endif()
 if (LKL_DEBUG)
 	string(APPEND LKL_EXTRA_CFLAGS " -DLKL_DEBUG")
 endif()
 
 # See src/lkl/override/defconfig for all other options.
-# Here we only add additional defconfig options that depend on CMake options.
-set(LKL_EXTRA_DEFCONFIG_OPTIONS)
-if (CMAKE_C_COMPILER_ID STREQUAL "Clang")
-	list(APPEND LKL_EXTRA_DEFCONFIG_OPTIONS "CONFIG_CC_IS_CLANG=y")
+# Here we only add additional defconfig and Make options that depend on CMake options.
+set(LKL_EXTRA_OPTIONS)
+if (NOT LKL_USE_GCC AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+	list(APPEND LKL_EXTRA_OPTIONS "CONFIG_CC_IS_CLANG=y" "CC=${CMAKE_C_COMPILER}")
+	message(STATUS "Building LKL with Clang")
 endif()
 
 # Copy the LKL sources to the build directory.  This copies everything except
@@ -121,16 +121,17 @@ set(LKL_LIB_PATH "lkl/tools/lkl/lib/lkl.o")
 set(LKL_HEADER_PATH "${CMAKE_BINARY_DIR}/lkl-headers")
 add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	DEPENDS lkl-source-setup
-	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl" -j ${NUMBER_OF_CORES} V=1 EXTRA_CFLAGS="${LKL_EXTRA_CFLAGS}" ${LKL_EXTRA_DEFCONFIG_OPTIONS} "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
+	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl" -j ${NUMBER_OF_CORES} V=1 "EXTRA_CFLAGS=${LKL_EXTRA_CFLAGS}" ${LKL_EXTRA_OPTIONS} "${CMAKE_BINARY_DIR}/${LKL_LIB_PATH}"
 	COMMAND ${CMAKE_COMMAND} -E env "DESTDIR=${LKL_HEADER_PATH}" make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}/tools/lkl/" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
 	COMMAND make -C "${CMAKE_BINARY_DIR}/${LKL_SUBDIRECTORY}" ARCH=lkl "INSTALL_HDR_PATH=${LKL_HEADER_PATH}" -j ${NUMBER_OF_CORES} V=1 "PREFIX=\"\"" headers_install
-	COMMAND echo "'set(LKL_HEADERS'" > "${LKL_HEADERS_FILE}.tmp"
+	COMMAND echo "set(LKL_HEADERS" > "${LKL_HEADERS_FILE}.tmp"
 	COMMAND find "${LKL_HEADER_PATH}" >> "${LKL_HEADERS_FILE}.tmp"
-	COMMAND echo "')'" >> "${LKL_HEADERS_FILE}.tmp"
+	COMMAND echo ")" >> "${LKL_HEADERS_FILE}.tmp"
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different "${LKL_HEADERS_FILE}.tmp" "${LKL_HEADERS_FILE}"
 	COMMAND ${CMAKE_COMMAND} -E remove "${LKL_HEADERS_FILE}.tmp" 
 	WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/lkl"
 	BYPRODUCTS ${LKL_HEADERS} "${LKL_HEADERS_FILE}" 
+	VERBATIM
 	COMMENT "Compiling LKL"
 )
 add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")

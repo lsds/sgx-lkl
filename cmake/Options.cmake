@@ -15,6 +15,8 @@ if (CMAKE_GENERATOR STREQUAL "Ninja")
     message(WARNING
       "You use an old Ninja version (${ninja_out}). "
       "You may need to re-run 'cmake .' explicitly if you change any CMake build scripts.")
+  else()
+    message(STATUS "Ninja version: ${ninja_out}")
   endif()
 else()
 	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
@@ -32,6 +34,7 @@ endif()
 set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
 
 set(LKL_DEBUG FALSE CACHE BOOL "Enable extra debugging for LKL")
+set(LKL_USE_GCC FALSE CACHE BOOL "Use gcc for building LKL even if SGX-LKL is built with clang")
 
 set(LIBC musl CACHE STRING "Libc implementation to build.  Currently only musl is supported")
 # Add "glibc" here once glibc is supported
