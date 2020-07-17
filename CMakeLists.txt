@@ -62,13 +62,13 @@ include(cmake/components/host.cmake)
 
 # TODO sign enclave image
 
-# Unfortunately CMake does not allow to reference namespaced targets.
+# CMake does not allow to reference namespaced targets here.
 # See https://gitlab.kitware.com/cmake/cmake/-/issues/20979.
-install(TARGETS	sgxlkl_host_launcher
+install(TARGETS	sgxlkl-host-launcher
         RUNTIME DESTINATION "bin")
 
-if (TARGET sgxlkl_enclave_image)
-    install(TARGETS	sgxlkl_enclave_image
+if (TARGET sgxlkl-enclave-image)
+    install(TARGETS	sgxlkl-enclave-image
             RUNTIME DESTINATION "lib")
 endif()
 

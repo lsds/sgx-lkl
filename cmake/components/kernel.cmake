@@ -13,19 +13,21 @@ file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/enclave/*.c"
 #	"${CMAKE_SOURCE_DIR}/src/sched/*.c"
 #	"${CMAKE_SOURCE_DIR}/src/wireguard/*.c")
 
-add_library(sgxlkl_kernel_enclave_init STATIC
+add_library(sgxlkl-kernel-enclave-init STATIC
 	# TODO add other sources
 	${ENCLAVE_C_SRCS}
 )
-target_link_libraries(sgxlkl_kernel_enclave_init PRIVATE
+target_link_libraries(sgxlkl-kernel-enclave-init PRIVATE
 	sgx-lkl::common-enclave
 	sgx-lkl::lkl
 	sgx-lkl::enclave-config-enclave
+	# TODO remove this after relayering
+	#sgx-lkl::libc-init
 	)
-add_library(sgx-lkl::kernel-enclave-init ALIAS sgxlkl_kernel_enclave_init)
+add_library(sgx-lkl::kernel-enclave-init ALIAS sgxlkl-kernel-enclave-init)
 
-add_library(sgxlkl_kernel_init_fini_stubs STATIC src/lkl/init_fini_stubs.s)
-add_library(sgx-lkl::kernel-init-fini-stubs ALIAS sgxlkl_kernel_init_fini_stubs)
+add_library(sgxlkl-kernel-init-fini-stubs STATIC src/lkl/init_fini_stubs.s)
+add_library(sgx-lkl::kernel-init-fini-stubs ALIAS sgxlkl-kernel-init-fini-stubs)
 
 set(SGXLKL_KERNEL_OBJ "${CMAKE_BINARY_DIR}/libsgxlkl_kernel.o")
 add_custom_command(

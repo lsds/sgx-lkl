@@ -1,4 +1,4 @@
-# sgx-lkl-musl is used as libc in userspace.
+# musl is used as libc in userspace.
 
 include_guard(GLOBAL)
 include(ExternalProject)
@@ -24,9 +24,9 @@ set(MUSL_LIBNAMES
 )
 list(TRANSFORM MUSL_LIBNAMES PREPEND "<INSTALL_DIR>/lib/" OUTPUT_VARIABLE MUSL_BYPRODUCTS)
 
-ExternalProject_Add(sgx-lkl-musl-ep
+ExternalProject_Add(sgxlkl-musl-ep
 	# For now, this builds host-musl, while the relayering is in progress.
-	# Current sgx-lkl-musl has dependencies to SGX-LKL headers, OE, etc.
+	# Our musl fork has dependencies to SGX-LKL headers, OE, etc.
 	# TODO change to /sgx-lkl-musl
 	SOURCE_DIR "${CMAKE_SOURCE_DIR}/host-musl" # /sgx-lkl-musl
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
@@ -46,16 +46,16 @@ ExternalProject_Add(sgx-lkl-musl-ep
 	BUILD_ALWAYS TRUE
 	${COMMON_EP_OPTIONS}
 )
-ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
+ExternalProject_Get_property(sgxlkl-musl-ep INSTALL_DIR)
 list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
 set(MUSL_INCLUDE_DIR "${INSTALL_DIR}/include")
 
-add_library(sgx-lkl-musl INTERFACE)
-target_compile_options(sgx-lkl-musl INTERFACE "-nostdinc")
-target_include_directories(sgx-lkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIR}")
-target_link_libraries(sgx-lkl-musl INTERFACE "${MUSL_LIBRARIES}")
-add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
-add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
+add_library(sgxlkl-musl INTERFACE)
+target_compile_options(sgxlkl-musl INTERFACE "-nostdinc")
+target_include_directories(sgxlkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIR}")
+target_link_libraries(sgxlkl-musl INTERFACE "${MUSL_LIBRARIES}")
+add_dependencies(sgxlkl-musl sgxlkl-musl-ep)
+add_library(sgx-lkl::musl ALIAS sgxlkl-musl)
 
 # For third-party Make-based projects. See libc.cmake.
 set(MUSL_CFLAGS "-nostdinc -isystem ${MUSL_INCLUDE_DIR}")

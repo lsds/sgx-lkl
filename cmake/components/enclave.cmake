@@ -41,8 +41,8 @@ include(cmake/components/user.cmake)
 
 # CMake requires at least one source file.
 create_empty("${CMAKE_BINARY_DIR}/empty.c")
-add_executable(sgxlkl_enclave_image "${CMAKE_BINARY_DIR}/empty.c")
-target_link_libraries(sgxlkl_enclave_image PRIVATE
+add_executable(sgxlkl-enclave-image "${CMAKE_BINARY_DIR}/empty.c")
+target_link_libraries(sgxlkl-enclave-image PRIVATE
     --whole-archive
     sgx-lkl::kernel
     sgx-lkl::user
@@ -56,7 +56,7 @@ target_link_libraries(sgxlkl_enclave_image PRIVATE
     # Here we use the compiler for the final link, and it does add the right search path.
     gcc
     )
-target_link_options(sgxlkl_enclave_image PRIVATE
+target_link_options(sgxlkl-enclave-image PRIVATE
     -nostdlib
     -nodefaultlibs
     -nostartfiles
@@ -70,4 +70,4 @@ target_link_options(sgxlkl_enclave_image PRIVATE
     LINKER:-z,noexecstack
     LINKER:-z,now
     )
-add_executable(sgx-lkl::enclave-image ALIAS sgxlkl_enclave_image)
+add_executable(sgx-lkl::enclave-image ALIAS sgxlkl-enclave-image)

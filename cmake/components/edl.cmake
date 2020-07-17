@@ -31,10 +31,10 @@ add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 	DEPENDS openenclave::oeedger8r "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 
-add_library(sgxlkl_edl_enclave STATIC ${GENERATED_ENCLAVE_EDGE_FILES})
-target_link_libraries(sgxlkl_edl_enclave PRIVATE sgx-lkl::common-enclave)
-add_library(sgx-lkl::edl-enclave ALIAS sgxlkl_edl_enclave)
+add_library(sgxlkl-edl-enclave STATIC ${GENERATED_ENCLAVE_EDGE_FILES})
+target_link_libraries(sgxlkl-edl-enclave PRIVATE sgx-lkl::common-enclave)
+add_library(sgx-lkl::edl-enclave ALIAS sgxlkl-edl-enclave)
 
-add_library(sgxlkl_edl_host STATIC ${GENERATED_HOST_EDGE_FILES})
-target_link_libraries(sgxlkl_edl_host PRIVATE sgx-lkl::common-host)
-add_library(sgx-lkl::edl-host ALIAS sgxlkl_edl_host)
+add_library(sgxlkl-edl-host STATIC ${GENERATED_HOST_EDGE_FILES})
+target_link_libraries(sgxlkl-edl-host PRIVATE sgx-lkl::common-host)
+add_library(sgx-lkl::edl-host ALIAS sgxlkl-edl-host)

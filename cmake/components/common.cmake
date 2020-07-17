@@ -16,24 +16,24 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 # Host code.
-add_library(sgxlkl_common_host INTERFACE)
-target_compile_definitions(sgxlkl_common_host INTERFACE 
+add_library(sgxlkl-common-host INTERFACE)
+target_compile_definitions(sgxlkl-common-host INTERFACE 
     ${COMMON_DEFINITIONS}
     )
-target_include_directories(sgxlkl_common_host INTERFACE 
+target_include_directories(sgxlkl-common-host INTERFACE 
     "src/include"
     "${CMAKE_BINARY_DIR}/generated"
     )
 # Note that openenclave::oehost also pulls in OE's public include folders,
 # compile definitions, compile options, and linker options, apart from the
 # oehost static library.
-target_link_libraries(sgxlkl_common_host INTERFACE openenclave::oehost)
-add_library(sgx-lkl::common-host ALIAS sgxlkl_common_host)
+target_link_libraries(sgxlkl-common-host INTERFACE openenclave::oehost)
+add_library(sgx-lkl::common-host ALIAS sgxlkl-common-host)
 
 
 # Enclave code.
-add_library(sgxlkl_common_enclave INTERFACE)
-target_compile_definitions(sgxlkl_common_enclave INTERFACE
+add_library(sgxlkl-common-enclave INTERFACE)
+target_compile_definitions(sgxlkl-common-enclave INTERFACE
     # Definitions used in OE headers.
     ${COMMON_DEFINITIONS}
     -DOE_BUILD_ENCLAVE
@@ -55,7 +55,7 @@ set(COMMON_ENCLAVE_CFLAGS
     -fdata-sections
     -ftls-model=local-exec
 )
-target_compile_options(sgxlkl_common_enclave INTERFACE ${COMMON_ENCLAVE_CFLAGS})
+target_compile_options(sgxlkl-common-enclave INTERFACE ${COMMON_ENCLAVE_CFLAGS})
 
 # Since we use -nostdinc we need to re-add the compiler include folder to gain
 # access to headers like stdatomic.h or intrinsics.
@@ -74,21 +74,21 @@ add_custom_command(OUTPUT "${C_COMPILER_INC_STAMP}"
     DEPENDS ${C_COMPILER_HEADERS}
 )
 add_custom_target(copy-c-compiler-include-dir DEPENDS "${C_COMPILER_INC_STAMP}")
-add_dependencies(sgxlkl_common_enclave copy-c-compiler-include-dir)
+add_dependencies(sgxlkl-common-enclave copy-c-compiler-include-dir)
 
-target_include_directories(sgxlkl_common_enclave INTERFACE
+target_include_directories(sgxlkl-common-enclave INTERFACE
     "src/include"
     "${CMAKE_BINARY_DIR}/generated"
 )
-target_include_directories(sgxlkl_common_enclave SYSTEM INTERFACE
+target_include_directories(sgxlkl-common-enclave SYSTEM INTERFACE
     "$<TARGET_PROPERTY:openenclave::oe_includes,INTERFACE_INCLUDE_DIRECTORIES>"
     "${C_COMPILER_INCLUDE_DIR_COPY}"
     )
 # TARGET_PROPERTY does not introduce a target dependency.
 # We add a target dependency as OE generates some headers from EDL files.
 # Adding a dependency is only needed when building OE as part of this build (default).
-add_dependencies(sgxlkl_common_enclave openenclave::oe_includes)
-add_library(sgx-lkl::common-enclave ALIAS sgxlkl_common_enclave)
+add_dependencies(sgxlkl-common-enclave openenclave::oe_includes)
+add_library(sgx-lkl::common-enclave ALIAS sgxlkl-common-enclave)
 
 # Not used here, but for convenience in other components.
 # Keep this down here, as it needs COMMON_ENCLAVE_CFLAGS.

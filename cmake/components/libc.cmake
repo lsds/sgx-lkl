@@ -7,7 +7,7 @@ if (LIBC STREQUAL "musl")
 	# Eventually init components will always use a statically linked musl,
 	# while apps can use a dynamically linked musl/glibc.
 	# For now, both the init components and apps are required to use the same libc.
-	add_library(sgx-lkl::libc-init ALIAS sgx-lkl-musl)
+	add_library(sgx-lkl::libc-init ALIAS sgxlkl-musl)
 	set(LIBC_CFLAGS "${MUSL_CFLAGS}")
 endif()
 

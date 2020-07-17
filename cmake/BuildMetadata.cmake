@@ -15,13 +15,13 @@ function(read_build_metadata)
         OUTPUT_VARIABLE LKL_VERSION)
     string(STRIP "${LKL_VERSION}" LKL_VERSION)
 
-    add_library(sgxlkl_build_metadata INTERFACE)
-    target_compile_definitions(sgxlkl_build_metadata INTERFACE
+    add_library(sgxlkl-build-metadata INTERFACE)
+    target_compile_definitions(sgxlkl-build-metadata INTERFACE
         -DSGXLKL_GIT_COMMIT="${SGXLKL_GIT_COMMIT}"
         -DSGXLKL_VERSION="${SGXLKL_VERSION}"
         -DLKL_VERSION="${LKL_VERSION}"
         )
-    add_library(sgx-lkl::build-metadata ALIAS sgxlkl_build_metadata)
+    add_library(sgx-lkl::build-metadata ALIAS sgxlkl-build-metadata)
 
     message(STATUS "SGX-LKL commit: ${SGXLKL_GIT_COMMIT}")
     message(STATUS "SGX-LKL version: ${SGXLKL_VERSION}")

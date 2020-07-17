@@ -156,14 +156,14 @@ add_custom_command(
 	DEPENDS lkl_bits lkl_syscalls
 )
 
-add_library(lkl_headers INTERFACE)
-target_include_directories(lkl_headers SYSTEM INTERFACE "${LKL_INCLUDE_DIR}")
-add_dependencies(lkl_headers
+add_library(lkl-headers INTERFACE)
+target_include_directories(lkl-headers SYSTEM INTERFACE "${LKL_INCLUDE_DIR}")
+add_dependencies(lkl-headers
 	build-lkl
 	"${LKL_BITS_H}"
 	"${LKL_SYSCALLS_H}"
 	)
-add_library(sgx-lkl::lkl-headers ALIAS lkl_headers)
+add_library(sgx-lkl::lkl-headers ALIAS lkl-headers)
 
 add_library(lkl STATIC 
 	"${LKL_LIB_PATH}"

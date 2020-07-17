@@ -7,16 +7,16 @@ include(cmake/components/ext2fs.cmake)
 include(cmake/components/json.cmake)
 
 touch("dummy.c")
-add_library(sgxlkl_user_init STATIC "dummy.c")
-target_link_libraries(sgxlkl_user_init PRIVATE
+add_library(sgxlkl-user-init STATIC "dummy.c")
+target_link_libraries(sgxlkl-user-init PRIVATE
 	sgx-lkl::libc-init
 	curl::curl
 	devicemapper::devicemapper
 	e2fsprogs::ext2fs
 )
-add_library(sgx-lkl::user-init ALIAS sgxlkl_user_init)
+add_library(sgx-lkl::user-init ALIAS sgxlkl-user-init)
 
-set(SGXLKL_USER_OBJ "libsgxlkl_user.o")
+set(SGXLKL_USER_OBJ "${CMAKE_BINARY_DIR}/libsgxlkl-user.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_USER_OBJ}"
 	COMMENT "Building user space object"
@@ -37,6 +37,6 @@ add_custom_command(
 		sgx-lkl::user-init
 	)
 
-add_library(sgxlkl_user STATIC "${SGXLKL_USER_OBJ}")
-set_target_properties(sgxlkl_user PROPERTIES LINKER_LANGUAGE C)
-add_library(sgx-lkl::user ALIAS sgxlkl_user)
+add_library(sgxlkl-user STATIC "${SGXLKL_USER_OBJ}")
+set_target_properties(sgxlkl-user PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::user ALIAS sgxlkl-user)
