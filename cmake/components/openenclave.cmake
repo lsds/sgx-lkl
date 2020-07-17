@@ -28,6 +28,9 @@ else()
 	add_library(openenclave::mbedcrypto_static ALIAS mbedcrypto_static)
 	add_library(openenclave::mbedx509 ALIAS mbedx509)
 	add_executable(openenclave::oeedger8r ALIAS edger8r)
+
+	# Enable build of liboe_ptrace.so so that we can install it.
+	add_custom_target(build-oe-ptrace ALL DEPENDS oe_ptrace)
     
     # oeedger8r won't locate default includes when run from a build.
 	set(OEEDGER8R_EXTRA_FLAGS

@@ -13,7 +13,7 @@ project(SGX-LKL C CXX ASM)
 
 get_filename_component(real_binary_dir "${CMAKE_BINARY_DIR}" REALPATH)
 if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
-	message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
+    message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
 endif()
 
 include(cmake/Constants.cmake)
@@ -24,10 +24,10 @@ include(cmake/BuildMetadata.cmake)
 # Global compile options for both enclave and host code.
 # See cmake/components/common.cmake for enclave/host-specific options.
 foreach(LANG C CXX)
-	set(CMAKE_${LANG}_FLAGS "-Wall -Werror")
-	set(CMAKE_${LANG}_FLAGS_DEBUG "-O0 -g3 -ggdb3")
-	set(CMAKE_${LANG}_FLAGS_RELWITHDEBINFO "-O3 -g3 -ggdb3 -DNDEBUG")
-	set(CMAKE_${LANG}_FLAGS_RELEASE "-O3 -DNDEBUG")
+    set(CMAKE_${LANG}_FLAGS "-Wall -Werror")
+    set(CMAKE_${LANG}_FLAGS_DEBUG "-O0 -g3 -ggdb3")
+    set(CMAKE_${LANG}_FLAGS_RELWITHDEBINFO "-O3 -g3 -ggdb3 -DNDEBUG")
+    set(CMAKE_${LANG}_FLAGS_RELEASE "-O3 -DNDEBUG")
 endforeach()
 string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE_UPPER)
 set(CMAKE_C_FLAGS_BUILD_TYPE "${CMAKE_C_FLAGS_${BUILD_TYPE_UPPER}}")
@@ -42,22 +42,50 @@ set(CMAKE_C_FLAGS_BUILD_TYPE "${CMAKE_C_FLAGS_${BUILD_TYPE_UPPER}}")
 # See https://gitlab.kitware.com/cmake/cmake/-/issues/16977.
 # For more details on partial linking see cmake/components/enclave.cmake.
 if (USE_LLD)
-	find_program(LINKER NAMES ld.lld-10 ld.lld-9 ld.lld-8 ld.lld-7 ld.lld REQUIRED)
-	if (CMAKE_C_COMPILER_ID STREQUAL Clang)
-		set(LINKER_CFLAG "-fuse-ld=${LINKER}")
-	else()
-		# GCC does not support absolute paths yet.
-		# If an unversioned 'lld' executable is not found, gcc will fail.
-		set(LINKER_CFLAG "-fuse-ld=lld")
-	endif()
-	add_link_options("${LINKER_CFLAG}")
-	unset(LINKER_CFLAG)
+    find_program(LINKER NAMES ld.lld-10 ld.lld-9 ld.lld-8 ld.lld-7 ld.lld REQUIRED)
+    if (CMAKE_C_COMPILER_ID STREQUAL Clang)
+        set(LINKER_CFLAG "-fuse-ld=${LINKER}")
+    else()
+        # GCC does not support absolute paths yet.
+        # If an unversioned 'lld' executable is not found, gcc will fail.
+        set(LINKER_CFLAG "-fuse-ld=lld")
+    endif()
+    add_link_options("${LINKER_CFLAG}")
+    unset(LINKER_CFLAG)
 else()
-	find_program(LINKER NAMES ld REQUIRED)
+    find_program(LINKER NAMES ld REQUIRED)
 endif()
 
 # Include all top-level SGX-LKL components.
 include(cmake/components/host.cmake)
-include(cmake/components/enclave.cmake)
+#include(cmake/components/enclave.cmake)
 
-# TODO Install build outputs to the right folders.
+# TODO sign enclave image
+
+# Unfortunately CMake does not allow to reference namespaced targets.
+# See https://gitlab.kitware.com/cmake/cmake/-/issues/20979.
+install(TARGETS	sgxlkl_host_launcher
+        RUNTIME DESTINATION "bin")
+
+if (TARGET sgxlkl_enclave_image)
+    install(TARGETS	sgxlkl_enclave_image
+            RUNTIME DESTINATION "lib")
+endif()
+
+install(PROGRAMS "tools/sgx-lkl-cfg"
+                 "tools/sgx-lkl-disk"
+                 "tools/sgx-lkl-docker"
+                 "tools/sgx-lkl-setup"
+                 "tools/gdb/sgx-lkl-gdb"
+        DESTINATION "bin")
+
+install(FILES "tools/gdb/gdbcommands.py"
+              "tools/gdb/sgx-lkl-gdb.py"
+        DESTINATION "lib/gdb")
+
+install(DIRECTORY "${OE_LIBDIR}/openenclave/debugger/"
+        DESTINATION "lib/gdb/openenclave")
+
+install(FILES "tools/schemas/enclave-config.schema.json"
+              "tools/schemas/host-config.schema.json"
+        DESTINATION "share/schemas")

@@ -31,6 +31,10 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (default Debug)" FORCE)
 endif()
 
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "/opt/sgx-lkl" CACHE PATH "Installation prefix" FORCE)
+endif()
+
 set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
 
 set(LKL_DEBUG FALSE CACHE BOOL "Enable extra debugging for LKL")
