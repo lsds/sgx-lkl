@@ -15,6 +15,9 @@
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 
+#define AUXV_ENTRIES 13
+
+char *at_platform = "x86_64";
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
@@ -49,6 +52,54 @@ static int _strncmp(const char* x, const char* y, size_t n)
     }
 
     return *px == *py ? 0 : *px < *py ? -1 : +1;
+}
+
+static void
+init_auxv(size_t *auxv, char* buf_ptr, char *pn)
+{
+    // By default auxv[AT_RANDOM] points to a buffer with 16 random bytes.
+    uint64_t *rbuf = (uint64_t*)buf_ptr;
+    buf_ptr += 16;
+    // TODO Use intrinsics
+    // if (!_rdrand64_step(&rbuf[0]))
+    //    goto err;
+    register uint64_t rd;
+    __asm__ volatile("rdrand %0;"
+                     : "=r"(rd));
+    rbuf[0] = rd;
+    __asm__ volatile("rdrand %0;"
+                     : "=r"(rd));
+    rbuf[1] = rd;
+
+    memset(auxv, 0, 2 * sizeof(size_t) * AUXV_ENTRIES);
+    auxv[0] = AT_CLKTCK;
+    auxv[1] = 100;
+    auxv[2] = AT_EXECFN;
+    auxv[3] = (size_t) pn;
+    auxv[4] = AT_HWCAP;
+    auxv[5] = 0;
+    auxv[6] = AT_EGID;
+    auxv[7] = 0;
+    auxv[8] = AT_EUID;
+    auxv[9] = 0;
+    auxv[10] = AT_GID;
+    auxv[11] = 0;
+    auxv[12] = AT_PAGESZ;
+    auxv[13] = 0;
+    auxv[14] = AT_PLATFORM;
+    memcpy(buf_ptr, at_platform, oe_strlen(at_platform) + 1);
+    auxv[15] = (size_t) buf_ptr;
+    buf_ptr += oe_strlen(at_platform) + 1;
+    auxv[16] = AT_SECURE;
+    auxv[17] = 0;
+    auxv[18] = AT_UID;
+    auxv[19] = 0;
+    auxv[20] = AT_RANDOM;
+    auxv[21] = (size_t)rbuf;
+    auxv[22] = AT_HW_MODE;
+    auxv[23] = !sgxlkl_in_sw_debug_mode();
+    auxv[24] = AT_NULL;
+    auxv[25] = 0;
 }
 
 static void _prepare_elf_stack()
@@ -94,7 +145,9 @@ static void _prepare_elf_stack()
     for (size_t i = 0; i < num_imported_env; i++)
         num_bytes += oe_strlen(imported_env[i]) + 1;
     num_ptrs += num_imported_env + 1;
-    num_ptrs += 2; // auxv terminator
+    num_ptrs += 2 * AUXV_ENTRIES; // auxv vector entries
+    num_bytes += oe_strlen(at_platform) + 1; // AT_PLATFORM
+    num_bytes += 16; // AT_RANDOM
     num_ptrs += 1; // end marker
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
@@ -135,8 +188,8 @@ static void _prepare_elf_stack()
 
     // auxv
     stack->auxv = (Elf64_auxv_t*)(out + j);
-    stack->auxv->a_type = AT_NULL;
-    j++;
+    init_auxv((size_t*)(out + j), buf_ptr, stack->argv[0]);
+    j += AUXV_ENTRIES * sizeof(Elf64_auxv_t);
 
     // end marker
     out[j++] = NULL;

@@ -120,7 +120,6 @@ static int startmain(void* args)
 int __libc_init_enclave(int argc, char** argv)
 {
     struct lthread* lt;
-    char** envp = argv + argc + 1;
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
     /* Upper heap memory area is allotted to OE and rest is used by SGXLKL */
@@ -157,8 +156,9 @@ int __libc_init_enclave(int argc, char** argv)
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
     
     init_ethread_tp();
-    __init_libc(envp, argv[0]);
     
+    char** envp = argv + argc + 1;
+    __init_libc(envp, argv[0]);
 
     size_t espins = cfg->espins;
     size_t esleep = cfg->esleep;
