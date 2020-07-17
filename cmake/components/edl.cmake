@@ -15,20 +15,20 @@ set(GENERATED_ENCLAVE_EDGE_FILES
 add_custom_command(OUTPUT ${GENERATED_HOST_EDGE_FILES}
 	COMMAND openenclave::oeedger8r
 		${OEEDGER8R_EXTRA_FLAGS}
-		--untrusted "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-        --untrusted-dir "${CMAKE_BINARY_DIR}/generated/host"
+		--untrusted "${PROJECT_SOURCE_DIR}/src/sgxlkl.edl"
+        --untrusted-dir "${CMAKE_CURRENT_BINARY_DIR}/generated/host"
     COMMAND_EXPAND_LISTS
     # TODO add imported files in EDL as dependencies
-    DEPENDS openenclave::oeedger8r "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"    
+    DEPENDS openenclave::oeedger8r "${PROJECT_SOURCE_DIR}/src/sgxlkl.edl"    
 	)
 add_custom_command(OUTPUT ${GENERATED_ENCLAVE_EDGE_FILES}
 	COMMAND openenclave::oeedger8r
 		${OEEDGER8R_EXTRA_FLAGS}
-		--trusted "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
-        --trusted-dir "${CMAKE_BINARY_DIR}/generated/enclave"
+		--trusted "${PROJECT_SOURCE_DIR}/src/sgxlkl.edl"
+        --trusted-dir "${CMAKE_CURRENT_BINARY_DIR}/generated/enclave"
     COMMAND_EXPAND_LISTS
     # TODO add imported files in EDL as dependencies
-	DEPENDS openenclave::oeedger8r "${CMAKE_SOURCE_DIR}/src/sgxlkl.edl"
+	DEPENDS openenclave::oeedger8r "${PROJECT_SOURCE_DIR}/src/sgxlkl.edl"
 	)
 
 add_library(sgxlkl-edl-enclave STATIC ${GENERATED_ENCLAVE_EDGE_FILES})

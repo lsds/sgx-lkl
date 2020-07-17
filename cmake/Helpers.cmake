@@ -21,7 +21,7 @@ endfunction()
 
 function(get_c_compiler_include_dir VAR_NAME)
     execute_process(
-        COMMAND "${CMAKE_SOURCE_DIR}/cmake/get_c_compiler_inc_dir.sh" "${CMAKE_C_COMPILER}"
+        COMMAND "${PROJECT_SOURCE_DIR}/cmake/get_c_compiler_inc_dir.sh" "${CMAKE_C_COMPILER}"
         OUTPUT_VARIABLE stdout
         ERROR_VARIABLE stdout
         RESULT_VARIABLE exit_code

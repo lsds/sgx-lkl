@@ -28,7 +28,7 @@ ExternalProject_Add(sgxlkl-musl-ep
 	# For now, this builds host-musl, while the relayering is in progress.
 	# Our musl fork has dependencies to SGX-LKL headers, OE, etc.
 	# TODO change to /sgx-lkl-musl
-	SOURCE_DIR "${CMAKE_SOURCE_DIR}/host-musl" # /sgx-lkl-musl
+	SOURCE_DIR "${PROJECT_SOURCE_DIR}/host-musl" # /sgx-lkl-musl
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
 		"CC=${CMAKE_C_COMPILER}"
 		"CFLAGS=${CFLAGS}"

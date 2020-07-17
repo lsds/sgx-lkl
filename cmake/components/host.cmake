@@ -7,9 +7,9 @@ include(cmake/components/lkl.cmake)
 
 find_package(Threads REQUIRED)
 
-file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/main-oe/*.c")
-file(GLOB HOSTINTERFACE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/host_interface/*.c")
-file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
+file(GLOB MAIN_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/main-oe/*.c")
+file(GLOB HOSTINTERFACE_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/host_interface/*.c")
+file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/shared/*.c")
 
 add_executable(sgxlkl-host-launcher
 	${MAIN_C_SRCS}

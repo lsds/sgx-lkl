@@ -14,27 +14,27 @@ set(GENERATED_ENCLAVE_CONFIG_FILES
 	"generated/enclave/sgxlkl_enclave_config_gen.c"
 )
 
-set(HOST_CONFIG_SCHEMA "${CMAKE_SOURCE_DIR}/tools/schemas/host-config.schema.json")
-set(ENCLAVE_CONFIG_SCHEMA "${CMAKE_SOURCE_DIR}/tools/schemas/enclave-config.schema.json")
+set(HOST_CONFIG_SCHEMA "${PROJECT_SOURCE_DIR}/tools/schemas/host-config.schema.json")
+set(ENCLAVE_CONFIG_SCHEMA "${PROJECT_SOURCE_DIR}/tools/schemas/enclave-config.schema.json")
 
 mkdir("generated/host")
 mkdir("generated/enclave")
 add_custom_command(OUTPUT ${GENERATED_HOST_CONFIG_FILES}
-	COMMAND Python::Interpreter	"${CMAKE_SOURCE_DIR}/tools/generate_config.py"
+	COMMAND Python::Interpreter	"${PROJECT_SOURCE_DIR}/tools/generate_config.py"
 		--header "host/sgxlkl_host_config_gen.h"
 		--source "host/sgxlkl_host_config_gen.c"
 		"${HOST_CONFIG_SCHEMA}"
 	WORKING_DIRECTORY "generated"
-	DEPENDS "${CMAKE_SOURCE_DIR}/tools/generate_config.py" "${HOST_CONFIG_SCHEMA}"
+	DEPENDS "${PROJECT_SOURCE_DIR}/tools/generate_config.py" "${HOST_CONFIG_SCHEMA}"
 )
 add_custom_command(OUTPUT ${GENERATED_ENCLAVE_CONFIG_FILES}
 	COMMAND ${CMAKE_COMMAND} -E make_directory "generated/enclave"
-	COMMAND Python::Interpreter	"${CMAKE_SOURCE_DIR}/tools/generate_config.py"
+	COMMAND Python::Interpreter	"${PROJECT_SOURCE_DIR}/tools/generate_config.py"
 		--header "enclave/sgxlkl_enclave_config_gen.h"
 		--source "enclave/sgxlkl_enclave_config_gen.c"
 		"${ENCLAVE_CONFIG_SCHEMA}"
 	WORKING_DIRECTORY "generated"
-	DEPENDS "${CMAKE_SOURCE_DIR}/tools/generate_config.py" "${ENCLAVE_CONFIG_SCHEMA}"
+	DEPENDS "${PROJECT_SOURCE_DIR}/tools/generate_config.py" "${ENCLAVE_CONFIG_SCHEMA}"
 )
 
 add_library(sgxlkl-host-config STATIC ${GENERATED_HOST_CONFIG_FILES})

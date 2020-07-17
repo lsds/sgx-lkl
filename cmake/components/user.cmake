@@ -16,7 +16,7 @@ target_link_libraries(sgxlkl-user-init PRIVATE
 )
 add_library(sgx-lkl::user-init ALIAS sgxlkl-user-init)
 
-set(SGXLKL_USER_OBJ "${CMAKE_BINARY_DIR}/libsgxlkl-user.o")
+set(SGXLKL_USER_OBJ "${CMAKE_CURRENT_BINARY_DIR}/libsgxlkl-user.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_USER_OBJ}"
 	COMMENT "Building user space object"

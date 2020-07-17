@@ -40,8 +40,8 @@ include(cmake/components/user.cmake)
 # This symbol is provided by OE and part of the kernel object.
 
 # CMake requires at least one source file.
-create_empty("${CMAKE_BINARY_DIR}/empty.c")
-add_executable(sgxlkl-enclave-image "${CMAKE_BINARY_DIR}/empty.c")
+create_empty("${CMAKE_CURRENT_BINARY_DIR}/empty.c")
+add_executable(sgxlkl-enclave-image "${CMAKE_CURRENT_BINARY_DIR}/empty.c")
 target_link_libraries(sgxlkl-enclave-image PRIVATE
     --whole-archive
     sgx-lkl::kernel

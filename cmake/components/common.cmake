@@ -22,7 +22,7 @@ target_compile_definitions(sgxlkl-common-host INTERFACE
     )
 target_include_directories(sgxlkl-common-host INTERFACE 
     "src/include"
-    "${CMAKE_BINARY_DIR}/generated"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated"
     )
 # Note that openenclave::oehost also pulls in OE's public include folders,
 # compile definitions, compile options, and linker options, apart from the
@@ -64,9 +64,9 @@ message(STATUS "C compiler include dir: ${C_COMPILER_INCLUDE_DIR}")
 # CMake filters out the compiler include folder if it finds -nostdinc.
 # We need to trick it by making a copy of that folder. Note that a symlink wouldn't work.
 # See https://gitlab.kitware.com/cmake/cmake/-/issues/19227.
-set(C_COMPILER_INCLUDE_DIR_COPY "${CMAKE_BINARY_DIR}/c_compiler_include")
+set(C_COMPILER_INCLUDE_DIR_COPY "${CMAKE_CURRENT_BINARY_DIR}/c_compiler_include")
 file(GLOB C_COMPILER_HEADERS CONFIGURE_DEPENDS "${C_COMPILER_INCLUDE_DIR}/*.h")
-set(C_COMPILER_INC_STAMP "${CMAKE_BINARY_DIR}/c_compiler_dir.stamp")
+set(C_COMPILER_INC_STAMP "${CMAKE_CURRENT_BINARY_DIR}/c_compiler_dir.stamp")
 add_custom_command(OUTPUT "${C_COMPILER_INC_STAMP}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${C_COMPILER_INCLUDE_DIR_COPY}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${C_COMPILER_HEADERS} "${C_COMPILER_INCLUDE_DIR_COPY}"
@@ -78,7 +78,7 @@ add_dependencies(sgxlkl-common-enclave copy-c-compiler-include-dir)
 
 target_include_directories(sgxlkl-common-enclave INTERFACE
     "src/include"
-    "${CMAKE_BINARY_DIR}/generated"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated"
 )
 target_include_directories(sgxlkl-common-enclave SYSTEM INTERFACE
     "$<TARGET_PROPERTY:openenclave::oe_includes,INTERFACE_INCLUDE_DIRECTORIES>"

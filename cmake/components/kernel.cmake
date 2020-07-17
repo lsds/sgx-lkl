@@ -6,12 +6,12 @@ include(cmake/components/lkl.cmake)
 include(cmake/components/edl.cmake)
 include(cmake/components/config.cmake)
 
-#file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/shared/*.c")
-file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/enclave/*.c")
+#file(GLOB SHARED_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/shared/*.c")
+file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/enclave/*.c")
 #file(GLOB KERNEL_C_SRCS CONFIGURE_DEPENDS
-#	"${CMAKE_SOURCE_DIR}/src/lkl/*.c"
-#	"${CMAKE_SOURCE_DIR}/src/sched/*.c"
-#	"${CMAKE_SOURCE_DIR}/src/wireguard/*.c")
+#	"${PROJECT_SOURCE_DIR}/src/lkl/*.c"
+#	"${PROJECT_SOURCE_DIR}/src/sched/*.c"
+#	"${PROJECT_SOURCE_DIR}/src/wireguard/*.c")
 
 add_library(sgxlkl-kernel-enclave-init STATIC
 	# TODO add other sources
@@ -29,7 +29,7 @@ add_library(sgx-lkl::kernel-enclave-init ALIAS sgxlkl-kernel-enclave-init)
 add_library(sgxlkl-kernel-init-fini-stubs STATIC src/lkl/init_fini_stubs.s)
 add_library(sgx-lkl::kernel-init-fini-stubs ALIAS sgxlkl-kernel-init-fini-stubs)
 
-set(SGXLKL_KERNEL_OBJ "${CMAKE_BINARY_DIR}/libsgxlkl_kernel.o")
+set(SGXLKL_KERNEL_OBJ "${CMAKE_CURRENT_BINARY_DIR}/libsgxlkl_kernel.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_KERNEL_OBJ}"
 	COMMENT "Building kernel space object"

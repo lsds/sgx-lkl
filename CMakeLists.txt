@@ -11,9 +11,9 @@ project(SGX-LKL C CXX ASM)
 # Conventions:
 # - All filenames/paths, and variables containing them, must be quoted.
 
-get_filename_component(real_binary_dir "${CMAKE_BINARY_DIR}" REALPATH)
-if (NOT CMAKE_BINARY_DIR STREQUAL real_binary_dir)
-    message(FATAL_ERROR "${CMAKE_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
+get_filename_component(real_binary_dir "${CMAKE_CURRENT_BINARY_DIR}" REALPATH)
+if (NOT CMAKE_CURRENT_BINARY_DIR STREQUAL real_binary_dir)
+    message(FATAL_ERROR "${CMAKE_CURRENT_BINARY_DIR} must not be a symlink as LKL will not build otherwise")
 endif()
 
 include(cmake/Constants.cmake)

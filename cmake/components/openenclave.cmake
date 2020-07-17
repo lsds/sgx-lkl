@@ -13,7 +13,7 @@ else()
 	set(ENABLE_REFMAN OFF CACHE BOOL "" FORCE)
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
-	set(OPENENCLAVE_DIR "${CMAKE_SOURCE_DIR}/openenclave")
+	set(OPENENCLAVE_DIR "${PROJECT_SOURCE_DIR}/openenclave")
 	add_subdirectory("${OPENENCLAVE_DIR}" EXCLUDE_FROM_ALL)
 	
     # OE should provide aliased targets.
