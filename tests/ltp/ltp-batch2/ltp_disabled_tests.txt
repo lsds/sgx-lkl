@@ -627,7 +627,7 @@
 /ltp/testcases/kernel/syscalls/open/open13
 /ltp/testcases/kernel/syscalls/open/open14
 #/ltp/testcases/kernel/syscalls/openat/openat01
-/ltp/testcases/kernel/syscalls/openat/openat02
+#/ltp/testcases/kernel/syscalls/openat/openat02
 /ltp/testcases/kernel/syscalls/openat/openat02_child
 /ltp/testcases/kernel/syscalls/openat/openat03
 #/ltp/testcases/kernel/syscalls/pathconf/pathconf01
