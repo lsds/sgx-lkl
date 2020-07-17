@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <atomic.h>
+#include <stdatomic.h>
 #include <futex.h>
 #include <stdio.h>
 #include <string.h>

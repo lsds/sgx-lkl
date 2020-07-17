@@ -62,6 +62,8 @@ set(LKL_EXCLUDE
 )
 list(TRANSFORM LKL_EXCLUDE PREPEND "${LKL_SUBDIRECTORY}/" OUTPUT_VARIABLE LKL_EXCLUDE)
 copy_source_directory_to_output("${LKL_SUBDIRECTORY}" "${LKL_EXCLUDE}")
+# NEW_FILES is populated by copy_source_directory_to_output().
+add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
 
 # Replace the default kernel configuration file with our own.
 set(DEFCONFIG_OVERRIDE_PATH "${LKL_SUBDIRECTORY}/arch/lkl/configs/defconfig")
@@ -131,32 +133,43 @@ add_custom_command(OUTPUT "${LKL_LIB_PATH}"
 	BYPRODUCTS ${LKL_HEADERS} "${LKL_HEADERS_FILE}" 
 	COMMENT "Compiling LKL"
 )
+add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
+
+set(LKL_INCLUDE_DIR "${LKL_HEADER_PATH}/include")
+
+# TODO remove tools after relayering
+add_executable(lkl_bits tools/lkl_bits.c)
+target_include_directories(lkl_bits PRIVATE "${LKL_INCLUDE_DIR}")
+add_dependencies(lkl_bits sgx-lkl::lkl)
+
+add_executable(lkl_syscalls tools/lkl_syscalls.c)
+target_include_directories(lkl_syscalls PRIVATE "${LKL_INCLUDE_DIR}")
+add_dependencies(lkl_syscalls sgx-lkl::lkl)
+
+set(LKL_BITS_H "${LKL_INCLUDE_DIR}/lkl/bits.h")
+set(LKL_SYSCALLS_H "${LKL_INCLUDE_DIR}/lkl/syscalls.h")
+add_custom_command(
+	OUTPUT "${LKL_BITS_H}" "${LKL_SYSCALLS_H}"
+	COMMAND lkl_bits > "${LKL_BITS_H}"
+	COMMAND lkl_syscalls > "${LKL_SYSCALLS_H}"
+	DEPENDS lkl_bits lkl_syscalls
+)
+
+add_library(lkl_headers INTERFACE)
+target_include_directories(lkl_headers SYSTEM INTERFACE "${LKL_INCLUDE_DIR}")
+add_dependencies(lkl_headers
+	build-lkl
+	"${LKL_BITS_H}"
+	"${LKL_SYSCALLS_H}"
+	)
+add_library(sgx-lkl::lkl-headers ALIAS lkl_headers)
+
 add_library(lkl STATIC 
 	"${LKL_LIB_PATH}"
 	src/lkl/lkl_oe.c
 	)
-target_link_libraries(lkl PRIVATE sgx-lkl::common-enclave)
+target_link_libraries(lkl 
+	PRIVATE sgx-lkl::common-enclave
+	INTERFACE sgx-lkl::lkl-headers
+	)
 add_library(sgx-lkl::lkl ALIAS lkl)
-
-add_custom_target(build-lkl DEPENDS "${LKL_LIB_PATH}")
-add_custom_target(copy-lkl DEPENDS ${NEW_FILES})
-
-# TODO remove tools after relayering
-add_executable(lkl_bits tools/lkl_bits.c)
-target_include_directories(lkl_bits PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
-add_dependencies(lkl_bits build-lkl)
-
-add_executable(lkl_syscalls tools/lkl_syscalls.c)
-target_include_directories(lkl_syscalls PRIVATE "${CMAKE_BINARY_DIR}/lkl-headers/include")
-add_dependencies(lkl_syscalls build-lkl)
-
-add_custom_command(
-	OUTPUT "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
-		   "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
-	COMMAND lkl_bits > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
-	COMMAND lkl_syscalls > "${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h"
-	DEPENDS lkl_bits lkl_syscalls
-)
-add_custom_target(gen-extra-lkl-headers DEPENDS 
-	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/bits.h"
-	"${CMAKE_BINARY_DIR}/lkl-headers/include/lkl/syscalls.h")

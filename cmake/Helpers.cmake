@@ -12,3 +12,16 @@ function(get_external_project_property EP_NAME PROP_NAME VAR_NAME)
     ExternalProject_Get_property(${EP_NAME} ${PROP_NAME})
     set(${VAR_NAME} "${${PROP_NAME}}" PARENT_SCOPE)
 endfunction()
+
+function(get_c_compiler_include_dir VAR_NAME)
+    execute_process(
+        COMMAND "${CMAKE_SOURCE_DIR}/cmake/get_c_compiler_inc_dir.sh" "${CMAKE_C_COMPILER}"
+        OUTPUT_VARIABLE stdout
+        ERROR_VARIABLE stdout
+        RESULT_VARIABLE exit_code
+    )
+    if (NOT exit_code EQUAL 0)
+        message(FATAL_ERROR "Could not determine the C compiler include dir: ${stdout}")
+    endif()
+    set(${VAR_NAME} "${stdout}" PARENT_SCOPE)
+endfunction()

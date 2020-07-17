@@ -47,22 +47,14 @@ ExternalProject_Add(sgx-lkl-musl-ep
 set_target_properties(sgx-lkl-musl-ep PROPERTIES EXCLUDE_FROM_ALL TRUE)
 ExternalProject_Get_property(sgx-lkl-musl-ep INSTALL_DIR)
 list(TRANSFORM MUSL_LIBNAMES PREPEND "${INSTALL_DIR}/lib/" OUTPUT_VARIABLE MUSL_LIBRARIES)
-set(MUSL_INCLUDE_DIRS 
-	"${INSTALL_DIR}/include"
-	# TODO should these come from LKL?
-	"/usr/include/linux"
-	"/usr/include/x86_64-linux-gnu/asm"
-	"/usr/include/asm-generic"
-	)
+set(MUSL_INCLUDE_DIR "${INSTALL_DIR}/include")
 
 add_library(sgx-lkl-musl INTERFACE)
 target_compile_options(sgx-lkl-musl INTERFACE "-nostdinc")
-target_include_directories(sgx-lkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIRS}")
+target_include_directories(sgx-lkl-musl SYSTEM INTERFACE "${MUSL_INCLUDE_DIR}")
 target_link_libraries(sgx-lkl-musl INTERFACE "${MUSL_LIBRARIES}")
 add_dependencies(sgx-lkl-musl sgx-lkl-musl-ep)
 add_library(sgx-lkl::musl ALIAS sgx-lkl-musl)
 
 # For third-party Make-based projects. See libc.cmake.
-list(TRANSFORM MUSL_INCLUDE_DIRS PREPEND "-isystem " OUTPUT_VARIABLE MUSL_INCLUDE_DIRS_CFLAGS)
-list(JOIN MUSL_INCLUDE_DIRS_CFLAGS " " MUSL_INCLUDE_DIRS_CFLAGS)
-set(MUSL_CFLAGS "-nostdinc ${MUSL_INCLUDE_DIRS_CFLAGS}")
+set(MUSL_CFLAGS "-nostdinc -isystem ${MUSL_INCLUDE_DIR}")
