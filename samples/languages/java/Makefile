@@ -34,10 +34,10 @@ $(DISK_IMAGE): $(PROG)
 
 run: run-hw
 
-run-hw: $(ROOT_FS)
+run-hw: $(DISK_IMG)
 	@echo "sgx-lkl-java --hw-debug ${DISK_IMAGE} HelloWorld"
 	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} HelloWorld
 
-run-sw: $(ROOT_FS)
+run-sw: $(DISK_IMG)
 	@echo "sgx-lkl-java --sw-debug ${DISK_IMAGE} HelloWorld"
 	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --sw-debug ${DISK_IMAGE} HelloWorld
