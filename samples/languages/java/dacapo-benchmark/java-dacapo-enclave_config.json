@@ -11,7 +11,7 @@
     "-Dsun.zip.disableMemoryMapping=true",
     "-jar",
     "/dacapo/dacapo-9.12-MR1-bach.jar",
-    "xalan"
+    "avrora"
   ],
   "env": [
     "LD_LIBRARY_PATH=/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64/server:/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64:/usr/lib/jvm/java-1.8-openjdk/jre/../lib/amd64:/usr/lib/jvm/java-1.8-openjdk/lib/amd64/jli"
