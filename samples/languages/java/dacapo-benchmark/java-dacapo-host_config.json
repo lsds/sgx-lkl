@@ -1,0 +1,6 @@
+{
+    "verbose": true,
+    "root": {
+        "image_path": "java-dacapo.img"
+    }
+}
