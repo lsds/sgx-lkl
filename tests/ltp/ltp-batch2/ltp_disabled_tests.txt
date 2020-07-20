@@ -940,7 +940,7 @@
 /ltp/testcases/kernel/syscalls/switch/endian_switch01
 #/ltp/testcases/kernel/syscalls/symlink/symlink01
 /ltp/testcases/kernel/syscalls/symlink/symlink02
-/ltp/testcases/kernel/syscalls/symlink/symlink03
+#/ltp/testcases/kernel/syscalls/symlink/symlink03
 #/ltp/testcases/kernel/syscalls/symlink/symlink04
 #/ltp/testcases/kernel/syscalls/symlink/symlink05
 /ltp/testcases/kernel/syscalls/symlinkat/symlinkat01
