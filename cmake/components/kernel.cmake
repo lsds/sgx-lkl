@@ -16,7 +16,7 @@ file(GLOB ENCLAVE_C_SRCS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/enclave/*.
 add_library(sgxlkl-kernel-enclave-init STATIC
 	# TODO add other sources
 	#${ENCLAVE_C_SRCS}
-	src/enclave/ecall_stubs.c
+	src/temporary/ecall_stubs.c
 )
 target_link_libraries(sgxlkl-kernel-enclave-init PRIVATE
 	sgx-lkl::common-enclave
@@ -27,7 +27,7 @@ target_link_libraries(sgxlkl-kernel-enclave-init PRIVATE
 	)
 add_library(sgx-lkl::kernel-enclave-init ALIAS sgxlkl-kernel-enclave-init)
 
-add_library(sgxlkl-kernel-init-fini-stubs STATIC src/lkl/init_fini_stubs.s)
+add_library(sgxlkl-kernel-init-fini-stubs STATIC "src/lkl/other/init_fini_stubs.s")
 add_library(sgx-lkl::kernel-init-fini-stubs ALIAS sgxlkl-kernel-init-fini-stubs)
 
 set(SGXLKL_KERNEL_OBJ "${CMAKE_CURRENT_BINARY_DIR}/libsgxlkl_kernel.o")
@@ -50,6 +50,7 @@ add_custom_command(
 		# ld supports it but crashes.
 		#   gold: "error: cannot mix -r with --gc-sections or --icf"
 		#   lld: "error: -r and --gc-sections may not be used together"
+		#        see https://reviews.llvm.org/D84131
 		#   ld: "BFD (GNU Binutils for Ubuntu) 2.30 assertion fail ../../bfd/elflink.c:8723"
 		# Note that ld also required --gc-keep-exported if --gc-sections is used:
 		#   "startfiles:.debug_info: error: relocation references symbol 

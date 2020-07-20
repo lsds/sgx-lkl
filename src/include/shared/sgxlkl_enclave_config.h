@@ -7,7 +7,7 @@
 /* Maximum path length of mount points for secondary disks */
 #define SGXLKL_DISK_MNT_MAX_PATH_LEN 255
 
-#include "enclave/sgxlkl_enclave_config_gen.h"
+#include <sgxlkl_enclave_config_gen.h>
 
 void sgxlkl_read_enclave_config(
     const char* from,

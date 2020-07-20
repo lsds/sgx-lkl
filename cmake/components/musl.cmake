@@ -3,6 +3,7 @@
 include_guard(GLOBAL)
 include(ExternalProject)
 include(cmake/components/common.cmake)
+include(cmake/components/lkl.cmake)
 
 # Flags for building musl itself.
 set(CFLAGS 
@@ -28,13 +29,19 @@ ExternalProject_Add(sgxlkl-musl-ep
 	# For now, this builds host-musl, while the relayering is in progress.
 	# Our musl fork has dependencies to SGX-LKL headers, OE, etc.
 	# TODO change to /sgx-lkl-musl
-	SOURCE_DIR "${PROJECT_SOURCE_DIR}/host-musl" # /sgx-lkl-musl
+	SOURCE_DIR "${PROJECT_SOURCE_DIR}/host-musl"
+	#SOURCE_DIR "${PROJECT_SOURCE_DIR}/sgx-lkl-musl"
 	CONFIGURE_COMMAND "<SOURCE_DIR>/configure" 
 		"CC=${CMAKE_C_COMPILER}"
 		"CFLAGS=${CFLAGS}"
+		"--lklheaderdir=${LKL_INCLUDE_DIR}"
 		"--disable-shared"
 		"--prefix=<INSTALL_DIR>"
 		"--syslibdir=<INSTALL_DIR>/lib"
+		# TODO remove
+		"--lkllib=/dev/null"
+		"--sgxlklincludes=/dev/null"
+		"--sgxlkllib=/dev/null"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
 	INSTALL_COMMAND make install
 	# TODO Replace atomic.h includes with C11 stdatomic.h, then remove the following copy.
@@ -44,6 +51,7 @@ ExternalProject_Add(sgxlkl-musl-ep
 		"<INSTALL_DIR>/include"
 	BUILD_BYPRODUCTS "${MUSL_BYPRODUCTS}"
 	BUILD_ALWAYS TRUE
+	DEPENDS sgx-lkl::lkl-headers
 	${COMMON_EP_OPTIONS}
 )
 ExternalProject_Get_property(sgxlkl-musl-ep INSTALL_DIR)

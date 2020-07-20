@@ -167,7 +167,7 @@ add_library(sgx-lkl::lkl-headers ALIAS lkl-headers)
 
 add_library(lkl STATIC 
 	"${LKL_LIB_PATH}"
-	src/lkl/lkl_oe.c
+	src/lkl/other/lkl_oe.c
 	)
 target_link_libraries(lkl 
 	PRIVATE sgx-lkl::common-enclave

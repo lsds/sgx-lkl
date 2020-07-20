@@ -20,6 +20,11 @@
 #define strcmp oe_strcmp
 #define strtok_r oe_strtok_r
 
+#ifndef INT32_MAX
+#define INT32_MAX OE_INT32_MAX
+#define UINT32_MAX OE_UINT32_MAX
+#endif
+
 #else
 
 #include <assert.h>
@@ -27,6 +32,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #endif // SGXLKL_ENCLAVE

@@ -39,7 +39,7 @@
 #include <sys/socket.h>
 #include <time.h>
 
-#include <atomic.h>
+#include "atomic.h"
 #include "locale_impl.h"
 
 #include "enclave/mpmc_queue.h"

@@ -23,6 +23,8 @@ target_compile_definitions(sgxlkl-common-host INTERFACE
 target_include_directories(sgxlkl-common-host INTERFACE 
     "src/include"
     "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/host" # TODO remove this and fix includes
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/enclave" # TODO remove this and fix includes
     )
 # Note that openenclave::oehost also pulls in OE's public include folders,
 # compile definitions, compile options, and linker options, apart from the
@@ -78,7 +80,9 @@ add_dependencies(sgxlkl-common-enclave copy-c-compiler-include-dir)
 
 target_include_directories(sgxlkl-common-enclave INTERFACE
     "src/include"
+    "src/include/temporary" # TODO remove this after relayering
     "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/enclave" # TODO remove this and fix includes
 )
 target_include_directories(sgxlkl-common-enclave SYSTEM INTERFACE
     "$<TARGET_PROPERTY:openenclave::oe_includes,INTERFACE_INCLUDE_DIRECTORIES>"

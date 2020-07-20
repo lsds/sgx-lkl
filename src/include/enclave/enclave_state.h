@@ -1,6 +1,8 @@
 #ifndef ENCLAVE_STATE_H
 #define ENCLAVE_STATE_H
 
+#include <elf.h>
+
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/shared_memory.h>
 
@@ -19,14 +21,6 @@ typedef struct sgxlkl_enclave_disk_state
     size_t capacity;        /* Capacity of the disk */
     bool mounted;           /* Tracks whether the disk has been mounted */
 } sgxlkl_enclave_disk_state_t;
-
-// from elf.h in musl
-typedef struct {
-  uint64_t a_type;
-  union {
-      uint64_t a_val;
-  } a_un;
-} Elf64_auxv_t;
 
 typedef struct
 {
