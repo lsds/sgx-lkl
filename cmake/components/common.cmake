@@ -49,7 +49,7 @@ target_compile_definitions(sgxlkl-common-enclave INTERFACE
 # Note that linker flags for the enclave image are defined in enclave.cmake.
 # See openenclave/enclave/core/CMakeLists.txt for further explanations.
 set(COMMON_ENCLAVE_CFLAGS
-    -fPIE
+    -fPIC
     -nostdinc
     -fstack-protector-strong
     -fno-omit-frame-pointer

@@ -38,10 +38,12 @@ include(cmake/components/user.cmake)
 # Open Enclave treats enclave images as executables.
 # Their entry point is the _start symbol.
 # This symbol is provided by OE and part of the kernel object.
+# For now, however, we build as library to stay consistent with the original build system.
+# Also, executables need -fPIE, libraries -fPIC, and musl only supports -fPIC.
 
 # CMake requires at least one source file.
 create_empty("${CMAKE_CURRENT_BINARY_DIR}/empty.c")
-add_executable(sgxlkl-enclave-image "${CMAKE_CURRENT_BINARY_DIR}/empty.c")
+add_library(sgxlkl-enclave-image SHARED "${CMAKE_CURRENT_BINARY_DIR}/empty.c")
 target_link_libraries(sgxlkl-enclave-image PRIVATE
     -Wl,--whole-archive
     sgx-lkl::kernel
@@ -71,7 +73,7 @@ target_link_options(sgxlkl-enclave-image PRIVATE
     LINKER:-z,now
     )
 set_target_properties(sgxlkl-enclave-image PROPERTIES OUTPUT_NAME "${ENCLAVE_IMAGE_NAME}")
-add_executable(sgx-lkl::enclave-image ALIAS sgxlkl-enclave-image)
+add_library(sgx-lkl::enclave-image ALIAS sgxlkl-enclave-image)
 
 set(ENCLAVE_CONFIG "config/eeid-params.conf")
 set(ENCLAVE_KEY "${CMAKE_CURRENT_BINARY_DIR}/private.pem")

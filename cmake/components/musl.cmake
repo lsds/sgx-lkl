@@ -22,6 +22,8 @@ set(MUSL_LIBNAMES
 	librt.a
 	libutil.a
 	libxnet.a
+	# libld.a is manually assembled from dlstart.c/dynlink.c, see below.
+	libld.a
 )
 list(TRANSFORM MUSL_LIBNAMES PREPEND "<INSTALL_DIR>/lib/" OUTPUT_VARIABLE MUSL_BYPRODUCTS)
 
@@ -43,7 +45,11 @@ ExternalProject_Add(sgxlkl-musl-ep
 		"--sgxlklincludes=/dev/null"
 		"--sgxlkllib=/dev/null"
 	BUILD_COMMAND make -j ${NUMBER_OF_CORES}
+	# dlstart.c/dynlink.c are only part of libc.so but we need them as static variant.
+	COMMAND make -j ${NUMBER_OF_CORES} "obj/ldso/dlstart.lo" "obj/ldso/dynlink.lo"
+	COMMAND ar rc "lib/libld.a" "obj/ldso/dlstart.lo" "obj/ldso/dynlink.lo"
 	INSTALL_COMMAND make install
+	COMMAND ${CMAKE_COMMAND} -E copy_if_different "<BINARY_DIR>/lib/libld.a" "<INSTALL_DIR>/lib"
 	# TODO Replace atomic.h includes with C11 stdatomic.h, then remove the following copy.
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different 
 		"<SOURCE_DIR>/src/internal/atomic.h"
