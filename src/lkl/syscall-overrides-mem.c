@@ -8,7 +8,7 @@
 #include "enclave/lthread_int.h"
 #include "enclave/sgxlkl_t.h"
 
-static int syscall_SYS_mprotect(void* addr, size_t len, int prot);
+static long syscall_SYS_mprotect(void* addr, size_t len, int prot);
 
 /**
  * Function used to implement the pread64 system call.
@@ -20,7 +20,7 @@ static ssize_t (*pread_fn)(int fd, void* buf, size_t count, off_t offset);
 /**
  * The LKL mmap function.  This is used as fallback from the mmap.
  */
-static void* (*mmap_fn)(
+static long (*mmap_fn)(
     void* addr,
     size_t length,
     int prot,
@@ -45,7 +45,7 @@ int enclave_mmap_flags_supported(int flags, int fd)
     return (fd == -1 && (flags & MAP_ANONYMOUS)) || (supported_flags & flags);
 }
 
-void* syscall_SYS_mmap(
+long syscall_SYS_mmap(
     void* addr,
     size_t length,
     int prot,
@@ -57,14 +57,15 @@ void* syscall_SYS_mmap(
     if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE))
     {
         sgxlkl_warn("mmap() with MAP_SHARED and MAP_PRIVATE not supported\n");
-        mem = (void*)-EINVAL;
+        mem = (void *)-EINVAL;
     }
     // Anonymous mapping/allocation
     else if (fd == -1 && (flags & MAP_ANONYMOUS))
     {
         mem = enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
-        if ((intptr_t)mem < 0)
-            return mem;
+
+       // if ((intptr_t)mem < 0)
+       //     return (long)mem;
     }
     // File-backed mapping (if allowed)
     else if (fd >= 0 && enclave_mmap_flags_supported(flags, fd))
@@ -84,7 +85,7 @@ void* syscall_SYS_mmap(
             if (ret < 0)
             {
                 enclave_munmap(addr, length);
-                return (void*)-EBADF;
+                return -EBADF;
             }
             // Set requested page permissions
             if ((prot | PROT_WRITE) != prot)
@@ -93,19 +94,23 @@ void* syscall_SYS_mmap(
     }
     else
     {
-        mem = mmap_fn(addr, length, prot, MAP_PRIVATE, fd, offset);
+        mem = (void*)mmap_fn(addr, length, prot, MAP_PRIVATE, fd, offset);
     }
-    return mem;
+
+    if ((long)mem < 0)
+      return -1;
+
+    return (long)mem;
 }
 
-void* syscall_SYS_mremap(
+long syscall_SYS_mremap(
     void* old_addr,
     size_t old_length,
     size_t new_length,
     int flags,
     void* new_addr)
 {
-    return enclave_mremap(
+    return (long)enclave_mremap(
         old_addr, old_length, new_addr, new_length, flags & MREMAP_FIXED);
 }
 
@@ -129,15 +134,15 @@ long syscall_SYS_munmap(void* addr, size_t length)
     return enclave_munmap(addr, length);
 }
 
-int syscall_SYS_msync(void* addr, size_t length, int flags)
+long syscall_SYS_msync(void* addr, size_t length, int flags)
 {
     return 0;
 }
 
-static int syscall_SYS_mprotect(void* addr, size_t len, int prot)
+static long syscall_SYS_mprotect(void* addr, size_t len, int prot)
 {
-    int ret;
-    sgxlkl_host_syscall_mprotect(&ret, addr, len, prot);
+    long ret = 0;
+    sgxlkl_host_syscall_mprotect((void*)&ret, addr, len, prot);
     return ret;
 }
 
@@ -146,7 +151,7 @@ static int syscall_SYS_mprotect(void* addr, size_t len, int prot)
 /**
  * Wrapper for our `mmap` replacement that logs the arguments and result.
  */
-static void* syscall_SYS_mmap_log(
+static long syscall_SYS_mmap_log(
     void* addr,
     size_t length,
     int prot,
@@ -154,7 +159,7 @@ static void* syscall_SYS_mmap_log(
     int fd,
     off_t offset)
 {
-    void* res = syscall_SYS_mmap(addr, length, prot, flags, fd, offset);
+    long res = syscall_SYS_mmap(addr, length, prot, flags, fd, offset);
     __sgxlkl_log_syscall(
         SGXLKL_INTERNAL_SYSCALL,
         __lkl__NR_mmap,
@@ -172,14 +177,14 @@ static void* syscall_SYS_mmap_log(
 /**
  * Wrapper for our `mremap` replacement that logs the arguments and result.
  */
-static void* syscall_SYS_mremap_log(
+static long syscall_SYS_mremap_log(
     void* old_addr,
     size_t old_length,
     size_t new_length,
     int flags,
     void* new_addr)
 {
-    void* res =
+    long res =
         syscall_SYS_mremap(old_addr, old_length, new_length, flags, new_addr);
     __sgxlkl_log_syscall(
         SGXLKL_INTERNAL_SYSCALL,
@@ -197,9 +202,9 @@ static void* syscall_SYS_mremap_log(
 /**
  * Wrapper for our `munmap` replacement that logs the arguments and result.
  */
-static int syscall_SYS_munmap_log(void* addr, size_t length)
+static long syscall_SYS_munmap_log(void* addr, size_t length)
 {
-    int res = syscall_SYS_munmap(addr, length);
+    long res = syscall_SYS_munmap(addr, length);
     __sgxlkl_log_syscall(
         SGXLKL_INTERNAL_SYSCALL,
         __lkl__NR_munmap,
@@ -207,13 +212,13 @@ static int syscall_SYS_munmap_log(void* addr, size_t length)
         2,
         (long)addr,
         (long)length);
-    return 0;
+    return res;
 }
 
 /**
  * Wrapper for our `msync` replacement that logs the arguments and result.
  */
-static int syscall_SYS_msync_log(void* addr, size_t length, int flags)
+static long syscall_SYS_msync_log(void* addr, size_t length, int flags)
 {
     __sgxlkl_log_syscall(
         SGXLKL_INTERNAL_SYSCALL,
@@ -229,9 +234,9 @@ static int syscall_SYS_msync_log(void* addr, size_t length, int flags)
 /**
  * Wrapper for our `mprotect` replacement that logs the arguments and result.
  */
-static int syscall_SYS_mprotect_log(void* addr, size_t len, int prot)
+static long syscall_SYS_mprotect_log(void* addr, size_t len, int prot)
 {
-    int res = syscall_SYS_mprotect(addr, len, prot);
+    long res = syscall_SYS_mprotect(addr, len, prot);
     __sgxlkl_log_syscall(
         SGXLKL_INTERNAL_SYSCALL,
         __lkl__NR_mprotect,

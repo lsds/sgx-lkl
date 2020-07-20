@@ -35,14 +35,14 @@ int enclave_mmap_flags_supported(int flags, int fd);
 
 long syscall_SYS_munmap(void* addr, size_t length);
 
-void* syscall_SYS_mremap(
+long syscall_SYS_mremap(
     void* old_address,
     size_t old_size,
     size_t new_size,
     int flags,
     void* new_address);
 
-int syscall_SYS_msync(void* addr, size_t length, int flags);
+long syscall_SYS_msync(void* addr, size_t length, int flags);
 
 int enclave_futex(
     int* uaddr,
@@ -52,7 +52,7 @@ int enclave_futex(
     int* uaddr2,
     int val3);
 
-void* syscall_SYS_mmap(
+long syscall_SYS_mmap(
     void* addr,
     size_t length,
     int prot,
