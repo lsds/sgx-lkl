@@ -2,47 +2,24 @@
 + Issue 297: [Tests] lkl_access_ok() should return -1 on invalid access
 + https://github.com/lsds/sgx-lkl/issues/297
 diff --git a/testcases/kernel/syscalls/readv/readv02.c b/testcases/kernel/syscalls/readv/readv02.c
-index aa40e2c7d..d42e72517 100644
+index aa40e2c7d..cbdf35eb3 100644
 --- a/testcases/kernel/syscalls/readv/readv02.c
 +++ b/testcases/kernel/syscalls/readv/readv02.c
-@@ -127,23 +127,23 @@ int main(int ac, char **av)
+@@ -126,7 +126,7 @@ int main(int ac, char **av)
+                                 "value");
                 }
 
- //test2:
--               l_seek(fd[0], CHUNK * 6, 0);
--               if (readv(fd[0], (rd_iovec + 6), 3) < 0) {
--                       if (errno != EFAULT) {
--                               tst_resm(TFAIL, "expected errno = EFAULT, "
--                                        "got %d", errno);
--                       } else {
--                               tst_resm(TPASS, "got EFAULT");
--                       }
--                       if (memcmp((buf_list[0] + CHUNK * 6),
--                                  (buf_list[1] + CHUNK * 6), CHUNK * 3) != 0) {
--                               tst_resm(TFAIL, "Error: readv() partially "
--                                        "overlaid buf[2]");
--                       }
--               } else {
--                       tst_resm(TFAIL, "Error: readv returned a positive "
--                                "value");
+-//test2:
++/*test2: // TODO: Enable once git issue 297 is fixed
+                l_seek(fd[0], CHUNK * 6, 0);
+                if (readv(fd[0], (rd_iovec + 6), 3) < 0) {
+                        if (errno != EFAULT) {
+@@ -143,7 +143,7 @@ int main(int ac, char **av)
+                } else {
+                        tst_resm(TFAIL, "Error: readv returned a positive "
+                                 "value");
 -               }
-+//             l_seek(fd[0], CHUNK * 6, 0); // TODO: Enable once git issue 297 is fixed
-+//             if (readv(fd[0], (rd_iovec + 6), 3) < 0) {
-+//                     if (errno != EFAULT) {
-+//                             tst_resm(TFAIL, "expected errno = EFAULT, "
-+//                                      "got %d", errno);
-+//                     } else {
-+//                             tst_resm(TPASS, "got EFAULT");
-+//                     }
-+//                     if (memcmp((buf_list[0] + CHUNK * 6),
-+//                                (buf_list[1] + CHUNK * 6), CHUNK * 3) != 0) {
-+//                             tst_resm(TFAIL, "Error: readv() partially "
-+//                                      "overlaid buf[2]");
-+//                     }
-+//             } else {
-+//                     tst_resm(TFAIL, "Error: readv returned a positive "
-+//                              "value");
-+//             }
++               }*/
 
  //test3:
                 if (readv(fd[1], (rd_iovec + 9), 1) < 0) {
