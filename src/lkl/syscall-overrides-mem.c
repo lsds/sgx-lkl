@@ -109,7 +109,7 @@ void* syscall_SYS_mremap(
         old_addr, old_length, new_addr, new_length, flags & MREMAP_FIXED);
 }
 
-int syscall_SYS_munmap(void* addr, size_t length)
+long syscall_SYS_munmap(void* addr, size_t length)
 {
     // During thread teardown, libc unmaps the stack of the current thread
     // before doing an exit system call.  This works on a conventional system
@@ -126,8 +126,7 @@ int syscall_SYS_munmap(void* addr, size_t length)
         lt->attr.stack_size = length;
         return 0;
     }
-    enclave_munmap(addr, length);
-    return 0;
+    return enclave_munmap(addr, length);
 }
 
 int syscall_SYS_msync(void* addr, size_t length, int flags)

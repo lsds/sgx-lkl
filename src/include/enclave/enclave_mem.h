@@ -15,7 +15,7 @@ void* enclave_mmap(
     int prot,
     int zero_pages);
 
-int enclave_munmap(void* addr, size_t length);
+long enclave_munmap(void* addr, size_t length);
 
 void* enclave_mremap(
     void* old_addr,
@@ -33,7 +33,7 @@ void enclave_mem_info(size_t* total, size_t* free);
 
 int enclave_mmap_flags_supported(int flags, int fd);
 
-int syscall_SYS_munmap(void* addr, size_t length);
+long syscall_SYS_munmap(void* addr, size_t length);
 
 void* syscall_SYS_mremap(
     void* old_address,

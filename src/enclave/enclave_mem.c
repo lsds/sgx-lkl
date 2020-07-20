@@ -326,7 +326,7 @@ void* enclave_mmap(
 /*
  * munmap for enclave memory range
  */
-int enclave_munmap(void* addr, size_t length)
+long enclave_munmap(void* addr, size_t length)
 {
     size_t pages = DIV_ROUNDUP(length, PAGE_SIZE);
 
