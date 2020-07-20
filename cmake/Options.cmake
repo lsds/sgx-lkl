@@ -19,7 +19,7 @@ if (CMAKE_GENERATOR STREQUAL "Ninja")
     message(STATUS "Ninja version: ${ninja_out}")
   endif()
 else()
-	message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
+  message(WARNING "Consider using Ninja for optimal build system performance: -G Ninja")
 endif()
 
 if (NOT CMAKE_C_COMPILER_ID STREQUAL Clang)
@@ -32,7 +32,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "/opt/sgx-lkl" CACHE PATH "Installation prefix" FORCE)
+  set(CMAKE_INSTALL_PREFIX "/opt/sgx-lkl" CACHE PATH "Installation prefix" FORCE)
 endif()
 
 set(OE_PREFIX "" CACHE PATH "Installation prefix of Open Enclave, otherwise built from source")
@@ -45,7 +45,7 @@ set(LIBC musl CACHE STRING "Libc implementation to build.  Currently only musl i
 set(LIBC_NAMES "musl")
 set_property(CACHE LIBC PROPERTY STRINGS ${LIBC_NAMES})
 if(NOT LIBC IN_LIST LIBC_NAMES)
-    message(FATAL_ERROR "LIBC must be one of: ${LIBC_NAMES}")
+  message(FATAL_ERROR "LIBC must be one of: ${LIBC_NAMES}")
 endif()
 
 set(USE_LLD CACHE BOOL "Use LLVM's lld linker")

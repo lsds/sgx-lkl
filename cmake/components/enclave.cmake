@@ -45,25 +45,25 @@ include(cmake/components/user.cmake)
 create_empty("${CMAKE_CURRENT_BINARY_DIR}/empty.c")
 add_library(sgxlkl-enclave-image SHARED "${CMAKE_CURRENT_BINARY_DIR}/empty.c")
 target_link_libraries(sgxlkl-enclave-image PRIVATE
-    -Wl,--whole-archive
-    sgx-lkl::kernel
-    sgx-lkl::user
-    -Wl,--no-whole-archive
-    )
+  -Wl,--whole-archive
+  sgx-lkl::kernel
+  sgx-lkl::user
+  -Wl,--no-whole-archive
+  )
 target_link_options(sgxlkl-enclave-image PRIVATE
-    -nostdlib
-    -nodefaultlibs
-    -nostartfiles
-    LINKER:--gc-sections
-    LINKER:--no-undefined
-    LINKER:-Bstatic
-    LINKER:-Bsymbolic
-    LINKER:--export-dynamic
-    LINKER:-pie
-    LINKER:--build-id
-    LINKER:-z,noexecstack
-    LINKER:-z,now
-    )
+  -nostdlib
+  -nodefaultlibs
+  -nostartfiles
+  LINKER:--gc-sections
+  LINKER:--no-undefined
+  LINKER:-Bstatic
+  LINKER:-Bsymbolic
+  LINKER:--export-dynamic
+  LINKER:-pie
+  LINKER:--build-id
+  LINKER:-z,noexecstack
+  LINKER:-z,now
+  )
 set_target_properties(sgxlkl-enclave-image PROPERTIES OUTPUT_NAME "${ENCLAVE_IMAGE_NAME}")
 add_library(sgx-lkl::enclave-image ALIAS sgxlkl-enclave-image)
 
@@ -71,14 +71,14 @@ set(ENCLAVE_CONFIG "config/eeid-params.conf")
 set(ENCLAVE_KEY "${CMAKE_CURRENT_BINARY_DIR}/private.pem")
 
 add_custom_command(
-    OUTPUT "${ENCLAVE_KEY}"
-    COMMAND openssl genrsa -out "${ENCLAVE_KEY}" -3 3072)
+  OUTPUT "${ENCLAVE_KEY}"
+  COMMAND openssl genrsa -out "${ENCLAVE_KEY}" -3 3072)
 
 add_custom_command(
-    OUTPUT "${ENCLAVE_IMAGE_PATH_SIGNED}"
-    COMMAND openenclave::oesign sign -e "$<TARGET_FILE:sgx-lkl::enclave-image>" 
+  OUTPUT "${ENCLAVE_IMAGE_PATH_SIGNED}"
+  COMMAND openenclave::oesign sign -e "$<TARGET_FILE:sgx-lkl::enclave-image>" 
             -c "${ENCLAVE_CONFIG}" -k "${ENCLAVE_KEY}"
-    DEPENDS openenclave::oesign sgx-lkl::enclave-image "${ENCLAVE_CONFIG}" "${ENCLAVE_KEY}"
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+  DEPENDS openenclave::oesign sgx-lkl::enclave-image "${ENCLAVE_CONFIG}" "${ENCLAVE_KEY}"
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 
 add_custom_target(sign-enclave-image ALL DEPENDS "${ENCLAVE_IMAGE_PATH_SIGNED}")

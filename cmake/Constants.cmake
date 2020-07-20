@@ -25,23 +25,23 @@ ProcessorCount(NUMBER_OF_CORES)
 
 set_directory_properties(PROPERTIES EP_BASE "${EXTERNAL_PROJECT_BASE_DIR}")
 set(COMMON_EP_OPTIONS
-	EXCLUDE_FROM_ALL ON
-	)
+  EXCLUDE_FROM_ALL ON
+)
 if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.14")
-	# LOG_OUTPUT_ON_FAILURE is available in 3.14 onwards only.
-	list(APPEND COMMON_EP_OPTIONS
-		# Log all output to files instead of printing.
-		# Note that this still prints a single line even on success.
-		# See also https://gitlab.kitware.com/cmake/cmake/-/issues/20958.
-		LOG_DOWNLOAD ON
-		LOG_UPDATE ON
-		LOG_PATCH ON
-		LOG_CONFIGURE ON
-		LOG_BUILD ON
-		LOG_INSTALL ON
-		LOG_TEST ON
-		LOG_MERGED_STDOUTERR ON
-		# Print log in case of errors.
-		LOG_OUTPUT_ON_FAILURE ON
-		)
+  # LOG_OUTPUT_ON_FAILURE is available in 3.14 onwards only.
+  list(APPEND COMMON_EP_OPTIONS
+    # Log all output to files instead of printing.
+    # Note that this still prints a single line even on success.
+    # See also https://gitlab.kitware.com/cmake/cmake/-/issues/20958.
+    LOG_DOWNLOAD ON
+    LOG_UPDATE ON
+    LOG_PATCH ON
+    LOG_CONFIGURE ON
+    LOG_BUILD ON
+    LOG_INSTALL ON
+    LOG_TEST ON
+    LOG_MERGED_STDOUTERR ON
+    # Print log in case of errors.
+    LOG_OUTPUT_ON_FAILURE ON
+    )
 endif()
