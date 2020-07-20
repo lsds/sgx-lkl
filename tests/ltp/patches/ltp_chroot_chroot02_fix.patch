@@ -4,15 +4,24 @@
 + we cannot exit from chroot because child process is not available.
 + so created a temp directory for testing with fixed name which is being delted everytime before test runs.
 diff --git a/testcases/kernel/syscalls/chroot/chroot02.c b/testcases/kernel/syscalls/chroot/chroot02.c
-index e483ca4b5..11a7217f4 100644
+index e483ca4b5..b709966ee 100644
 --- a/testcases/kernel/syscalls/chroot/chroot02.c
 +++ b/testcases/kernel/syscalls/chroot/chroot02.c
+@@ -56,7 +56,7 @@
+ char *TCID = "chroot02";
+ int TST_TOTAL = 1;
+ int fileHandle = 0;
+-
++#define tmpdir "/tmp/chroot02_temp_dir"
+ #define TMP_FILENAME   "chroot02_testfile"
+ struct stat buf;
+
 @@ -84,7 +84,7 @@ int main(int ac, char **av)
                 if (pid == 0) {
                         retval = 0;
 
 -                       if (chroot(tst_get_tmpdir()) == -1) {
-+                       if (chroot("/tmp/chroot02_temp_dir") == -1) {
++                       if (chroot(tmpdir) == -1) {
                                 perror("chroot failed");
                                 retval = 1;
                         } else {
@@ -39,9 +48,9 @@ index e483ca4b5..11a7217f4 100644
 -
 -       tst_tmpdir();
 +
-+       rmdir("/tmp/chroot02_temp_dir");
-+       mkdir("/tmp/chroot02_temp_dir", 0644);
-+       chdir("/tmp/chroot02_temp_dir");
++       rmdir(tmpdir);
++       mkdir(tmpdir, 0644);
++       chdir(tmpdir);
         if ((fileHandle = creat(TMP_FILENAME, 0777)) == -1)
                 tst_brkm(TBROK, cleanup, "failed to create temporary file "
                          TMP_FILENAME);
@@ -52,5 +61,4 @@ index e483ca4b5..11a7217f4 100644
 -       tst_rmdir();
 -
  }
-
 
