@@ -30,11 +30,10 @@ add_library(sgx-lkl::kernel-enclave-init ALIAS sgxlkl-kernel-enclave-init)
 add_library(sgxlkl-kernel-init-fini-stubs STATIC "src/lkl/other/init_fini_stubs.s")
 add_library(sgx-lkl::kernel-init-fini-stubs ALIAS sgxlkl-kernel-init-fini-stubs)
 
-set(SGXLKL_KERNEL_OBJ "${CMAKE_CURRENT_BINARY_DIR}/libsgxlkl_kernel.o")
+set(SGXLKL_KERNEL_OBJ "${CMAKE_CURRENT_BINARY_DIR}/libsgxlkl-kernel.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_KERNEL_OBJ}"
 	COMMENT "Building kernel space object"
-	COMMAND "${CMAKE_COMMAND}" -E remove -f "${SGXLKL_KERNEL_OBJ}"
 	COMMAND "${LINKER}" -r -o "${SGXLKL_KERNEL_OBJ}"
 		-m elf_x86_64
 
@@ -105,6 +104,6 @@ add_custom_command(
 		openenclave::oeenclave
 	)
 
-add_library(sgxlkl_kernel STATIC "${SGXLKL_KERNEL_OBJ}")
-set_target_properties(sgxlkl_kernel PROPERTIES LINKER_LANGUAGE C)
-add_library(sgx-lkl::kernel ALIAS sgxlkl_kernel)
+add_library(sgxlkl-kernel STATIC "${SGXLKL_KERNEL_OBJ}")
+set_target_properties(sgxlkl-kernel PROPERTIES LINKER_LANGUAGE C)
+add_library(sgx-lkl::kernel ALIAS sgxlkl-kernel)

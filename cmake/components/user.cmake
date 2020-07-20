@@ -20,16 +20,18 @@ set(SGXLKL_USER_OBJ "${CMAKE_CURRENT_BINARY_DIR}/libsgxlkl-user.o")
 add_custom_command(
 	OUTPUT "${SGXLKL_USER_OBJ}"
 	COMMENT "Building user space object"
-	COMMAND "${LINKER}" -r -o "${SGXLKL_USER_OBJ}" --whole-archive
+	COMMAND "${LINKER}" -r -o "${SGXLKL_USER_OBJ}" 
+		--whole-archive
 		$<TARGET_FILE:sgx-lkl::user-init>
 		$<TARGET_PROPERTY:sgx-lkl::libc-init,INTERFACE_LINK_LIBRARIES>
-	# TODO enable again, see notes above
+		--no-whole-archive
+		${C_COMPILER_RT_LIBRARY}
 	COMMAND echo "Checking for unresolved symbols"
 	COMMAND ! "${CMAKE_NM}" -g "${SGXLKL_USER_OBJ}" 
 		| grep ' U ' # filter to undefined symbols
 		| grep -v -E
-			-e "'__(fini|init)_array_(start|end)'" # available at final link only
-			-e "__muldc3" -e "__mulsc3" -e "__mulxc3" # provided by libgcc in final link		 
+			-e "'__(fini|init)_array_(start|end)'" # available at final link only	 
+	# TODO how to whitelist libc symbols? is that really necessary?
 	#COMMAND echo "Hiding symbols"
 	#COMMAND "${CMAKE_OBJCOPY}" --keep-global-symbol=lkl_syscall "${SGXLKL_USER_OBJ}"
 	COMMAND_EXPAND_LISTS

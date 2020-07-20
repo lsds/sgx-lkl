@@ -94,6 +94,8 @@ target_include_directories(sgxlkl-common-enclave SYSTEM INTERFACE
 add_dependencies(sgxlkl-common-enclave openenclave::oe_includes)
 add_library(sgx-lkl::common-enclave ALIAS sgxlkl-common-enclave)
 
+get_c_compiler_rt_library(C_COMPILER_RT_LIBRARY)
+
 # Not used here, but for convenience in other components.
 # Keep this down here, as it needs COMMON_ENCLAVE_CFLAGS.
 include(cmake/components/libc.cmake)

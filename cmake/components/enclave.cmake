@@ -49,14 +49,6 @@ target_link_libraries(sgxlkl-enclave-image PRIVATE
     sgx-lkl::kernel
     sgx-lkl::user
     -Wl,--no-whole-archive
-    
-    # libgcc provides compiler runtime symbols like __muldc3.
-    # libc/musl in the user space object pulls those in.
-    # Ideally we would already link against libgcc during the partial link
-    # of the user object, but to do that we would need to know the compiler-specific
-    # location of libgcc, which the linker (ld) does not automatically add.
-    # Here we use the compiler for the final link, and it does add the right search path.
-    gcc
     )
 target_link_options(sgxlkl-enclave-image PRIVATE
     -nostdlib
