@@ -63,9 +63,6 @@ long syscall_SYS_mmap(
     else if (fd == -1 && (flags & MAP_ANONYMOUS))
     {
         mem = enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
-
-       // if ((intptr_t)mem < 0)
-       //     return (long)mem;
     }
     // File-backed mapping (if allowed)
     else if (fd >= 0 && enclave_mmap_flags_supported(flags, fd))
@@ -96,9 +93,6 @@ long syscall_SYS_mmap(
     {
         mem = (void*)mmap_fn(addr, length, prot, MAP_PRIVATE, fd, offset);
     }
-
-    if ((long)mem < 0)
-      return -1;
 
     return (long)mem;
 }
