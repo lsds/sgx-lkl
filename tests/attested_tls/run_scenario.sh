@@ -12,7 +12,7 @@ if [[ -z $SGXLKL_ROOT || -z $SGXLKL_RUN_MODE ]]; then
 fi
 
 # Install Open Enclave if not installed
-if [[ ! -d "/opt/openenclave" && $cert_pr_merged_to_oe -eq 1 ]]; then
+if [[ ! -d "/opt/openenclave" ]]; then
     # Configure the Intel and Microsoft APT Repositories
     echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | sudo tee /etc/apt/sources.list.d/intel-sgx.list
     wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | sudo apt-key add -
@@ -43,7 +43,7 @@ if pgrep -x $process >/dev/null; then
     sleep 5
 fi
 
-process="client_host"
+process="tlssrv_host"
 if pgrep -x $process >/dev/null; then
     echo "OE Enclave is still running:"
     # shellcheck disable=SC2009
