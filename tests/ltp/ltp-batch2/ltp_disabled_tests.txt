@@ -711,7 +711,7 @@
 #/ltp/testcases/kernel/syscalls/readlinkat/readlinkat01
 #/ltp/testcases/kernel/syscalls/readlinkat/readlinkat02
 #/ltp/testcases/kernel/syscalls/readv/readv01
-/ltp/testcases/kernel/syscalls/readv/readv02
+#/ltp/testcases/kernel/syscalls/readv/readv02
 #/ltp/testcases/kernel/syscalls/readv/readv03
 #/ltp/testcases/kernel/syscalls/realpath/realpath01
 #/ltp/testcases/kernel/syscalls/reboot/reboot01
