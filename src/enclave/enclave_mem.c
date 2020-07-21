@@ -180,8 +180,8 @@ int syscall_SYS_munmap(void* addr, size_t length)
         lt->attr.stack_size = length;
         return 0;
     }
-    enclave_munmap(addr, length);
-    return 0;
+
+    return enclave_munmap(addr, length);
 }
 
 int syscall_SYS_msync(void* addr, size_t length, int flags)
@@ -442,8 +442,7 @@ int enclave_munmap(void* addr, size_t length)
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0 ||
         !in_mmap_range(addr, length))
     {
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
 
     size_t index = addr_to_index(addr);
