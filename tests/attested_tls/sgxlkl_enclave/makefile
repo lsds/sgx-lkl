@@ -8,7 +8,7 @@ SGXLKL_BIN_ROOT="$(SGXLKL_PREFIX)/bin"
 BUILD_DIR="/src/sgxlkl_enclave"
 SERVER_COMMON="/src/common"
 
-build-alpine-exe = sudo gcc -g -o $(BUILD_DIR)/alpine_server -fshort-wchar $(BUILD_DIR)/client.c $(BUILD_DIR)/tlscli.c $(SERVER_COMMON)/log_utils.c $(SERVER_COMMON)/settings.c -lmbedtls -lmbedx509 -lmbedcrypto -ldl -lcurl
+build-alpine-exe = sudo gcc -g -o $(BUILD_DIR)/alpine_server -fshort-wchar $(BUILD_DIR)/client.c $(BUILD_DIR)/tlscli.c $(SERVER_COMMON)/settings.c -lmbedtls -lmbedx509 -lmbedcrypto -ldl -lcurl
 
 all: lkl-image
 

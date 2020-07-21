@@ -716,10 +716,6 @@ static oe_result_t verifier(
 
     printf("\n");
     printf("=== _verify_identity()\n");
-    log_hex_data("MRENCLAVE", mrenclave, mrenclave_size);
-    log_hex_data("MRSIGNER", mrsigner, mrsigner_size);
-    log_hex_data("ISVPRODID", isvprodid, isvprodid_size);
-    printf("ISVSVN: %lu\n", isvsvn);
     printf("\n");
 
     if (memcmp(mrsigner, SGXLKL_MRSIGNER, MRSIGNER_SIZE) == 0)
