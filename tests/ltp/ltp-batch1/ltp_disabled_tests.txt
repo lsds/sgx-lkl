@@ -48,7 +48,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown04
 #/ltp/testcases/kernel/syscalls/chown/chown05
 /ltp/testcases/kernel/syscalls/chroot/chroot01
-/ltp/testcases/kernel/syscalls/chroot/chroot02
+#/ltp/testcases/kernel/syscalls/chroot/chroot02
 #/ltp/testcases/kernel/syscalls/chroot/chroot03
 #/ltp/testcases/kernel/syscalls/chroot/chroot04
 #/ltp/testcases/kernel/syscalls/clock_adjtime/clock_adjtime01
