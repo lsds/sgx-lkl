@@ -15,15 +15,4 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-    void log_hex_data(const char* msg, const uint8_t* data, size_t size);
-
-#ifdef __cplusplus
-}
-#endif
-
 #endif  // LOG_UTILS_H

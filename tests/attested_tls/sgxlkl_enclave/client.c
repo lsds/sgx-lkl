@@ -1,6 +1,14 @@
 // Copyright Microsoft. 
 // Licensed under the attached Microsoft Software License Terms
 
+/***************************************************************************
+  This is the entry point of sgxlkl_enclave which is responsible for:
+
+  1) Establishing a trusted channel with oe_enclave via clientAgent;
+  2) Verify the pregenerated cert (type = 1)
+
+ **************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +21,7 @@
 #include "../common/settings.h"
 #include "../common/message.h"
 
+// TODO: will cover the cert generation part in the future
 #define TLS_CERT_PATH "./sgxlkl_cert.der"
 #define TLS_PKEY_PATH "./sgxlkl_private_key.pem"
 

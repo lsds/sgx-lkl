@@ -151,10 +151,6 @@ oe_result_t _verifier_callback(oe_identity_t* identity, void* arg)
 
     printf("\n");
     printf("=== _verify_identity()\n");
-    log_hex_data("MRENCLAVE", identity->unique_id, OE_UNIQUE_ID_SIZE);
-    log_hex_data("MRSIGNER", identity->signer_id, OE_SIGNER_ID_SIZE);
-    log_hex_data("ISVPRODID", identity->product_id, OE_PRODUCT_ID_SIZE);
-    // printf("ISVSVN: %u\n", identity->security_version);
     printf("\n");
 
     const uint8_t MRSIGNER[] =
