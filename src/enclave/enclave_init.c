@@ -156,10 +156,9 @@ int __libc_init_enclave(int argc, char** argv)
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
     
     init_ethread_tp();
-    
-    char** envp = argv + argc + 1;
-    __init_libc(envp, argv[0]);
 
+    __init_heap_from_libc();
+    
     size_t espins = cfg->espins;
     size_t esleep = cfg->esleep;
     lthread_sched_global_init(espins, esleep);
@@ -173,6 +172,5 @@ int __libc_init_enclave(int argc, char** argv)
     }
 
     lthread_run();
-
     return sgxlkl_enclave_state.exit_status;
 }
