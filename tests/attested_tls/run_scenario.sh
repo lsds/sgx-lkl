@@ -29,7 +29,7 @@ fi
 
 # Set log file that will be shared between two enclaves in the test scenario for stdout and stderr logs
 export ATTESTED_TLS_TEST_LOG_FILE=$SGXLKL_ROOT/attested_tls_test.log
-date > $ATTESTED_TLS_TEST_LOG_FILE
+date > "$ATTESTED_TLS_TEST_LOG_FILE"
 
 # Kill hanging processes if exist
 process="sgx-lkl-run-oe"
@@ -54,26 +54,22 @@ if pgrep -x $process >/dev/null; then
     sleep 5
 fi
 
-#build sgxlkl_enclave
-cd sgxlkl_enclave
-make lkl-image
-
 # Build and run OE enclave app
-cd ..
-cd oe_enclave
+cd oe_enclave || exit 1
 make
 make run
 
-# run SGX-LKL enclave app
+# Build and run SGX-LKL enclave app
 cd ..
-cd sgxlkl_enclave
+cd sgxlkl_enclave || exit 1
+make lkl-image
 make lkl-run
 
 # Check the log file and decide if test passed
-client_success=$(grep 'Remote connection established. Ready for service.' $ATTESTED_TLS_TEST_LOG_FILE | wc -l)
-server_success=$(grep 'Server: attestation certificate verified.' $ATTESTED_TLS_TEST_LOG_FILE | wc -l)
+client_success=$(grep -c 'Remote connection established. Ready for service.' "$ATTESTED_TLS_TEST_LOG_FILE")
+server_success=$(grep -c 'Server: attestation certificate verified.' "$ATTESTED_TLS_TEST_LOG_FILE")
 
-cat $ATTESTED_TLS_TEST_LOG_FILE
+cat "$ATTESTED_TLS_TEST_LOG_FILE"
 if [[ $client_success -eq 1 && $server_success -eq 1 ]]; then
     echo "TEST PASSED"
     exit 0
