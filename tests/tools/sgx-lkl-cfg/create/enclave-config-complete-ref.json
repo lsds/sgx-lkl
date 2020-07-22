@@ -68,7 +68,7 @@
     }
   ],
   "stacksize": 524288,
-  "mmap_files": "none",
+  "mmap_files": "shared",
   "oe_heap_pagecount": 8192,
   "fsgsbase": true,
   "verbose": false,
