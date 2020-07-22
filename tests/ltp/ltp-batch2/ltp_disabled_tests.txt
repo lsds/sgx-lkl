@@ -458,7 +458,7 @@
 /ltp/testcases/kernel/syscalls/lchown/lchown02
 /ltp/testcases/kernel/syscalls/lchown/lchown03
 #/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr01
-/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
+#/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
 /ltp/testcases/kernel/syscalls/link/link02
 /ltp/testcases/kernel/syscalls/link/link03
 /ltp/testcases/kernel/syscalls/link/link04
@@ -675,7 +675,7 @@
 /ltp/testcases/kernel/syscalls/preadv/preadv03
 #/ltp/testcases/kernel/syscalls/preadv2/preadv201
 #/ltp/testcases/kernel/syscalls/preadv2/preadv202
-/ltp/testcases/kernel/syscalls/preadv2/preadv203
+#/ltp/testcases/kernel/syscalls/preadv2/preadv203
 /ltp/testcases/kernel/syscalls/profil/profil01
 #/ltp/testcases/kernel/syscalls/pselect/pselect01
 #/ltp/testcases/kernel/syscalls/pselect/pselect02
