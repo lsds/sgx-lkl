@@ -1,11 +1,12 @@
 {
+
   "args": [
     "/usr/bin/java",
-    "-Xms2000k"
-    "-XX:InitialCodeCacheSize=2000k",
-    "-XX:ReservedCodeCacheSize=4000K",
-    "-XX:CompressedClassSpaceSize=4000K",
-    "-XX:+UseCompressedClassPointers",
+    "-XX:InitialCodeCacheSize=80000k",
+    "-XX:ReservedCodeCacheSize=80000K",
+    "-Xms50000k",
+    "-Xmx700m",
+    "-XX:CompressedClassSpaceSize=20000K",
     "-XX:+PerfDisableSharedMem",
     "-XX:+UseMembar",
     "-Dsun.zip.disableMemoryMapping=true",
@@ -13,12 +14,18 @@
     "/dacapo/dacapo-9.12-MR1-bach.jar",
     "h2"
   ],
+
   "env": [
-    "LD_LIBRARY_PATH=/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64/server:/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64:/usr/lib/jvm/java-1.8-openjdk/jre/../lib/amd64:/usr/lib/jvm/java-1.8-openjdk/lib/amd64/jli"
+    "LD_LIBRARY_PATH=/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64/server:/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64:/usr/lib/jvm/java-1.8-openjdk/jre/../lib/amd64:/usr/lib/jvm/java-1.8-openjdk/lib/amd64/jli:/usr/lib:/lib",
   ],
-  "ethreads": "4",
+
+  "ethreads": "8",
+
   "image_sizes": {
-    "num_heap_pages": 262144
+    "num_heap_pages": 524288
   },
+
+  "mmap_files": "shared",
+
   "verbose": true
 }

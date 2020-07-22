@@ -1,6 +1,9 @@
 {
     "verbose": true,
+
     "root": {
         "image_path": "java-dacapo.img"
-    }
+    },
+
+    "tap_device": "sgxlkl_tap0"
 }

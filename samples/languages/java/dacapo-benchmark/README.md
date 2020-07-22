@@ -18,11 +18,11 @@ $ sgx-lkl-disk create --docker=java-dacapo --size=500M java-dacapo.img
 avrora batik eclipse fop h2 jython luindex lusearch lusearch-fix pmd sunflow tomcat tradebeans tradesoap xalan
 ```
 
-By default, the benchmark `avrora` is run. The enclave size is chosen to be a generous 8 GiB.
+By default, the benchmark `h2` is run. The enclave size is 2 GiB.
 
 4. Run the benchmark with SGX-LKL:
 ```
-$ SGXLKL_MMAP_FILES=Shared sgx-lkl-run-oe --sw-debug --host-config=java-dacapo-host_config.json --enclave-config=java-dacapo-enclave_config.json 
+$ sgx-lkl-run-oe --hw-debug --host-config=java-dacapo-host_config.json --enclave-config=java-dacapo-enclave_config.json
 ```
 
 Notes
@@ -30,9 +30,17 @@ Notes
 
 - Currently the follwing benchmarks are passing/failing:
 
-  - PASSING: avrora fop h2 (sw only) luindex (sw only) pmd (sw only) sunflow xalan (sw only)
-  - FAILING: batik (headless JRE?) eclipse (headless JRE?) jython lusearch-fix tomcat (networking issue) tradebeans (networking issue) tradesoap (networking issue)
+  - PASSING: avrora fop h2 luindex pmd sunflow xalan
+  - FAILING: batik (doesn't work with OpenJDK) eclipse (doesn't work with OpenJDK) jython (illegal instruction) lusearch-fix (segfault) tomcat (networking issue) tradebeans (networking issue) tradesoap (networking issue)
 
-- When running multiple benchmarks in sequence, ensure that the root file system image has not been corrupted after a failed benchmark runs.
+- When running multiple benchmarks in sequence, ensure that the root file system image has not been corrupted after a failed benchmark run.
 
-- You can add `-verbose:gc` to the java parameters to output GC activity.
+- You can add `-verbose:gc` to the java parameters to output GC activity. Other verbose JVM Hotspot options are:
+```
+    "-verbose:class",
+    "-verbose:jni",
+    "-verbose:gc",
+    "-XX:+PrintCompilation",
+    "-XX:+PrintGCDetails",
+    "-Xcomp"
+```
