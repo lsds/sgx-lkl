@@ -11,5 +11,5 @@
 	branch = oe_port
 [submodule "openenclave"]
 	path = openenclave
-	url = https://github.com/openenclave/openenclave.git
+	url = https://github.com/lsds/openenclave.git
 	branch = feature/sgx-lkl-support
