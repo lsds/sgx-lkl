@@ -18,10 +18,6 @@ ${CRYPTSETUP_BUILD} ${LIB_CURL_BUILD}:
 ${CRYPTSETUP}:
 	wget --retry-connrefused -O "${MAKE_ROOT}/cryptsetup.tar.gz" 'https://gitlab.com/cryptsetup/cryptsetup/repository/archive.tar.gz?ref=v2.0.2'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/cryptsetup.tar.gz
-	# The following patch changes the memory allocations in cryptsetup from
-	# regular malloc() to lkl_sys_mmap(). This ensures that the allocated
-	# memory is visible to LKL.
-	cd $@ && patch -p4 < ../cryptsetup-sgx_lkl-mmap.patch
 	rm ${MAKE_ROOT}/cryptsetup.tar.gz
 
 ${DEVICEMAPPER}:
