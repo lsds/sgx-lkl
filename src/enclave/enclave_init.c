@@ -112,6 +112,8 @@ static int startmain(void* args)
     init_wireguard();
     find_and_mount_disks();
 
+    __init_libc(sgxlkl_enclave_state.elf64_stack.envp,
+        sgxlkl_enclave_state.elf64_stack.argv[0]);
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
     __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
@@ -158,7 +160,7 @@ int __libc_init_enclave(int argc, char** argv)
     init_ethread_tp();
 
     __init_heap_from_libc();
-    
+
     size_t espins = cfg->espins;
     size_t esleep = cfg->esleep;
     lthread_sched_global_init(espins, esleep);
