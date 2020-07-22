@@ -51,7 +51,7 @@
 #ifndef SGXLKL_RELEASE
 /* These environment variables do not have config settings, they are
  * automatically passed through and imported in the enclave */
-extern const char* sgxlkl_auto_passthrough[11];
+extern const char* sgxlkl_auto_passthrough[12];
 #endif
 
 #endif /* SGXLKL_PARAMS_H */
