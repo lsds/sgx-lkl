@@ -359,7 +359,7 @@ struct lkl_crypt_device
     char* crypt_name;
 };
 
-static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
+static void activate_crypto_disk(struct lkl_crypt_device* lkl_cd)
 {
     int err;
 
@@ -433,11 +433,9 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
     }
     lkl_cd->disk_config.key = NULL;
     lkl_cd->disk_config.key_len = 0;
-
-    return 0;
 }
 
-static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
+static void create_crypto_disk(struct lkl_crypt_device* lkl_cd)
 {
     int err;
 
@@ -543,11 +541,9 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
         sgxlkl_fail(
             "Unable to unmap memory for disk encryption key: %s\n",
             lkl_strerror((int)munmap_ret));
-
-    return 0;
 }
 
-static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
+static void activate_verity_disk(struct lkl_crypt_device* lkl_cd)
 {
     int err;
 
@@ -605,51 +601,6 @@ static void* lkl_activate_verity_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     crypt_free(cd);
     free(volume_hash_bytes);
-
-    return NULL;
-}
-
-static void lkl_run_in_kernel_stack(void* (*start_routine)(void*), void* arg)
-{
-    int err;
-
-    /*
-     * We need to pivot to a stack which is inside LKL's known memory mappings
-     * otherwise get_user_pages will not manage to find the mapping, and will
-     * fail.
-     *
-     * Buffers passed to the kernel via the crypto API need to be allocated
-     * on this stack, or on heap pages allocated via lkl_sys_mmap.
-     */
-    const int stack_size = 32 * 1024;
-
-    void* addr = lkl_sys_mmap(
-        NULL,
-        stack_size,
-        PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS,
-        -1,
-        0);
-    if (addr == MAP_FAILED)
-    {
-        sgxlkl_fail("lkl_sys_mmap failed\n");
-    }
-
-    pthread_t pt;
-    pthread_attr_t ptattr;
-    pthread_attr_init(&ptattr);
-    pthread_attr_setstack(&ptattr, addr, stack_size);
-    err = pthread_create(&pt, &ptattr, start_routine, arg);
-    if (err < 0)
-    {
-        sgxlkl_fail("pthread_create()=%s (%d)\n", strerror(err), err);
-    }
-
-    err = pthread_join(pt, NULL);
-    if (err < 0)
-    {
-        sgxlkl_fail("pthread_join()=%s (%d)\n", strerror(err), err);
-    }
 }
 
 static bool is_encrypted_cfg(disk_config_t* cfg)
@@ -726,9 +677,8 @@ static void lkl_mount_disk(
         SGXLKL_VERBOSE("Activating verity disk\n");
         dev_str_verity[sizeof dev_str_verity - 2] = device;
         lkl_cd.crypt_name = dev_str_verity + offset_dev_str_crypt_name;
-        lkl_run_in_kernel_stack(
-            (void* (*)(void*)) & lkl_activate_verity_disk_thread,
-            (void*)&lkl_cd);
+
+        activate_verity_disk(&lkl_cd);
 
         // We now want to mount the verified volume
         dev_str = dev_str_verity;
@@ -745,15 +695,11 @@ static void lkl_mount_disk(
         if (disk->create)
         {
             SGXLKL_VERBOSE("Creating empty crypto disk\n");
-            lkl_run_in_kernel_stack(
-                (void* (*)(void*)) & lkl_create_crypto_disk_thread,
-                (void*)&lkl_cd);
+            create_crypto_disk(&lkl_cd);
         }
 
         SGXLKL_VERBOSE("Activating crypto disk\n");
-        lkl_run_in_kernel_stack(
-            (void* (*)(void*)) & lkl_activate_crypto_disk_thread,
-            (void*)&lkl_cd);
+        activate_crypto_disk(&lkl_cd);
 
         // We now want to mount the decrypted volume
         dev_str = dev_str_enc;
