@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -480,12 +479,11 @@ void* enclave_mremap(
 
     if (mremap_fixed)
     {
-        errno = EINVAL;
-        return MAP_FAILED;
+        return (void*)-EINVAL;
     }
 
     void* ret = enclave_mmap(new_addr, new_length, 0, -1, 0);
-    if (ret != MAP_FAILED)
+    if (ret >= 0)
     {
         memcpy(
             ret, old_addr, old_length > new_length ? new_length : old_length);
