@@ -24,7 +24,7 @@ void* enclave_mremap(
     size_t new_length,
     int mremap_fixed);
 
-int enclave_mmap_flags_supported(int flags, int fd);
+int enclave_mmap_files_flags_supported(int flags);
 
 /**
  * Report memory usages (total and free bytes) in enclave
