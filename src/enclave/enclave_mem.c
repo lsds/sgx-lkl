@@ -122,15 +122,12 @@ long syscall_SYS_mmap(
             enclave_mmap(addr, length, flags & MAP_FIXED, prot | PROT_WRITE, 0);
         if (mem > 0)
         {
-            // Read file into memory
-            lseek(fd, offset, SEEK_SET);
-
-            size_t ret = read(fd, mem, length);
-            if (ret < 0)
+            if(pread(fd, mem, length, offset) < 0)
             {
                 enclave_munmap(addr, length);
                 return -EBADF;
             }
+
             // Set requested page permissions
             if ((prot | PROT_WRITE) != prot)
                 mprotect(mem, length, prot);
