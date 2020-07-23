@@ -124,12 +124,8 @@ long syscall_SYS_mmap(
         {
             // Read file into memory
             lseek(fd, offset, SEEK_SET);
-            size_t readb = 0, ret;
-            while ((ret = read(fd, ((char*)mem) + readb, length - readb)) > 0)
-            {
-                readb += ret;
-                offset += ret;
-            }
+
+            size_t ret = read(fd, mem, length);
             if (ret < 0)
             {
                 enclave_munmap(addr, length);
@@ -140,7 +136,7 @@ long syscall_SYS_mmap(
                 mprotect(mem, length, prot);
         }
 
-				return (long)mem;
+        return (long)mem;
     }
     else
     {
