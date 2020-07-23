@@ -116,7 +116,7 @@ long syscall_SYS_mmap(
         return (long)enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
     }
     // File-backed mapping (if allowed)
-    else if ((fd >= 0) && enclave_mmap_flags_supported(flags, fd))
+    else if ((fd >= 0) && enclave_mmap_files_flags_supported(flags))
     {
         void* mem =
             enclave_mmap(addr, length, flags & MAP_FIXED, prot | PROT_WRITE, 0);
@@ -228,20 +228,19 @@ void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files)
 }
 
 /*
- * Returns 1 if syscall_SYS_mmap can be called with the specified flags,
+ * Returns 1 if we can mmap files using the given flags
  * returns 0 otherwise.
  */
-int enclave_mmap_flags_supported(int flags, int fd)
+int enclave_mmap_files_flags_supported(int flags)
 {
-    int supported_flags = -1;
+    int supported_flags = 0;
 
     if (mmap_files == ENCLAVE_MMAP_FILES_SHARED)
         supported_flags = MAP_PRIVATE | MAP_SHARED;
     else if (mmap_files == ENCLAVE_MMAP_FILES_PRIVATE)
         supported_flags = MAP_PRIVATE;
-    else
-        supported_flags = 0;
-    return (fd == -1 && (flags & MAP_ANONYMOUS)) || (supported_flags & flags);
+
+    return supported_flags & flags;
 }
 
 /*
