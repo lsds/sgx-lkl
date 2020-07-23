@@ -310,7 +310,10 @@ def generate_source(schema_file_name, root, args):
                     tname = pre_type(jtype)
                     if tname.endswith("*"):
                         tname = tname[:-1]
-                    if tname.startswith("sgxlkl_"):
+                    if (
+                        tname.startswith("sgxlkl_")
+                        and "enum" not in root["definitions"][tname]
+                    ):
                         scope.append(name)
                         describe(scope, tname)
                         scope = scope[:-1]
