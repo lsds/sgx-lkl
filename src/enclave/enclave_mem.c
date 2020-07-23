@@ -97,7 +97,7 @@ static size_t addr_to_index(void* addr)
     return ((char*)mmap_end - (char*)addr) / PAGE_SIZE;
 }
 
-void* syscall_SYS_mmap(
+long syscall_SYS_mmap(
     void* addr,
     size_t length,
     int prot,
@@ -105,24 +105,20 @@ void* syscall_SYS_mmap(
     int fd,
     off_t offset)
 {
-    void* mem;
     if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE))
     {
         sgxlkl_warn("mmap() with MAP_SHARED and MAP_PRIVATE not supported\n");
-        errno = EINVAL;
-        mem = MAP_FAILED;
+        return -EINVAL;
     }
     // Anonymous mapping/allocation
     else if (fd == -1 && (flags & MAP_ANONYMOUS))
     {
-        mem = enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
-        if (mem == MAP_FAILED)
-            return mem;
+        return (long)enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
     }
     // File-backed mapping (if allowed)
-    else if (fd >= 0 && enclave_mmap_flags_supported(flags, fd))
+    else if ((fd >= 0) && enclave_mmap_flags_supported(flags, fd))
     {
-        mem =
+        void* mem =
             enclave_mmap(addr, length, flags & MAP_FIXED, prot | PROT_WRITE, 0);
         if (mem > 0)
         {
@@ -137,19 +133,19 @@ void* syscall_SYS_mmap(
             if (ret < 0)
             {
                 enclave_munmap(addr, length);
-                return MAP_FAILED;
+                return -EBADF;
             }
             // Set requested page permissions
             if ((prot | PROT_WRITE) != prot)
                 mprotect(mem, length, prot);
         }
+
+				return (long)mem;
     }
     else
     {
-        errno = EINVAL;
-        mem = MAP_FAILED;
+        return -EINVAL;
     }
-    return mem;
 }
 
 void* syscall_SYS_mremap(

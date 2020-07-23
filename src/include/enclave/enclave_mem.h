@@ -50,7 +50,7 @@ int enclave_futex(
     int* uaddr2,
     int val3);
 
-void* syscall_SYS_mmap(
+long syscall_SYS_mmap(
     void* addr,
     size_t length,
     int prot,
