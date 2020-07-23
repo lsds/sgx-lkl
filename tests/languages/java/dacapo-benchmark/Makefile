@@ -19,7 +19,6 @@ $(DISK_IMAGE): $(PROG_SRC)
 run: run-hw run-sw
 
 run-hw: $(DISK_IMAGE)
-	sgx-lkl-run-oe --hw-debug 
 	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug --host-config=java-dacapo-host_config.json --enclave-config=java-dacapo-enclave_config.json
 
 run-sw: $(DISK_IMAGE)
