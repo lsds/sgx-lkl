@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -97,7 +96,7 @@ static size_t addr_to_index(void* addr)
     return ((char*)mmap_end - (char*)addr) / PAGE_SIZE;
 }
 
-void* syscall_SYS_mmap(
+long syscall_SYS_mmap(
     void* addr,
     size_t length,
     int prot,
@@ -105,51 +104,40 @@ void* syscall_SYS_mmap(
     int fd,
     off_t offset)
 {
-    void* mem;
     if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE))
     {
         sgxlkl_warn("mmap() with MAP_SHARED and MAP_PRIVATE not supported\n");
-        errno = EINVAL;
-        mem = MAP_FAILED;
+        return -EINVAL;
     }
     // Anonymous mapping/allocation
     else if (fd == -1 && (flags & MAP_ANONYMOUS))
     {
-        mem = enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
-        if (mem == MAP_FAILED)
-            return mem;
+        return (long)enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
     }
     // File-backed mapping (if allowed)
-    else if (fd >= 0 && enclave_mmap_flags_supported(flags, fd))
+    else if ((fd >= 0) && enclave_mmap_files_flags_supported(flags))
     {
-        mem =
+        void* mem =
             enclave_mmap(addr, length, flags & MAP_FIXED, prot | PROT_WRITE, 0);
         if (mem > 0)
         {
-            // Read file into memory
-            lseek(fd, offset, SEEK_SET);
-            size_t readb = 0, ret;
-            while ((ret = read(fd, ((char*)mem) + readb, length - readb)) > 0)
-            {
-                readb += ret;
-                offset += ret;
-            }
-            if (ret < 0)
+            if(pread(fd, mem, length, offset) < 0)
             {
                 enclave_munmap(addr, length);
-                return MAP_FAILED;
+                return -EBADF;
             }
+
             // Set requested page permissions
             if ((prot | PROT_WRITE) != prot)
                 mprotect(mem, length, prot);
         }
+
+        return (long)mem;
     }
     else
     {
-        errno = EINVAL;
-        mem = MAP_FAILED;
+        return -EINVAL;
     }
-    return mem;
 }
 
 void* syscall_SYS_mremap(
@@ -239,20 +227,19 @@ void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files)
 }
 
 /*
- * Returns 1 if syscall_SYS_mmap can be called with the specified flags,
+ * Returns 1 if we can mmap files using the given flags
  * returns 0 otherwise.
  */
-int enclave_mmap_flags_supported(int flags, int fd)
+int enclave_mmap_files_flags_supported(int flags)
 {
-    int supported_flags = -1;
+    int supported_flags = 0;
 
     if (mmap_files == ENCLAVE_MMAP_FILES_SHARED)
         supported_flags = MAP_PRIVATE | MAP_SHARED;
     else if (mmap_files == ENCLAVE_MMAP_FILES_PRIVATE)
         supported_flags = MAP_PRIVATE;
-    else
-        supported_flags = 0;
-    return (fd == -1 && (flags & MAP_ANONYMOUS)) || (supported_flags & flags);
+
+    return supported_flags & flags;
 }
 
 /*
@@ -279,8 +266,7 @@ void* enclave_mmap(
     // Make sure addr is page aligned and size is greater than 0
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0)
     {
-        errno = EINVAL;
-        return MAP_FAILED;
+        return (void*)-EINVAL;
     }
 
     // Obtain mmap lock to access mmap bitmaps
@@ -291,8 +277,7 @@ void* enclave_mmap(
     {
         if (!in_mmap_range(addr, length))
         {
-            errno = ENOMEM;
-            ret = MAP_FAILED;
+            ret = (void*)-ENOMEM;
         }
         else
         {
@@ -331,8 +316,7 @@ void* enclave_mmap(
             bitmap_find_next_zero_area(mmap_bitmap, mmap_num_pages, 0, pages);
         if (index_top + pages > mmap_num_pages)
         {
-            errno = ENOMEM;
-            ret = MAP_FAILED;
+            ret = (void*)-ENOMEM;
         }
         else
         {
@@ -343,7 +327,7 @@ void* enclave_mmap(
     }
 
     // Was there a successful allocation?
-    if (ret != MAP_FAILED)
+    if (ret >= 0)
     {
         int found_only_fresh_pages = 0;
 
@@ -412,7 +396,7 @@ void* enclave_mmap(
             mmap_max_allocated = used;
         }
         char* mfixed = mmap_fixed ? " (MAP_FIXED)" : "";
-        char* rv = ret == MAP_FAILED ? " (FAILED)" : "";
+        char* rv = ret < 0 ? " (FAILED)" : "";
         SGXLKL_TRACE_MMAP(
             "mmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: "
             "%8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n",
@@ -495,12 +479,11 @@ void* enclave_mremap(
 
     if (mremap_fixed)
     {
-        errno = EINVAL;
-        return MAP_FAILED;
+        return (void*)-EINVAL;
     }
 
     void* ret = enclave_mmap(new_addr, new_length, 0, -1, 0);
-    if (ret != MAP_FAILED)
+    if (ret >= 0)
     {
         memcpy(
             ret, old_addr, old_length > new_length ? new_length : old_length);
