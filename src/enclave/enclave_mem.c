@@ -271,8 +271,7 @@ void* enclave_mmap(
     // Make sure addr is page aligned and size is greater than 0
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0)
     {
-        errno = EINVAL;
-        return MAP_FAILED;
+        return (void*)-EINVAL;
     }
 
     // Obtain mmap lock to access mmap bitmaps
@@ -283,8 +282,7 @@ void* enclave_mmap(
     {
         if (!in_mmap_range(addr, length))
         {
-            errno = ENOMEM;
-            ret = MAP_FAILED;
+            ret = (void*)-ENOMEM;
         }
         else
         {
@@ -323,8 +321,7 @@ void* enclave_mmap(
             bitmap_find_next_zero_area(mmap_bitmap, mmap_num_pages, 0, pages);
         if (index_top + pages > mmap_num_pages)
         {
-            errno = ENOMEM;
-            ret = MAP_FAILED;
+            ret = (void*)-ENOMEM;
         }
         else
         {
@@ -335,7 +332,7 @@ void* enclave_mmap(
     }
 
     // Was there a successful allocation?
-    if (ret != MAP_FAILED)
+    if (ret >= 0)
     {
         int found_only_fresh_pages = 0;
 
@@ -404,7 +401,7 @@ void* enclave_mmap(
             mmap_max_allocated = used;
         }
         char* mfixed = mmap_fixed ? " (MAP_FIXED)" : "";
-        char* rv = ret == MAP_FAILED ? " (FAILED)" : "";
+        char* rv = ret >= 0 ? " (FAILED)" : "";
         SGXLKL_TRACE_MMAP(
             "mmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: "
             "%8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n",
