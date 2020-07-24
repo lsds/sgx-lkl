@@ -943,7 +943,7 @@
 #/ltp/testcases/kernel/syscalls/symlink/symlink03
 #/ltp/testcases/kernel/syscalls/symlink/symlink04
 #/ltp/testcases/kernel/syscalls/symlink/symlink05
-/ltp/testcases/kernel/syscalls/symlinkat/symlinkat01
+#/ltp/testcases/kernel/syscalls/symlinkat/symlinkat01
 #/ltp/testcases/kernel/syscalls/sync/sync01
 #/ltp/testcases/kernel/syscalls/sync/sync02
 /ltp/testcases/kernel/syscalls/sync/sync03
