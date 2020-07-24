@@ -68,12 +68,12 @@ stages:
       pool: ${{ parameters.build_pool }}
 
       steps:
-        - checkout: self
-          submodules: false
-          clean: true
+        - bash: rm -rf $(Build.SourcesDirectory)
+          displayName: Cleanup
 
-        - bash: .azure-pipelines/scripts/checkout_submodules.sh
-          displayName: Checkout Submodules
+        - checkout: self
+          submodules: recursive
+          fetchDepth: 50
       
         - bash: .azure-pipelines/scripts/install_prerequisites.sh
           displayName: Install prerequisites
