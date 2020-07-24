@@ -896,7 +896,7 @@
 /ltp/testcases/kernel/syscalls/signalfd4/signalfd4_02
 #/ltp/testcases/kernel/syscalls/sigpending/sigpending02
 #/ltp/testcases/kernel/syscalls/sigprocmask/sigprocmask01
-/ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
+#/ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
 /ltp/testcases/kernel/syscalls/sigsuspend/sigsuspend01
 /ltp/testcases/kernel/syscalls/sigwaitinfo/sigwaitinfo01
 #/ltp/testcases/kernel/syscalls/socket/socket01
