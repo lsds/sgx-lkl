@@ -1,6 +1,3 @@
-// Copyright Microsoft.
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef LOG_UTILS_H
 #define LOG_UTILS_H
 

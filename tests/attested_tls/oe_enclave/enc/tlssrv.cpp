@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #include <mbedtls/certs.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/debug.h>
@@ -188,7 +185,7 @@ static int _get_cert_and_private_key(
 
     if (generate_attested_credentials(
             COMMON_NAME,
-	    0,
+	        0,
             &cert_data,
             &cert_size,
             &private_key_data,

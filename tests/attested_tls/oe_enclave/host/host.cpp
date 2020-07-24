@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #include <openenclave/host.h>
 #include <stdio.h>
 #include <pthread.h>

@@ -1,6 +1,3 @@
-// Copyright Microsoft.
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef COMMON_SETTINGs_H
 #define COMMON_SETTINGs_H
 
