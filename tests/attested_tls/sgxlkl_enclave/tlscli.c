@@ -1,6 +1,3 @@
-// Copyright Microsoft.
-// Licensed under the attached Microsoft Software License Terms
-
 #define _GNU_SOURCE
 
 #include "tlscli.h"
@@ -196,7 +193,7 @@ static int _cert_verify_callback(
 
     printf(
         "Server: Received TLS certificate.\n"
-        "  ccrt->version = %d cert_size = %zu\n",
+        "  crt->version = %d cert_size = %zu\n",
         crt->version,
         cert_size);
 

@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 enclave {
     from "openenclave/edl/logging.edl" import *;
     from "openenclave/edl/syscall.edl" import *;

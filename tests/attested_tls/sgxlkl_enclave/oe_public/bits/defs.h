@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef _OE_BITS_DEFS_H
 #define _OE_BITS_DEFS_H
 

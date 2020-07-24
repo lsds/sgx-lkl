@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef _OE_GENCREDS_H
 #define _OE_GENCREDS_H
 

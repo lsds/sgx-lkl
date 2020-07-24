@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef _TLSCLI_H
 #define _TLSCLI_H
 

@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef _TLSSRV_H
 #define _TLSSRV_H
 

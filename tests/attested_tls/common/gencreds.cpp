@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #include "gencreds.h"
 #include <mbedtls/x509.h>
 #include <mbedtls/x509_crt.h>

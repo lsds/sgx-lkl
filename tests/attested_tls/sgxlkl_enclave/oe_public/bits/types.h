@@ -1,5 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
 
 /**
  * @file types.h

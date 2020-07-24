@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef CLIENT_COMMON_H
 #define CLIENT_COMMON_H
 

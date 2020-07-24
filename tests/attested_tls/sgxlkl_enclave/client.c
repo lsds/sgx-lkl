@@ -1,5 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
 
 /***************************************************************************
   This is the entry point of sgxlkl_enclave which is responsible for:

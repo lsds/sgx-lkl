@@ -1,6 +1,3 @@
-// Copyright Microsoft. 
-// Licensed under the attached Microsoft Software License Terms
-
 #ifndef CLIENT_AGENT_INIT_H
 #define CLIENT_AGENT_INIT_H
 
