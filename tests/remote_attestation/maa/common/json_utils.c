@@ -60,7 +60,7 @@ char* get_json_field_value(
     char* start_pos = NULL;
     int value_len = 0;
     if (start_ch == '\0')
-    {  // handle situation w/o encloser, e.g. product-id
+    {  // handle situation w/o encloser
         start_pos = payload;
         while (is_delimiter(*payload) != SUCCESS && *payload != '\0')
         {

@@ -123,7 +123,7 @@ int send_receive_curl(
         curl_error = curl_easy_setopt(curl, CURLOPT_WRITEDATA, bufdata);
         goto_if_curl_error(curl_error, "Failed to set WRITEDATA option", error);
 
-        /* Perform the request, res will get the return code */
+        // Perform curl request and set response code per response.
         curl_error = curl_easy_perform(curl);
         goto_if_curl_error(curl_error, "Failed curl_easy_perform", error);
 
