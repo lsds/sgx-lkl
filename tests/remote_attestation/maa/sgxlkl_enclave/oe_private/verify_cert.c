@@ -7,12 +7,12 @@
 #include <mbedtls/platform.h>
 #include <mbedtls/x509_crt.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "../../common/maa.h"
 #include "../../common/json_utils.h"
 #include "../../common/log_utils.h"
-#include "../../common/settings.h"
 #include "../../common/transport_utils.h"
 #include "../oe_public/host_verify.h"
 #include "oe_defs.h"
@@ -52,9 +52,9 @@ int _maa_verify_report(
         goto done;
     }
 
-    app_id = get_environment_variable("MAA_APP_ID");
-    client_id = get_environment_variable("MAA_CLIENT_ID");
-    client_secret = get_environment_variable("MAA_CLIENT_SECRET");
+    app_id = getenv("MAA_APP_ID");
+    client_id = getenv("MAA_CLIENT_ID");
+    client_secret = getenv("MAA_CLIENT_SECRET");
 
     ret = authenticate_and_get_maa_token(
         app_id,

@@ -3,16 +3,11 @@
 #include <pthread.h>
 #include <unistd.h>
 #include "oeApp_u.h"
-#include "../../common/message.h"
+
+// The port CLIENT enclave listens on, and SgxLkl App connects to.
+#define SERVER_PORT               "13999"
 
 static oe_enclave_t* enclave = NULL;
-
-static void* server_thread(void* query)
-{
-    int res;
-    run_server(enclave, &res, query);
-    return NULL;
-}
 
 int main(int argc, const char* argv[])
 {

@@ -1,13 +1,13 @@
 #include "maa.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "auth.h"
 #include "curl_helper.h"
 #include "json_utils.h"
 #include "log_utils.h"
-#include "settings.h"
 
 static int get_maa_token(
     const char* authentication_token,
@@ -18,7 +18,7 @@ static int get_maa_token(
     struct curl_buffer bufdata = {0};
     int return_value = -1;
 
-    const char* url = get_environment_variable("MAA_ADDR");
+    const char* url = getenv("MAA_ADDR");
     char token[20480];
     sprintf(token, "Authorization: Bearer %s", authentication_token);
     const char* header[] = {"Content-Type: application/json", token};
@@ -85,7 +85,7 @@ int authenticate_and_get_maa_token(
         app_id,
         client_id,
         client_secret,
-        get_environment_variable("MAA_ADDR_APP"),
+        getenv("MAA_ADDR_APP"),
         &maa_authentication_token);
     if (ret != 0)
     {

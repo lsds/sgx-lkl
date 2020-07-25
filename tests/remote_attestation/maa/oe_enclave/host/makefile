@@ -27,13 +27,12 @@ build:
 		--search-path $(INCDIR) \
 		--search-path $(INCDIR)/openenclave/edl/sgx
 	$(CC) -c $(CFLAGS) $(INCLUDES) oeApp_u.c
-	$(CC) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/settings.c
 	$(CC) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/json_utils.c
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/curl_helper.cpp
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/auth.cpp
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/maa.cpp
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) host.cpp
-	$(CXX) -o oeApp_host host.o oeApp_u.o settings.o curl_helper.o auth.o json_utils.o maa.o $(LDFLAGS) -lpthread -lcurl -lmbedtls -lmbedcrypto
+	$(CXX) -o oeApp_host host.o oeApp_u.o curl_helper.o auth.o json_utils.o maa.o $(LDFLAGS) -lpthread -lcurl -lmbedtls -lmbedcrypto
 
 clean:
 	rm -f oeApp_host* *.o oeApp_u.* oeApp_args.h

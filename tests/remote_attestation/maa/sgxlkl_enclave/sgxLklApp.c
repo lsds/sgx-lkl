@@ -11,8 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "clientAgent_msg.h"
-#include "../common/settings.h"
+#include "clientAgent_init.h"
 
 int main(int argc, char **argv) {
     int result = 0;
@@ -28,8 +27,8 @@ int main(int argc, char **argv) {
     serverIP = argv[1];
 
     // Read credentials for attestation from env variables
-    clientID = get_environment_variable("MAA_CLIENT_ID");
-    clientSecret = get_environment_variable("MAA_CLIENT_SECRET");
+    clientID = getenv("MAA_CLIENT_ID");
+    clientSecret = getenv("MAA_CLIENT_SECRET");
 
     if (clientID == NULL || clientSecret == NULL) {
         fprintf(stderr, "sgxLklApp: Lack the credential(s) to run. "\
@@ -42,14 +41,6 @@ int main(int argc, char **argv) {
     if (state == NULL) {
         fprintf(stderr, "sgxLklApp: failed to establish channel\n");
         goto done;
-    }
-
-    while (1) {
-        // Try to receive a message from OE Enclave
-        if (clientAgent_receiveMessage(state)) {
-            printf("sgxLklApp: connection to OE Enclave closed. This is expected.\n");
-            goto done;
-        }
     }
 
 done:

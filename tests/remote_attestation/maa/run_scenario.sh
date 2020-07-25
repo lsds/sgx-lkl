@@ -72,12 +72,23 @@ fi
 # Build and run OE enclave app
 cd oe_enclave || exit 1
 make
+exit_code=$?
+if [[ $exit_code -ne 0 ]]; then
+    echo "Failed to build OE_ENCLAVE"
+    exit 1
+fi
 make run
 
 # Build and run SGX-LKL enclave app
 cd ..
 cd sgxlkl_enclave || exit 1
 make lkl-image
+exit_code=$?
+if [[ $exit_code -ne 0 ]]; then
+    echo "Failed to build SGXLKL_ENCLAVE"
+    exit 1
+fi
+
 make lkl-run
 
 # Check the log file and decide if test passed
