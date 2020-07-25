@@ -1,3 +1,5 @@
+include ../../common.mk
+
 all: run-hw run-sw
 
 run-sw:
