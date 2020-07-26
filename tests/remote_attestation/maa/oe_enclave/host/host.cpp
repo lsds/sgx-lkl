@@ -52,6 +52,6 @@ int main(int argc, const char* argv[])
 exit:
    if (enclave)
        ret = oe_terminate_enclave(enclave);
-    printf("Host: oe_enclave app exited successfully");
+    printf("Host: oe_enclave app exited successfully\n");
     return ret;
 }

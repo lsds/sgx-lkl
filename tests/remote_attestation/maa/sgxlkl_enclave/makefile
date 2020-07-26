@@ -32,5 +32,5 @@ lkl-image: alpine-binaries
 
 # This runs sgxlkl_enclave app inside enclave with SGX-LKL
 lkl-run:
-	SGXLKL_VERBOSE=0 SGXLKL_GETTIME_VDSO=0 SGXLKL_TAP=sgxlkl_tap0 $(SGXLKL_BIN_ROOT)/sgx-lkl-run-oe  --$(SGXLKL_RUN_MODE)-debug sgxlkl-image.img /sgxLklApp 10.0.1.254  >> $(MAA_TEST1_LOG_FILE) 2>&1
+	MAA_CLIENT_ID=$(MAA_CLIENT_ID) MAA_CLIENT_SECRET=$(MAA_CLIENT_SECRET) SGXLKL_VERBOSE=0 SGXLKL_GETTIME_VDSO=0 SGXLKL_TAP=sgxlkl_tap0 $(SGXLKL_BIN_ROOT)/sgx-lkl-run-oe  --$(SGXLKL_RUN_MODE)-debug sgxlkl-image.img /sgxLklApp 10.0.1.254  >> $(MAA_TEST1_LOG_FILE) 2>&1
 
