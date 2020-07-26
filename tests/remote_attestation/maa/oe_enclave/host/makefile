@@ -22,7 +22,6 @@ COMMONS="../../common"
 all: build
 
 build:
-	@. /opt/openenclave/share/openenclave/openenclaverc
 	@ echo "Compilers used: $(CC), $(CXX)"
 	oeedger8r ../oeApp.edl --untrusted \
 		--search-path $(INCDIR) \

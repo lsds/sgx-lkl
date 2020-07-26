@@ -26,7 +26,6 @@ all:
 	$(MAKE) sign
 
 build:
-	@. /opt/openenclave/share/openenclave/openenclaverc
 	@ echo "Compilers used: $(CC), $(CXX)"
 	oeedger8r ../oeApp.edl --trusted \
 		--search-path $(INCDIR) \
@@ -40,7 +39,6 @@ build:
 	$(CXX) -o oeApp_enc server.o tlssrv.o gencreds.o oeApp_t.o log_utils.o transport_utils.o $(LDFLAGS) -lmbedtls -lmbedcrypto -loehostsock -loehostresolver -loecore -loelibc -loesyscall
 
 sign:
-	@. /opt/openenclave/share/openenclave/openenclaverc
 	oesign sign -e oeApp_enc -c enc.conf -k private.pem
 
 clean:
