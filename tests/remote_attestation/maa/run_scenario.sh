@@ -6,6 +6,9 @@
 # sgxlkl_enclave gets the report from oe_enclave and then gets authentication token from AAD
 # sgxlkl_enclave calls MAA for JWT token and gets, parses and verifies it 
 
+# Run mode is sw or hw
+export SGXLKL_RUN_MODE=$1
+
 # Verify that dependent env variables are available
 if [[ -z $SGXLKL_PREFIX || -z $SGXLKL_ROOT || -z $SGXLKL_RUN_MODE || -z $MAA_CLIENT_ID || -z $MAA_CLIENT_SECRET  || -z $MAA_APP_ID || -z $MAA_ADDR || -z $MAA_ADDR_APP ]]; then
     echo "Dependent environment variables for this scenario not available."
