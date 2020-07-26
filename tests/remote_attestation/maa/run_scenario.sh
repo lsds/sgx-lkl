@@ -53,6 +53,7 @@ fi
 
 # shellcheck disable=SC1091
 . /opt/openenclave/share/openenclave/openenclaverc
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/openenclave/lib/openenclave/host:/opt/openenclave/lib/openenclave/enclave
 
 # Set log file that will be shared between two enclaves in the test scenario for stdout and stderr logs
 # In sgx-lkl test framework can have one log file for stdout and stderr. This log file is called with cat to be included in test's output
