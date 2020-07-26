@@ -11,7 +11,7 @@ sudo apt-get install -y \
     python3 python3-setuptools python3-pip unzip dkms debhelper apt-utils pax-utils openjdk-8-jdk-headless \
     expect \
     gdb \
-    shellcheck clang-format
+    shellcheck clang-format mbedtls-dev mbedtls
 
 sudo python3 -m pip install "jsonschema>=3" black
 
