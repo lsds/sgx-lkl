@@ -1,7 +1,6 @@
 all: build
 
 build:
-	@. /opt/openenclave/share/openenclave/openenclaverc
 	$(MAKE) -C enc
 	$(MAKE) -C host
 
