@@ -22,6 +22,12 @@ alpine-binaries: alpine-container
 
 lkl-image: alpine-binaries
 	rm -rf sgxlkl-image.img
+	@cp /etc/environment ./environment
+	@echo "MAA_CLIENT_ID=$(MAA_CLIENT_ID)" >> ./environment 
+	@echo "MAA_CLIENT_SECRET=$(MAA_CLIENT_SECRET)" >> ./environment
+	@echo "MAA_APP_ID=$(MAA_APP_ID)" >> ./environment
+	@echo "MAA_ADDR=$(MAA_ADDR)" >> ./environment
+	@echo "MAA_ADDR_APP=$(MAA_ADDR_APP)" >> ./environment
 	$(SGXLKL_BIN_ROOT)/sgx-lkl-disk create --size=100M --docker=./Dockerfile sgxlkl-image.img
 
 # This runs sgxlkl_enclave app inside enclave with SGX-LKL
