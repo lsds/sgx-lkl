@@ -51,6 +51,8 @@ if [[ ! -d "/opt/openenclave" ]]; then
     cd "$home" || exit 1
 fi
 
+. /opt/openenclave/share/openenclave/openenclaverc
+
 # Set log file that will be shared between two enclaves in the test scenario for stdout and stderr logs
 # In sgx-lkl test framework can have one log file for stdout and stderr. This log file is called with cat to be included in test's output
 # This file is also searched for some key sentences to verify TLS connection and MAA attestation results
