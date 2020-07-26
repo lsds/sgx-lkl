@@ -1,0 +1,40 @@
++ Failure Reason:
++ fallocate03    1  TCONF  :  fallocate03.c:251: fallocate system call is not implemented
++ fallocate03    2  TCONF  :  fallocate03.c:251: Remaining cases not appropriate for configuration
+
++Patch Description: Modified the tests using root file system
+diff --git a/testcases/kernel/syscalls/fallocate/fallocate03.c b/testcases/kernel/syscalls/fallocate/fallocate03.c
+index da2b3bfbe..9585611f9 100644
+--- a/testcases/kernel/syscalls/fallocate/fallocate03.c
++++ b/testcases/kernel/syscalls/fallocate/fallocate03.c
+@@ -108,6 +108,7 @@ void get_blocksize(int);
+ void populate_file();
+ void file_seek(off_t);
+
++char *tempdir = "tempdir";
+ char *TCID = "fallocate03";
+ char fname[255];
+ int fd;
+@@ -147,8 +148,8 @@ void cleanup(void)
+        if (close(fd) == -1)
+                tst_resm(TWARN | TERRNO, "close(%s) failed", fname);
+
+-       tst_rmdir();
+-
++       remove(fname);
++       rmdir(tempdir);
+ }
+
+ /*****************************************************************************
+@@ -162,9 +163,9 @@ void setup(void)
+        /* Create temporary directories */
+        TEST_PAUSE;
+
+-       tst_tmpdir();
++       mkdir(tempdir, 0777);
+
+-       sprintf(fname, "tfile_sparse_%d", getpid());
++       sprintf(fname, "%s/tfile_sparse_%d", tempdir, getpid());
+        fd = SAFE_OPEN(cleanup, fname, O_RDWR | O_CREAT, 0700);
+        get_blocksize(fd);
+        populate_file();

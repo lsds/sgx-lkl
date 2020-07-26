@@ -1,0 +1,46 @@
++ Failure reason:
++ fallocate03    1  TCONF  :  fallocate03.c:251: fallocate system call is not implemented
++ fallocate03    2  TCONF  :  fallocate03.c:251: Remaining cases not appropriate for configuration
+
++ Patch Description: Modified the tests to use root filesystem. 
+diff --git a/testcases/kernel/syscalls/fallocate/fallocate01.c b/testcases/kernel/syscalls/fallocate/fallocate01.c
+index 02aa33100..803f4fbc9 100644
+--- a/testcases/kernel/syscalls/fallocate/fallocate01.c
++++ b/testcases/kernel/syscalls/fallocate/fallocate01.c
+@@ -116,6 +116,7 @@ int fd_mode1, fd_mode2;
+ int TST_TOTAL = 2;
+ loff_t block_size;
+ int buf_size;
++char *tempdir = "tempdir";
+
+ /******************************************************************************
+  * Performs all one time clean up for this test on successful
+@@ -130,7 +131,9 @@ void cleanup(void)
+                tst_resm(TWARN | TERRNO, "close(%s) failed", fname_mode1);
+        if (close(fd_mode2) == -1)
+                tst_resm(TWARN | TERRNO, "close(%s) failed", fname_mode2);
+-       tst_rmdir();
++       remove(fname_mode1);
++       remove(fname_mode2);
++       rmdir(tempdir);
+ }
+
+ /*****************************************************************************
+@@ -143,14 +146,14 @@ void setup(void)
+        /* Create temporary directories */
+        TEST_PAUSE;
+
+-       tst_tmpdir();
++       mkdir(tempdir, 0777);
+
+-       sprintf(fname_mode1, "tfile_mode1_%d", getpid());
++       sprintf(fname_mode1, "%s/tfile_mode1_%d", tempdir, getpid());
+        fd_mode1 = SAFE_OPEN(cleanup, fname_mode1, O_RDWR | O_CREAT, 0700);
+        get_blocksize(fd_mode1);
+        populate_files(fd_mode1);
+
+-       sprintf(fname_mode2, "tfile_mode2_%d", getpid());
++       sprintf(fname_mode2, "%s/tfile_mode2_%d", tempdir, getpid());
+        fd_mode2 = SAFE_OPEN(cleanup, fname_mode2, O_RDWR | O_CREAT, 0700);
+        populate_files(fd_mode2);
+ }
