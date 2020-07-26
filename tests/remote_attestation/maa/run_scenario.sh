@@ -22,6 +22,15 @@ if [[ -z $SGXLKL_PREFIX || -z $SGXLKL_ROOT || -z $SGXLKL_RUN_MODE || -z $MAA_CLI
     echo "MAA_ADDR_APP: $MAA_ADDR_APP"
     exit 1
 fi
+//TODO: Remove
+    echo "SGXLKL_ROOT: $SGXLKL_ROOT"
+    echo "SGXLKL_PREFIX: $SGXLKL_PREFIX"
+    echo "SGXLKL_RUN_MODE: $SGXLKL_RUN_MODE"
+    echo "MAA_CLIENT_ID: $MAA_CLIENT_ID"
+    echo "MAA_CLIENT_SECRET: $MAA_CLIENT_SECRET"
+    echo "MAA_APP_ID: $MAA_APP_ID"
+    echo "MAA_ADDR: $MAA_ADDR"
+    echo "MAA_ADDR_APP: $MAA_ADDR_APP"
 
 # If openenclave is not installed, install it
 if [[ ! -d "/opt/openenclave" ]]; then

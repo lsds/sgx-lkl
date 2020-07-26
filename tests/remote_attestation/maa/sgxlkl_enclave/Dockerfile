@@ -2,6 +2,8 @@ FROM alpine:3.10
 
 ARG UID
 ARG GID
+ARG MAACLIENTID
+ARG MAACLIENTSECRET
 
 USER root
 
@@ -22,6 +24,8 @@ ADD /sgxlkl_private_key.pem /sgxlkl_private_key.pem
 ADD /environment /etc/environment
 
 ENV PS1="\[\033[31;40;1m\][\u@\h]\[\033[32;40;1m\] \W\[\033[33;40;1m\]>\[\033[0m\]"
+ENV MAA_CLIENT_ID=$MAACLIENTID
+ENV MAA_CLIENT_SECRET=$MAACLIENTSECRET
 
 # Start from a Bash prompt
 CMD ["/bin/bash"]
