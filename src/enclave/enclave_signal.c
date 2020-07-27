@@ -140,6 +140,23 @@ static uint64_t sgxlkl_enclave_signal_handler(
         return OE_EXCEPTION_CONTINUE_EXECUTION;
     }
 
+    /**
+     * Only expose #PF to application signal handler if we permit unsafe host
+     * signals with SGX1.
+     *
+     * With SGX1, there is otherwise no way for the enclave to check if an
+     * in-enclave page fault has actually occured. (For other types of
+     * exceptions, EXITINFO contains trusted execption information inside the
+     * enclave.)
+     */
+    if (exception_record->code == OE_EXCEPTION_PAGE_FAULT &&
+        !sgxlkl_enclave_state.config->unsafe_host_signals)
+    {
+        sgxlkl_fail(
+            "Page fault exception received, but unsafe host signals "
+            "are not permitted. Aborting enclave.\n");
+    }
+
     memset(&trap_info, 0, sizeof(trap_info));
     ret = get_trap_details(exception_record->code, &trap_info);
     if (ret != -1)
@@ -201,11 +218,15 @@ static uint64_t sgxlkl_enclave_signal_handler(
         info.si_errno = 0;
         info.si_code = exception_record->code;
 
-        // Return faulting address for segfaults. This code should be
-        // generalised to handle all types of exceptions.
+        // Return the faulting address for segfaults.
         if (exception_record->code == OE_EXCEPTION_PAGE_FAULT)
         {
-            info.si_addr = (void*)exception_record->address;
+            /**
+             * With SGX1, we cannot obtain the actual address that resulted
+             * in the page fault inside the enclave. As a workaround, we
+             * report it as 0x0 to the application signal handler.
+             */
+            info.si_addr = (void*) (sgxlkl_enclave_state.config->mode == SW_DEBUG_MODE ? exception_record->address : 0x0);
         }
         else
         {
