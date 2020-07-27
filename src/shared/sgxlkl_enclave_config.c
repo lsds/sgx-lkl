@@ -373,6 +373,7 @@ static json_result_t json_read_callback(
             JPATHT("mode", JSON_TYPE_STRING, {
                 cfg->mode = string_to_sgxlkl_enclave_mode_t(un->string);
             });
+            JBOOL("unsafe_host_signals", cfg->unsafe_host_signals);
             JBOOL("fsgsbase", cfg->fsgsbase);
             JBOOL("verbose", cfg->verbose);
             JBOOL("kernel_verbose", cfg->kernel_verbose);

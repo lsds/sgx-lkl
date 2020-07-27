@@ -841,7 +841,7 @@ void set_tls(bool have_enclave_config)
         assert(econf->mode == SW_DEBUG_MODE);
         if (have_enclave_config && econf->fsgsbase != 0)
             sgxlkl_host_warn("disabling fsgsbase in sw-debug mode, despite it "
-                             "being enabled in enclave config.");
+                             "being enabled in enclave config.\n");
         econf->fsgsbase = 0;
     }
 
@@ -1169,6 +1169,8 @@ static void sgxlkl_sw_mode_signal_handler(
         case SIGTRAP:
             oe_code = OE_EXCEPTION_BREAKPOINT;
             break;
+        default:
+            sgxlkl_host_fail("Unknown signal received by host\n");
     }
 
     oe_exception_record.code = oe_code;
@@ -1458,6 +1460,9 @@ void override_enclave_config(
 
     if (sgxlkl_config_overridden(SGXLKL_ESLEEP))
         econf->esleep = sgxlkl_config_uint64(SGXLKL_ESLEEP);
+
+    if (sgxlkl_config_overridden(SGXLKL_UNSAFE_HOST_SIGNALS))
+        econf->unsafe_host_signals = sgxlkl_config_bool(SGXLKL_UNSAFE_HOST_SIGNALS);
 
     if (sgxlkl_config_overridden(SGXLKL_VERBOSE))
         econf->verbose = sgxlkl_config_bool(SGXLKL_VERBOSE);
