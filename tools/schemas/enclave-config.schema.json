@@ -454,7 +454,7 @@
         },
         "unsafe_host_signals": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Whether to expose signals (e.g., SIGSEGV) from the host, which cannot be validated by SGX1 enclaves."
         },
         "verbose": {
