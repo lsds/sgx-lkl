@@ -681,13 +681,13 @@ static void *host_malloc(size_t size)
 	{
 		SGXLKL_ASSERT(kernel_mem == NULL);
 		kernel_mem = enclave_mmap(0, size, 0, PROT_READ | PROT_WRITE, 0);
-        if (kernel_mem < 0)
+        /*if (kernel_mem < 0)
         {
             // unable to mmap memory. return NULL that malloc returns on
             // failure
 
             return NULL;
-        }
+        }*/
 		kernel_mem_size = size;
 		return kernel_mem;
 	}
