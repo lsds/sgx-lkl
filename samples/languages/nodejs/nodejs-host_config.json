@@ -3,7 +3,5 @@
         "image_path": "nodejs.img"
     },
 
-    "tap_device": "sgxlkl_tap0",
-
     "verbose": false
 } 

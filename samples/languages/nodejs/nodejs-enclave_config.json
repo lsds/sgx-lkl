@@ -1,7 +1,7 @@
 {
     "args": [
       "/usr/bin/node"
-      "app/cpubench.js"
+      "/app/cpubench.js"
     ],
 
     "ethreads": "8",
@@ -9,6 +9,8 @@
     "image_sizes": {
       "num_heap_pages": 262144
     },
+
+    "mmap_files": "shared",
 
     "verbose": false
   } 

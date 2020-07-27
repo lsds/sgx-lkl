@@ -13,8 +13,5 @@ $ sgx-lkl-disk create --docker=nodejs --size=100M nodejs.img
 
 3. Run NodeJS demo program with SGX-LKL:
 ```
-$ SGXLKL_MMAP_FILES=Shared sgx-lkl-run-oe --sw-debug --host-config=nodejs-host_config.json --enclave-config=nodejs-enclave_config.json 
+$ sgx-lkl-run-oe --sw-debug --host-config=nodejs-host_config.json --enclave-config=nodejs-enclave_config.json
 ```
-
-Notes
------
