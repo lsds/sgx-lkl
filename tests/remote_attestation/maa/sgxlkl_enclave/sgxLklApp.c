@@ -3,8 +3,6 @@
 
   1) Establishing a trusted channel with oe_enclave via clientAgent;
   2) Doing remote attestation against MAA. sgxlkl_enclave attests oe_enclave  
-  3) Accepting dummy command from oe_enclave;
-  4) Sending dummy command result to oe_enclave;
 
  **************************************************************************/
 

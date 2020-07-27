@@ -4,8 +4,6 @@
   This module mainly interacts with OE_ENCLAVE. It is responsible for:
 
   1) Establishing a trusted channel with oe_enclave;
-  2) Receiving queries from oe enclave;
-  3) Returning query results back to oe_enclave;
  **************************************************************************/
 #include <stdlib.h>
 #include <string.h>
