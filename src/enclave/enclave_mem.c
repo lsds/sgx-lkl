@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -107,6 +108,7 @@ long syscall_SYS_mmap(
     if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE))
     {
         sgxlkl_warn("mmap() with MAP_SHARED and MAP_PRIVATE not supported\n");
+        errno = EINVAL;
         return -EINVAL;
     }
     // Anonymous mapping/allocation
@@ -130,6 +132,7 @@ long syscall_SYS_mmap(
             if(r < 0)
             {
                 enclave_munmap(addr, length);
+                errno = EACCES;
                 return -EACCES;
             }
 
@@ -142,6 +145,7 @@ long syscall_SYS_mmap(
     }
     else
     {
+        errno = EINVAL;
         return -EINVAL;
     }
 }
@@ -272,6 +276,7 @@ void* enclave_mmap(
     // Make sure addr is page aligned and size is greater than 0
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0)
     {
+        errno = EINVAL;
         return (void*)-EINVAL;
     }
 
@@ -283,6 +288,7 @@ void* enclave_mmap(
     {
         if (!in_mmap_range(addr, length))
         {
+            errno = ENOMEM;
             ret = (void*)-ENOMEM;
         }
         else
@@ -322,6 +328,7 @@ void* enclave_mmap(
             bitmap_find_next_zero_area(mmap_bitmap, mmap_num_pages, 0, pages);
         if (index_top + pages > mmap_num_pages)
         {
+            errno = ENOMEM;
             ret = (void*)-ENOMEM;
         }
         else
@@ -333,7 +340,7 @@ void* enclave_mmap(
     }
 
     // Was there a successful allocation?
-    if (ret >= 0)
+    if (((intptr_t)ret) >= 0)
     {
         int found_only_fresh_pages = 0;
 
@@ -402,7 +409,7 @@ void* enclave_mmap(
             mmap_max_allocated = used;
         }
         char* mfixed = mmap_fixed ? " (MAP_FIXED)" : "";
-        char* rv = ret < 0 ? " (FAILED)" : "";
+        char* rv = (((intptr_t)ret) < 0) ? " (FAILED)" : "";
         SGXLKL_TRACE_MMAP(
             "mmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: "
             "%8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n",
@@ -432,6 +439,7 @@ int enclave_munmap(void* addr, size_t length)
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0 ||
         !in_mmap_range(addr, length))
     {
+        errno = EINVAL;
         return -EINVAL;
     }
 
@@ -485,11 +493,12 @@ void* enclave_mremap(
 
     if (mremap_fixed)
     {
+        errno = EINVAL;
         return (void*)-EINVAL;
     }
 
     void* ret = enclave_mmap(new_addr, new_length, 0, -1, 0);
-    if (ret >= 0)
+    if (((intptr_t)ret) >= 0)
     {
         memcpy(
             ret, old_addr, old_length > new_length ? new_length : old_length);
