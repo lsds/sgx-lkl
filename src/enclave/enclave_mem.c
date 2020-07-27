@@ -130,7 +130,7 @@ long syscall_SYS_mmap(
             if(r < 0)
             {
                 enclave_munmap(addr, length);
-                return r;
+                return -EACCES;
             }
 
             // Set requested page permissions
