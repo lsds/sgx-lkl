@@ -1,0 +1,31 @@
++ Created and deleted temporary directories with root permissions as tests were failing
++ to create directories using nobody.
+diff --git a/testcases/kernel/syscalls/fchown/fchown03.c b/testcases/kernel/syscalls/fchown/fchown03.c
+index f7fe994fd..7d70645e8 100644
+--- a/testcases/kernel/syscalls/fchown/fchown03.c
++++ b/testcases/kernel/syscalls/fchown/fchown03.c
+@@ -112,12 +112,14 @@ static void setup(void)
+
+        tst_require_root();
+
++       tst_tmpdir(); // TODO: Will be removed once fixing git issue :357
++
+        ltpuser = SAFE_GETPWNAM(cleanup, nobody_uid);
+        SAFE_SETEUID(NULL, ltpuser->pw_uid);
+
+        TEST_PAUSE;
+
+-       tst_tmpdir();
++//     tst_tmpdir(); // TODO: Will be enabled once fixing git issue :236
+
+        fildes = SAFE_OPEN(cleanup, TESTFILE, O_RDWR | O_CREAT, FILE_MODE);
+
+@@ -135,5 +137,7 @@ static void cleanup(void)
+        if (fildes > 0 && close(fildes))
+                tst_resm(TWARN | TERRNO, "close(%s) Failed", TESTFILE);
+
++       tst_require_root(); // TODO: Will be removed once fixing git issue :357
++
+        tst_rmdir();
+ }
+
