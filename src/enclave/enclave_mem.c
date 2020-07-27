@@ -119,12 +119,18 @@ long syscall_SYS_mmap(
     {
         void* mem =
             enclave_mmap(addr, length, flags & MAP_FIXED, prot | PROT_WRITE, 0);
+
         if (mem > 0)
         {
-            if(pread(fd, mem, length, offset) < 0)
+            // TODO:
+            // handle reading less than length
+            // handle EOF before length is read
+            size_t r = pread(fd, mem, length, offset);
+
+            if(r < 0)
             {
                 enclave_munmap(addr, length);
-                return -EACCES;
+                return r;
             }
 
             // Set requested page permissions
