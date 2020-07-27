@@ -9,6 +9,11 @@ Hence, the below modifications are performed.
 	   the thread library of sgx-lkl-musl.
 	4. Removed pipe handling code which is used for
 	   interprocess communication between parent and child.
+	5. uClinux code is removed because exec is the problem.
+	6. Issue #598 is raised to support the loading of regular
+	   ELF binaries on a non-MMU architecture. This patch
+	   needs to be removed/reverted once Github issue #598
+	   is fixed.
 diff --git a/testcases/kernel/syscalls/sigrelse/sigrelse01.c b/testcases/kernel/syscalls/sigrelse/sigrelse01.c
 index 38086caa7..61915f008 100644
 --- a/testcases/kernel/syscalls/sigrelse/sigrelse01.c
