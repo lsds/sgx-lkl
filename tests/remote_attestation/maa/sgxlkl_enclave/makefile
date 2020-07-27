@@ -22,10 +22,7 @@ alpine-binaries: alpine-container
 
 lkl-image: alpine-binaries
 	rm -rf sgxlkl-image.img
-	@echo "sgxlkl_enclave.makefile-MAA_CLIENT_ID: $(MAA_CLIENT_ID)"
-	@echo "sgxlkl_enclave.makefile-MAA_CLIENT_SECRET: $(MAA_CLIENT_SECRET)"
-	docker build --build-arg MAACLIENTID=$(MAA_CLIENT_ID) --build-arg MAACLIENTSECRET=$(MAA_CLIENT_SECRET) -t sgxlkl-app:dev .
-	$(SGXLKL_BIN_ROOT)/sgx-lkl-disk create --size=100M --docker=sgxlkl-app:dev sgxlkl-image.img
+	$(SGXLKL_BIN_ROOT)/sgx-lkl-disk create --size=100M --docker=./Dockerfile sgxlkl-image.img
 
 # This runs sgxlkl_enclave app inside enclave with SGX-LKL
 lkl-run:

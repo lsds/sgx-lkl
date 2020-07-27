@@ -29,8 +29,6 @@ int main(int argc, char **argv) {
     // Read credentials for attestation from env variables
     clientID = getenv("MAA_CLIENT_ID");
     clientSecret = getenv("MAA_CLIENT_SECRET");
-    //TODO: Remove
-    printf("sgxLklApp: %s, %s\n", clientID, clientSecret);
 
     if (clientID == NULL || clientSecret == NULL) {
         fprintf(stderr, "sgxLklApp: Lack the credential(s) to run. "\
