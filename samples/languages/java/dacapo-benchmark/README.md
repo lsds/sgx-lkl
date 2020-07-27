@@ -18,7 +18,7 @@ $ sgx-lkl-disk create --docker=java-dacapo --size=500M java-dacapo.img
 avrora batik eclipse fop h2 jython luindex lusearch lusearch-fix pmd sunflow tomcat tradebeans tradesoap xalan
 ```
 
-By default, the benchmark `h2` is run. The enclave size is 2 GiB.
+By default, the benchmark `avrora` is run. The enclave size is 2 GiB.
 
 4. Run the benchmark with SGX-LKL:
 ```
@@ -28,10 +28,12 @@ $ sgx-lkl-run-oe --hw-debug --host-config=java-dacapo-host_config.json --enclave
 Notes
 -----
 
-- Currently the follwing benchmarks are passing/failing:
+- Currently the following benchmarks are passing/failing:
 
-  - PASSING: avrora fop h2 luindex pmd sunflow xalan
-  - FAILING: batik (doesn't work with OpenJDK) eclipse (doesn't work with OpenJDK) jython (illegal instruction) lusearch-fix (segfault) tomcat (networking issue) tradebeans (networking issue) tradesoap (networking issue)
+  - PASSING: avrora fop h2 [sw only] luindex pmd sunflow xalan
+  - FAILING: batik [OpenJDK unsupported] eclipse [OpenJDK unsupported] jython [illegal instruction] lusearch-fix [segfault] tomcat [networking issue] tradebeans [networking issue] tradesoap [networking issue]
+
+Some of the benchmarks are affected by the fact that, with SGX1, signal handling support inside SGX enclaves is limited, as documented [here](https://github.com/lsds/sgx-lkl/blob/oe_port/docs/Incompatibilities.md).
 
 - When running multiple benchmarks in sequence, ensure that the root file system image has not been corrupted after a failed benchmark run.
 

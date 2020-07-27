@@ -12,7 +12,7 @@
     "-Dsun.zip.disableMemoryMapping=true",
     "-jar",
     "/dacapo/dacapo-9.12-MR1-bach.jar",
-    "h2"
+    "avrora"
   ],
 
   "env": [
@@ -26,6 +26,8 @@
   },
 
   "mmap_files": "shared",
+
+  "unsafe_host_signals": true,
 
   "verbose": true
 }
