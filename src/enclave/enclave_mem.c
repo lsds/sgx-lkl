@@ -125,10 +125,11 @@ long syscall_SYS_mmap(
             // TODO:
             // handle reading less than length
             // handle EOF before length is read
-            size_t r = pread(fd, mem, length, offset);
+            ssize_t r = pread(fd, mem, length, offset);
 
-            if(r < 0)
+            if (r < 0)
             {
+                oe_host_printf("A3: returning\n");
                 enclave_munmap(addr, length);
                 return -EACCES;
             }
