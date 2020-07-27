@@ -110,6 +110,12 @@ All of the Linux clocks are driven from the monotonic counter, so anything depen
 Additionally, the time exposed in the enclave is untrusted.
 The enclave may communicate with an external trusted time source but that can give only a lower bound on the current time: a malicious host could cause the enclave to sleep for an unbounded amount of time.
 
+### Limited signal handling
+
+With SGX1, signals such as `SIGSEGV` must be reported by the untrusted host and cannot be independently validated by the enclave.
+In addition, the address that resulted in a page fault cannot be obtained at all, and an application signal handler inside the enclave therefore always reports the faulting address as 0x0.
+(The enclave configuration setting `unsafe_host_signals` can be used to control if SGX-LKL exposes untrusted signals from the host to the enclave.)
+
 Summary of security implications
 --------------------------------
 
