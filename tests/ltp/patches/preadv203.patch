@@ -1,7 +1,7 @@
 + Patch Description: Tests were failing with kernel panic in loop device.
 + So modified the tests to use root filesystem.
 diff --git a/testcases/kernel/syscalls/preadv2/preadv203.c b/testcases/kernel/syscalls/preadv2/preadv203.c
-index 91618f5f5..a8c468e66 100644
+index 91618f5f5..f133c8092 100644
 --- a/testcases/kernel/syscalls/preadv2/preadv203.c
 +++ b/testcases/kernel/syscalls/preadv2/preadv203.c
 @@ -240,6 +240,8 @@ static void check_preadv2_nowait(int fd)
@@ -13,15 +13,25 @@ index 91618f5f5..a8c468e66 100644
         char path[1024];
         char buf[CHUNK_SZ];
         unsigned int i;
-@@ -268,6 +270,7 @@ static void do_cleanup(void)
-                if (fds[i] > 0)
+@@ -263,11 +265,15 @@ static void setup(void)
+ static void do_cleanup(void)
+ {
+        unsigned int i;
+-
++       char path[1024];
+        for (i = 0; i < FILES; i++) {
+-               if (fds[i] > 0)
++               snprintf(path, sizeof(path), MNTPOINT"/file_%i", i);
++               if (fds[i] > 0)
                         SAFE_CLOSE(fds[i]);
++               remove(path);
         }
++
 +       SAFE_RMDIR(MNTPOINT);
  }
 
  TST_DECLARE_ONCE_FN(cleanup, do_cleanup);
-@@ -276,9 +279,5 @@ static struct tst_test test = {
+@@ -276,9 +282,5 @@ static struct tst_test test = {
         .setup = setup,
         .cleanup = cleanup,
         .test_all = verify_preadv2,
