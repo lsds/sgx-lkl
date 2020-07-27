@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -108,7 +107,6 @@ long syscall_SYS_mmap(
     if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE))
     {
         sgxlkl_warn("mmap() with MAP_SHARED and MAP_PRIVATE not supported\n");
-        errno = EINVAL;
         return -EINVAL;
     }
     // Anonymous mapping/allocation
@@ -132,7 +130,6 @@ long syscall_SYS_mmap(
             if(r < 0)
             {
                 enclave_munmap(addr, length);
-                errno = EACCES;
                 return -EACCES;
             }
 
@@ -145,7 +142,6 @@ long syscall_SYS_mmap(
     }
     else
     {
-        errno = EINVAL;
         return -EINVAL;
     }
 }
@@ -276,7 +272,6 @@ void* enclave_mmap(
     // Make sure addr is page aligned and size is greater than 0
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0)
     {
-        errno = EINVAL;
         return (void*)-EINVAL;
     }
 
@@ -288,7 +283,6 @@ void* enclave_mmap(
     {
         if (!in_mmap_range(addr, length))
         {
-            errno = ENOMEM;
             ret = (void*)-ENOMEM;
         }
         else
@@ -328,7 +322,6 @@ void* enclave_mmap(
             bitmap_find_next_zero_area(mmap_bitmap, mmap_num_pages, 0, pages);
         if (index_top + pages > mmap_num_pages)
         {
-            errno = ENOMEM;
             ret = (void*)-ENOMEM;
         }
         else
@@ -439,7 +432,6 @@ int enclave_munmap(void* addr, size_t length)
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0 ||
         !in_mmap_range(addr, length))
     {
-        errno = EINVAL;
         return -EINVAL;
     }
 
@@ -493,7 +485,6 @@ void* enclave_mremap(
 
     if (mremap_fixed)
     {
-        errno = EINVAL;
         return (void*)-EINVAL;
     }
 
