@@ -145,8 +145,8 @@ static uint64_t sgxlkl_enclave_signal_handler(
      * signals with SGX1.
      *
      * With SGX1, there is otherwise no way for the enclave to check if an
-     * in-enclave page fault has actually occured. (For other types of
-     * exceptions, EXITINFO contains trusted execption information inside the
+     * in-enclave page fault has actually ocurred. (For other types of
+     * exceptions, EXITINFO contains trusted exception information inside the
      * enclave.)
      */
     if (exception_record->code == OE_EXCEPTION_PAGE_FAULT &&
