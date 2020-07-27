@@ -46,8 +46,8 @@ int main(int argc, const char* argv[])
         goto exit;
     }
 
-    // Sleep 45 seconds to give time to sgxlkl enclave app to start up and connect
-    sleep(45);
+    // Sleep 120 seconds to give time to sgxlkl enclave app to start up and connect
+    sleep(120);
 
 exit:
    if (enclave)
