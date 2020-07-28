@@ -1,8 +1,7 @@
 .PHONY: all build clean alpine-container alpine-binaries lkl-image lkl-run
 
-COMMONS="../common"
 SGXLKL_BIN_ROOT="$(SGXLKL_PREFIX)/bin"
-BUILD_DIR="/src/sgxlkl_enclave"
+BUILD_DIR="/src/maa/sgxlkl_enclave"
 SGXLKLAPP_COMMON="/src/common"
 
 build-alpine-exe = sudo gcc -g -o $(BUILD_DIR)/alpine_sgxLklApp -fshort-wchar $(BUILD_DIR)/sgxLklApp.c $(BUILD_DIR)/clientAgent_init.c $(BUILD_DIR)/tlscli.c $(SGXLKLAPP_COMMON)/log_utils.c $(SGXLKLAPP_COMMON)/auth.cpp $(SGXLKLAPP_COMMON)/maa.cpp $(SGXLKLAPP_COMMON)/transport_utils.c $(SGXLKLAPP_COMMON)/curl_helper.cpp $(SGXLKLAPP_COMMON)/json_utils.c $(BUILD_DIR)/oe_private/verify_cert.c $(BUILD_DIR)/oe_private/cert.c -lmbedtls -lmbedx509 -lmbedcrypto -ldl -lcurl
@@ -17,7 +16,7 @@ alpine-container:
 	docker build -t alpine3.10.build ./alpine
 
 alpine-binaries: alpine-container
-	docker run --rm  -v $(CURDIR)/..:/src alpine3.10.build bash -c "$(build-alpine-exe)"
+	docker run --rm  -v $(CURDIR)/../..:/src alpine3.10.build bash -c "$(build-alpine-exe)"
 	sudo chown $(USER):$(GROUP) alpine_sgxLklApp
 
 lkl-image: alpine-binaries

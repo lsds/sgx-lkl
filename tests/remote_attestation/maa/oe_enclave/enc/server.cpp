@@ -18,8 +18,8 @@
 #include <assert.h>
 #include <sys/socket.h>
 #include <map>
-#include "../../common/log_utils.h"
-#include "../../common/transport_utils.h"
+#include "../../../common/log_utils.h"
+#include "../../../common/transport_utils.h"
 #include "tlssrv.h"
 #include "oeApp_t.h"
 

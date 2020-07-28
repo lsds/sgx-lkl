@@ -10,10 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../common/maa.h"
-#include "../../common/json_utils.h"
-#include "../../common/log_utils.h"
-#include "../../common/transport_utils.h"
+#include "../../../common/maa.h"
+#include "../../../common/json_utils.h"
+#include "../../../common/log_utils.h"
+#include "../../../common/transport_utils.h"
 #include "../oe_public/host_verify.h"
 #include "oe_defs.h"
 

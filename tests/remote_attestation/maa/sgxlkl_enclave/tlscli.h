@@ -36,12 +36,4 @@ int tlscli_connect(
 
 int tlscli_destroy(tlscli_t* cli, tlscli_err_t* err);
 
-int tlscli_read(tlscli_t* cli, void* data, size_t size, tlscli_err_t* err);
-
-int tlscli_write(
-    tlscli_t* cli,
-    const void* data,
-    size_t size,
-    tlscli_err_t* err);
-
 #endif /* _TLSCLI_H */

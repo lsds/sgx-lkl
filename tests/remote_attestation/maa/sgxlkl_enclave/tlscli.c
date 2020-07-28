@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "../common/log_utils.h"
+#include "../../common/log_utils.h"
 #include "oe_private/verify_cert.h"
 
 #define DEBUG_LEVEL 1
@@ -420,112 +420,6 @@ done:
         mbedtls_pk_free(&cli->pk);
         free(cli);
     }
-
-    return ret;
-}
-
-int tlscli_read(tlscli_t* cli, void* data, size_t size, tlscli_err_t* err)
-{
-    int ret = -1;
-    int r;
-
-    _clear_err(err);
-
-    if (!cli)
-    {
-        _put_err(err, "invalid cli parameter");
-        goto done;
-    }
-
-    if (!data)
-    {
-        _put_err(err, "invalid data parameter");
-        goto done;
-    }
-
-    if (!size)
-    {
-        _put_err(err, "invalid size parameter");
-        goto done;
-    }
-
-    for (;;)
-    {
-        memset(data, 0, size);
-        r = mbedtls_ssl_read(&cli->ssl, data, size);
-
-        if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE)
-        {
-            continue;
-        }
-
-        if (r <= 0)
-        {
-            _put_mbedtls_err(err, r, "mbedtls_ssl_read");
-            ret = r;
-            goto done;
-        }
-
-        /* Save number of bytes read */
-        ret = r;
-        break;
-    }
-
-done:
-
-    return ret;
-}
-
-int tlscli_write(
-    tlscli_t* cli,
-    const void* data,
-    size_t size,
-    tlscli_err_t* err)
-{
-    int ret = -1;
-    int r;
-
-    _clear_err(err);
-
-    if (!cli)
-    {
-        _put_err(err, "invalid cli parameter");
-        goto done;
-    }
-
-    if (!data)
-    {
-        _put_err(err, "invalid data parameter");
-        goto done;
-    }
-
-    if (!size)
-    {
-        _put_err(err, "invalid size parameter");
-        goto done;
-    }
-
-    for (;;)
-    {
-        r = mbedtls_ssl_write(&cli->ssl, data, size);
-
-        if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE)
-        {
-            continue;
-        }
-
-        if (r <= 0)
-        {
-            _put_mbedtls_err(err, r, "mbedtls_ssl_write");
-            ret = r;
-            goto done;
-        }
-
-        ret = r;
-        break;
-    }
-
-done:
 
     return ret;
 }
