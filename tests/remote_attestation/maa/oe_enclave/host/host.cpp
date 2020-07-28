@@ -1,5 +1,6 @@
 #include <openenclave/host.h>
 #include <stdio.h>
+#include <string.h>
 #include <pthread.h>
 #include <unistd.h>
 #include "oeApp_u.h"
@@ -15,20 +16,22 @@ int main(int argc, const char* argv[])
     int ret = 0;
     int ecall_ret = -1;
     const char* enclave_path = NULL;
+    const char* run_mode = NULL;
 
     /* Check argument count */
-    if (argc != 2) {
-        printf("Usage: %s OEAPP_ENCLAVE_PATH\n", argv[0]);
+    if (argc != 3) {
+        printf("Usage: %s OEAPP_ENCLAVE_PATH RUN_MODE\n", argv[0]);
         return 1;
     }
 
     enclave_path = argv[1];
-    printf("Host: Enclave path = %s, server port = %s\n", enclave_path, SERVER_PORT);
+    run_mode = argv[2];
+    printf("Host: Enclave path = %s, Run mode = %s, server port = %s\n", enclave_path, run_mode, SERVER_PORT);
 
     result = oe_create_oeApp_enclave(
         enclave_path,
         OE_ENCLAVE_TYPE_SGX,
-        OE_ENCLAVE_FLAG_DEBUG,
+        strcmp(run_mode, "sw") == 0 ? OE_ENCLAVE_FLAG_DEBUG | OE_ENCLAVE_FLAG_SIMULATE : OE_ENCLAVE_FLAG_DEBUG,
         NULL,
         0,
         &enclave);
