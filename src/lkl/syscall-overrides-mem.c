@@ -61,7 +61,7 @@ long syscall_SYS_mmap(
             // Read file into memory
             size_t readb = 0;
             ssize_t ret = 0;
-            while ((ret = pread_fn(
+            while ((ret = pread(
                         fd, ((char*)mem) + readb, length - readb, offset)) > 0)
             {
                 readb += ret;
