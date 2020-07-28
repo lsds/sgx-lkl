@@ -3,6 +3,7 @@
 #include "enclave/enclave_util.h"
 #include "lkl/posix-host.h"
 #include "lkl/syscall-overrides-fstat.h"
+#include "lkl/syscall-overrides-mem.h"
 #include "lkl/syscall-overrides-sysinfo.h"
 
 /**
@@ -251,4 +252,9 @@ void register_lkl_syscall_overrides()
         __lkl__NR##name, (lkl_syscall_handler_t)unsupported##name);
 #include "unsupported-syscalls.h"
     }
+
+    // Register overrides for the memory management functions.
+    // These are internal - use the trace versions if we are doing internal
+    // syscall tracing.
+    syscall_register_mem_overrides();
 }
