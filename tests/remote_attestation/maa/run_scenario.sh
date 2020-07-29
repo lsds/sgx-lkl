@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # In this scenario we have two enclaves: sgxlkl_enclave and oe_enclave. 
-# oe_enclave is the tls server and runs and waits 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds 120 seconds for connection from sgxlkl_enclave.
+# oe_enclave is the tls server and runs and waits 120 seconds 
 # sgxlkl_enclave starts and connects to oe_enclave
 # sgxlkl_enclave gets the report from oe_enclave and then gets authentication token from AAD
 # sgxlkl_enclave calls MAA for JWT token and gets, parses and verifies it 
@@ -17,8 +17,6 @@ if [[ -z $SGXLKL_PREFIX || -z $SGXLKL_ROOT || -z $SGXLKL_RUN_MODE || -z $MAA_CLI
     echo "SGXLKL_RUN_MODE: $SGXLKL_RUN_MODE"
     exit 1
 fi
-
-export SGXLKL_HOST_IMPORT_ENV="MAA_CLIENT_ID,MAA_CLIENT_SECRET,MAA_APP_ID,MAA_ADDR,MAA_ADDR_APP"
 
 # If openenclave is not installed, install it
 if [[ ! -d "/opt/openenclave" ]]; then

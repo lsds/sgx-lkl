@@ -1,0 +1,13 @@
+{
+    "args": [
+        "sgxLklApp",
+        "classic"
+    ],
+    "host_import_env": [
+        "MAA_CLIENT_ID",
+	"MAA_CLIENT_SECRET",
+	"MAA_APP_ID",
+	"MAA_ADDR",
+	"MAA_ADDR_APP"
+    ]
+}
