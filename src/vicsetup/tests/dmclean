@@ -1,0 +1,8 @@
+#!/bin/bash
+files=$(/bin/ls /dev/mapper/* | grep -v control)
+for i in ${files}
+do
+    dmsetup remove "$i" 2> /dev/null > /dev/null
+done
+
+losetup -D
