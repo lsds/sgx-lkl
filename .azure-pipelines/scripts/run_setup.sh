@@ -1,5 +1,4 @@
 #!/bin/bash
 
-# Set up host networking and FSGSBASE userspace support
-make -C "$SGXLKL_ROOT/tools/kmod-set-fsgsbase"
+# Set up host networking
 "$SGXLKL_ROOT/tools/sgx-lkl-setup"

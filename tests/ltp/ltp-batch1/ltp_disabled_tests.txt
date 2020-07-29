@@ -40,7 +40,7 @@
 /ltp/testcases/kernel/syscalls/chmod/chmod03
 /ltp/testcases/kernel/syscalls/chmod/chmod04
 #/ltp/testcases/kernel/syscalls/chmod/chmod05
-/ltp/testcases/kernel/syscalls/chmod/chmod06
+#/ltp/testcases/kernel/syscalls/chmod/chmod06
 #/ltp/testcases/kernel/syscalls/chmod/chmod07
 #/ltp/testcases/kernel/syscalls/chown/chown01
 #/ltp/testcases/kernel/syscalls/chown/chown02
@@ -48,7 +48,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown04
 #/ltp/testcases/kernel/syscalls/chown/chown05
 /ltp/testcases/kernel/syscalls/chroot/chroot01
-/ltp/testcases/kernel/syscalls/chroot/chroot02
+#/ltp/testcases/kernel/syscalls/chroot/chroot02
 #/ltp/testcases/kernel/syscalls/chroot/chroot03
 #/ltp/testcases/kernel/syscalls/chroot/chroot04
 #/ltp/testcases/kernel/syscalls/clock_adjtime/clock_adjtime01
@@ -86,7 +86,7 @@
 #/ltp/testcases/kernel/syscalls/creat/creat03
 #/ltp/testcases/kernel/syscalls/creat/creat04
 #/ltp/testcases/kernel/syscalls/creat/creat05
-/ltp/testcases/kernel/syscalls/creat/creat06
+#/ltp/testcases/kernel/syscalls/creat/creat06
 /ltp/testcases/kernel/syscalls/creat/creat07
 /ltp/testcases/kernel/syscalls/creat/creat07_child
 #/ltp/testcases/kernel/syscalls/creat/creat08
@@ -152,8 +152,8 @@
 /ltp/testcases/kernel/syscalls/fallocate/fallocate01
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate02
 /ltp/testcases/kernel/syscalls/fallocate/fallocate03
-/ltp/testcases/kernel/syscalls/fallocate/fallocate04
-/ltp/testcases/kernel/syscalls/fallocate/fallocate05
+#/ltp/testcases/kernel/syscalls/fallocate/fallocate04
+#/ltp/testcases/kernel/syscalls/fallocate/fallocate05
 /ltp/testcases/kernel/syscalls/fanotify/fanotify01
 /ltp/testcases/kernel/syscalls/fanotify/fanotify02
 /ltp/testcases/kernel/syscalls/fanotify/fanotify03
@@ -525,7 +525,7 @@
 #/ltp/testcases/kernel/syscalls/mknod/mknod04
 #/ltp/testcases/kernel/syscalls/mknod/mknod05
 #/ltp/testcases/kernel/syscalls/mknod/mknod06
-/ltp/testcases/kernel/syscalls/mknod/mknod07
+#/ltp/testcases/kernel/syscalls/mknod/mknod07
 #/ltp/testcases/kernel/syscalls/mknod/mknod08
 #/ltp/testcases/kernel/syscalls/mknod/mknod09
 #/ltp/testcases/kernel/syscalls/mknodat/mknodat01
@@ -977,8 +977,8 @@
 /ltp/testcases/kernel/syscalls/timer_delete/timer_delete02
 /ltp/testcases/kernel/syscalls/timer_getoverrun/timer_getoverrun01
 #/ltp/testcases/kernel/syscalls/timer_gettime/timer_gettime01
-/ltp/testcases/kernel/syscalls/timer_settime/timer_settime01
-/ltp/testcases/kernel/syscalls/timer_settime/timer_settime02
+#/ltp/testcases/kernel/syscalls/timer_settime/timer_settime01
+#/ltp/testcases/kernel/syscalls/timer_settime/timer_settime02
 /ltp/testcases/kernel/syscalls/timerfd/timerfd01
 /ltp/testcases/kernel/syscalls/timerfd/timerfd02
 /ltp/testcases/kernel/syscalls/timerfd/timerfd03

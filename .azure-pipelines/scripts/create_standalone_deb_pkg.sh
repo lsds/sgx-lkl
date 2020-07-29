@@ -81,9 +81,6 @@ mkdir -p "$deb_install_prefix"
 # Copy installation prefix into Debian package tree.
 cp -r "$SGXLKL_PREFIX/." "$deb_install_prefix"
 
-# Remove FSGSBASE kernel module as this should be installed via the DKMS Debian package.
-rm -rf "$deb_install_prefix/tools/kmod-set-fsgsbase"
-
 # Bundle all dependencies.
 SGXLKL_PREFIX=$deb_install_prefix SGXLKL_TARGET_PREFIX=$install_prefix \
     "$SGXLKL_ROOT/scripts/make_self_contained.sh"

@@ -5,7 +5,6 @@
 mode=$1
 test_directory=$2
 
-LTP_GIT_TAG="20190930"
 
 
 if [ -z "$test_directory" ]; then
@@ -33,7 +32,7 @@ if [[ "$mode" == "build" ]]; then
 
     # Get the LTP source code
     echo "Cloning https://github.com/linux-test-project/ltp.git"
-    git clone https://github.com/linux-test-project/ltp.git
+    git clone --branch sgx-lkl https://github.com/lsds/ltp.git
     cd /ltp
     pwd=$(pwd)
     c_binaries_list_file_tmp="/$pwd/.c_binaries_list.tmp"
@@ -41,12 +40,7 @@ if [[ "$mode" == "build" ]]; then
     rm -rf "$c_binaries_list_file"
     touch "$c_binaries_list_file"
 
-    git checkout $LTP_GIT_TAG
  
-    echo "Apply the sgxlkl specific patches..." 
-    git apply --verbose  --ignore-whitespace ../patches/*.patch
-
-    
     echo "Running make clean..."
     make autotools
     ./configure

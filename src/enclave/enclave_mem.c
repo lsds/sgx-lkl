@@ -9,11 +9,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "shared/bitops.h"
 #include "shared/sgxlkl_enclave_config.h"
 
-#include <enclave/lthread.h>
-
+#include "enclave/bitops.h"
+#include "enclave/lthread.h"
 #include "enclave/enclave_mem.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread_int.h"
@@ -181,8 +180,8 @@ int syscall_SYS_munmap(void* addr, size_t length)
         lt->attr.stack_size = length;
         return 0;
     }
-    enclave_munmap(addr, length);
-    return 0;
+
+    return enclave_munmap(addr, length);
 }
 
 int syscall_SYS_msync(void* addr, size_t length, int flags)
@@ -443,8 +442,7 @@ int enclave_munmap(void* addr, size_t length)
     if ((uintptr_t)addr % PAGE_SIZE != 0 || length == 0 ||
         !in_mmap_range(addr, length))
     {
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
 
     size_t index = addr_to_index(addr);

@@ -18,6 +18,9 @@ if [ -z "$SGXLKL_BUILD_MODE" ]; then
     echo "ERROR: 'SGXLKL_BUILD_MODE' is undefined. Please export SGXLKL_BUILD_MODE=<mode>"
     exit 1
 fi
+if [ -z "$SGXLKL_NIGHTLY_BUILD" ]; then
+    export SGXLKL_NIGHTLY_BUILD=0
+fi
 
 #shellcheck source=.azure-pipelines/scripts/test_utils.sh
 . "$SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh"
@@ -134,12 +137,24 @@ function GetReadyToRunNextTest()
 function SkipTestIfDisabled()
 {
     skip_test=false
+    # If this test is in $disabled_tests_file skip it
     is_test_disabled=$(grep -c "$file" "$disabled_tests_file")
-    # if this test is disabled set counters and skip to next test
     if [[ $is_test_disabled -ge 1 ]]; then
         echo "Test $file is disabled. Skipping test..."
         echo "To enable the test remove $file from $disabled_tests_file"
+    fi
 
+    # If this test is in $nightly_tests_file and this is not a nightly build skip it
+    if [[ $is_test_disabled -eq 0 && $SGXLKL_NIGHTLY_BUILD -eq 0 ]]; then
+        is_test_disabled=$(grep -c "$file" "$nightly_tests_file")
+        if [[ $is_test_disabled -ge 1 ]]; then
+            echo "Test $file is marked nightly build only. Skipping test..."
+            echo "To enable the test remove $file from $nightly_tests_file"
+        fi
+    fi
+
+    # if this test is disabled set counters and skip to next test
+    if [[ $is_test_disabled -ge 1 ]]; then
         total_disabled=$((total_disabled + 1))
         counter=$((counter + 1))
         total_remaining=$((total_tests - counter))
@@ -151,6 +166,7 @@ test_folder_name="tests"
 test_folder_identifier="Makefile"
 test_runner_script="$SGXLKL_ROOT/.azure-pipelines/scripts/run_test.sh"
 disabled_tests_file="$SGXLKL_ROOT/.azure-pipelines/scripts/disabled_tests.txt"
+nightly_tests_file="$SGXLKL_ROOT/.azure-pipelines/other/nightly_run_only_tests.txt"
 # test which needs not to be executed as part of CI e.g (test_name1\|test_name2...)
 test_exception_list="ltp"
 
@@ -183,6 +199,7 @@ suite_test_start_time=$(date +%s)
 
 failure_identifiers=()
 while IFS= read -r line; do failure_identifiers+=("$line"); done < "$failure_identifiers_file"
+[[ $SGXLKL_NIGHTLY_BUILD -eq 1 ]] && echo "This is Nightly Build. Tests marked for nightly build only will be run."
 
 for file in "${file_list[@]}";
 do
