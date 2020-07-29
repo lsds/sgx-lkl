@@ -28,9 +28,10 @@ static void* mmap_base;         // First page that can be mmap'ed
 static void* mmap_end;          // Last page that can be mmap'ed
 static size_t mmap_num_pages;   // Total number of pages that can be mmap'ed
 
+static int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
+
 static size_t used_pages =
     0; // Tracks the number of used pages for the mmap tracing
-static int mmap_files;
 
 #if DEBUG
 extern int sgxlkl_trace_mmap;
