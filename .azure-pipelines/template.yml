@@ -1,4 +1,5 @@
 variables:
+  - group: remote_attestation_credentials
   - name: SGXLKL_ROOT
     value: $(Build.SourcesDirectory)
 
@@ -152,6 +153,10 @@ stages:
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
                 SGXLKL_NIGHTLY_BUILD: ${{ parameters.nightly_build }}
+                DB_NAME: $(DbName)
+                DB_PASSWORD: $(DbPassword)
+                DB_SERVER_NAME: $(DbServerName)
+                DB_USERID: $(DbUserId)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
