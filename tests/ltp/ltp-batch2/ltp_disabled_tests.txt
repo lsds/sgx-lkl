@@ -922,7 +922,7 @@
 #/ltp/testcases/kernel/syscalls/statfs/statfs03
 #/ltp/testcases/kernel/syscalls/statvfs/statvfs01
 #/ltp/testcases/kernel/syscalls/statvfs/statvfs02
-#/ltp/testcases/kernel/syscalls/statx/statx01
+/ltp/testcases/kernel/syscalls/statx/statx01
 #/ltp/testcases/kernel/syscalls/statx/statx02
 #/ltp/testcases/kernel/syscalls/statx/statx03
 /ltp/testcases/kernel/syscalls/statx/statx04
@@ -1016,7 +1016,7 @@
 /ltp/testcases/kernel/syscalls/utime/utime01
 #/ltp/testcases/kernel/syscalls/utime/utime02
 #/ltp/testcases/kernel/syscalls/utime/utime03
-#/ltp/testcases/kernel/syscalls/utime/utime04
+/ltp/testcases/kernel/syscalls/utime/utime04
 #/ltp/testcases/kernel/syscalls/utime/utime05
 /ltp/testcases/kernel/syscalls/utime/utime06
 /ltp/testcases/kernel/syscalls/utimensat/utimensat01
