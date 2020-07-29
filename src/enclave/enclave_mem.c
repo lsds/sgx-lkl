@@ -453,6 +453,9 @@ int enclave_munmap(void* addr, size_t length)
     used_pages -= occupied_pages;
 
     bitmap_clear(mmap_bitmap, index_top, pages);
+#if DEBUG
+    mprotect(addr, length, PROT_NONE);
+#endif
     ticket_unlock(&mmaplock);
 
 #if DEBUG
