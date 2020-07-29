@@ -1,20 +1,19 @@
 {
-  "run": "/usr/bin/python3",
   "args": [
+    "/usr/bin/python3",
     "-c",
     "print(\"SGX Encrypted Confidential Container app-config-verity TEST PASSED !\")"
   ],
-  "environment": {},
-  "disk_config": [
+  "env": {},
+  "root": {
+    "readonly": true,
+    "key": "",
+    "roothash_offset": "",
+    "roothash": ""
+  },
+  "mounts": [
     {
-      "disk": "/",
-      "readonly": true,
-      "key": "",
-      "roothash_offset": "",
-      "roothash": ""
-    },
-    {
-      "disk": "/data",
+      "destination": "/data",
       "readonly": true,
       "key": "",
       "roothash_offset": "",

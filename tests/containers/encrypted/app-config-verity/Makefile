@@ -51,7 +51,7 @@ ${CC_APP_CONFIG}: $(CC_IMAGE_VERITY)
 	sed -i "/\"roothash\":/c\\"\"roothash\"": \"${CC_IMAGE_VERITY_ROOTHASH}\"" ${CC_APP_CONFIG}
 
 run-hw: ${CC_APP_CONFIG}
-	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --hw-debug $(CC_IMAGE_VERITY)
+	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --enclave-config=${CC_APP_CONFIG} --hw-debug $(CC_IMAGE_VERITY)
 
 run-sw: ${CC_APP_CONFIG}
-	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --app-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE_VERITY)
+	${SGXLKL_ENV_APP_CONFIG} ${SGXLKL_STARTER} --enclave-config=${CC_APP_CONFIG} --sw-debug $(CC_IMAGE_VERITY)

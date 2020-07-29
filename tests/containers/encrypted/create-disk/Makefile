@@ -3,7 +3,7 @@ include ../../../common.mk
 CC_APP=/usr/bin/python3
 CC_ENCLAVE_CONFIG=enclave-config.json
 
-CC_IMAGE_SIZE=128M
+CC_IMAGE_SIZE=500M
 
 CC_IMAGE_DATA=data.img
 CC_IMAGE_DATA_SIZE=3G

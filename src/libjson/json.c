@@ -1222,7 +1222,7 @@ json_result_t json_parser_init(
     json_parser_callback_t callback,
     void* callback_data,
     json_allocator_t* allocator,
-    json_parser_options_t* options)
+    const json_parser_options_t* options)
 {
     if (!parser || !data || !size || !callback)
         return JSON_BAD_PARAMETER;
