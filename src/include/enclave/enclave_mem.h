@@ -6,8 +6,6 @@
 #include <sys/types.h>
 #include <time.h>
 
-int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
-
 void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files);
 
 void* enclave_mmap(
