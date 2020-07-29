@@ -111,8 +111,7 @@ stages:
 
             dependsOn: build_${{ build_mode }}
 
-            # Skip ltp1 sw runs for now as they raise segfaults.
-            condition: and(succeeded(), not(and(eq('${{ test_suite }}', 'ltp1'), eq('${{ run_mode }}', 'sw'))))
+            condition: succeeded()
 
             pool: ${{ parameters.test_pool_mapping[run_mode] }}
 
