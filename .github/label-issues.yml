@@ -1,5 +1,5 @@
 
-name: automat issue labels
+name: automate issue labels
 
 on:
   issues:
