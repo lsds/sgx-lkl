@@ -613,12 +613,12 @@ int lthread_create_primitive(
     lt->itlssz = libc.tls_size;
     if (libc.tls_size)
     {
-        if ((lt->itls = (uint8_t*)enclave_mmap(
+        if ((intptr_t)(lt->itls = (uint8_t*)enclave_mmap(
                  0,
                  lt->itlssz,
                  0, /* map_fixed */
                  PROT_READ | PROT_WRITE,
-                 1 /* zero_pages */)) == MAP_FAILED)
+                 1 /* zero_pages */)) < 0)
         {
             oe_free(lt);
             return -1;
@@ -707,12 +707,12 @@ int lthread_create(
         return -1;
     }
     lt->attr.stack = attrp ? attrp->stack : 0;
-    if ((!lt->attr.stack) && ((lt->attr.stack = enclave_mmap(
+    if ((!lt->attr.stack) && ((intptr_t)(lt->attr.stack = enclave_mmap(
                                    0,
                                    stack_size,
                                    0, /* map_fixed */
                                    PROT_READ | PROT_WRITE,
-                                   1 /* zero_pages */)) == MAP_FAILED))
+                                   1 /* zero_pages */)) < 0))
     {
         oe_free(lt);
         return -1;
@@ -723,12 +723,12 @@ int lthread_create(
     lt->itlssz = libc.tls_size;
     if (libc.tls_size)
     {
-        if ((lt->itls = (uint8_t*)enclave_mmap(
+        if ((intptr_t)(lt->itls = (uint8_t*)enclave_mmap(
                  0,
                  lt->itlssz,
                  0, /* map_fixed */
                  PROT_READ | PROT_WRITE,
-                 1 /* zero_pages */)) == MAP_FAILED)
+                 1 /* zero_pages */)) < 0)
         {
             oe_free(lt);
             return -1;
