@@ -5,6 +5,7 @@ extends:
   template: template.yml
   parameters:
     publish: true
+    nightly_build: 0
     apt_repo_blob_container: apt
     test_timeout_minutes: 120 # ethread==1 takes longer to run
     ethreads:

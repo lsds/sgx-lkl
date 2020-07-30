@@ -75,6 +75,10 @@ def need_size_var(jtype):
 
 num_settings = 0
 
+header_includes = """
+#include "shared/oe_compat.h"
+"""
+
 
 def generate_header(schema_file_name, root, args):
     global num_settings
@@ -94,10 +98,8 @@ def generate_header(schema_file_name, root, args):
             % schema_file_name
         )
 
-        header.write("#include <inttypes.h>\n")
-        header.write("#include <stdbool.h>\n")
-        header.write("#include <stddef.h>\n")
-        header.write("#include <elf.h>\n\n")
+        header.write(header_includes)
+        header.write("\n")
 
         top = root["$ref"].rsplit("/")[-1]
 
@@ -167,14 +169,13 @@ def generate_header(schema_file_name, root, args):
 
 
 source_includes = """
+#include "shared/oe_compat.h"
 #ifdef SGXLKL_ENCLAVE
-#include <enclave/enclave_util.h>
-#include <shared/oe_compat.h>
-#define FAIL sgxlkl_fail
+# include "enclave/enclave_util.h"
+# define FAIL sgxlkl_fail
 #else
-#include <host/sgxlkl_util.h>
-#include <string.h>
-#define FAIL sgxlkl_host_fail
+# include "host/sgxlkl_util.h"
+# define FAIL sgxlkl_host_fail
 #endif
 """
 
@@ -239,54 +240,76 @@ def generate_source(schema_file_name, root, args):
                     if name == "format_version":
                         continue
                     tname = pre_type(jtype)
-                    if tname.startswith("sgxlkl_"):
-                        if tname.endswith("*"):
-                            source.write("%s.%s=NULL,\n" % (indent, name))
-                        else:
-                            tdef = root["definitions"][tname]
-                            if "type" in jtype and jtype["type"] == "array":
-                                if "default" in jtype:
-                                    dflt = jtype["default"]
-                                    t = "{"
-                                    for i in dflt:
-                                        if type(i) is OrderedDict:
-                                            t += "{"
-                                            for k, v in i.items():
-                                                t += "." + str(k) + '="' + v + '"'
-                                            t += "},"
-                                    t += "}"
-                                    source.write("%s.%s = %s,\n" % (indent, name, t))
-                                else:
-                                    source.write("%s.%s = {0},\n" % (indent, name))
-                            elif "enum" not in tdef:
-                                scope.append(name)
-                                source.write("%s.%s = {\n" % (indent, name))
-                                initialize(scope, tname)
-                                source.write("%s},\n" % indent)
-                                scope = scope[:-1]
+                    if tname.startswith("sgxlkl_") and tname.endswith("*"):
+                        source.write("%s.%s=NULL,\n" % (indent, name))
+                    elif (
+                        tname.startswith("sgxlkl_")
+                        and "enum" not in root["definitions"][tname]
+                    ):
+                        tdef = root["definitions"][tname]
+                        if "type" in jtype and jtype["type"] == "array":
+                            if "default" in jtype:
+                                dflt = jtype["default"]
+                                t = "{"
+                                for i in dflt:
+                                    if type(i) is OrderedDict:
+                                        t += "{"
+                                        for k, v in i.items():
+                                            t += "." + str(k) + '="' + v + '"'
+                                        t += "},"
+                                t += "}"
+                                source.write("%s.%s = %s,\n" % (indent, name, t))
+                            else:
+                                source.write("%s.%s = {0},\n" % (indent, name))
+                        elif "enum" not in tdef:
+                            scope.append(name)
+                            source.write("%s.%s = {\n" % (indent, name))
+                            initialize(scope, tname)
+                            source.write("%s},\n" % indent)
+                            scope = scope[:-1]
                     else:
                         scope.append(name)
                         sname = ".".join(scope)
+
                         ctype = pre_type(jtype) + post_type(jtype)
                         if "default" not in jtype:
                             raise Exception("ERROR: no default provided for %s" % sname)
                         dflt = jtype["default"]
                         if ctype == "bool":
                             dflt = "true" if dflt else "false"
-                        if ctype == "char*" or ctype.startswith("char["):
+                        elif ctype == "char*" or ctype.startswith("char["):
                             if dflt is None or dflt == []:
-                                source.write("%s.%s=NULL,\n" % (indent, name))
-                            else:
-                                source.write('%s.%s="%s",\n' % (indent, name, dflt))
-                        else:
-                            if need_size_var(jtype):
-                                size_var_name = "num_" + name
-                                if name == "key":
-                                    size_var_name = "key_len"
-                                source.write("%s.%s=%s,\n" % (indent, size_var_name, 0))
-                            if dflt is None or dflt == [] or dflt == "":
                                 dflt = "NULL"
-                            source.write("%s.%s=%s,\n" % (indent, name, dflt))
+                            else:
+                                dflt = '"' + dflt + '"'
+                        elif (
+                            tname.startswith("sgxlkl_")
+                            and "enum" in root["definitions"][tname]
+                        ):
+                            etype = root["definitions"][tname]
+                            names = etype["enum"]
+                            c_names = etype["c_enum"]
+                            i = 0
+                            for n in names:
+                                if n == dflt:
+                                    break
+                                else:
+                                    i += 1
+                            if i >= len(c_names):
+                                raise Exception(
+                                    "ERROR: missing C enum type name for '%s'" % dflt
+                                )
+                            dflt = c_names[i]
+
+                        if dflt is None or dflt == [] or dflt == "":
+                            dflt = "NULL"
+
+                        if need_size_var(jtype):
+                            size_var_name = "num_" + name
+                            if name == "key":
+                                size_var_name = "key_len"
+                            source.write("%s.%s=%s,\n" % (indent, size_var_name, 0))
+                        source.write("%s.%s=%s,\n" % (indent, name, dflt))
                     scope = scope[:-1]
             scope = scope[:-1]
 
@@ -309,7 +332,10 @@ def generate_source(schema_file_name, root, args):
                     tname = pre_type(jtype)
                     if tname.endswith("*"):
                         tname = tname[:-1]
-                    if tname.startswith("sgxlkl_"):
+                    if (
+                        tname.startswith("sgxlkl_")
+                        and "enum" not in root["definitions"][tname]
+                    ):
                         scope.append(name)
                         describe(scope, tname)
                         scope = scope[:-1]

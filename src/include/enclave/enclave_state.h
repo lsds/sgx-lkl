@@ -1,6 +1,8 @@
 #ifndef ENCLAVE_STATE_H
 #define ENCLAVE_STATE_H
 
+#include <elf.h>
+
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/shared_memory.h>
 

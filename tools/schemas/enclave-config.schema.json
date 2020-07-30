@@ -437,7 +437,7 @@
         },
         "mmap_files": {
           "$ref": "#/definitions/sgxlkl_enclave_mmap_files_t",
-          "description": "Set to \"private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"shared\" to mmap files with 'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'. (Default: not supported)",
+          "description": "Set to \"private\" to allow mmaping files with private copy-on-write mapping ('MAP_PRIVATE'). Set to \"shared\" to mmap files with 'MAP_SHARED', but files are still mapped 'MAP_PRIVATE'.",
           "default": "none",
           "overridable": "SGXLKL_MMAP_FILES"
         },

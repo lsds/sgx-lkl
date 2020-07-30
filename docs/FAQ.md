@@ -50,14 +50,14 @@ The host interface is intentionally small and reuses existing well-tested driver
 On setup, there is a single synchronous call to each enclave thread (roughly: VCPU) to start it running and allow the scheduler to begin working.
 The first call provides configuration information including the location of VirtIO ring buffers and descriptor tables.
 We then use existing VirtIO network, block, and console device drivers for communicating with the outside world (the console driver is untrusted and should be used only for debugging).
+We add a paravirtualised clock source, which exposes an in-memory monotonic counter, with the monotonicity guarantee enforced by the enclave.
 We also provide a small number of synchronous calls ("ecalls" in SGX terminology, analogous to hypercalls in a conventional VM system):
 
-- Query the current (untrusted) time *[This will soon be replaced with a shared page mechanism.]*
 - Change the permissions of a page.  
-Currently, SGX1 does not allow the enclave to verify that these changes have taken place. 
-SGX2 includes Enclave Dynamic Memory Management (EDMM) and will make this secure.
+  Currently, SGX1 does not allow the enclave to verify that these changes have taken place. 
+  SGX2 includes Enclave Dynamic Memory Management (EDMM) and will make this secure.
 - Pause an enclave thread until either an amount of time has elapsed or a device signals readiness. 
-This is used, for example, to allow an enclave to sleep without consuming CPU cycles until a network packet arrives.
+  This is used, for example, to allow an enclave to sleep without consuming CPU cycles until a network packet arrives.
 
 If an enclave thread encounters a synchronous CPU exception, this is delivered outside of the enclave and then reflected back (just as with a paravirtualised VM).
 The information about this exception is untrusted.
