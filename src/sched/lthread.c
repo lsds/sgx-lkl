@@ -712,7 +712,7 @@ int lthread_create(
                                    stack_size,
                                    0, /* map_fixed */
                                    PROT_READ | PROT_WRITE,
-                                   1 /* zero_pages */)) == MAP_FAILED))
+                                   1 /* zero_pages */)) < 0))
     {
         oe_free(lt);
         return -1;
@@ -728,7 +728,7 @@ int lthread_create(
                  lt->itlssz,
                  0, /* map_fixed */
                  PROT_READ | PROT_WRITE,
-                 1 /* zero_pages */)) == MAP_FAILED)
+                 1 /* zero_pages */)) < 0)
         {
             oe_free(lt);
             return -1;
