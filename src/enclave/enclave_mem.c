@@ -340,7 +340,7 @@ void* enclave_mmap(
     }
 
     // Was there a successful allocation?
-    if (ret >= 0)
+    if (((intptr_t)ret) >= 0)
     {
         int found_only_fresh_pages = 0;
 
@@ -409,7 +409,7 @@ void* enclave_mmap(
             mmap_max_allocated = used;
         }
         char* mfixed = mmap_fixed ? " (MAP_FIXED)" : "";
-        char* rv = ret < 0 ? " (FAILED)" : "";
+        char* rv = (((intptr_t)ret) < 0) ? " (FAILED)" : "";
         SGXLKL_TRACE_MMAP(
             "mmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: "
             "%8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n",
@@ -496,7 +496,7 @@ void* enclave_mremap(
     }
 
     void* ret = enclave_mmap(new_addr, new_length, 0, -1, 0);
-    if (ret >= 0)
+    if (((intptr_t)ret) >= 0)
     {
         memcpy(
             ret, old_addr, old_length > new_length ? new_length : old_length);
