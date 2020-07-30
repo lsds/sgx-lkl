@@ -214,15 +214,18 @@ static void sem_up(struct lkl_sem* sem)
 {
     // Increment the semaphore count.  If we are moving from 0 to non-zero,
     // there may be waiters.  Wake one up.
+    LKL_TRACE("enter: (sem=%p count=%d)\n", sem, sem->count);
     if (atomic_fetch_add(&sem->count, 1) == 0)
     {
         futex_wake(&sem->count, INT_MAX);
     }
+    LKL_TRACE("exit: (sem=%p count=%d)\n", sem, sem->count);
 }
 
 static void sem_down(struct lkl_sem* sem)
 {
     int count = sem->count;
+    LKL_TRACE("enter: (sem=%p count=%d)\n", sem, count);
     // Loop if the count is 0 or if we try to decrement it but fail.
     while ((count == 0) ||
            !atomic_compare_exchange_weak(&sem->count, &count, count - 1))
@@ -240,6 +243,7 @@ static void sem_down(struct lkl_sem* sem)
             count = sem->count;
         }
     }
+    LKL_TRACE("exit: (sem=%p count=%d)\n", sem, sem->count);
 }
 
 static struct lkl_mutex* mutex_alloc(int recursive)
