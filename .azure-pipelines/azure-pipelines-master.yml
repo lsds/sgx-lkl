@@ -12,5 +12,5 @@ extends:
   template: template.yml
   parameters:
     publish: true
-    nightly_build: 0
+    nightly_build: false
     apt_repo_blob_container: apt-dev

@@ -49,8 +49,8 @@ parameters:
   type: boolean
   default: false
 - name: 'nightly_build'
-  type: number
-  default: 0
+  type: boolean
+  default: false
 - name: 'apt_repo_blob_container'
   type: string
   default: 'apt-dev'
@@ -149,7 +149,8 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
-                SGXLKL_NIGHTLY_BUILD: ${{ parameters.nightly_build }}
+                {{ if parameters.nightly_build }}:
+                  SGXLKL_NIGHTLY_BUILD: 1
                 DB_NAME: $(DbName)
                 DB_PASSWORD: $(DbPassword)
                 DB_SERVER_NAME: $(DbServerName)
