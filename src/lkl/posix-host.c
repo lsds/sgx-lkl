@@ -89,7 +89,7 @@ static void terminate(int exit_status, int received_signal)
         }
     }
 
-    LKL_TRACE(
+    LKL_TRACE_W_TID2(
         "Shutting down SGX-LKL (exit_status=%i received_signal=%i)\n",
         exit_status,
         received_signal);
@@ -214,18 +214,18 @@ static void sem_up(struct lkl_sem* sem)
 {
     // Increment the semaphore count.  If we are moving from 0 to non-zero,
     // there may be waiters.  Wake one up.
-    LKL_TRACE("enter: (sem=%p count=%d)\n", sem, sem->count);
+    LKL_TRACE_W_TID2("enter: (sem=%p count=%d)\n", sem, sem->count);
     if (atomic_fetch_add(&sem->count, 1) == 0)
     {
         futex_wake(&sem->count, INT_MAX);
     }
-    LKL_TRACE("exit: (sem=%p count=%d)\n", sem, sem->count);
+    LKL_TRACE_W_TID2("exit: (sem=%p count=%d)\n", sem, sem->count);
 }
 
 static void sem_down(struct lkl_sem* sem)
 {
     int count = sem->count;
-    LKL_TRACE("enter: (sem=%p count=%d)\n", sem, count);
+    LKL_TRACE_W_TID2("enter: (sem=%p count=%d)\n", sem, count);
     // Loop if the count is 0 or if we try to decrement it but fail.
     while ((count == 0) ||
            !atomic_compare_exchange_weak(&sem->count, &count, count - 1))
@@ -243,7 +243,7 @@ static void sem_down(struct lkl_sem* sem)
             count = sem->count;
         }
     }
-    LKL_TRACE("exit: (sem=%p count=%d)\n", sem, sem->count);
+    LKL_TRACE_W_TID2("exit: (sem=%p count=%d)\n", sem, sem->count);
 }
 
 static struct lkl_mutex* mutex_alloc(int recursive)
@@ -331,7 +331,7 @@ static lkl_thread_t thread_create(void (*fn)(void*), void* arg)
     {
         sgxlkl_fail("lthread_create failed: %s\n", lkl_strerror(ret));
     }
-    LKL_TRACE("created (thread=%p)\n", thread);
+    LKL_TRACE_W_TID2("created (thread=%p)\n", thread);
     return (lkl_thread_t)thread;
 }
 
@@ -397,19 +397,19 @@ static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
 
 static void thread_detach(void)
 {
-    LKL_TRACE("enter\n");
+    LKL_TRACE_W_TID2("enter\n");
     lthread_detach();
 }
 
 static void thread_exit(void)
 {
-    LKL_TRACE("enter\n");
+    LKL_TRACE_W_TID2("enter\n");
     lthread_exit(0);
 }
 
 static int thread_join(lkl_thread_t tid)
 {
-    LKL_TRACE("enter (tid=%li)\n", tid);
+    LKL_TRACE_W_TID2("enter (tid=%li)\n", tid);
     int ret = lthread_join((struct lthread*)tid, NULL, -1);
     if (ret)
     {
@@ -430,7 +430,7 @@ static int thread_equal(lkl_thread_t a, lkl_thread_t b)
 
 static struct lkl_tls_key* tls_alloc(void (*destructor)(void*))
 {
-    LKL_TRACE("enter (destructor=%p)\n", destructor);
+    LKL_TRACE_W_TID2("enter (destructor=%p)\n", destructor);
     struct lkl_tls_key* ret = oe_malloc(sizeof(struct lkl_tls_key));
 
     if (WARN_PTHREAD(lthread_key_create(&ret->key, destructor)))
@@ -443,14 +443,14 @@ static struct lkl_tls_key* tls_alloc(void (*destructor)(void*))
 
 static void tls_free(struct lkl_tls_key* key)
 {
-    LKL_TRACE("enter (key=%p)\n", key);
+    LKL_TRACE_W_TID2("enter (key=%p)\n", key);
     WARN_PTHREAD(lthread_key_delete(key->key));
     oe_free(key);
 }
 
 static int tls_set(struct lkl_tls_key* key, void* data)
 {
-    LKL_TRACE("enter (key=%p data=%p)\n", key, data);
+    LKL_TRACE_W_TID2("enter (key=%p data=%p)\n", key, data);
     if (WARN_PTHREAD(lthread_setspecific(key->key, data)))
         return -1;
     return 0;
@@ -657,6 +657,11 @@ static long _gettid(void)
     return (long)lthread_self();
 }
 
+int _get_lthread_id(void)
+{
+    return lthread_self()->tid;
+}
+
 /**
  * The allocation for kernel memory.
  */
@@ -742,4 +747,5 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .gettid = _gettid,
     .jmp_buf_set = sgxlkl_jmp_buf_set,
     .jmp_buf_longjmp = sgxlkl_jmp_buf_longjmp,
+    .get_lthread_id = _get_lthread_id,
 };
