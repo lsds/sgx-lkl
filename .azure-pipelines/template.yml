@@ -149,7 +149,7 @@ stages:
                 run_mode: "run-${{ run_mode }}"
                 SGXLKL_PREFIX: ${{ parameters.install_prefix_mapping[build_mode] }}
                 SGXLKL_ETHREADS: ${{ ethreads }}
-                {{ if parameters.nightly_build }}:
+                ${{ if parameters.nightly_build }}:
                   SGXLKL_NIGHTLY_BUILD: 1
                 DB_NAME: $(DbName)
                 DB_PASSWORD: $(DbPassword)
