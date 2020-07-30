@@ -1,0 +1,3 @@
+tests/ml/openvino/Makefile
+tests/database/odbc-base/Makefile
+tests/database/odbc-with-cksp/Makefile

@@ -1,14 +1,9 @@
 /***************************************************************************
-  Custome Key Store Provider
+  Custom Key Store Provider
 
-  This module maingly interacts with ODBC driver and VCR Agent. It is
-  responsible for:
+  This module interacts with ODBC driver and implement a key store provider
+  w/ custom encryption/decryption algorithm for Column Encryption Key.
 
-  1) Forwarding ECEK decryption requests from ODBC driver to VCR Agent;
-  2) Forwarding CEK from VCR Agent to ODBC driver;
-  3) Replacing built-in AKV provider while loaded;
-  4) Send encryption or decryption requests to VCR enclave, and wait for
-     the encrypted / decrypted key coming back.
  **************************************************************************/
 
 #include <assert.h>
@@ -138,9 +133,13 @@ void KeyStoreFree()
 {
 }
 
+// The current Azure SQL Always Encrypted (July 2020) only recognizes built-in
+// key vaults, not the custom ones. If we register a custom key vault with the
+// latest Azure SQL, it doesn't even forward the key decryption request to the
+// driver. This could break in the future as the Azure SQL starts to support
+// custom key vaults. Currently, it will pretend to be AKV, so SQL server will
+// forward the ECEK decryption requests to client.
 CEKEYSTOREPROVIDER2 MyCustomKSPName_desc = {
-    // pretend to be AKV, so SQL server will forward the ECEK decryption
-    // requests to client.
     L"AZURE_KEY_VAULT", // KSP name
     KeystoreInit,       // Init
     0,                  // Read

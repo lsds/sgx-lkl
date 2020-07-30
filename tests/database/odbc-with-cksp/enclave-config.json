@@ -1,0 +1,14 @@
+{
+    "args": [
+        "odbc_app",
+        "classic",
+        "default"
+    ],
+    "host_import_env": [
+        "MAA_URL",
+        "DB_SERVER_NAME",
+        "DB_NAME",
+        "DB_PASSWORD",
+        "DB_USERID"
+    ]
+}

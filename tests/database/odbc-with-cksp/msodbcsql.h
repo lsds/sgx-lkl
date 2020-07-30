@@ -5,6 +5,17 @@
  *-----------------------------------------------------------------------------
  * File:        msodbcsql.h
  *
+ * Note:        This a customized msodbcsql header based on release version 
+ *              17.5.2.2 odbc driver header file. The customized header fille 
+ *              along with the cksp (customized key store provider) adds a 
+ *              workaround to make custom key store provider working for the 
+ *              latest Azure SQL Database. 
+ *              
+ * TODO:        As long as the GA/release version of both Azure SQL and ODBC 
+ *              driver start to support custom key store provider out of the box, 
+ *              this customized msodbcsql.h can be removed from the source code and 
+ *              replaced with the stock header file from MS ODBC driver.
+ * 
  * Copyright:   Copyright (c) Microsoft Corporation
  *
  * Contents:    This SDK is not supported under any Microsoft standard support 
