@@ -111,8 +111,6 @@ stages:
 
             dependsOn: build_${{ build_mode }}
 
-            condition: succeeded()
-
             pool: ${{ parameters.test_pool_mapping[run_mode] }}
 
             timeoutInMinutes: ${{ parameters.test_timeout_minutes }}
