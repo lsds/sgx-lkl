@@ -3,6 +3,5 @@ tests/containers/encrypted/app-config-verity/Makefile
 tests/containers/encrypted/create-disk/Makefile
 tests/containers/encrypted/verify-integrity/Makefile
 tests/containers/encrypted/verify-verity/Makefile
-tests/containers/unencrypted/env/Makefile
 tests/virtio/python_read/Makefile
 tests/languages/java/network/Makefile
