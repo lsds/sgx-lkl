@@ -273,14 +273,7 @@ int enclave_futex(
     int val3)
 {
     int rc;
-    static int init = 1;
     uint32_t bitset = FUTEX_BITSET_MATCH_ANY;
-
-    if (init)
-    {
-        memset((void*)&futex_q_lock, 0, sizeof(struct ticketlock));
-        init = 0;
-    }
 
     /* Ignore FUTEX_PRIVATE. We are single-process anyway. */
     op &= ~(FUTEX_PRIVATE);
