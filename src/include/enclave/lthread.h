@@ -122,9 +122,7 @@ typedef void (*sig_handler)(int sig, siginfo_t* si, void* unused);
 struct futex_q
 {
     uint32_t futex_key;
-    uint32_t futex_bitset;
     uint64_t futex_deadline;
-    clock_t clock;
     struct lthread* futex_lt;
 
     SLIST_ENTRY(futex_q) entries;
