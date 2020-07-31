@@ -1,5 +1,8 @@
 [![Build Status](https://travis-ci.org/lsds/sgx-lkl.svg?branch=master)](https://travis-ci.org/lsds/sgx-lkl)
 
+This is the legacy branch of the SGX-LKL repository and is no longer under active development.
+This branch includes files containing code licensed by TU Dresden under SCONE source code license and is licensed only for non-commercial use.
+
 SGX-LKL
 =======
 
