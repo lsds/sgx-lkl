@@ -155,6 +155,7 @@ stages:
                 DB_PASSWORD: $(DbPassword)
                 DB_SERVER_NAME: $(DbServerName)
                 DB_USERID: $(DbUserId)
+                MAA_URL: $(MaaAddr)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
