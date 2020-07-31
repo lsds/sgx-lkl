@@ -14,6 +14,9 @@
 #include <sys/mount.h>
 #include <sys/types.h>
 
+/* This must be included before oe_compat.h */
+#include "libdevmapper.h"
+
 #include <syscall.h>
 #include <time.h>
 
@@ -31,7 +34,6 @@
 #ifdef USE_CRYPT_SETUP
 #include "libcryptsetup.h"
 #endif
-#include "libdevmapper.h"
 #include "lkl/disk.h"
 #include "lkl/ext4_create.h"
 #include "lkl/posix-host.h"
@@ -43,7 +45,6 @@
 #ifdef USE_CRYPT_SETUP
 #include "libcryptsetup.h"
 #endif
-#include "libdevmapper.h"
 
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
