@@ -2,6 +2,9 @@ include ../../common.mk
 
 all: run-hw run-sw
 
+skip-run-sw:
+	@echo "true"
+
 run-sw:
 	@bash run_scenario.sh sw
 
