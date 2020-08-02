@@ -19,5 +19,5 @@
 	branch = master
 [submodule "ltp"]
 	path = ltp
-	url = https://github.com/lsds/ltp
+	url = https://github.com/lsds/ltp.git
 	branch= sgx-lkl

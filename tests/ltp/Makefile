@@ -29,11 +29,11 @@ $(ROOT_FS): $(ALPINE_TAR) buildenv.sh
 	$(ESCALATE_CMD) mount -t ext4 -o loop "$@" $(MOUNTPOINT)
 	$(ESCALATE_CMD) tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
 	$(ESCALATE_CMD) cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
+	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp
+	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/ltp/* $(MOUNTPOINT)/ltp/
 	$(ESCALATE_CMD) install buildenv.sh $(MOUNTPOINT)/usr/sbin
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash
-
-
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /bin/bash /usr/sbin/buildenv.sh 'build' '/ltp/testcases/kernel/syscalls'
 	$(ESCALATE_CMD) cp $(MOUNTPOINT)/ltp/.c_binaries_list .
 	$(ESCALATE_CMD) umount $(MOUNTPOINT)
