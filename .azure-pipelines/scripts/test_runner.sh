@@ -153,6 +153,18 @@ function SkipTestIfDisabled()
         fi
     fi
 
+    # You can disable a test for $run_mode (run-hw or run-sw) 
+    # by defining skip-run-sw or skip-run-hw in Makefile and echo-ing anything
+    if [[ $is_test_disabled -eq 0 ]]; then
+        test_directory=$(dirname "$file")
+        ChangeDirectory "$test_directory"
+        if make "skip-$run_mode" 1> /dev/null 2> /dev/null; then
+            is_test_disabled=1
+            echo "$file is disabled for $run_mode in Makefile. Skipping test... Remove skip-$run_mode from Makefile to enable it."
+        fi
+        ChangeDirectory "$SGXLKL_ROOT"
+    fi
+
     # if this test is disabled set counters and skip to next test
     if [[ $is_test_disabled -ge 1 ]]; then
         total_disabled=$((total_disabled + 1))
