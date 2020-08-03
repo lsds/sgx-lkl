@@ -17,6 +17,7 @@ exclude = '''
     | openenclave
     | sgx-lkl-musl
     | third_party
+    | ltp
   )/
 )
 '''
