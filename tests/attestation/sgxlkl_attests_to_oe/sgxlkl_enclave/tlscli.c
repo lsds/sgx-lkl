@@ -20,8 +20,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "../common/log_utils.h"
-
 #define DEBUG_LEVEL 1
 
 static bool _started;

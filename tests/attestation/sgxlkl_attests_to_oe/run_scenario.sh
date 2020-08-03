@@ -34,7 +34,7 @@ fi
 . /opt/openenclave/share/openenclave/openenclaverc
 
 # Set log file that will be shared between two enclaves in the test scenario for stdout and stderr logs
-export ATTESTED_TLS_TEST_LOG_FILE=$SGXLKL_ROOT/attested_tls_test.log
+export ATTESTED_TLS_TEST_LOG_FILE=$SGXLKL_ROOT/report/sgxlkl_attests_to_oe.log
 date > "$ATTESTED_TLS_TEST_LOG_FILE"
 
 # Kill hanging processes if exist

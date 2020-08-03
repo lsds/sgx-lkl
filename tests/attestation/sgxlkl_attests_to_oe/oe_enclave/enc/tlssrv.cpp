@@ -25,7 +25,6 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <map>
-#include "../../common/log_utils.h"
 #include "tlssrv_t.h"
 #include "tlssrv.h"
 #include "../../../../../third_party/oe_stubs/oe_stubs.h"
