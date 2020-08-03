@@ -16,18 +16,30 @@ fi
 
 # Install Open Enclave if not installed
 if [[ ! -d "/opt/openenclave" ]]; then
-    # Configure the Intel and Microsoft APT Repositories
-    echo 'deb [arch=amd64] https://download.01.org/intel-sgx/sgx_repo/ubuntu bionic main' | sudo tee /etc/apt/sources.list.d/intel-sgx.list
-    wget -qO - https://download.01.org/intel-sgx/sgx_repo/ubuntu/intel-sgx-deb.key | sudo apt-key add -
+    home=$(pwd)
+    cd ~ || exit 1
+    sudo rm -rf openenclave/
+    git clone --recursive -b feature/sgx-lkl-support https://github.com/openenclave/openenclave.git
+    cd openenclave || exit 1
 
-    echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-7 main" | sudo tee /etc/apt/sources.list.d/llvm-toolchain-bionic-7.list
-    wget -qO - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+    sed -i '/add_subdirectory(tests)/d' CMakeLists.txt
 
-    echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/18.04/prod bionic main" | sudo tee /etc/apt/sources.list.d/msprod.list
-    wget -qO - https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+    sudo bash scripts/ansible/install-ansible.sh
+    sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 
-    # Install the Intel and Open Enclave packages and dependencies
-    sudo apt -y install clang-7 libssl-dev gdb libsgx-enclave-common libsgx-enclave-common-dev libprotobuf10 libsgx-dcap-ql libsgx-dcap-ql-dev az-dcap-client open-enclave
+    mkdir -p build
+    cd build || exit 1
+    cmake -G "Ninja"  -DWITH_EEID=1 ..
+    sudo ninja
+    sudo ninja install
+    exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        echo "OE SDK installed successfully"
+    else
+        echo "OE SDK install failed"
+        exit 1
+    fi
+    cd "$home" || exit 1
 fi
 
 # shellcheck disable=SC1091
