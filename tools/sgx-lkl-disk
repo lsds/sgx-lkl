@@ -584,17 +584,18 @@ function encrypt() {
     echo "  Hash Algorithm: ${hash}"
 
     if [[ ! -z "${int_alg:-}" ]]; then
-        integrity_cmd=( "--integrity ${int_alg}" )
+        integrity_cmd=( "--integrity=${int_alg}" )
         pbkdf=${pbkdf:-pbkdf2}
         pbkdf_cmd=( "--pbkdf=${pbkdf}" )
         type="luks2"
         echo "  Integrity: ${int_alg}"
         echo "  PBKDF: ${pbkdf}"
     else
-        integrity_cmd=( )
-        type="luks"
+        integrity_cmd[0]=""
         echo "  Integrity: Disabled"
-        pbkdf_cmd=( )
+        type="luks2"
+        pbkdf=${pbkdf:-pbkdf2}
+        pbkdf_cmd[0]="--pbkdf=${pbkdf}"
     fi
 
     keyfile_cmd=( )

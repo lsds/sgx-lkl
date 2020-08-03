@@ -782,13 +782,16 @@ static void _parse(const char* path)
         exit(1);
     }
 
+    const json_parser_options_t options = { 1 };
+
     if ((r = json_parser_init(
         &parser,
         data,
         size,
         _json_read_callback,
         &callback_data,
-        &allocator)) != JSON_OK)
+        &allocator,
+        &options)) != JSON_OK)
     {
         fprintf(stderr, "%s: json_parser_init() failed: %d\n", arg0, r);
         exit(1);

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "shared/env.h"
 
 uint64_t hex_to_int(const char* digits, size_t num_digits)
 {
@@ -121,7 +122,7 @@ ssize_t hex_to_bytes(const char* hex, uint8_t** result)
     }
     len /= 2;
 
-    bytes = malloc(len);
+    bytes = malloc(2*len);
     if (!bytes)
     {
         errno = ENOMEM;

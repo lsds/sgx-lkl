@@ -15,7 +15,7 @@ CFLAGS_MAIN = -I$(OE_SDK_INCLUDES) -Wall -Werror -Wno-error=incompatible-pointer
 CFLAGS_MAIN += -DOE_WITH_EXPERIMENTAL_EEID -I$(srcdir)/libjson/include -I$(LIB_SGXLKL_BUILD)/config
 # TODO add -nostdinc after relayering work complete
 #      cannot use -nostdinc currently as stdatomic.h is included which is missing
-CFLAGS_ENCLAVE = -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE -DSGXLKL_ENCLAVE
+CFLAGS_ENCLAVE = -I$(CRYPTSETUP_BUILD)/include -I$(OE_SDK_INCLUDES) -I${OE_SDK_INCLUDES}/openenclave/3rdparty -fPIE -DSGXLKL_ENCLAVE
 CFLAGS_ENCLAVE += -DOE_WITH_EXPERIMENTAL_EEID -I$(srcdir)/libjson/include -I$(LIB_SGXLKL_BUILD)/config
 LINK_MAIN =
 
@@ -31,9 +31,12 @@ CFLAGS_AUTO = -g -pipe -fno-unwind-tables -fno-asynchronous-unwind-tables -ffunc
 -Werror=implicit-function-declaration -Werror=implicit-int -Werror=pointer-sign -fPIC
 CFLAGS_C99FSE = -std=c99 -ffreestanding -fexcess-precision=standard -frounding-math -Wa,--noexecstack
 
+LIBVICSETUP_DIR = $(srcdir)/vicsetup/libvicsetup
+ARGON2_DIR = $(SGXLKL_ROOT)/third_party/argon2
+
 CFLAGS_SGXLKL_ALL = $(CFLAGS_C99FSE) $(CFLAGS_AUTO) $(CFLAGS_MAIN) $(MUSL_CFLAGS)
 CFLAGS_SGXLKL_ALL += -D_XOPEN_SOURCE=700
-CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(CRYPTSETUP_BUILD)/include -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include
+CFLAGS_SGXLKL_ALL += $(SGXLKL_INCLUDES) -isystem $(E2FSPROGS_BUILD)/include -I$(srcdir)/libjson/include -I$(LIBVICSETUP_DIR)/include -isystem $(ARGON2_DIR)/include
 
 # -----------------------------------------------------------------------------------------
 
@@ -73,7 +76,8 @@ main-oe/sgxlkl_host_config.c main-oe/sgxlkl_run_oe.c main-oe/sgxlkl_util.c: $(HC
 
 SGXLKL_SRCS = $(wildcard enclave/*.c) $(wildcard shared/*.c) $(wildcard sched/*.c) \
               $(wildcard legacy_host_interface/*.c) $(wildcard lkl/*.c) $(wildcard wireguard/*.c) $(wildcard attestation/*.c) $(wildcard libjson/*.c) \
-							$(CFGC)
+	      $(CFGC) \
+              $(wildcard $(LIBVICSETUP_DIR)/*.c)
 
 OE_ENCLAVE_CALLS = enclave/sgxlkl_t.c
 ifeq (,$(findstring ${OE_ENCLAVE_CALLS},$(SGXLKL_SRCS)))

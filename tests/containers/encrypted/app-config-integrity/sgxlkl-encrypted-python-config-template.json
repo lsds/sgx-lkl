@@ -11,7 +11,7 @@
   },
   "mounts": [
     {
-      "disk": "/data",
+      "destination": "/data",
       "readonly": false,
       "key": ""
     }
