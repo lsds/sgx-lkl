@@ -33,11 +33,11 @@ sgx-lkl-disk create --docker=pythonapp --size=300M pythonapp.img
 ```sh
 sgx-lkl-cfg create --disk pythonapp.img
 ```
-Have a look at the generated `host-config.json` and `app-config.json` files and verify that they are as expected.
+Have a look at the generated `host-config.json` and `enclave-config.json` files and verify that they are as expected.
 
 4. We are now ready to run the application in SGX-LKL:
 
 ```sh
-sgx-lkl-run-oe --host-config=host-config.json --app-config=app-config.json --hw-debug
+sgx-lkl-run-oe --host-config=host-config.json --enclave-config=enclave-config.json --hw-debug
 ```
 Use `--sw-debug` if your machine does not support SGX.
