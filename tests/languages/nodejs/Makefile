@@ -1,7 +1,7 @@
 include ../../common.mk
 
 PROG=/app/index.js
-ENCLAVE_CMD=/usr/local/bin/node ${PROG}
+ENCLAVE_CMD=/usr/bin/node ${PROG}
 
 DISK_IMAGE=sgxlkl-nodejs.img
 IMAGE_SIZE=1.2G

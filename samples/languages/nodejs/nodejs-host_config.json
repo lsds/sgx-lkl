@@ -1,0 +1,7 @@
+{
+    "root": {
+        "image_path": "nodejs.img"
+    },
+
+    "verbose": false
+} 
