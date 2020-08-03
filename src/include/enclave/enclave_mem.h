@@ -15,7 +15,7 @@ void* enclave_mmap(
     int prot,
     int zero_pages);
 
-int enclave_munmap(void* addr, size_t length);
+long enclave_munmap(void* addr, size_t length);
 
 void* enclave_mremap(
     void* old_addr,
@@ -26,21 +26,25 @@ void* enclave_mremap(
 
 int enclave_mmap_files_flags_supported(int flags);
 
+extern int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
+
 /**
  * Report memory usages (total and free bytes) in enclave
  */
 void enclave_mem_info(size_t* total, size_t* free);
 
-int syscall_SYS_munmap(void* addr, size_t length);
+int enclave_mmap_flags_supported(int flags, int fd);
 
-void* syscall_SYS_mremap(
+long syscall_SYS_munmap(void* addr, size_t length);
+
+long syscall_SYS_mremap(
     void* old_address,
     size_t old_size,
     size_t new_size,
     int flags,
     void* new_address);
 
-int syscall_SYS_msync(void* addr, size_t length, int flags);
+long syscall_SYS_msync(void* addr, size_t length, int flags);
 
 long syscall_SYS_mmap(
     void* addr,
