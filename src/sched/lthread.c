@@ -356,13 +356,12 @@ void _lthread_free(struct lthread* lt)
         pthread_mutex_t* m =
             (void*)((char*)rp - offsetof(pthread_mutex_t, _m_next));
         int waiters = m->_m_waiters;
-        int priv = (m->_m_type & 128) ^ 128;
         lt->robust_list.pending = rp;
         lt->robust_list.head = *rp;
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
         if (cont < 0 || waiters) {
-            enclave_futex((int*)&m->_m_lock, FUTEX_WAKE|priv, 1, 0, 0, 0);
+            enclave_futex_wake((int*)&m->_m_lock, 1);
         }
     }
     __do_orphaned_stdio_locks(lt);

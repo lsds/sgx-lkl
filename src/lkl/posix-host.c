@@ -34,14 +34,14 @@
 
 #define NSEC_PER_SEC 1000000000L
 
-// The function used to implement the futex system call on top of lthreads
-int enclave_futex(
+int enclave_futex_wait(int* uaddr, int val);
+
+int enclave_futex_timedwait(
     int* uaddr,
-    int op,
     int val,
-    const struct timespec* timeout,
-    int* uaddr2,
-    int val3);
+    const struct timespec* timeout);
+
+int enclave_futex_wake(int* uaddr, int val);
 
 static void panic(void)
 {
@@ -174,24 +174,6 @@ static int _warn_pthread(int ret, char* str_exp)
 /* pthread_* functions use the reverse convention */
 #define WARN_PTHREAD(exp) _warn_pthread(exp, #exp)
 
-static int futex_timed_wait(
-    _Atomic(int) * ftx,
-    int val,
-    const struct timespec* timeout)
-{
-    return enclave_futex((int*)ftx, FUTEX_WAIT, val, timeout, 0, 0);
-}
-
-static void futex_wait(_Atomic(int) * ftx, int val)
-{
-    enclave_futex((int*)ftx, FUTEX_WAIT, val, NULL, 0, 0);
-}
-
-static void futex_wake(_Atomic(int) * ftx, int val)
-{
-    enclave_futex((int*)ftx, FUTEX_WAKE, val, NULL, 0, 0);
-}
-
 static struct lkl_sem* sem_alloc(int count)
 {
     struct lkl_sem* sem;
@@ -216,7 +198,7 @@ static void sem_up(struct lkl_sem* sem)
     // there may be waiters.  Wake one up.
     if (atomic_fetch_add(&sem->count, 1) == 0)
     {
-        futex_wake(&sem->count, INT_MAX);
+        enclave_futex_wake((int*)&sem->count, INT_MAX);
     }
 }
 
@@ -236,7 +218,7 @@ static void sem_down(struct lkl_sem* sem)
         // count.
         if (count == 0)
         {
-            futex_wait(&sem->count, 0);
+            enclave_futex_wait((int*)&sem->count, 0);
             count = sem->count;
         }
     }
@@ -276,7 +258,7 @@ static void mutex_lock(struct lkl_mutex* mutex)
         }
         while (state != unlocked)
         {
-            futex_wait((_Atomic(int)*)&mutex->flag, locked_waiters);
+            enclave_futex_wait((int*)&mutex->flag, locked_waiters);
             state = atomic_exchange(&mutex->flag, locked_waiters);
         }
     }
@@ -310,7 +292,7 @@ static void mutex_unlock(struct lkl_mutex* mutex)
         // Wake up all waiting threads.  We could improve this to wake
         // only one thread if we kept track of the number of waiters,
         // though doing that in a non-racy way is non-trivial.
-        futex_wake((_Atomic(int)*)&mutex->flag, INT_MAX);
+        enclave_futex_wake((int*)&mutex->flag, INT_MAX);
     }
 }
 
@@ -506,12 +488,13 @@ static void* timer_callback(void* _timer)
         // Record the initial wake flag to before releasing the mutex.  We will
         // only ever be woken by a thread that holds the mutex, so this avoids a
         // race: the waking side will increment the counter and then wake us
-        // with the mutex held, so `futex_wait` will return immediately if the
-        // other thread increments the counter before waking us.
+        // with the mutex held, so `enclave_futex_timedwait` will return
+        // immediately if the other thread increments the counter before
+        // waking us.
         int wake = timer->wake;
         mutex_unlock(&timer->mtx);
         bool did_timeout =
-            futex_timed_wait(&timer->wake, wake, &timeout) == -ETIMEDOUT;
+            enclave_futex_timedwait((int*)&timer->wake, wake, &timeout) == -ETIMEDOUT;
         mutex_lock(&timer->mtx);
 
         // Check if the timer should shut down
@@ -593,7 +576,7 @@ static int timer_set_oneshot(void* _timer, unsigned long ns)
         {
             timer->delay_ns = ns;
             timer->wake++;
-            futex_wake(&timer->wake, 1);
+            enclave_futex_wake((int*)&timer->wake, 1);
         }
         else
         {
@@ -629,7 +612,7 @@ static void timer_free(void* _timer)
     if (atomic_compare_exchange_strong(&timer->armed, &current_value, false))
     {
         timer->wake++;
-        futex_wake(&timer->wake, 1);
+        enclave_futex_wake((int*)&timer->wake, 1);
         mutex_unlock(&timer->mtx);
 
         void* exit_val = NULL;

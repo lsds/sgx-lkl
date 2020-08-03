@@ -258,46 +258,47 @@ static int futex_wake(int* uaddr, unsigned int num)
     return w;
 }
 
-int enclave_futex(
+int enclave_futex_timedwait(
     int* uaddr,
-    int op,
     int val,
-    const struct timespec* timeout,
-    int* uaddr2,
-    int val3)
+    const struct timespec* timeout)
 {
-    int rc;
-
     ticket_lock(&futex_q_lock);
 
-    if (op == FUTEX_WAIT)
-    {
-        assert(lthread_self());
+    assert(lthread_self());
 
-        rc = futex_wait(uaddr, val, timeout);
-        if (rc == 0 || rc == -ETIMEDOUT)
-        {
-            // return without unlocking
-            // we already unlocked when yielding in
-            // __do_futex_sleep
-            // N.B. the locking code here makes a lot
-            // of assumptions about code elsewhere and
-            // if you are looking for a concurrency bug,
-            // check this and make sure return value
-            // assumptions here haven't been changed
-            // in any code that futex_wait executes.
-            return rc;
-        }
-    }
-    else if (op == FUTEX_WAKE)
+    int rc = futex_wait(uaddr, val, timeout);
+    if (rc == 0 || rc == -ETIMEDOUT)
     {
-        rc = futex_wake(uaddr, val);
+        // return without unlocking
+        // we already unlocked when yielding in
+        // __do_futex_sleep
+        // N.B. the locking code here makes a lot
+        // of assumptions about code elsewhere and
+        // if you are looking for a concurrency bug,
+        // check this and make sure return value
+        // assumptions here haven't been changed
+        // in any code that futex_wait executes.
+        return rc;
     }
     else
     {
-        FUTEX_SGXLKL_VERBOSE("futex invalid op: %d\n", op);
-        rc = -ENOSYS;
+        ticket_unlock(&futex_q_lock);
+
+        return rc;
     }
+}
+
+int enclave_futex_wait(int* uaddr, int val)
+{
+    return enclave_futex_timedwait(uaddr, val, NULL);
+}
+
+int enclave_futex_wake(int* uaddr, int val)
+{
+    ticket_lock(&futex_q_lock);
+
+    int rc = futex_wake(uaddr, val);
 
     ticket_unlock(&futex_q_lock);
 
