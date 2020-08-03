@@ -117,8 +117,8 @@ stages:
 
             steps:
             - checkout: self
-              submodules: false
-              clean: true
+              submodules: recursive
+              fetchDepth: 50
 
             - task: DownloadBuildArtifacts@0
               displayName: Download Debian package
