@@ -1076,7 +1076,7 @@ static json_result_t _get_number(
         un->real = _strtod(start, &end, parser->options.allow_whitespace);
     }
 
-    if (!end || end != parser->ptr)
+    if (!end || end != parser->ptr || start == end)
         RAISE(JSON_BAD_SYNTAX);
 
 done:
