@@ -42,14 +42,6 @@ void* syscall_SYS_mremap(
 
 int syscall_SYS_msync(void* addr, size_t length, int flags);
 
-int enclave_futex(
-    int* uaddr,
-    int op,
-    int val,
-    const struct timespec* timeout,
-    int* uaddr2,
-    int val3);
-
 long syscall_SYS_mmap(
     void* addr,
     size_t length,
@@ -57,5 +49,7 @@ long syscall_SYS_mmap(
     int flags,
     int fd,
     off_t offset);
+
+int enclave_futex_wake(int* uaddr, int val);
 
 #endif /* ENCLAVE_MEM_H */
