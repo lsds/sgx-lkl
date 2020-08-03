@@ -14,7 +14,6 @@ fi
 
 if [[ "$mode" == "build" ]]; then
     cd /
-    rm -rf /ltp
     echo "Installing depencancies..."
     apk update
     apk add alpine-sdk
@@ -30,9 +29,7 @@ if [[ "$mode" == "build" ]]; then
     apk add xz
     touch .c_binaries_list
 
-    # Get the LTP source code
-    echo "Cloning https://github.com/linux-test-project/ltp.git"
-    git clone --branch sgx-lkl https://github.com/lsds/ltp.git
+    # LTP folder is a submodule and copied into image
     cd /ltp
     pwd=$(pwd)
     c_binaries_list_file_tmp="/$pwd/.c_binaries_list.tmp"

@@ -29,6 +29,10 @@ $(ROOT_FS): $(ALPINE_TAR) ../buildenv.sh
 	$(ESCALATE_CMD) mount -t ext4 -o loop "$@" $(MOUNTPOINT)
 	$(ESCALATE_CMD) tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
 	$(ESCALATE_CMD) cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
+	git submodule init $(SGXLKL_ROOT)/ltp
+	git submodule update --remote $(SGXLKL_ROOT)/ltp
+	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp
+	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/ltp/* $(MOUNTPOINT)/ltp/
 	$(ESCALATE_CMD) install ../buildenv.sh $(MOUNTPOINT)/usr/sbin
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash

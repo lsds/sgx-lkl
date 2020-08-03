@@ -98,7 +98,7 @@ OPTIONS:
     -w, --whatif            Run the script without actually modifying the files
                             and display the diff of expected changes, if any.
     --exclude-dirs          Subdirectories to exclude. If unspecified, then
-                            ./host-musl ./lkl ./openenclave and ./sgx-lkl-musl
+                            ./host-musl ./lkl ./ltp ./openenclave and ./sgx-lkl-musl
                             are excluded.
                             All subdirectories are relative to the current path.
     --include-exts          File extensions to include for formatting. If
@@ -192,7 +192,7 @@ findargs='find .'
 
 get_find_args()
 {
-    local defaultExcludeDirs='./.git ./host-musl ./lkl ./openenclave ./sgx-lkl-musl ./build ./build_musl ./third_party'
+    local defaultExcludeDirs='./.git ./host-musl ./lkl ./ltp ./openenclave ./sgx-lkl-musl ./build ./build_musl ./third_party'
     local defaultIncludeExts='h c cpp'
 
     if [[ -z ${userExcludeDirs} ]]; then
