@@ -1,3 +1,4 @@
 tests/ml/openvino/Makefile
 tests/database/odbc-base/Makefile
 tests/database/odbc-with-cksp/Makefile
+tests/attestation/sgxlkl_attests_to_oe/Makefile
