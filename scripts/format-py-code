@@ -51,4 +51,4 @@ if [[ ${verbose} -eq 1 ]]; then
     args+=("--verbose")
 fi
 
-"${cmd[@]}" "${args[@]}" "$this_dir/.."
+"${cmd[@]}" "${args[@]}" "--exclude" 'ltp/|lkl/|openenclave/|host-musl/|sgx-lkl-musl/|build/|build_musl/|third_party/' "$this_dir/.."
