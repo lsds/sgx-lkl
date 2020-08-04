@@ -32,5 +32,11 @@ int main(int argc, char** argv)
         fprintf(stderr, "TEST_FAILED");
         exit(1);
     }
+
+    fprintf(f, "blah.....");
+    fclose(f);
+    f = fopen("/testt.txt", "rw+");
+    fprintf(f, "tttttt\n");
+    fclose(f);
     return 0;
 }
