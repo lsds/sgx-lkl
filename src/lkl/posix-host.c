@@ -657,13 +657,13 @@ static size_t kernel_mem_size;
  */
 static void *host_malloc(size_t size)
 {
-	// If we're allocating over 1MB, we're probably allocating the kernel heap.
-	// Pull this out of the enclave mmap area: there isn't enough space in the
-	// OE heap for it.
-	if (size > 1024*1024)
-	{
-		SGXLKL_ASSERT(kernel_mem == NULL);
-		kernel_mem = enclave_mmap(0, size, 0, PROT_READ | PROT_WRITE, 0);
+    // If we're allocating over 1MB, we're probably allocating the kernel heap.
+    // Pull this out of the enclave mmap area: there isn't enough space in the
+    // OE heap for it.
+    if (size > 1024*1024)
+    {
+        SGXLKL_ASSERT(kernel_mem == NULL);
+        kernel_mem = enclave_mmap(0, size, 0, PROT_READ | PROT_WRITE, 0);
         if (kernel_mem < 0)
         {
             // unable to mmap memory. return NULL that malloc returns on
@@ -671,10 +671,11 @@ static void *host_malloc(size_t size)
 
             return NULL;
         }
-		kernel_mem_size = size;
-		return kernel_mem;
-	}
-	return oe_malloc(size);
+        kernel_mem_size = size;
+        return kernel_mem;
+    }
+
+    return oe_malloc(size);
 }
 
 /**
@@ -682,14 +683,14 @@ static void *host_malloc(size_t size)
  */
 static void host_free(void *ptr)
 {
-	if (ptr == kernel_mem)
-	{
-		enclave_munmap(kernel_mem, kernel_mem_size);
-		kernel_mem = 0;
-		kernel_mem_size = 0;
-    return;
-	}
-	oe_free(ptr);
+    if (ptr == kernel_mem)
+    {
+        enclave_munmap(kernel_mem, kernel_mem_size);
+        kernel_mem = 0;
+        kernel_mem_size = 0;
+        return;
+    }
+    oe_free(ptr);
 }
 
 struct lkl_host_operations sgxlkl_host_ops = {
