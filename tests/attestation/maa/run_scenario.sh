@@ -52,7 +52,7 @@ fi
 # Set log file that will be shared between two enclaves in the test scenario for stdout and stderr logs
 # In sgx-lkl test framework can have one log file for stdout and stderr. This log file is called with cat to be included in test's output
 # This file is also searched for some key sentences to verify TLS connection and MAA attestation results
-export MAA_TEST1_LOG_FILE="$SGXLKL_ROOT/remote_attestation_maa_test.log"
+export MAA_TEST1_LOG_FILE="$SGXLKL_ROOT/tests/attestation/maa/remote_attestation_maa_test.log"
 date > "$MAA_TEST1_LOG_FILE"
 
 # Kill hanging processes if exist
