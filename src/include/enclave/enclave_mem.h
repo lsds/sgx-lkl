@@ -49,8 +49,6 @@ extern int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
  */
 void enclave_mem_info(size_t* total, size_t* free);
 
-int enclave_mmap_flags_supported(int flags, int fd);
-
 long syscall_SYS_munmap(void* addr, size_t length);
 
 long syscall_SYS_mremap(
