@@ -151,7 +151,7 @@
 #/ltp/testcases/kernel/syscalls/fadvise/posix_fadvise04
 /ltp/testcases/kernel/syscalls/fallocate/fallocate01
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate02
-/ltp/testcases/kernel/syscalls/fallocate/fallocate03
+#/ltp/testcases/kernel/syscalls/fallocate/fallocate03
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate04
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate05
 /ltp/testcases/kernel/syscalls/fanotify/fanotify01
@@ -675,7 +675,7 @@
 /ltp/testcases/kernel/syscalls/preadv/preadv03
 /ltp/testcases/kernel/syscalls/preadv2/preadv201
 /ltp/testcases/kernel/syscalls/preadv2/preadv202
-/ltp/testcases/kernel/syscalls/preadv2/preadv203
+#/ltp/testcases/kernel/syscalls/preadv2/preadv203
 /ltp/testcases/kernel/syscalls/profil/profil01
 /ltp/testcases/kernel/syscalls/pselect/pselect01
 /ltp/testcases/kernel/syscalls/pselect/pselect02
@@ -884,7 +884,7 @@
 /ltp/testcases/kernel/syscalls/sigaction/sigaction02
 /ltp/testcases/kernel/syscalls/sigaltstack/sigaltstack01
 /ltp/testcases/kernel/syscalls/sigaltstack/sigaltstack02
-/ltp/testcases/kernel/syscalls/sighold/sighold02
+#/ltp/testcases/kernel/syscalls/sighold/sighold02
 /ltp/testcases/kernel/syscalls/signal/signal01
 /ltp/testcases/kernel/syscalls/signal/signal02
 /ltp/testcases/kernel/syscalls/signal/signal03
@@ -896,7 +896,7 @@
 /ltp/testcases/kernel/syscalls/signalfd4/signalfd4_02
 /ltp/testcases/kernel/syscalls/sigpending/sigpending02
 /ltp/testcases/kernel/syscalls/sigprocmask/sigprocmask01
-/ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
+#/ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
 /ltp/testcases/kernel/syscalls/sigsuspend/sigsuspend01
 /ltp/testcases/kernel/syscalls/sigwaitinfo/sigwaitinfo01
 /ltp/testcases/kernel/syscalls/socket/socket01
