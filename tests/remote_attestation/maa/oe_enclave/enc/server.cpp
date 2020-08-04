@@ -33,7 +33,6 @@ using namespace std;
 extern "C"
 {
     int setup_tls_server(const char* server_port);
-    int run_server(void* ptr);
 };
 
 static mbedtls_net_context client_fd;

@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 
 #include "../../common/log_utils.h"
-#include "oe_private/verify_cert.h"
+#include "../../common/host_verify/private/verify_cert.h"
 
 #define DEBUG_LEVEL 1
 

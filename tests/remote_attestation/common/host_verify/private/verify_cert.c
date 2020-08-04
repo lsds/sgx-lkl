@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../../common/maa.h"
+#include "../../../common/maa_helper.h"
 #include "../../../common/json_utils.h"
 #include "../../../common/log_utils.h"
 #include "../../../common/transport_utils.h"
-#include "../oe_public/host_verify.h"
+#include "../public/host_verify.h"
 #include "oe_defs.h"
 
 int _maa_verify_report(

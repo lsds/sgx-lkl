@@ -1,10 +1,10 @@
-#include "maa.h"
+#include "maa_helper.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "auth.h"
+#include "auth_helper.h"
 #include "curl_helper.h"
 #include "json_utils.h"
 #include "log_utils.h"

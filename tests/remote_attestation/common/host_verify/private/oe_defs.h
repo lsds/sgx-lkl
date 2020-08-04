@@ -1,9 +1,9 @@
 #ifndef OE_DEFS_H
 #define OE_DEFS_H
 
-#include "../oe_public/bits/defs.h"
-#include "../oe_public/bits/report.h"
-#include "../oe_public/bits/result.h"
+#include "../public/bits/defs.h"
+#include "../public/bits/report.h"
+#include "../public/bits/result.h"
 
 #define OE_PEM_MAX_BYTES (16 * 1024)
 

@@ -29,10 +29,10 @@ build:
 	$(CC) -c $(CFLAGS) $(INCLUDES) oeApp_u.c
 	$(CC) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/json_utils.c
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/curl_helper.cpp
-	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/auth.cpp
-	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/maa.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/auth_helper.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $(COMMONS)/maa_helper.cpp
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) host.cpp
-	$(CXX) -o oeApp_host host.o oeApp_u.o curl_helper.o auth.o json_utils.o maa.o $(LDFLAGS)  -L/opt/openenclave/lib/openenclave/enclave -lpthread -lcurl -lmbedtls -lmbedcrypto
+	$(CXX) -o oeApp_host host.o oeApp_u.o curl_helper.o auth_helper.o json_utils.o maa_helper.o $(LDFLAGS)  -L/opt/openenclave/lib/openenclave/enclave -lpthread -lcurl -lmbedtls -lmbedcrypto
 
 clean:
 	rm -f oeApp_host* *.o oeApp_u.* oeApp_args.h
