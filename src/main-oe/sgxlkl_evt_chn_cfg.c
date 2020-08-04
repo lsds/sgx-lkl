@@ -1,4 +1,3 @@
-#include <enclave/enclave_mem.h>
 #include <errno.h>
 #include <host/sgxlkl_util.h>
 #include <host/vio_host_event_channel.h>

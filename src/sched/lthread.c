@@ -154,6 +154,24 @@ __asm__("    .text                                  \n"
         "       ret                                              \n");
 #endif
 
+static inline struct lthread* lthread_alloc()
+{
+#ifdef LTHREAD_UAF_CHECKS
+    return paranoid_alloc(sizeof(struct lthread));
+#else
+    return oe_calloc(sizeof(struct lthread), 1);
+#endif
+}
+
+static inline void lthread_dealloc(struct lthread* lt)
+{
+#ifdef LTHREAD_UAF_CHECKS
+    return paranoid_dealloc(lt, sizeof(struct lthread));
+#else
+    return oe_free(lt);
+#endif
+}
+
 static void _exec(void* lt_)
 {
 #if defined(__llvm__) && defined(__x86_64__)
@@ -408,8 +426,7 @@ void _lthread_free(struct lthread* lt)
     }
 #endif /* DEBUG */
 
-    oe_free(lt);
-    lt = 0;
+    lthread_dealloc(lt);
 }
 
 void set_tls_tp(struct lthread* lt)
@@ -601,7 +618,7 @@ int lthread_create_primitive(
         libc.threaded = 1;
     }
 
-    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
+    if ((lt = lthread_alloc(1, sizeof(struct lthread))) == NULL)
     {
         return -1;
     }
@@ -619,12 +636,12 @@ int lthread_create_primitive(
                  PROT_READ | PROT_WRITE,
                  1 /* zero_pages */)) < 0)
         {
-            oe_free(lt);
+            lthread_dealloc(lt);
             return -1;
         }
         if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
         {
-            oe_free(lt);
+            lthread_dealloc(lt);
             return -1;
         }
     }
@@ -701,7 +718,7 @@ int lthread_create(
 
     stack_size =
         attrp && attrp->stack_size ? attrp->stack_size : sched->stack_size;
-    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
+    if ((lt = lthread_alloc(1, sizeof(struct lthread))) == NULL)
     {
         return -1;
     }
@@ -713,7 +730,7 @@ int lthread_create(
                                    PROT_READ | PROT_WRITE,
                                    1 /* zero_pages */)) < 0))
     {
-        oe_free(lt);
+        lthread_dealloc(lt);
         return -1;
     }
     lt->attr.stack_size = stack_size;
@@ -729,13 +746,13 @@ int lthread_create(
                  PROT_READ | PROT_WRITE,
                  1 /* zero_pages */)) < 0)
         {
-            oe_free(lt);
+            lthread_dealloc(lt);
             return -1;
         }
         if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
         {
             enclave_munmap(lt->attr.stack, stack_size);
-            oe_free(lt);
+            lthread_dealloc(lt);
             return -1;
         }
     }

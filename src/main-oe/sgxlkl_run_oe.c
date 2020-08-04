@@ -28,7 +28,6 @@
 #include <arpa/inet.h>
 #include <netinet/ip.h>
 
-#include "enclave/enclave_mem.h"
 #include "host/host_state.h"
 #include "host/serialize_enclave_config.h"
 #include "host/sgxlkl_host_config.h"
