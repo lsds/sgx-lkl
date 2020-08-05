@@ -1,7 +1,10 @@
 include ../../common.mk
 
-PROG=clone
-PROG_SRC=$(PROG).c 
+PROG1=clone
+PROG1_SRC=$(PROG1).c
+
+PROG2=clone_loop
+PROG2_SRC=$(PROG1).c
 IMAGE_SIZE=5M
 
 EXECUTION_TIMEOUT=60
@@ -15,7 +18,7 @@ SGXLKL_ROOTFS=sgx-lkl-rootfs.img
 .DELETE_ON_ERROR:
 .PHONY: all clean
 
-$(SGXLKL_ROOTFS): $(PROG_SRC)
+$(SGXLKL_ROOTFS): $(PROG1_SRC) $(PROG2_SRC)
 	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${SGXLKL_ROOTFS}
 
 gettimeout:
@@ -23,19 +26,35 @@ gettimeout:
 
 run: run-hw run-sw
 
-run-gdb: run-hw-gdb
+run-gdb: run-hw-gdb-clone
 
-run-hw: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+run-hw: ${SGXLKL_ROOTFS} run-hw-clone run-hw-clone-loop
 
-run-sw: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+run-hw-clone: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG1)
 
-run-hw-gdb: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
+run-hw-clone-loop: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG2)
 
-run-sw-gdb: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG)
 
+run-sw: ${SGXLKL_ROOTFS} run-sw-clone run-sw-clone-loop
+
+run-sw-clone: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG1)
+
+run-sw-clone-loop: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG2)
+
+run-hw-gdb-clone: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG1)
+
+run-sw-gdb-clone: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG1)
+
+run-hw-gdb-clone-loop: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(SGXLKL_ROOTFS) $(PROG2)
+
+run-sw-gdb-clone-loop: ${SGXLKL_ROOTFS}
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(SGXLKL_ROOTFS) $(PROG2)
 clean:
-	rm -f $(SGXLKL_ROOTFS) $(PROG)
+	rm -f $(SGXLKL_ROOTFS) $(PROG1)
