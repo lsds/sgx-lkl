@@ -117,6 +117,11 @@ static void lkl_prepare_rootfs(const char* dirname, int perm)
             sgxlkl_fail("Unable to mkdir %s: %s\n", dirname, lkl_strerror(err));
         }
     }
+    else
+    {
+        lkl_sys_chmod(dirname, perm);
+    }
+
 }
 
 static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
@@ -277,7 +282,7 @@ static int lkl_mount_blockdev(
     if (err < 0)
     {
         if (err == -LKL_ENOENT)
-            err = lkl_sys_mkdir("/mnt", 0700);
+            err = lkl_sys_mkdir("/mnt", 0755);
         if (err < 0)
             goto fail;
     }
@@ -285,7 +290,7 @@ static int lkl_mount_blockdev(
     // Create mount directory if it does not exist.
     // Allow existing directories so that disks can be mounted in read-only root
     // fs.
-    const int mkdir_err = lkl_sys_mkdir(mnt_point, 0700);
+    const int mkdir_err = lkl_sys_mkdir(mnt_point, 0755);
     if (mkdir_err < 0 && mkdir_err != -LKL_EEXIST)
         goto fail;
 
@@ -785,16 +790,17 @@ static void lkl_mount_root_disk(
 
     if (root->overlay)
     {
+        oe_host_printf("Creating writable in-memory overlay for rootfs\n");
         SGXLKL_VERBOSE("Creating writable in-memory overlay for rootfs.\n");
         const char mnt_point_overlay[] = "/mnt/oda";
         const char mnt_point_overlay_upper[] = "/mnt/oda-upper";
         const char overlay_upper_dir[] = "/mnt/oda-upper/upper";
         const char overlay_work_dir[] = "/mnt/oda-upper/work";
-        lkl_prepare_rootfs(mnt_point_overlay_upper, 0700);
+        lkl_prepare_rootfs(mnt_point_overlay_upper, 0755);
         lkl_mount_overlay_tmpfs(mnt_point_overlay_upper);
-        lkl_prepare_rootfs(overlay_upper_dir, 0700);
-        lkl_prepare_rootfs(overlay_work_dir, 0700);
-        lkl_prepare_rootfs(mnt_point_overlay, 0700);
+        lkl_prepare_rootfs(overlay_upper_dir, 0755);
+        lkl_prepare_rootfs(overlay_work_dir, 0755);
+        lkl_prepare_rootfs(mnt_point_overlay, 0755);
         lkl_mount_overlayfs(
             mnt_point, overlay_upper_dir, overlay_work_dir, mnt_point_overlay);
         strcpy(mnt_point, mnt_point_overlay);
@@ -814,6 +820,7 @@ static void lkl_mount_root_disk(
 
     /* pivot */
     err = lkl_sys_chroot(mnt_point);
+    oe_host_printf("MOUNT POINT: %s\n", mnt_point);
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_chroot(%s): %s\n", mnt_point, lkl_strerror(err));
@@ -825,13 +832,14 @@ static void lkl_mount_root_disk(
         sgxlkl_fail("lkl_sys_chdir(%s): %s\n", mnt_point, lkl_strerror(err));
     }
 
-    lkl_prepare_rootfs("/dev", 0700);
+    lkl_prepare_rootfs("/", 0755);
+    lkl_prepare_rootfs("/dev", 0755);
     lkl_prepare_rootfs("/dev/shm", 0777);
-    lkl_prepare_rootfs("/mnt", 0700);
+    lkl_prepare_rootfs("/mnt", 0755);
     lkl_prepare_rootfs("/tmp", 0777);
-    lkl_prepare_rootfs("/sys", 0700);
-    lkl_prepare_rootfs("/run", 0700);
-    lkl_prepare_rootfs("/proc", 0700);
+    lkl_prepare_rootfs("/sys", 0755);
+    lkl_prepare_rootfs("/run", 0755);
+    lkl_prepare_rootfs("/proc", 0755);
     lkl_mount_shmtmpfs();
     lkl_mount_tmpfs();
     lkl_mount_mntfs();
