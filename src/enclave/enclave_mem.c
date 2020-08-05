@@ -14,9 +14,11 @@
 
 #include "enclave/bitops.h"
 #include "enclave/lthread.h"
+
 #include "enclave/enclave_mem.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread_int.h"
+#include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 
 static struct ticketlock mmaplock;
@@ -28,7 +30,7 @@ static void* mmap_base;         // First page that can be mmap'ed
 static void* mmap_end;          // Last page that can be mmap'ed
 static size_t mmap_num_pages;   // Total number of pages that can be mmap'ed
 
-static int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
+int mmap_files; // Allow MAP_PRIVATE or MAP_SHARED?
 
 static size_t used_pages =
     0; // Tracks the number of used pages for the mmap tracing
@@ -98,98 +100,6 @@ static size_t addr_to_index(void* addr)
     return ((char*)mmap_end - (char*)addr) / PAGE_SIZE;
 }
 
-long syscall_SYS_mmap(
-    void* addr,
-    size_t length,
-    int prot,
-    int flags,
-    int fd,
-    off_t offset)
-{
-    if ((flags & MAP_SHARED) && (flags & MAP_PRIVATE))
-    {
-        sgxlkl_warn("mmap() with MAP_SHARED and MAP_PRIVATE not supported\n");
-        return -EINVAL;
-    }
-    // Anonymous mapping/allocation
-    else if (fd == -1 && (flags & MAP_ANONYMOUS))
-    {
-        return (long)enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
-    }
-    // File-backed mapping (if allowed)
-    else if ((fd >= 0) && enclave_mmap_files_flags_supported(flags))
-    {
-        void* mem =
-            enclave_mmap(addr, length, flags & MAP_FIXED, prot | PROT_WRITE, 0);
-
-        if (mem > 0)
-        {
-            // Read file into memory
-            size_t readb = 0;
-            ssize_t ret = 0;
-            while ((ret = lkl_sys_pread64(
-                        fd, ((char*)mem) + readb, length - readb, offset)) > 0)
-            {
-                readb += ret;
-                offset += ret;
-            };
-
-            if (ret < 0)
-            {
-                enclave_munmap(addr, length);
-                return -EBADF;
-            }
-
-            // Set requested page permissions
-            if ((prot | PROT_WRITE) != prot)
-                mprotect(mem, length, prot);
-        }
-
-        return (long)mem;
-    }
-    else
-    {
-        return -EINVAL;
-    }
-}
-
-void* syscall_SYS_mremap(
-    void* old_addr,
-    size_t old_length,
-    size_t new_length,
-    int flags,
-    void* new_addr)
-{
-    return enclave_mremap(
-        old_addr, old_length, new_addr, new_length, flags & MREMAP_FIXED);
-}
-
-int syscall_SYS_munmap(void* addr, size_t length)
-{
-    // During thread teardown, libc unmaps the stack of the current thread
-    // before doing an exit system call.  This works on a conventional system
-    // because it's possible to do an exit system call without a stack.  With
-    // LKL, the kernel and userspace share a stack and so any system call needs
-    // a stack.  We work around this by deferring any attempt to unmap the
-    // current stack.
-    register void* rsp __asm__("rsp");
-    if ((rsp > addr) && ((char*)rsp < ((char*)addr + length)))
-    {
-        struct lthread* lt = lthread_self();
-        SGXLKL_ASSERT(lt->attr.stack == NULL);
-        lt->attr.stack = addr;
-        lt->attr.stack_size = length;
-        return 0;
-    }
-
-    return enclave_munmap(addr, length);
-}
-
-int syscall_SYS_msync(void* addr, size_t length, int flags)
-{
-    return 0;
-}
-
 void enclave_mem_info(size_t* total, size_t* free)
 {
     *total = mmap_num_pages * PAGESIZE;
@@ -237,22 +147,6 @@ void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files)
     bitmap_set(mmap_fresh_bitmap, 0, mmap_num_pages);
 
     mmap_files = _mmap_files;
-}
-
-/*
- * Returns 1 if we can mmap files using the given flags
- * returns 0 otherwise.
- */
-int enclave_mmap_files_flags_supported(int flags)
-{
-    int supported_flags = 0;
-
-    if (mmap_files == ENCLAVE_MMAP_FILES_SHARED)
-        supported_flags = MAP_PRIVATE | MAP_SHARED;
-    else if (mmap_files == ENCLAVE_MMAP_FILES_PRIVATE)
-        supported_flags = MAP_PRIVATE;
-
-    return supported_flags & flags;
 }
 
 /*
@@ -343,6 +237,7 @@ void* enclave_mmap(
     if (((intptr_t)ret) >= 0)
     {
         int found_only_fresh_pages = 0;
+        int mprotect_ret;
 
         if (zero_pages)
         {
@@ -368,7 +263,8 @@ void* enclave_mmap(
             if (prot != -1)
             {
                 // Make pages writeable
-                mprotect(ret, length, prot | PROT_WRITE);
+                sgxlkl_host_syscall_mprotect(
+                    &mprotect_ret, ret, length, prot | PROT_WRITE);
             }
 
             // Set all allocated pages to zero
@@ -377,7 +273,7 @@ void* enclave_mmap(
             // Restore the correct page permissions
             if (prot != -1 && ((prot | PROT_WRITE) != prot))
             {
-                mprotect(ret, length, prot);
+                sgxlkl_host_syscall_mprotect(&mprotect_ret, ret, length, prot);
             }
         }
 
@@ -386,7 +282,7 @@ void* enclave_mmap(
         if (prot != -1 && (!zero_pages || found_only_fresh_pages))
         {
             // Set requested page permission
-            mprotect(ret, length, prot);
+            sgxlkl_host_syscall_mprotect(&mprotect_ret, ret, length, prot);
         }
 
         used_pages += pages - replaced_pages;
@@ -431,7 +327,7 @@ void* enclave_mmap(
 /*
  * munmap for enclave memory range
  */
-int enclave_munmap(void* addr, size_t length)
+long enclave_munmap(void* addr, size_t length)
 {
     size_t pages = DIV_ROUNDUP(length, PAGE_SIZE);
 

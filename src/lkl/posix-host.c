@@ -178,9 +178,13 @@ static struct lkl_sem* sem_alloc(int count)
 {
     struct lkl_sem* sem;
 
+#ifdef LKL_SEM_UAF_CHECKS
+    sem = paranoid_alloc(sizeof(struct lkl_sem));
+#else
     sem = oe_calloc(1, sizeof(*sem));
     if (!sem)
         return NULL;
+#endif
 
     sem->count = count;
 
@@ -189,7 +193,13 @@ static struct lkl_sem* sem_alloc(int count)
 
 static void sem_free(struct lkl_sem* sem)
 {
+    SGXLKL_VERBOSE("enter: %p\n", sem);
+#if LKL_SEM_UAF_CHECKS
+    paranoid_dealloc(sem, sizeof(struct lkl_sem));
+#else
     oe_free(sem);
+#endif
+    SGXLKL_VERBOSE("exit\n");
 }
 
 static void sem_up(struct lkl_sem* sem)

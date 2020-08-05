@@ -1365,9 +1365,6 @@ void lkl_start_init()
 {
     size_t i;
 
-    SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
-    register_lkl_syscall_overrides();
-
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
@@ -1412,6 +1409,9 @@ void lkl_start_init()
 
     if (cfg->hostnet)
         sgxlkl_use_host_network = 1;
+
+    SGXLKL_VERBOSE("calling register_lkl_syscall_overrides()\n");
+    register_lkl_syscall_overrides();
 
     sgxlkl_mtu = cfg->tap_mtu;
 

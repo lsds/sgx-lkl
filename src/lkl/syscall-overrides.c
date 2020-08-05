@@ -3,6 +3,7 @@
 #include "enclave/enclave_util.h"
 #include "lkl/posix-host.h"
 #include "lkl/syscall-overrides-fstat.h"
+#include "lkl/syscall-overrides-mem.h"
 #include "lkl/syscall-overrides-sysinfo.h"
 
 /**
@@ -89,56 +90,56 @@ static lkl_syscall_handler_t real_syscalls[__lkl__NR_syscalls];
 #define LKL_SYSCALL_DEFINE0(name, ...)                                     \
     static long log##name()                                                \
     {                                                                      \
-        int ret = ((int (*)(void))real_syscalls[__lkl__NR##name])();       \
-        __sgxlkl_log_syscall(SGXLKL_LKL_SYSCALL, __lkl__NR##name, 1, ret); \
+        int ret = ((long (*)(void))real_syscalls[__lkl__NR##name])();       \
+        __sgxlkl_log_syscall(SGXLKL_LKL_SYSCALL, __lkl__NR##name, ret, 0); \
         return ret;                                                        \
     }
 
 #define LKL_SYSCALL_DEFINE1(name, t1, a1)                                      \
     static long log##name(t1 a1)                                               \
     {                                                                          \
-        int ret = ((int (*)(t1))real_syscalls[__lkl__NR##name])(a1);           \
-        __sgxlkl_log_syscall(SGXLKL_LKL_SYSCALL, __lkl__NR##name, 1, ret, a1); \
+        int ret = ((long (*)(t1))real_syscalls[__lkl__NR##name])(a1);           \
+        __sgxlkl_log_syscall(SGXLKL_LKL_SYSCALL, __lkl__NR##name, ret, 1, a1); \
         return ret;                                                            \
     }
 
 #define LKL_SYSCALL_DEFINE2(name, t1, a1, t2, a2)                            \
     static long log##name(t1 a1, t2 a2)                                      \
     {                                                                        \
-        int ret = ((int (*)(t1, t2))real_syscalls[__lkl__NR##name])(a1, a2); \
+        int ret = ((long (*)(t1, t2))real_syscalls[__lkl__NR##name])(a1, a2); \
         __sgxlkl_log_syscall(                                                \
-            SGXLKL_LKL_SYSCALL, __lkl__NR##name, 2, ret, a1, a2);            \
+            SGXLKL_LKL_SYSCALL, __lkl__NR##name, ret, 2, a1, a2);            \
         return ret;                                                          \
     }
 
 #define LKL_SYSCALL_DEFINE3(name, t1, a1, t2, a2, t3, a3)                      \
     static long log##name(t1 a1, t2 a2, t3 a3)                                 \
     {                                                                          \
-        int ret =                                                              \
-            ((int (*)(t1, t2, t3))real_syscalls[__lkl__NR##name])(a1, a2, a3); \
+        long ret =                                                              \
+            ((long (*)(t1, t2, t3))real_syscalls[__lkl__NR##name])(a1, a2, a3); \
         __sgxlkl_log_syscall(                                                  \
-            SGXLKL_LKL_SYSCALL, __lkl__NR##name, 3, ret, a1, a2, a3);          \
+            SGXLKL_LKL_SYSCALL, __lkl__NR##name, ret, 3, a1, a2, a3);          \
         return ret;                                                            \
     }
 
 #define LKL_SYSCALL_DEFINE4(name, t1, a1, t2, a2, t3, a3, t4, a4)            \
     static long log##name(t1 a1, t2 a2, t3 a3, t4 a4)                        \
     {                                                                        \
-        int ret = ((int (*)(t1, t2, t3, t4))real_syscalls[__lkl__NR##name])( \
+        long ret = ((long (*)(t1, t2, t3, t4))real_syscalls[__lkl__NR##name])( \
             a1, a2, a3, a4);                                                 \
         __sgxlkl_log_syscall(                                                \
-            SGXLKL_LKL_SYSCALL, __lkl__NR##name, 4, ret, a1, a2, a3, a4);    \
+            SGXLKL_LKL_SYSCALL, __lkl__NR##name, ret, 4, a1, a2, a3, a4);    \
         return ret;                                                          \
     }
 
 #define LKL_SYSCALL_DEFINE5(name, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5)     \
     static long log##name(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5)                  \
     {                                                                         \
-        int ret =                                                             \
-            ((int (*)(t1, t2, t3, t4, t5))real_syscalls[__lkl__NR##name])(    \
+        long ret =                                                             \
+            ((long (*)(t1, t2, t3, t4, t5))real_syscalls[__lkl__NR##name])(    \
                 a1, a2, a3, a4, a5);                                          \
         __sgxlkl_log_syscall(                                                 \
-            SGXLKL_LKL_SYSCALL, __lkl__NR##name, 5, ret, a1, a2, a3, a4, a5); \
+            SGXLKL_LKL_SYSCALL, __lkl__NR##name, ret, 5, a1, a2, a3, a4, a5); \
         return ret;                                                           \
     }
 
@@ -146,14 +147,14 @@ static lkl_syscall_handler_t real_syscalls[__lkl__NR_syscalls];
     name, t1, a1, t2, a2, t3, a3, t4, a4, t5, a5, t6, a6)                      \
     static long log##name(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5, t6 a6)            \
     {                                                                          \
-        int ret =                                                              \
-            ((int (*)(t1, t2, t3, t4, t5, t6))real_syscalls[__lkl__NR##name])( \
+        long ret =                                                              \
+            ((long (*)(t1, t2, t3, t4, t5, t6))real_syscalls[__lkl__NR##name])( \
                 a1, a2, a3, a4, a5, a6);                                       \
         __sgxlkl_log_syscall(                                                  \
             SGXLKL_LKL_SYSCALL,                                                \
             __lkl__NR##name,                                                   \
-            6,                                                                 \
             ret,                                                               \
+            6,                                                                 \
             a1,                                                                \
             a2,                                                                \
             a3,                                                                \
@@ -251,4 +252,12 @@ void register_lkl_syscall_overrides()
         __lkl__NR##name, (lkl_syscall_handler_t)unsupported##name);
 #include "unsupported-syscalls.h"
     }
+    // Register overrides for the memory management functions.
+    // These are internal - use the trace versions if we are doing internal
+    // syscall tracing.
+#if SGXLKL_ENABLE_SYSCALL_TRACING
+    syscall_register_mem_overrides(sgxlkl_trace_internal_syscall);
+#else
+    syscall_register_mem_overrides(false);
+#endif
 }

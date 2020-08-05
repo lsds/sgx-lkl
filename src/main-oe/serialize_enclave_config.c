@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include <json.h>
-#include "enclave/enclave_mem.h"
 #include "enclave/wireguard.h"
 #include "host/sgxlkl_util.h"
 #include "shared/env.h"
