@@ -524,4 +524,5 @@ void serialize_enclave_config(
     VERB("Enclave config: %s\n", *buffer);
 
     free_json(root);
+    VERB("After free json root\n");
 }

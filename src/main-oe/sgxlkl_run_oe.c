@@ -1357,7 +1357,9 @@ void _create_enclave(
         &sgxlkl_host_state.enclave_config, &buffer, &buffer_size);
 
     oe_eeid_t* eeid = NULL;
+    printf("before eeid creation\n");
     oe_create_eeid_sgx(buffer_size, &eeid);
+    printf("after eeid creation, eeid = %p\n", eeid);
     sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
     oe_enclave_size_settings_t oe_sizes = {
         .num_heap_pages = econf->image_sizes.num_heap_pages,
@@ -1370,11 +1372,13 @@ void _create_enclave(
 
     setting.u.eeid = eeid;
 
+    printf("before enclave creation\n");
     result = oe_create_sgxlkl_enclave(
         libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, oe_enclave);
-
+    printf("after enclave creation\n");
     free(eeid);
 
+    printf("after free eeid\n");
     sgxlkl_host_verbose_raw("result=%u (%s)\n", result, oe_result_str(result));
 
     if (result != OE_OK)
