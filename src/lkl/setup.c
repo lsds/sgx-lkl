@@ -820,7 +820,6 @@ static void lkl_mount_root_disk(
 
     /* pivot */
     err = lkl_sys_chroot(mnt_point);
-    oe_host_printf("MOUNT POINT: %s\n", mnt_point);
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_chroot(%s): %s\n", mnt_point, lkl_strerror(err));
