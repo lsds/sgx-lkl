@@ -343,8 +343,6 @@ static lkl_thread_t thread_create_host(void* pc, void* sp, void* tls, struct lkl
     // mechanism begin life in the kernel and so need to be associated with the
     // kernel task that created them.
     lthread_setspecific_remote(thread, task_key->key, task_value);
-    // Detach the thread.  Any join operations will be handled by LKL.
-    lthread_detach2(thread);
     // Mark the thread as runnable.  This must be done *after* the
     // `lthread_setspecific_remote` call, to ensure that the thread does not
     // run while we are modifying its TLS.
