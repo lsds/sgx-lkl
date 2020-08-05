@@ -12,7 +12,7 @@
 [submodule "openenclave"]
 	path = openenclave
 	url = https://github.com/openenclave/openenclave.git
-	branch = feature/sgx-lkl-support
+	branch = jxyang.test.xstates
 [submodule "third_party/argon2"]
 	path = third_party/argon2
 	url = https://github.com/P-H-C/phc-winner-argon2
