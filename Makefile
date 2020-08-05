@@ -46,7 +46,7 @@ ${HOST_MUSL_BUILD}: | ${HOST_MUSL}/.git ${HOST_LIBC_BLD_DIR}
 ${WIREGUARD}:
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party $@
 
-${THIRD_PARTY_LIB_CRYPTSETUP} ${THIRD_PARTY_LIB_POPT} ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_UUID} ${THIRD_PARTY_LIB_JSON} ${THIRD_PARTY_LIB_CURL} ${OE_STUBS}: ${LKL_BUILD}/include
+${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_JSON} ${THIRD_PARTY_LIB_CURL} ${OE_STUBS}: ${LKL_BUILD}/include
 	+${MAKE} -C ${SGXLKL_ROOT}/third_party $@
 
 # LKL's static library and include/ header directory
@@ -100,9 +100,9 @@ sgx-lkl-musl-config: ${OPENENCLAVE}
 		--prefix=${SGXLKL_LIBC_BLD_DIR} \
 		--lklheaderdir=${LKL_BUILD}/include/ \
 		--lkllib=${LIBLKL} \
-		--sgxlklincludes="${SGXLKL_ROOT}/src/include ${CRYPTSETUP_BUILD}/include/ $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal ${BUILD_DIR}/config" \
+		--sgxlklincludes="${SGXLKL_ROOT}/src/include $(LINUX_SGX)/common/inc $(LINUX_SGX)/common/inc/internal ${BUILD_DIR}/config" \
 		--sgxlkllib=${BUILD_DIR}/sgxlkl/${SGXLKL_STATIC_LIB} \
-		--sgxlkllibs="${THIRD_PARTY_LIB_CRYPTSETUP} ${THIRD_PARTY_LIB_POPT} ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_UUID} ${THIRD_PARTY_LIB_JSON} \
+		--sgxlkllibs="${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_JSON} \
 								  ${THIRD_PARTY_LIB_CURL} ${OE_STUBS} ${OE_SDK_LIBS}/openenclave/enclave/libmbedtls.a" \
 		--disable-shared
 
@@ -114,7 +114,7 @@ $(SGXLKL_RUN_TARGET):
 	make -C src $(SGXLKL_RUN_TARGET)
 
 # Compile SGX-LKL source files
-sgx-lkl: ${THIRD_PARTY_LIB_CRYPTSETUP} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_CURL}
+sgx-lkl: ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_JSON} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PARTY_LIB_CURL}
 	make -C src all
 
 $(SGXLKL_LIB_TARGET): $(SGXLKL_BUILD_VARIANT)
@@ -132,7 +132,7 @@ create-build-link:
 	@ln -sf $(BUILD_DIR) $(BUILD_LINK_NAME)
 
 # Build directories for individual (one-shot after git clone or clean)
-${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_LIBC_BLD_DIR} ${SGXLKL_LIBC_BLD_DIR} ${CRYPTSETUP_BUILD} ${SGXLKL_GLIBC_BLD_DIR}: create-build-link
+${BUILD_DIR} ${TOOLS_BUILD} ${LKL_BUILD} ${HOST_LIBC_BLD_DIR} ${SGXLKL_LIBC_BLD_DIR} ${SGXLKL_GLIBC_BLD_DIR}: create-build-link
 	@mkdir -p $@
 
 # Submodule initialisation (one-shot after git clone)
