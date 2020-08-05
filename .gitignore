@@ -2,18 +2,12 @@ build
 build_musl
 
 third_party/curl/
-third_party/cryptsetup/
 third_party/devicemapper/
 third_party/e2fsprogs/
-third_party/util-linux/
-third_party/popt/
 third_party/json-c/
 third_party/mbedtls/*.o
 third_party/mbedtls/*.a
 third_party/wireguard/
-third_party/protobuf-c/
-third_party/protobuf-c-rpc/*.o
-third_party/protobuf-c-rpc/*.a
 
 src/include/enclave/sgxlkl_t.h
 src/include/host/sgxlkl_u.h
