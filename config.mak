@@ -59,11 +59,6 @@ E2FSPROGS                           ?= ${SGXLKL_ROOT}/third_party/e2fsprogs
 E2FSPROGS_BUILD                     ?= ${BUILD_DIR}/e2fsprogs
 THIRD_PARTY_LIB_EXT2FS              ?= ${E2FSPROGS_BUILD}/lib/libext2fs.a
 
-# json c library
-JSONC                               ?= ${SGXLKL_ROOT}/third_party/json-c
-JSONC_BUILD                         ?= ${BUILD_DIR}/json-c
-THIRD_PARTY_LIB_JSON                ?= ${JSONC_BUILD}/lib/libjson-c.a
-
 # Wireguard library
 WIREGUARD                           ?= ${SGXLKL_ROOT}/third_party/wireguard
 
