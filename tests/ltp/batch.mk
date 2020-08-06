@@ -57,22 +57,22 @@ run-sw: $(ROOT_FS)
 run-hw-single: $(ROOT_FS)
 	@rm -f $(ROOT_FS_FRESH_COPY)
 	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
-	${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
+	${SGXLKL_STARTER} --hw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 run-sw-single: $(ROOT_FS)
 	@rm -f $(ROOT_FS_FRESH_COPY)
 	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
-	${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
+	${SGXLKL_STARTER} --sw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 run-hw-single-gdb: $(ROOT_FS)
 	@rm -f $(ROOT_FS_FRESH_COPY)
 	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
-	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(ROOT_FS) $(test)
+	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --hw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 run-sw-single-gdb: $(ROOT_FS)
 	@rm -f $(ROOT_FS_FRESH_COPY)
 	@cp $(ROOT_FS) $(ROOT_FS_FRESH_COPY)
-	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(ROOT_FS) $(test)
+	${SGXLKL_GDB} --args ${SGXLKL_STARTER} --sw-debug $(ROOT_FS_FRESH_COPY) $(test)
 
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true
