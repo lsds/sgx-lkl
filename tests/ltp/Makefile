@@ -16,21 +16,24 @@ LTP_TEST_EXEC_TIMEOUT=3600
 LTP_TEST_SCRIPT="./run_ltp_test.sh"
 ESCALATE_CMD=sudo
 
+LTP_SOURCE_DIR=$(SGXLKL_ROOT)/ltp
+
 .DELETE_ON_ERROR:
 .PHONY: all clean
+
+$(LTP_SOURCE_DIR)/.git:
+	git submodule update --progress --init $(LTP_SOURCE_DIR)
 
 $(ALPINE_TAR):
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-$(ROOT_FS): $(ALPINE_TAR) buildenv.sh
+$(ROOT_FS): $(ALPINE_TAR) buildenv.sh $(LTP_SOURCE_DIR)/.git
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$@"
 	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)
 	$(ESCALATE_CMD) mount -t ext4 -o loop "$@" $(MOUNTPOINT)
 	$(ESCALATE_CMD) tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
 	$(ESCALATE_CMD) cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
-	git submodule init $(SGXLKL_ROOT)/ltp
-	git submodule update --remote $(SGXLKL_ROOT)/ltp
 	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp
 	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/ltp/* $(MOUNTPOINT)/ltp/
 	$(ESCALATE_CMD) install buildenv.sh $(MOUNTPOINT)/usr/sbin
