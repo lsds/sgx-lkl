@@ -159,6 +159,13 @@ int __libc_init_enclave(int argc, char** argv)
     
     init_ethread_tp();
 
+    /* Temporary workaround!!
+     * Without the following line, overlay and overlay_encrypted
+     * tests cause LKL to panic.
+     * All the function does is a malloc() call from within libc. It seems like
+     * the sequence in which pages are allocated to libc malloc and rest of the
+     * users of enclave_mmap(lthread, LKL etc.) matters for these tests.
+    */
     __init_heap_from_libc();
 
     size_t espins = cfg->espins;
