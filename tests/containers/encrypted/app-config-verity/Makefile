@@ -2,7 +2,7 @@ include ../../../common.mk
 
 CC_APP=/usr/bin/python3
 CC_APP_CONFIG_TEMPLATE=sgxlkl-encrypted-python-config-template.json
-CC_APP_CONFIG=sgxlkl-encrypted-python-config.json
+CC_APP_CONFIG=sgxlkl-encrypted-python-config.json.tmp
 
 CC_IMAGE_SIZE=128M
 
