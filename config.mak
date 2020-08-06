@@ -41,16 +41,14 @@ endif
 endif
 
 # SGX-LKL third party defines
-CRYPTSETUP                          ?= ${SGXLKL_ROOT}/third_party/cryptsetup
-CRYPTSETUP_BUILD                    ?= ${BUILD_DIR}/cryptsetup
-THIRD_PARTY_LIB_CRYPTSETUP          ?= ${CRYPTSETUP_BUILD}/lib/libcryptsetup.a
 
 # Device mapper library
 DEVICEMAPPER                        ?= ${SGXLKL_ROOT}/third_party/devicemapper
-THIRD_PARTY_LIB_DEVICE_MAPPER       ?= ${CRYPTSETUP_BUILD}/lib/libdevmapper.a
+DEVICEMAPPER_BUILD                  ?= ${BUILD_DIR}/devicemapper
+THIRD_PARTY_LIB_DEVICE_MAPPER       ?= ${DEVICEMAPPER_BUILD}/lib/libdevmapper.a
 
 # ext2fs library
-# The ext2fs library is used in combination with cryptsetup to create empty
+# The ext2fs library is used in combination with vicsetup to create empty
 # encrypted ext4 disk images at start-up within the enclave.
 # This opt-in functionality is enabled through the application config and is
 # useful for scenarios where data should be passed securily between applications
@@ -60,18 +58,6 @@ THIRD_PARTY_LIB_DEVICE_MAPPER       ?= ${CRYPTSETUP_BUILD}/lib/libdevmapper.a
 E2FSPROGS                           ?= ${SGXLKL_ROOT}/third_party/e2fsprogs
 E2FSPROGS_BUILD                     ?= ${BUILD_DIR}/e2fsprogs
 THIRD_PARTY_LIB_EXT2FS              ?= ${E2FSPROGS_BUILD}/lib/libext2fs.a
-
-# Linux utils library
-UTILLINUX                           ?= ${SGXLKL_ROOT}/third_party/util-linux
-THIRD_PARTY_LIB_UUID                ?= ${CRYPTSETUP_BUILD}/lib/libuuid.a
-
-# Linux popt library
-POPT                                ?= ${SGXLKL_ROOT}/third_party/popt
-THIRD_PARTY_LIB_POPT                ?= ${CRYPTSETUP_BUILD}/lib/libpopt.a
-
-# json c library
-JSONC                               ?= ${SGXLKL_ROOT}/third_party/json-c
-THIRD_PARTY_LIB_JSON                ?= ${CRYPTSETUP_BUILD}/lib/libjson-c.a
 
 # Wireguard library
 WIREGUARD                           ?= ${SGXLKL_ROOT}/third_party/wireguard
