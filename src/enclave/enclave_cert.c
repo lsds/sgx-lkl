@@ -2,8 +2,12 @@
 #include <mbedtls/x509.h>
 #include <mbedtls/x509_crt.h>
 #include <openenclave/enclave.h>
+#include <openenclave/attestation/attester.h>
+#include <openenclave/attestation/sgx/eeid_plugin.h>
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
+
+oe_result_t oe_sgx_eeid_attester_initialize(void);
 
 static oe_result_t _generate_key_pair(
     uint8_t** public_key_out,
@@ -92,6 +96,7 @@ static oe_result_t _generate_cert_and_private_key(
     size_t private_key_size;
     uint8_t* public_key = NULL;
     size_t public_key_size;
+    const oe_uuid_t format = {OE_FORMAT_UUID_SGX_EEID_ECDSA_P256};
 
     *cert_out = NULL;
     *cert_size_out = 0;
@@ -106,7 +111,12 @@ static oe_result_t _generate_cert_and_private_key(
         goto done;
     }
 
-    if ((ret = oe_generate_attestation_certificate(
+    // Initialize built-in OE attesters and the eeid attester.
+    oe_attester_initialize();
+    oe_sgx_eeid_attester_initialize();
+
+    if ((ret = oe_get_attestation_certificate_with_evidence(
+             &format,
              (unsigned char*)common_name,
              private_key,
              private_key_size,

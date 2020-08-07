@@ -122,7 +122,12 @@ static int startmain(void* args)
     init_wireguard();
     find_and_mount_disks();
 
-    /* Save TLS certificate and private key to files. */
+    /* Save TLS certificate and private key to files.
+     * TODO 1: once we have kernel/user separation, pass the cert and private
+     *     key to user space through stack, and move this call to user space.
+     * TODO 2: make file paths customizable by users.
+     */
+
     if (!sgxlkl_in_sw_debug_mode())
         sgxlkl_write_tls_credentials(
             cert,
