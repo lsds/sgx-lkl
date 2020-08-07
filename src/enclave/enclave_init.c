@@ -138,6 +138,10 @@ int __libc_init_enclave(int argc, char** argv)
     SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
         sgxlkl_heap_base, sgxlkl_heap_size / PAGESIZE, cfg->mmap_files);
+    // Add read only buffer page towards the end of enclave heap
+    // This is to be defensive against buffer overflows which read
+    // off the  end of heap. See Issue# 742 for more.
+    enclave_mmap(0, 4096, 0, PROT_READ, 1);
 
     libc.user_tls_enabled = sgxlkl_in_sw_debug_mode() ? 1 : cfg->fsgsbase;
 
@@ -158,15 +162,6 @@ int __libc_init_enclave(int argc, char** argv)
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
     
     init_ethread_tp();
-
-    /* Temporary workaround!!
-     * Without the following line, overlay and overlay_encrypted
-     * tests cause LKL to panic.
-     * All the function does is a malloc() call from within libc. It seems like
-     * the sequence in which pages are allocated to libc malloc and rest of the
-     * users of enclave_mmap(lthread, LKL etc.) matters for these tests.
-    */
-    __init_heap_from_libc();
 
     size_t espins = cfg->espins;
     size_t esleep = cfg->esleep;
