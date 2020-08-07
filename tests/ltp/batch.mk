@@ -1,4 +1,12 @@
-include ../../common.mk
+ifneq (,$(wildcard ../../common.mk))
+  include ../../common.mk
+  LTP_TEST_SCRIPT=../run_ltp_test.sh
+  BUILDENV_SCRIPT=../buildenv.sh
+else
+  include ../common.mk
+  LTP_TEST_SCRIPT=./run_ltp_test.sh
+  BUILDENV_SCRIPT=./buildenv.sh
+endif
 
 ALPINE_MAJOR=3.8
 ALPINE_VERSION=3.8.0
@@ -13,7 +21,6 @@ IMAGE_SIZE_MB=1500
 # 1 hours timeout for ltp test execution
 LTP_TEST_EXEC_TIMEOUT=3600
 
-LTP_TEST_SCRIPT="../run_ltp_test.sh"
 ESCALATE_CMD=sudo
 
 LTP_SOURCE_DIR=$(SGXLKL_ROOT)/ltp
@@ -27,7 +34,7 @@ $(LTP_SOURCE_DIR)/.git:
 $(ALPINE_TAR):
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-$(ROOT_FS): $(ALPINE_TAR) ../buildenv.sh $(LTP_SOURCE_DIR)/.git
+$(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$@"
 	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)
@@ -36,7 +43,7 @@ $(ROOT_FS): $(ALPINE_TAR) ../buildenv.sh $(LTP_SOURCE_DIR)/.git
 	$(ESCALATE_CMD) cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp
 	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/ltp/* $(MOUNTPOINT)/ltp/
-	$(ESCALATE_CMD) install ../buildenv.sh $(MOUNTPOINT)/usr/sbin
+	$(ESCALATE_CMD) install $(BUILDENV_SCRIPT) $(MOUNTPOINT)/usr/sbin
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash
 	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp_tst_mnt_fs
