@@ -1,3 +1,5 @@
+/* clang-format off */
+
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
@@ -1461,7 +1463,7 @@ void lkl_start_init()
     if (sgxlkl_enclave_state.config->swiotlb)
     {
         /* validate bounce buffer memory before setting it up */
-        if (!oe_is_within_enclave(
+        if (oe_is_outside_enclave(
                 shm->virtio_swiotlb, shm->virtio_swiotlb_size))
         {
             lkl_initialize_swiotlb(
