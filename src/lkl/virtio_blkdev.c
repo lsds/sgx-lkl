@@ -16,7 +16,7 @@ static void lkl_deliver_irq(uint8_t dev_id)
     struct virtio_dev** mems =
         sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem;
 
-    sgxlkl_ensure_outside(mems, sizeof(struct virtio_dev*));
+    sgxlkl_ensure_inside(mems, sizeof(struct virtio_dev*));
 
     struct virtio_dev* dev = mems[dev_id];
 
@@ -38,7 +38,7 @@ int lkl_add_disks(
     struct virtio_dev** mems =
         sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem;
 
-    sgxlkl_ensure_outside(mems, sizeof(struct virtio_dev*));
+    sgxlkl_ensure_inside(mems, sizeof(struct virtio_dev*));
 
     struct virtio_dev* root_dev =
         mems[sgxlkl_enclave_state.disk_state[0].host_disk_index];

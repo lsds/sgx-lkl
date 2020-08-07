@@ -363,7 +363,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 
         enc->virtio_blk_dev_mem = oe_calloc_or_die(
             enc->num_virtio_blk_dev,
-            sizeof(void*),
+            sizeof(struct virtio_dev*),
             "Could not allocate memory for virtio block devices\n");
         enc->virtio_blk_dev_names = oe_calloc_or_die(
             enc->num_virtio_blk_dev,
