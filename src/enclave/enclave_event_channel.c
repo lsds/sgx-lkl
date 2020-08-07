@@ -137,6 +137,10 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
+    if (!oe_is_outside_enclave(
+            enc_dev_config, sizeof(enc_dev_config_t) * _evt_channel_num))
+        oe_abort();
+
     evt_chn_lock = (struct ticketlock**)oe_calloc_or_die(
         evt_channel_num,
         sizeof(struct ticketlock*),
@@ -150,6 +154,17 @@ void initialize_enclave_event_channel(
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
     {
+        if (!oe_is_outside_enclave(
+                &enc_dev_config[i], sizeof(enc_dev_config_t)) ||
+            !oe_is_outside_enclave(
+                &enc_dev_config[i].enc_evt_chn, sizeof(enc_evt_channel_t)) ||
+            !oe_is_outside_enclave(
+                &enc_dev_config[i].enc_evt_chn->host_evt_channel,
+                sizeof(evt_t)) ||
+            !oe_is_outside_enclave(
+                &enc_dev_config[i].enc_evt_chn->qidx_p, sizeof(uint32_t)))
+            oe_abort();
+
         evt_chn_lock[i] = (struct ticketlock*)oe_calloc_or_die(
             1,
             sizeof(struct ticketlock),

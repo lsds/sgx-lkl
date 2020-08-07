@@ -1315,13 +1315,14 @@ static void init_enclave_clock()
 
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
-    if (oe_is_within_enclave(shm->timer_dev_mem, sizeof(struct timer_dev)))
+    struct timer_dev* t = shm->timer_dev_mem;
+
+    if (!oe_is_outside_enclave(t, sizeof(struct timer_dev)))
     {
         sgxlkl_fail(
             "timer_dev memory isn't outside of the enclave. Aborting.\n");
     }
 
-    struct timer_dev* t = shm->timer_dev_mem;
     struct lkl_timespec start_time;
     start_time.tv_sec = t->init_walltime_sec;
     start_time.tv_nsec = t->init_walltime_nsec;
@@ -1396,9 +1397,7 @@ void lkl_start_init()
     lkl_virtio_console_add(shm->virtio_console_mem);
 
     // Register network tap if given one
-    int net_dev_id = -1;
-    if (shm->virtio_net_dev_mem)
-        net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
+    int net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
 
     /* Prepare bootargs to boot lkl kernel */
     char bootargs[BOOTARGS_LEN] = {0};

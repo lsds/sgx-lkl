@@ -386,6 +386,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         }
     }
 
+    /* Copy the host's environment variables to enclave memory */
     char* const* henv = host->env;
     if (henv)
     {
