@@ -106,11 +106,6 @@ static int startmain(void* args)
     /* Indicate that libc initialization has finished */
     sgxlkl_enclave_state.libc_state = libc_initialized;
 
-    /* In hw mode, ask OE to generate TLS certificate and private key */
-    if (!sgxlkl_in_sw_debug_mode())
-        enclave_generate_tls_credentials(
-            &cert, &cert_size, &private_key, &private_key_size);
-
     /* Setup LKL (hd, net, memory) and start kernel */
 
     /* SGX-LKL lthreads inherit names from their parent. Set this to "kernel"
@@ -122,13 +117,17 @@ static int startmain(void* args)
     init_wireguard();
     find_and_mount_disks();
 
-    /* Save TLS certificate and private key to files.
-     * TODO 1: once we have kernel/user separation, pass the cert and private
-     *     key to user space through stack, and move this call to user space.
-     * TODO 2: make file paths customizable by users.
+    /* Generate TLS certificate and private key and save them to files.
+     * Once we have kernel/user separation, pass the cert and private
+     * key to user space through the stack, and move
+     * sgxlkl_write_tls_credentials to user space.
      */
 
     if (!sgxlkl_in_sw_debug_mode())
+    {
+        enclave_generate_tls_credentials(
+            &cert, &cert_size, &private_key, &private_key_size);
+
         sgxlkl_write_tls_credentials(
             cert,
             cert_size,
@@ -136,6 +135,7 @@ static int startmain(void* args)
             private_key_size,
             SGXLKL_TLS_CERT_PATH,
             SGXLKL_TLS_PRIVATE_KEY_PATH);
+    }
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
