@@ -108,7 +108,8 @@ static void _prepare_elf_stack()
     size_t num_imported_env = 0;
     const char** imported_env = NULL;
 
-    if (sgxlkl_enclave_state.shared_memory.env && cfg->num_host_import_env > 0)
+    if (sgxlkl_enclave_state.shared_memory.env &&
+        sgxlkl_enclave_state.shared_memory.envc && cfg->num_host_import_env > 0)
     {
         imported_env = oe_calloc_or_die(
             cfg->num_host_import_env,
@@ -118,16 +119,12 @@ static void _prepare_elf_stack()
         for (size_t i = 0; i < cfg->num_host_import_env; i++)
         {
             const char* name = cfg->host_import_env[i];
-            for (char* const* p = sgxlkl_enclave_state.shared_memory.env;
-                 p && *p != NULL;
-                 p++)
+            size_t n = oe_strlen(name);
+            for (size_t i = 0; i < sgxlkl_enclave_state.shared_memory.envc; i++)
             {
-                size_t n = oe_strlen(name);
-                if (_strncmp(name, *p, n) == 0 && (*p)[n] == '=')
-                {
-                    const char* str = *p;
-                    imported_env[num_imported_env++] = str;
-                }
+                const char* henv_i = sgxlkl_enclave_state.shared_memory.env[i];
+                if (_strncmp(name, henv_i, n) == 0 && henv_i[n] == '=')
+                    imported_env[num_imported_env++] = henv_i;
             }
         }
     }
@@ -388,14 +385,12 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 
     /* Copy the host's environment variables to enclave memory */
     char* const* henv = host->env;
-    if (henv)
+    size_t henvc = host->envc;
+    if (henv && henvc)
     {
-        size_t henvc = 0;
-        while (henv[henvc] != 0)
-            henvc++;
         CHECK_OUTSIDE(henv, sizeof(char*) * henvc);
         char** tmp = oe_calloc_or_die(
-            henvc + 1,
+            henvc,
             sizeof(char*),
             "Could not allocate memory for host import environment variable\n");
         for (size_t i = 0; i < henvc; i++)
@@ -406,8 +401,9 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
             tmp[i] = oe_malloc(n);
             memcpy(tmp[i], env_i, n);
         }
-        tmp[henvc] = NULL;
         enc->env = tmp;
+        enc->envc = henvc;
+        CHECK_INSIDE(enc->env, sizeof(char*) * enc->envc);
     }
 
     /* Commit to the temporary copy */
@@ -425,8 +421,9 @@ static void _free_shared_memory()
     oe_free(shm->virtio_blk_dev_mem);
     oe_free(shm->virtio_blk_dev_names);
 
-    for (size_t i = 0; shm->env[i] != 0; i++)
-        oe_free(shm->env[i]);
+    if (shm->env && shm->envc)
+        for (size_t i = 0; i < shm->envc; i++)
+            oe_free(shm->env[i]);
     oe_free((char**)shm->env);
 }
 

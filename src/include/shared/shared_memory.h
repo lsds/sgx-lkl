@@ -29,6 +29,7 @@ typedef struct sgxlkl_shared_memory
 
     /* Host environment variables for optional import */
     char* const* env;
+    size_t envc;
 } sgxlkl_shared_memory_t;
 
 #endif /* SGXLKL_SHARED_MEMORY_H */
