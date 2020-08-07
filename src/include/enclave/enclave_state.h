@@ -33,6 +33,8 @@ typedef struct
 
 typedef struct sgxlkl_enclave_state
 {
+    _Atomic(bool) initialized;
+
     const sgxlkl_enclave_config_t* config;
 
     /* Flattened ELF64 process stack */

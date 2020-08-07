@@ -12,6 +12,7 @@
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
 #include "enclave/lthread_int.h"
+#include "lkl/virtio.h"
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 
@@ -306,30 +307,55 @@ static void _read_eeid_config()
     sgxlkl_enclave_state.config = cfg;
 }
 
+#define CHECK_INSIDE(X, S)                                  \
+    {                                                       \
+        if ((X) != NULL && !oe_is_within_enclave((X), (S))) \
+            oe_abort();                                     \
+    }
+
+#define CHECK_OUTSIDE(X, S)                                  \
+    {                                                        \
+        if ((X) != NULL && !oe_is_outside_enclave((X), (S))) \
+            oe_abort();                                      \
+    }
+
 static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
-    /* Deep copy where necessary */
+    /* The host shared memory struct has been copied by OE (but not its
+     * contents). */
+    CHECK_INSIDE(host, sizeof(sgxlkl_shared_memory_t));
 
-    sgxlkl_shared_memory_t* enc = &sgxlkl_enclave_state.shared_memory;
-    memset(enc, 0, sizeof(sgxlkl_shared_memory_t));
+    /* Temporary, volatile copy to make sure checks aren't reordered */
+    volatile sgxlkl_shared_memory_t* enc = oe_calloc_or_die(
+        1,
+        sizeof(sgxlkl_shared_memory_t),
+        "Could not allocate memory for shared memory\n");
 
     if (cfg->io.network)
+    {
         enc->virtio_net_dev_mem = host->virtio_net_dev_mem;
+        CHECK_OUTSIDE(enc->virtio_net_dev_mem, sizeof(struct virtio_dev));
+    }
 
     if (cfg->io.console)
+    {
         enc->virtio_console_mem = host->virtio_console_mem;
+        CHECK_OUTSIDE(enc->virtio_console_mem, sizeof(struct virtio_dev));
+    }
 
     enc->evt_channel_num = host->evt_channel_num;
-    /* enc_dev_config is required to be outside the enclave */
     enc->enc_dev_config = host->enc_dev_config;
+    CHECK_OUTSIDE(
+        enc->enc_dev_config, sizeof(enc_dev_config_t) * enc->evt_channel_num);
 
     enc->virtio_swiotlb = host->virtio_swiotlb;
     enc->virtio_swiotlb_size = host->virtio_swiotlb_size;
+    CHECK_OUTSIDE(enc->virtio_swiotlb, enc->virtio_swiotlb_size);
 
-    /* timer_dev_mem is required to be outside the enclave */
     enc->timer_dev_mem = host->timer_dev_mem;
+    CHECK_OUTSIDE(enc->timer_dev_mem, sizeof(struct timer_dev));
 
     if (cfg->io.block)
     {
@@ -346,8 +372,12 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
         {
             enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
+            CHECK_OUTSIDE(
+                enc->virtio_blk_dev_mem[i], sizeof(struct virtio_dev));
+
             const char* name = host->virtio_blk_dev_names[i];
             size_t name_len = oe_strlen(name) + 1;
+            CHECK_OUTSIDE(name, name_len);
             enc->virtio_blk_dev_names[i] = oe_calloc_or_die(
                 name_len,
                 sizeof(char),
@@ -356,20 +386,32 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         }
     }
 
-    if (host->env)
+    char* const* henv = host->env;
+    if (henv)
     {
         size_t henvc = 0;
-        while (host->env[henvc++] != 0)
-            ;
+        while (henv[henvc] != 0)
+            henvc++;
+        CHECK_OUTSIDE(henv, sizeof(char*) * henvc);
         char** tmp = oe_calloc_or_die(
             henvc + 1,
             sizeof(char*),
             "Could not allocate memory for host import environment variable\n");
         for (size_t i = 0; i < henvc; i++)
-            tmp[i] = oe_strdup(host->env[i]);
+        {
+            const char* env_i = henv[i];
+            size_t n = strlen(env_i) + 1;
+            CHECK_OUTSIDE(env_i, n);
+            tmp[i] = oe_malloc(n);
+            memcpy(tmp[i], env_i, n);
+        }
         tmp[henvc] = NULL;
         enc->env = tmp;
     }
+
+    /* Commit to the temporary copy */
+    sgxlkl_enclave_state.shared_memory = *enc;
+    oe_free((sgxlkl_shared_memory_t*)enc);
 }
 
 static void _free_shared_memory()
@@ -389,9 +431,10 @@ static void _free_shared_memory()
 
 int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 {
-    SGXLKL_ASSERT(shared_memory);
+    SGXLKL_ASSERT(shared_memory && !sgxlkl_enclave_state.initialized);
 
     memset(&sgxlkl_enclave_state, 0, sizeof(sgxlkl_enclave_state));
+    sgxlkl_enclave_state.initialized = true;
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
 #ifdef DEBUG

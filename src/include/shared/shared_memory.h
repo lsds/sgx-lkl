@@ -5,11 +5,13 @@
 
 #include <shared/vio_event_channel.h>
 
+struct virtio_dev;
+
 typedef struct sgxlkl_shared_memory
 {
     /* Shared memory for virtio implementation */
-    void* virtio_net_dev_mem; /* Virtio network device */
-    void* virtio_console_mem; /* Virtio console device */
+    struct virtio_dev* virtio_net_dev_mem; /* Virtio network device */
+    struct virtio_dev* virtio_console_mem; /* Virtio console device */
 
     size_t evt_channel_num;           /* Number of event channels */
     enc_dev_config_t* enc_dev_config; /* Device configuration */
@@ -22,7 +24,7 @@ typedef struct sgxlkl_shared_memory
 
     /* Shared memory for virtio block devices */
     size_t num_virtio_blk_dev;
-    void** virtio_blk_dev_mem;
+    struct virtio_dev** virtio_blk_dev_mem;
     char** virtio_blk_dev_names;
 
     /* Host environment variables for optional import */
