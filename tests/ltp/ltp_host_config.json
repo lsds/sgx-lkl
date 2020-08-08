@@ -1,0 +1,9 @@
+{
+  "mounts": [
+    {
+      "image_path": "ltp_tst_mntfs.img",
+      "destination": "/data",
+      "readonly": false
+    }
+  ]
+}
