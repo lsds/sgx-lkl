@@ -1118,7 +1118,7 @@ void lthread_dump_all_threads(void)
         int tid = lt->tid;
         char* funcname = lt->funcname;
         sgxlkl_info("-------------------------------------------------------------\n");
-        sgxlkl_info("%s%i: tid=%i [%s]\n", lt == lthread_self() ? "*" : "", i, tid, funcname);
+        sgxlkl_info("%s%i: tid=%i (%p) [%s]\n", lt == lthread_self() ? "*" : "", i, tid, lt, funcname);
         sgxlkl_print_backtrace(lt == lthread_self() ? __builtin_frame_address(0) : lt->ctx.ebp);
 
         lt_queue = lt_queue->next;

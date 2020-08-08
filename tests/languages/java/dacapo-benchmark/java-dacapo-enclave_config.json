@@ -1,0 +1,33 @@
+{
+
+  "args": [
+    "/usr/bin/java",
+    "-XX:InitialCodeCacheSize=80000k",
+    "-XX:ReservedCodeCacheSize=80000K",
+    "-Xms50000k",
+    "-Xmx700m",
+    "-XX:CompressedClassSpaceSize=20000K",
+    "-XX:+PerfDisableSharedMem",
+    "-XX:+UseMembar",
+    "-Dsun.zip.disableMemoryMapping=true",
+    "-jar",
+    "/dacapo/dacapo-9.12-MR1-bach.jar",
+    "avrora"
+  ],
+
+  "env": [
+    "LD_LIBRARY_PATH=/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64/server:/usr/lib/jvm/java-1.8-openjdk/jre/lib/amd64:/usr/lib/jvm/java-1.8-openjdk/jre/../lib/amd64:/usr/lib/jvm/java-1.8-openjdk/lib/amd64/jli:/usr/lib:/lib",
+  ],
+
+  "ethreads": "8",
+
+  "image_sizes": {
+    "num_heap_pages": 524288
+  },
+
+  "mmap_files": "shared",
+
+  "unsafe_host_signals": true,
+
+  "verbose": true
+}

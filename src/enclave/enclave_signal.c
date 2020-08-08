@@ -130,13 +130,31 @@ static uint64_t sgxlkl_enclave_signal_handler(
     {
         SGXLKL_TRACE_SIGNAL(
             "Exception SIGILL (illegal instruction) received (code=%d "
-            "address=0x%lx opcode=0x%x)\n",
+            "address=0x%lx rip=0x%lx opcode=0x%x)\n",
             exception_record->code,
             exception_record->address,
+            exception_record->context->rip,
             opcode);
 
         _sgxlkl_illegal_instr_hook(opcode, exception_record->context);
         return OE_EXCEPTION_CONTINUE_EXECUTION;
+    }
+
+    /**
+     * Only expose #PF to application signal handler if we permit unsafe host
+     * signals with SGX1.
+     *
+     * With SGX1, there is otherwise no way for the enclave to check if an
+     * in-enclave page fault has actually ocurred. (For other types of
+     * exceptions, EXITINFO contains trusted exception information inside the
+     * enclave.)
+     */
+    if (exception_record->code == OE_EXCEPTION_PAGE_FAULT &&
+        !sgxlkl_enclave_state.config->unsafe_host_signals)
+    {
+        sgxlkl_fail(
+            "Page fault exception received, but unsafe host signals "
+            "are not permitted. Aborting enclave.\n");
     }
 
     memset(&trap_info, 0, sizeof(trap_info));
@@ -144,10 +162,12 @@ static uint64_t sgxlkl_enclave_signal_handler(
     if (ret != -1)
     {
         SGXLKL_TRACE_SIGNAL(
-            "Exception %s received (code=%d address=0x%lx opcode=0x%x)\n",
+            "Exception %s received (code=%d address=0x%lx rip=0x%lx "
+            "opcode=0x%x)\n",
             trap_info.description,
             exception_record->code,
             exception_record->address,
+            exception_record->context->rip,
             opcode);
 
 #ifdef DEBUG
@@ -180,13 +200,14 @@ static uint64_t sgxlkl_enclave_signal_handler(
                 "Exception %s received before LKL initialisation/after LKL "
                 "shutdown (lt->tid=%i [%s] "
                 "code=%i "
-                "addr=0x%lx opcode=0x%x "
+                "addr=0x%lx rip=0x%lx opcode=0x%x "
                 "ret=%i)\n",
                 trap_info.description,
                 lt ? lt->tid : -1,
                 lt ? lt->funcname : "(?)",
                 exception_record->code,
                 (void*)exception_record->address,
+                exception_record->context->rip,
                 opcode,
                 ret);
         }
@@ -196,7 +217,22 @@ static uint64_t sgxlkl_enclave_signal_handler(
 
         info.si_errno = 0;
         info.si_code = exception_record->code;
-        info.si_addr = (void*)exception_record->address;
+
+        // Return the faulting address for segfaults.
+        if (exception_record->code == OE_EXCEPTION_PAGE_FAULT)
+        {
+            /**
+             * With SGX1, we cannot obtain the actual address that resulted
+             * in the page fault inside the enclave. As a workaround, we
+             * report it as 0x0 to the application signal handler.
+             */
+            info.si_addr = (void*) (sgxlkl_enclave_state.config->mode == SW_DEBUG_MODE ? exception_record->address : 0x0);
+        }
+        else
+        {
+            info.si_addr = (void*)exception_record->context->rip;
+        }
+
         info.si_signo = trap_info.signo;
 
         /**

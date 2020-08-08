@@ -308,13 +308,15 @@ void* enclave_mmap(
         char* rv = (((intptr_t)ret) < 0) ? " (FAILED)" : "";
         SGXLKL_TRACE_MMAP(
             "mmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, FREE: "
-            "%8zuKB, ALLOCATED: %6zuKB (addr = %p, ret = %p) %s%s\n",
+            "%8zuKB, ALLOCATED: %6zuKB (addr=%p len=%lu prot=%i ret=%p) %s%s\n",
             total / 1024,
             used / 1024,
             mmap_max_allocated / 1024,
             free / 1024,
             requested / 1024,
             addr,
+            length,
+            prot,
             ret,
             mfixed,
             rv);
@@ -360,13 +362,14 @@ long enclave_munmap(void* addr, size_t length)
         size_t used = total - free;
         SGXLKL_TRACE_MMAP(
             "munmap stats: TOTAL: %8zuKB, USED: %8zuKB, MAX USED: %8zuKB, "
-            "FREE: %8zuKB,     FREED: %6zuKB (addr = %p)\n",
+            "FREE: %8zuKB,     FREED: %6zuKB (addr=%p len=%lu)\n",
             total / 1024,
             used / 1024,
             mmap_max_allocated / 1024,
             free / 1024,
             requested / 1024,
-            addr);
+            addr,
+            length);
     }
 #endif
 

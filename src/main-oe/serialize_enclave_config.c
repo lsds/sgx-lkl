@@ -486,6 +486,7 @@ void serialize_enclave_config(
     FPFU64(ethreads);
     root->objects[cnt++] = encode_clock_res("clock_res", config->clock_res);
 
+    FPFBOOL(unsafe_host_signals);
     FPFBOOL(fsgsbase);
     FPFBOOL(verbose);
     FPFBOOL(kernel_verbose);

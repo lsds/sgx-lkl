@@ -71,6 +71,7 @@
   "mmap_files": "shared",
   "oe_heap_pagecount": 8192,
   "fsgsbase": true,
+  "unsafe_host_signals": true,
   "verbose": false,
   "kernel_verbose": false,
   "kernel_cmd": "mem=32M",

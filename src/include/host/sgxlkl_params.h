@@ -47,11 +47,12 @@
 #define SGXLKL_ENABLE_SWIOTLB "SGXLKL_ENABLE_SWIOTLB"
 #define SGXLKL_HD_OVERLAY "SGXLKL_HD_OVERLAY"
 #define SGXLKL_HOST_IMPORT_ENV "SGXLKL_HOST_IMPORT_ENV"
+#define SGXLKL_UNSAFE_HOST_SIGNALS "SGXLKL_UNSAFE_HOST_SIGNALS"
 
 #ifndef SGXLKL_RELEASE
 /* These environment variables do not have config settings, they are
  * automatically passed through and imported in the enclave */
-extern const char* sgxlkl_auto_passthrough[11];
+extern const char* sgxlkl_auto_passthrough[12];
 #endif
 
 #endif /* SGXLKL_PARAMS_H */
