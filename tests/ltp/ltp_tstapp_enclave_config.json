@@ -1,6 +1,5 @@
 {
     "args": [
-       "sync_file_range02",
        "arg"
     ],
     "env": [
