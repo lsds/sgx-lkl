@@ -1115,7 +1115,7 @@ void lthread_set_expired(struct lthread* lt)
 }
 
 #ifdef DEBUG
-void lthread_dump_all_threads(void)
+void lthread_dump_all_threads(bool is_lthread)
 {
     struct lthread_queue* lt_queue = __active_lthreads;
 
@@ -1123,22 +1123,37 @@ void lthread_dump_all_threads(void)
         "=============================================================\n");
     sgxlkl_info("Stack traces for all lthreads:\n");
 
+    struct lthread* this_lthread = NULL;
+
+    // Is this called from an lthread?
+    if (is_lthread)
+        this_lthread = lthread_self();
+
     for (int i = 1; lt_queue; i++)
     {
         struct lthread* lt = lt_queue->lt;
-        SGXLKL_ASSERT(lt);
-        int tid = lt->tid;
-        char* funcname = lt->funcname;
-        sgxlkl_info(
-            "-------------------------------------------------------------\n");
-        sgxlkl_info(
-            "%s%i: tid=%i [%s]\n",
-            lt == lthread_self() ? "*" : "",
-            i,
-            tid,
-            funcname);
-        sgxlkl_print_backtrace(
-            lt == lthread_self() ? __builtin_frame_address(0) : lt->ctx.ebp);
+
+        // Do we have a valid lthread?
+        if (lt)
+        {
+            int tid = lt->tid;
+            char* funcname = lt->funcname;
+            sgxlkl_info("------------------------------------------------------"
+                        "-------\n");
+            sgxlkl_info(
+                "%s%i: tid=%i (%p) [%s]\n",
+                lt == this_lthread ? "*" : "",
+                i,
+                tid,
+                lt,
+                funcname);
+            sgxlkl_print_backtrace(
+                lt == this_lthread ? __builtin_frame_address(0) : lt->ctx.ebp);
+        }
+        else
+        {
+            sgxlkl_info("lt == NULL\n");
+        }
 
         lt_queue = lt_queue->next;
     }

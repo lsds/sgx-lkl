@@ -321,10 +321,14 @@ extern "C"
      * pointers saved by the lthread scheduler. It shows the stack traces
      * at the time of the last context switch.
      *
+     * The argument is_lthread should be set to true if the function is
+     * called from an lthread (and not a regular pthread, e.g. after an
+     * ecall).
+     *
      * For the current lthread (marked with a '*'), it prints the active
-     * stack frames.
+     * stack frames (if called from an lthread).
      */
-    void lthread_dump_all_threads(void);
+    void lthread_dump_all_threads(bool is_lthread);
 #endif
 
 #ifdef __cplusplus
