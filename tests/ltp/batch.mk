@@ -21,6 +21,10 @@ IMAGE_SIZE_MB=1500
 # 1 hours timeout for ltp test execution
 LTP_TEST_EXEC_TIMEOUT=3600
 
+# file system image to be mount in ltp tests
+LTP_TEST_MNT_IMG="ltp_tst_mntfs.img"
+LTP_TEST_MNT_IMG_SIZE=256
+
 ESCALATE_CMD=sudo
 
 LTP_SOURCE_DIR=$(SGXLKL_ROOT)/ltp
@@ -34,7 +38,10 @@ $(LTP_SOURCE_DIR)/.git:
 $(ALPINE_TAR):
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-$(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git
+$(LTP_TEST_MNT_IMG):
+	dd if=/dev/zero of=$(LTP_TEST_MNT_IMG) count=$(LTP_TEST_MNT_IMG_SIZE) bs=1M
+
+$(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git $(LTP_TEST_MNT_IMG)
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$@"
 	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)
@@ -87,6 +94,7 @@ run-sw-single-gdb: $(ROOT_FS)
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true
 	@test -f $(ROOT_FS) && rm $(ROOT_FS) || true
+	@test -f $(LTP_TEST_MNT_IMG) && rm $(LTP_TEST_MNT_IMG) || true
 	@test -f $(ROOT_FS_FRESH_COPY) && rm $(ROOT_FS_FRESH_COPY) || true
 	@rm -f .c_binaries_list
 
