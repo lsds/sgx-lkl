@@ -1220,10 +1220,6 @@ static void* lkl_termination_thread(void* args)
             lkl_strerror(ret));
     }
 
-#ifdef DEBUG
-    display_mount_table();
-#endif
-
     // Unmount mounts
     long res;
     for (int i = sgxlkl_enclave_state.num_disk_state - 1; i > 0; --i)
@@ -1242,6 +1238,10 @@ static void* lkl_termination_thread(void* args)
             sgxlkl_warn(
                 "Could not unmount disk %d, %s\n", i, lkl_strerror(res));
         }
+
+#ifdef DEBUG
+    display_mount_table();
+#endif
 
         if (!cfg->root.readonly)
         {
