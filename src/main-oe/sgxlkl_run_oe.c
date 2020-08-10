@@ -1382,7 +1382,8 @@ void _create_enclave(
         .num_heap_pages = econf->image_sizes.num_heap_pages,
         .num_stack_pages = econf->image_sizes.num_stack_pages,
 #ifdef DEBUG
-        // Add extra TCS in DEBUG build to support ecall for dumping stack traces
+        // Add extra TCS in DEBUG build to support ecall for dumping stack
+        // traces
         .num_tcs = econf->ethreads + 1,
 #else
         .num_tcs = econf->ethreads,
