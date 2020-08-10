@@ -405,6 +405,5 @@ void sgxlkl_debug_dump_stack_traces(void)
 #ifdef DEBUG
     SGXLKL_VERBOSE("Dumping all stack traces from threads...\n");
     lthread_dump_all_threads(false);
-    oe_abort();
 #endif
 }

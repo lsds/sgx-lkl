@@ -342,11 +342,19 @@ static void sgxlkl_loader_signal_handler(int signo)
     switch (signo)
     {
         case SIGTERM:
-            sgxlkl_host_verbose("Dumping thread stack traces from enclave...\n");
+            sgxlkl_host_verbose(
+                "Dumping thread stack traces from enclave (and aborting)...\n");
 
             assert(sgxlkl_enclave);
             sgxlkl_debug_dump_stack_traces(sgxlkl_enclave);
             sgxlkl_host_fail("Aborting after stack trace dump\n");
+            break;
+        case SIGUSR1:
+            sgxlkl_host_verbose("Dumping thread stack traces from enclave (and "
+                                "not aborting)...\n");
+
+            assert(sgxlkl_enclave);
+            sgxlkl_debug_dump_stack_traces(sgxlkl_enclave);
             break;
 #ifdef VIRTIO_TEST_HOOK
         case SIGUSR2:
@@ -1698,6 +1706,7 @@ int main(int argc, char* argv[], char* envp[])
     int c;
 
 #ifdef DEBUG
+    signal(SIGUSR1, sgxlkl_loader_signal_handler);
     signal(SIGTERM, sgxlkl_loader_signal_handler);
 #ifdef VIRTIO_TEST_HOOK
     signal(SIGUSR2, sgxlkl_loader_signal_handler);
