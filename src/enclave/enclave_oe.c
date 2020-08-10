@@ -1,3 +1,4 @@
+#include <stdatomic.h>
 #include <string.h>
 
 
@@ -17,6 +18,9 @@
 
 #define AUXV_ENTRIES 13
 
+void cleanup_sgxlkl_enclave_config();
+
+int ethreads_minus_1 = -1;
 char *at_platform = "x86_64";
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
@@ -272,6 +276,14 @@ static void _sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 }
 #endif
 
+static inline void dec_ethread_counter() {
+    if (a_fetch_add(&ethreads_minus_1, -1)==0) {
+		// last ethread to exit
+		ethreads_minus_1 = 0;
+		cleanup_sgxlkl_enclave_config();
+	}
+}
+
 void sgxlkl_ethread_init(void)
 {
     void* tls_page;
@@ -289,10 +301,12 @@ void sgxlkl_ethread_init(void)
         a_spin();
     }
 
+    a_inc(&ethreads_minus_1);
     /* Initialization completed, now run the scheduler */
     init_ethread_tp();
     _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
     lthread_run();
+    dec_ethread_counter();
 
     return;
 }
@@ -397,6 +411,8 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     memset(&sgxlkl_enclave_state, 0, sizeof(sgxlkl_enclave_state));
     sgxlkl_enclave_state.libc_state = libc_not_started;
 
+    a_inc(&ethreads_minus_1);
+
 #ifdef DEBUG
     /* Make sure verbosity is off before loading the config (we don't know
      * whether it's enabled yet).*/
@@ -435,7 +451,9 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     SGXLKL_VERBOSE("calling _dlstart_c()\n");
     _dlstart_c((size_t)sgxlkl_enclave_base);
 
-    return __sgx_init_enclave();
+    int exit_status = __sgx_init_enclave();
+    dec_ethread_counter();
+    return exit_status;
 }
 
 void sgxlkl_free_enclave_state()
