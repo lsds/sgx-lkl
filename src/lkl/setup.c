@@ -1300,8 +1300,6 @@ static void* lkl_termination_thread(void* args)
     /* Free the shutdown semaphore late in the shutdown sequence */
     sgxlkl_host_ops.sem_free(termination_sem);
 
-    sgxlkl_free_enclave_state();
-
     lthread_exit(NULL);
 }
 

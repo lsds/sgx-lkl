@@ -1,3 +1,4 @@
+#include <stdatomic.h>
 #include "pthread_impl.h"
 
 #include <openenclave/bits/eeid.h>
@@ -12,6 +13,7 @@
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 
+int ethreads_minus_1 = -1;
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
@@ -216,6 +218,14 @@ static void _sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 }
 #endif
 
+static inline void dec_ethread_counter() {
+    if (a_fetch_add(&ethreads_minus_1, -1) == 0) {
+        // last ethread to exit
+        ethreads_minus_1 = 0;
+        sgxlkl_free_enclave_state();
+    }
+}
+
 void sgxlkl_ethread_init(void)
 {
     void* tls_page;
@@ -234,9 +244,11 @@ void sgxlkl_ethread_init(void)
     }
 
     /* Initialization completed, now run the scheduler */
+    a_inc(&ethreads_minus_1);
     __init_tls();
     _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
     lthread_run();
+    dec_ethread_counter();
 
     return;
 }
@@ -379,7 +391,10 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     SGXLKL_VERBOSE("calling _dlstart_c()\n");
     _dlstart_c((size_t)sgxlkl_enclave_base);
 
-    return __sgx_init_enclave();
+    a_inc(&ethreads_minus_1);
+    int exit_status = __sgx_init_enclave();
+    dec_ethread_counter();
+    return exit_status;
 }
 
 void sgxlkl_free_enclave_state()
