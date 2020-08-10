@@ -26,6 +26,12 @@ static char *child_stack_end2 = child_stack2 + 8192;
 volatile int thread_started;
 __attribute__((weak)) int lkl_syscall(int, long*);
 
+static void set_tls_self_ptrs() {
+	child_tls[0] = &child_tls;
+	child_tls1[0] = &child_tls1;
+	child_tls2[0] = &child_tls2;
+}
+
 static void assert(int cond, const char *msg, ...)
 {
 	if (cond) return;
@@ -101,6 +107,7 @@ int parallelthr(void* arg)
 
 int main(int argc, char** argv)
 {
+	set_tls_self_ptrs();
 	unsigned flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND
 		| CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_CHILD_SETTID
 		| CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_DETACHED;
