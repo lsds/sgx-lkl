@@ -495,8 +495,7 @@ int _lthread_resume(struct lthread* lt)
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
 
-    if (lt->attr.thread_type != USERSPACE_THREAD && 
-            lt->attr.state & BIT(LT_ST_EXITED))
+    if (lt->attr.state & BIT(LT_ST_EXITED))
     {
         /* lt is always locked before LT_ST_EXITED is set */
         if (lt->lt_join)
