@@ -40,6 +40,7 @@ $(ALPINE_TAR):
 
 $(LTP_TEST_MNT_IMG):
 	dd if=/dev/zero of=$(LTP_TEST_MNT_IMG) count=$(LTP_TEST_MNT_IMG_SIZE) bs=1M
+	mkfs -t ext4 $(LTP_TEST_MNT_IMG)
 
 $(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git $(LTP_TEST_MNT_IMG)
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M

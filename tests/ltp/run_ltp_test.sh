@@ -31,7 +31,7 @@ test_class="ltp"
 SGXLKL_LTP_TSTAPP_CFG="--enclave-config=ltp_tstapp_enclave_config.json"
 SGXLKL_LTP_HOST_CFG="--host-config=ltp_host_config.json"
 
-SGX_LKL_RUN_CMD=( "$SGXLKL_STARTER" $SGXLKL_LTP_HOST_CFG $SGXLKL_LTP_TSTAPP_CFG $run_flag sgxlkl-miniroot-fs.img )
+SGX_LKL_RUN_CMD=( "$SGXLKL_STARTER" "$SGXLKL_LTP_HOST_CFG" "$SGXLKL_LTP_TSTAPP_CFG" $run_flag sgxlkl-miniroot-fs.img )
 
 csv_filename="sgxlkl_oe_ltp_test_result_$(date +%d%m%y_%H%M%S).csv"
 echo "SI No, Test Name, Stdout logfile name, Stderr logfile name, Execution Status" > "$csv_filename"
