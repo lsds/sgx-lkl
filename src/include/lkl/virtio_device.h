@@ -8,7 +8,7 @@ struct sgxlkl_enclave_mount_config;
 /*
  * Function to setup the block device and register it with virtio drivers
  */
-void lkl_add_disks(
+int lkl_add_disks(
     const struct sgxlkl_enclave_root_config* root,
     const struct sgxlkl_enclave_mount_config* disks,
     size_t num_disks);
