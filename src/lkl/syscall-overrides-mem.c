@@ -58,7 +58,7 @@ long syscall_SYS_mmap(
         return -EINVAL;
     }
     // Anonymous mapping/allocation
-    else if (fd == -1 && (flags & MAP_ANONYMOUS))
+    else if (flags & MAP_ANONYMOUS)
     {
         return (long)enclave_mmap(addr, length, flags & MAP_FIXED, prot, 1);
     }
