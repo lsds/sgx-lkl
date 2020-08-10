@@ -19,7 +19,7 @@ void sgxlkl_fail(const char* msg, ...)
     oe_host_vfprintf(OE_STDERR_FILENO, msg, args);
 
 #ifdef DEBUG
-    lthread_dump_all_threads();
+    lthread_dump_all_threads(true);
 #endif
 
     oe_abort();

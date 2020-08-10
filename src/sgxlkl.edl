@@ -31,6 +31,11 @@ enclave {
         // Enclave call for initializing ethreads to enter enclave
         public void sgxlkl_ethread_init(void);
 
+        // Enclave call to dump stack traces for all lthreads (DEBUG only)
+        // TODO: This should only be included for a DEBUG build, but EDL doesn't seem to
+        // support #defines. Currently this ecall becomes a no-op in non-DEBUG builds.
+        public void sgxlkl_debug_dump_stack_traces(void);
+
     };
 
     untrusted {
