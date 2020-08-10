@@ -895,8 +895,8 @@ int lthread_join(struct lthread* lt, void** ptr, uint64_t timeout)
         }
         _lthread_yield_cb(current, (void*)_lthread_unlock, lt);
 
-        // Reacquire the lthread lock before we start freeing the lthread. It may
-        // still be exiting concurrently.
+        // Reacquire the lthread lock before we start freeing the lthread. It
+        // may still be exiting concurrently.
         _lthread_lock(lt);
     }
     if (ptr)
