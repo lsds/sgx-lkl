@@ -74,7 +74,8 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev)
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
 
     registered_devs[registered_dev_idx] = netdev;
-    lkl_virtio_dev_setup(netdev, mmio_size, &lkl_deliver_irq);
+    if (lkl_virtio_dev_setup(netdev, mmio_size, &lkl_deliver_irq) != 0)
+        return -1;
 
     ret = dev_register(netdev);
 

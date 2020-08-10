@@ -861,7 +861,8 @@ void lkl_mount_disks(
     if (!root)
         sgxlkl_fail("No root disk provided. Aborting...\n");
 
-    lkl_add_disks(root, mounts, num_mounts);
+    if (lkl_add_disks(root, mounts, num_mounts) != 0)
+        sgxlkl_fail("Add root disk failed. Aborting...\n");
 
     lkl_mount_root_disk(root, 0);
 
