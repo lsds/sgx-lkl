@@ -175,7 +175,7 @@ static int console_enqueue(
     int q,
     struct virtio_req* req)
 {
-    int ret = 0;
+    ssize_t ret = 0;
     struct virtio_console_dev* vcd = get_console_dev_instance();
     struct iovec* iov = req->buf;
 
@@ -185,20 +185,19 @@ static int console_enqueue(
         {
             ret = readv(vcd->in_console_fd, iov, req->buf_count);
         } while (ret == -1 && errno == EINTR);
-
-        if (ret < 0)
-            if (errno != EAGAIN)
-                sgxlkl_host_warn(
-                    "%s: read failed: ret:%d err:%d\n", __func__, ret, errno);
     }
     else
     {
-        ret = writev(vcd->out_console_fd, iov, req->buf_count);
+        do
+        {
+            ret = writev(vcd->out_console_fd, iov, req->buf_count);
+        } while (ret == -1 && errno == EINTR);
     }
 
-    virtio_req_complete(req, ret);
-    // TODO https://github.com/lsds/sgx-lkl/issues/374
-    return 0;
+    ssize_t bytes = ret <= 0 ? 0 : ret;
+    virtio_req_complete(req, bytes);
+
+    return ret >= 0 ? 0 : -1;
 }
 
 /*
