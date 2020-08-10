@@ -1220,6 +1220,10 @@ static void* lkl_termination_thread(void* args)
             lkl_strerror(ret));
     }
 
+#ifdef DEBUG
+    display_mount_table();
+#endif
+
     // Unmount mounts
     long res;
     for (int i = sgxlkl_enclave_state.num_disk_state - 1; i > 0; --i)
@@ -1239,10 +1243,6 @@ static void* lkl_termination_thread(void* args)
                 "Could not unmount disk %d, %s\n", i, lkl_strerror(res));
         }
 
-#ifdef DEBUG
-    display_mount_table();
-#endif
-
         if (!cfg->root.readonly)
         {
             // Not really necessary for mounts in /mnt since /mnt is
@@ -1261,10 +1261,6 @@ static void* lkl_termination_thread(void* args)
         }
     }
 
-#ifdef DEBUG
-    display_mount_table();
-#endif
-
     /* Unmount root.
      * We are calling umount with the MNT_DETACH flag for the root
      * file system, otherwise the call fails to unmount the file
@@ -1276,6 +1272,10 @@ static void* lkl_termination_thread(void* args)
     res = lkl_umount_timeout("/", MNT_DETACH, UMOUNT_DISK_TIMEOUT);
     if (res < 0)
         sgxlkl_warn("Could not unmount root disk, %s\n", lkl_strerror(res));
+
+#ifdef DEBUG
+    display_mount_table();
+#endif
 
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
