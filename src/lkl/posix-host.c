@@ -200,6 +200,63 @@ static void sem_free(struct lkl_sem* sem)
 #endif
 }
 
+/*
+* sem_up/sem_down interaction
+*
+* Because sem_up and sem_down underpin the a lot of sgx-lkl functionality, it is
+* very important that they interact correctly. However, that interact might
+* not be immediately obvious. What follows is a description of how they
+* interact.
+*
+* The semaphore implementation is modeling an old railroad switching model.
+* In order to take an action, one withdraws a flag from a bucket. If there are
+* no flags in the bucket, you wait until one is available.
+*
+* sem->count is the number of flags available at the current time
+*
+* sem_up adds a flag back into the bucket.
+* sem_down removes a flag the bucket allowing an action to be taken
+*
+* That is:
+* - sem_down is ACQUIRE
+* - sem_up is RELEASE
+*
+* If count is 0, that means there is somewhere between 0 and infinity waiters.
+* We do not know from count if there are waiters, only that there might be some.
+* A count above 0 doesn't mean that there are no waiters, only that waiters
+* might not have "claimed a flag" by decrementing the count.
+*
+* The actual mechanics as seen in sem_up and sem_down are as follows:
+*
+* - maintain an atomic counter `count`
+* - increment the count when releasing during `sem_up`
+* - attempt to decrement the count to acquire during `sem_down`
+* - any waiters sleep using `enclave_futex_wait`
+* - when releasing, if there might be any waiters, wake them all using
+*     `enclave_futex_wake`
+* - any that waiter that suceeds in decrementing the count before it hits 0
+*     will acquire the semaphore and exit `sem_down`
+* - all others waiters will go back to sleep via `enclave_futex_wait`
+*
+* See `sem_up` and `sem_down` for more particulars.
+*
+* Within this implementation, sem_up must wake all waiters otherwise, we could
+* have a possible loss of a wake-up in some interleavings of sem_up and
+* sem_down.
+*
+* Every sem_up calls must be paired with a sem_down call, otherwise, all
+* guarantees are broken and "bad things will happen".
+*
+* There is nothing inherent in the implementation that makes the semaphore
+* exclusive. You could use it to allow multiple items access to the controlled
+* resource by setting an initial count of more than 1 during `sem_alloc`.
+*
+* Like-wise, sem_alloc can set the count to 0 which will act as a gate that
+* waiters will block on until such time as it is released via a call to sem_up.
+*
+* Setting count to 1 via sem_alloc would result in an exclusive semaphore that
+* can only have a single owner at a time.
+*/
 static void sem_up(struct lkl_sem* sem)
 {
     // Increment the semaphore count.  If we are moving from 0 to non-zero,
