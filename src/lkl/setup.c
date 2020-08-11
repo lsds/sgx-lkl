@@ -1176,6 +1176,9 @@ static void* lkl_termination_thread(void* args)
         "Performed LKL syscall to get host task allocated (pid=%li)\n", pid);
     SGXLKL_ASSERT(pid);
 
+    lthread_set_funcname(lthread_self(), "sgx-lkl-terminate");
+    lthread_detach();
+
     /* Block on semaphore until shutdown */
     sgxlkl_host_ops.sem_down(termination_sem);
 
@@ -1294,15 +1297,7 @@ static void* lkl_termination_thread(void* args)
     /* Set termination flag to notify lthread scheduler to bail out. */
     lthread_notify_completion();
 
-    lthread_detach2(lthread_self());
-    SGXLKL_VERBOSE("lthread_detach2() done\n");
-
-    /* Free the shutdown semaphore late in the shutdown sequence */
-    sgxlkl_host_ops.sem_free(termination_sem);
-
-    sgxlkl_free_enclave_state();
-
-    lthread_exit(NULL);
+    return NULL;
 }
 
 /* Create the LKL termination thread */
