@@ -699,7 +699,7 @@
 /ltp/testcases/kernel/syscalls/quotactl/quotactl02
 /ltp/testcases/kernel/syscalls/quotactl/quotactl03
 /ltp/testcases/kernel/syscalls/read/read01
-#/ltp/testcases/kernel/syscalls/read/read02
+/ltp/testcases/kernel/syscalls/read/read02
 /ltp/testcases/kernel/syscalls/read/read03
 /ltp/testcases/kernel/syscalls/read/read04
 /ltp/testcases/kernel/syscalls/readahead/readahead01
