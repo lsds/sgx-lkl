@@ -47,7 +47,6 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "openenclave/corelibc/oemalloc.h"
-#include "shared/tree.h"
 
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -78,16 +77,8 @@ static inline int _lthread_sleep_cmp(struct lthread* l1, struct lthread* l2)
     return (1);
 }
 
-RB_GENERATE(lthread_rb_sleep, lthread, sleep_node, _lthread_sleep_cmp);
-
 static int spawned_lthreads = 1;
 static _Atomic(bool) _lthread_should_stop = false;
-
-static struct ticketlock sleeplock;
-int _lthread_sleeprb_inited = 0;
-struct lthread_rb_sleep _lthread_sleeping;
-
-static size_t nsleepers = 0;
 
 static size_t sleepspins = 500000000;
 static size_t sleeptime_ns = 1600;
@@ -95,6 +86,7 @@ static size_t futex_wake_spins = 500;
 static volatile int schedqueuelen = 0;
 
 int thread_count = 1;
+
 #if DEBUG
 struct lthread_queue* __active_lthreads = NULL;
 struct lthread_queue* __active_lthreads_tail = NULL;
@@ -196,7 +188,6 @@ void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_)
     sleepspins = sleepspins_;
     sleeptime_ns = sleeptime_ns_;
     futex_wake_spins = DEFAULT_FUTEX_WAKE_SPINS;
-    RB_INIT(&_lthread_sleeping);
 }
 
 void lthread_notify_completion(void)
@@ -286,13 +277,12 @@ void lthread_run(void)
 }
 
 /*
- * Removes lthread from sleeping rbtree.
+ * Changes lthread state from sleeping to ready.
  * This can be called multiple times on the same lthread regardless if it was
  * sleeping or not.
  */
 void _lthread_desched_sleep(struct lthread* lt)
 {
-    ticket_lock(&sleeplock);
     SGXLKL_TRACE_THREAD(
         "[%4d] _lthread_desched_sleep() TICKET_LOCK lock=SLEEPLOCK tid=%d "
         "\n",
@@ -300,14 +290,10 @@ void _lthread_desched_sleep(struct lthread* lt)
         lt->tid);
     if (lt->attr.state & BIT(LT_ST_SLEEPING))
     {
-        RB_REMOVE(lthread_rb_sleep, &_lthread_sleeping, lt);
         lt->attr.state &= CLEARBIT(LT_ST_SLEEPING);
-        lt->attr.state |= BIT(LT_ST_READY);
         lt->attr.state &= CLEARBIT(LT_ST_EXPIRED);
-        nsleepers--;
+        lt->attr.state |= BIT(LT_ST_READY);
     }
-
-    ticket_unlock(&sleeplock);
 
     SGXLKL_TRACE_THREAD(
         "[%4d] _lthread_desched_sleep() TICKET_UNLOCK lock=SLEEPLOCK "
@@ -822,6 +808,20 @@ void lthread_cancel(struct lthread* lt)
     lt->attr.state |= BIT(LT_ST_CANCELLED);
     _lthread_desched_sleep(lt);
     __scheduler_enqueue(lt);
+}
+
+static inline void _lthread_desched_ready(void* _lt)
+{
+    // Update lthread state to sleep.
+    struct lthread* lt = _lt;
+    lt->attr.state &= CLEARBIT(LT_ST_READY);
+    lt->attr.state |= BIT(LT_ST_SLEEPING);
+}
+
+void lthread_yield_and_sleep(void)
+{
+    struct lthread* current_lt = lthread_self();
+    _lthread_yield_cb(current_lt, _lthread_desched_ready, current_lt);
 }
 
 void lthread_wakeup(struct lthread* lt)

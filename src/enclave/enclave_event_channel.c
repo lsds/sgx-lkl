@@ -1,8 +1,6 @@
 #include <atomic.h>
 #include <string.h>
 
-#include "pthread_impl.h"
-
 #include <lkl/virtio.h>
 
 #include "enclave/enclave_util.h"
@@ -55,7 +53,7 @@ static inline void vio_wait_for_host_event(
     SGXLKL_ASSERT(evt_chn);
 
     struct lthread* lt = vio_tasks[dev_id];
-    SGXLKL_ASSERT(lt);
+    SGXLKL_ASSERT(lt && lt == lthread_self());
 
     /* Return if the event channel was signaled */
     if ((__atomic_load_n(evt_chn, __ATOMIC_SEQ_CST) != val) ||
@@ -65,7 +63,7 @@ static inline void vio_wait_for_host_event(
     }
 
     /* Release CPU for other tasks */
-    _lthread_yield_cb(lt, set_thread_state, lt);
+    lthread_yield_and_sleep();
 }
 
 /*
