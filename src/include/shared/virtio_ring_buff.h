@@ -47,13 +47,13 @@ struct virtq_used
 struct virtq
 {
     uint32_t num_max;
-    uint32_t num;
-    uint32_t ready;
+    _Atomic(uint32_t) num;
+    _Atomic(uint32_t) ready;
     uint32_t max_merge_len;
 
-    struct virtq_desc* desc;
-    struct virtq_avail* avail;
-    struct virtq_used* used;
+    _Atomic(struct virtq_desc*) desc;
+    _Atomic(struct virtq_avail*) avail;
+    _Atomic(struct virtq_used*) used;
     uint16_t last_avail_idx;
     uint16_t last_used_idx_signaled;
 };

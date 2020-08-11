@@ -10,6 +10,7 @@
 #include <enclave/sgxlkl_t.h>
 #include <enclave/enclave_util.h>
 #include <shared/virtio_ring_buff.h>
+#include <stdatomic.h>
 #include "enclave/vio_enclave_event_channel.h"
 #include <linux/virtio_blk.h>
 #include <linux/virtio_mmio.h>
@@ -171,20 +172,27 @@ static inline void set_status(struct virtio_dev* dev, uint32_t val)
     dev->status = val;
 }
 
-static inline void set_ptr_low(void** ptr, uint32_t val)
+static inline void set_ptr_low(_Atomic(uint64_t) * ptr, uint32_t val)
 {
-    uint64_t tmp = (uintptr_t)*ptr;
+    uint64_t expected = *ptr;
+    uint64_t desired;
 
-    tmp = (tmp & 0xFFFFFFFF00000000) | val;
-    *ptr = (void*)(long)tmp;
+    do
+    {
+        desired = (expected & 0xFFFFFFFF00000000) | val;
+    } while (!atomic_compare_exchange_weak(ptr, &expected, desired));
 }
 
-static inline void set_ptr_high(void** ptr, uint32_t val)
+static inline void set_ptr_high(_Atomic(uint64_t) * ptr, uint32_t val)
 {
-    uint64_t tmp = (uintptr_t)*ptr;
+    uint64_t expected = *ptr;
+    uint64_t desired;
 
-    tmp = (tmp & 0x00000000FFFFFFFF) | ((uint64_t)val << 32);
-    *ptr = (void*)(long)tmp;
+    do
+    {
+        desired = (expected & 0xFFFFFFFF00000000) | val;
+        desired = (expected & 0x00000000FFFFFFFF) | ((uint64_t)val << 32);
+    } while (!atomic_compare_exchange_weak(ptr, &expected, desired));
 }
 
 static void virtio_notify_host_device(struct virtio_dev* dev, uint32_t qidx)
@@ -215,6 +223,7 @@ static int virtio_write(void* data, int offset, void* res, int size)
         if (offset + size >= dev->config_len)
             return -LKL_EINVAL;
         memcpy(dev->config_data + offset, res, size);
+        atomic_thread_fence(memory_order_seq_cst);
         return 0;
     }
 
@@ -257,22 +266,22 @@ static int virtio_write(void* data, int offset, void* res, int size)
             set_status(dev, val);
             break;
         case VIRTIO_MMIO_QUEUE_DESC_LOW:
-            set_ptr_low((void**)&q->desc, val);
+            set_ptr_low((_Atomic(uint64_t)*)&q->desc, val);
             break;
         case VIRTIO_MMIO_QUEUE_DESC_HIGH:
-            set_ptr_high((void**)&q->desc, val);
+            set_ptr_high((_Atomic(uint64_t)*)&q->desc, val);
             break;
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
-            set_ptr_low((void**)&q->avail, val);
+            set_ptr_low((_Atomic(uint64_t)*)&q->avail, val);
             break;
         case VIRTIO_MMIO_QUEUE_AVAIL_HIGH:
-            set_ptr_high((void**)&q->avail, val);
+            set_ptr_high((_Atomic(uint64_t)*)&q->avail, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_LOW:
-            set_ptr_low((void**)&q->used, val);
+            set_ptr_low((_Atomic(uint64_t)*)&q->used, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_HIGH:
-            set_ptr_high((void**)&q->used, val);
+            set_ptr_high((_Atomic(uint64_t)*)&q->used, val);
             break;
         default:
             ret = -1;
