@@ -1,0 +1,15 @@
+{
+    "args": [
+       "arg"
+    ],
+    "env": [
+        "LTP_DEV=/dev/vdb",
+        "LTP_DEV_FS_TYPE=ext4"
+    ],
+    "mounts": [
+        {
+            "destination": "/data",
+            "readonly": false
+      	}
+    ]
+}
