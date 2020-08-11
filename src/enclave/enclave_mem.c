@@ -139,7 +139,9 @@ void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files)
 
     // Base address for range of pages available to mmap calls
     mmap_base = (char*)mmap_bitmap + (2 * bitmap_req_pages * PAGE_SIZE);
-    mmap_end = (char*)mmap_base + (mmap_num_pages - 1) * PAGE_SIZE;
+    // Set mmap_end to one less page than we normally would to address 
+    // https://github.com/lsds/sgx-lkl/issues/742
+    mmap_end = (char*)mmap_base + (mmap_num_pages - 2) * PAGE_SIZE;
 
     // Initialise mmap allocation bitmap
     bitmap_clear(mmap_bitmap, 0, mmap_num_pages);
