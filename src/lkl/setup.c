@@ -1227,7 +1227,7 @@ static void* lkl_termination_thread(void* args)
 
     // Unmount mounts
     long res;
-    for (int i = sgxlkl_enclave_state.num_disk_state - 1; i > 0; --i)
+    for (int i = cfg->num_mounts - 1; i >= 0; i--)
     {
         if (!sgxlkl_enclave_state.disk_state[i].mounted)
             continue;
