@@ -234,7 +234,7 @@ static void sem_free(struct lkl_sem* sem)
 * - any waiters sleep using `enclave_futex_wait`
 * - when releasing, if there might be any waiters, wake them all using
 *     `enclave_futex_wake`
-* - any that waiter that suceeds in decrementing the count before it hits 0
+* - any waiter that succeeds in decrementing the count before it hits 0
 *     will acquire the semaphore and exit `sem_down`
 * - all others waiters will go back to sleep via `enclave_futex_wait`
 *
