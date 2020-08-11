@@ -17,7 +17,6 @@ CFLAGS=$(shell pkg-config oehost-$(C_COMPILER) --cflags)
 CXXFLAGS=$(shell pkg-config oehost-$(CXX_COMPILER) --cflags)
 LDFLAGS=$(shell pkg-config oehost-$(CXX_COMPILER) --libs)
 INCDIR=$(shell pkg-config oeenclave-$(C_COMPILER) --variable=includedir)
-COMMONS="../../common"
 
 all: build
 

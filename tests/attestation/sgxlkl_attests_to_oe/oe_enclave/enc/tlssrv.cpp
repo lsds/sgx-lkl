@@ -29,7 +29,7 @@
 #include "tlssrv.h"
 #include "../../../../../third_party/oe_stubs/oe_stubs.h"
 
-#include "../../common/gencreds.h"
+#include "../../../common/gencreds.h"
 
 #define MRENCLAVE_SIZE 32
 #define MRSIGNER_SIZE 32

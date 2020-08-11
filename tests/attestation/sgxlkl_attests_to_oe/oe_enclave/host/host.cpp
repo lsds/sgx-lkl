@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "tlssrv_u.h"
 
-#define SERVER_PORT "13999"
+#define SERVER_PORT "17500"
 
 static oe_enclave_t* enclave = NULL;
 

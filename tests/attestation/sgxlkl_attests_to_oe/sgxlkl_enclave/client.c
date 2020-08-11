@@ -19,7 +19,7 @@
 // TODO: will cover the cert generation part in the future
 #define TLS_CERT_PATH "./sgxlkl_cert.der"
 #define TLS_PKEY_PATH "./sgxlkl_private_key.pem"
-#define SERVER_PORT "13999"
+#define SERVER_PORT "17500"
 
 static tlscli_err_t tlsError;
 

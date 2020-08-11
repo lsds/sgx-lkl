@@ -17,7 +17,7 @@ CFLAGS=$(shell pkg-config oeenclave-$(C_COMPILER) --cflags)
 CXXFLAGS=$(shell pkg-config oeenclave-$(CXX_COMPILER) --cflags)
 LDFLAGS=$(shell pkg-config oeenclave-$(CXX_COMPILER) --libs)
 INCDIR=$(shell pkg-config oeenclave-$(C_COMPILER) --variable=includedir)
-COMMONS="../../common"
+ATTESTATION_COMMONS="../../../common"
 
 .PHONY: all build clean run
 
@@ -31,7 +31,7 @@ build:
 		--search-path $(INCDIR) \
 		--search-path $(INCDIR)/openenclave/edl/sgx
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) -std=c++11 tlssrv.cpp
-	$(CXX) -c $(CFLAGS) $(CINCLUDES) $(COMMONS)/gencreds.cpp
+	$(CXX) -c $(CFLAGS) $(CINCLUDES) $(ATTESTATION_COMMONS)/gencreds.cpp
 	$(CC) -c $(CFLAGS) $(CINCLUDES) tlssrv_t.c
 	$(CXX) -o tlssrv_enc tlssrv.o gencreds.o tlssrv_t.o $(LDFLAGS) -lmbedtls -lmbedcrypto -loehostsock -loehostresolver -loecore -loelibc -loesyscall
 
