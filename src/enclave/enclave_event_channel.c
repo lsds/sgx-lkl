@@ -31,17 +31,6 @@ static inline uint8_t vio_shutdown_requested(void)
 }
 
 /*
- * Function callback to set the thread state before yeilding the task
- */
-static inline void set_thread_state(void* lth)
-{
-    struct lthread* lt = lth;
-    /* set the sleep attribute to signify sleeping state */
-    lt->attr.state &= CLEARBIT(LT_ST_READY);
-    lt->attr.state |= BIT(LT_ST_SLEEPING);
-}
-
-/*
  * Function to yield the virtio event channel task
  */
 static inline void vio_wait_for_host_event(
