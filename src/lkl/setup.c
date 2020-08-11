@@ -1554,7 +1554,7 @@ extern inline int lkl_access_ok(unsigned long addr, unsigned long size)
     ret = oe_is_within_enclave((void*)addr, size);
     if (!ret)
     {
-        sgxlkl_fail("lkl_access_check failed: %p\n", (void*)addr);
+        SGXLKL_VERBOSE("lkl_access_check failed: %p\n", (void*)addr);
     }
     return ret;
 }
