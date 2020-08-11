@@ -27,6 +27,7 @@ case "$test_mode" in
 	   ;;
 esac
 test_class="ltp"
+
 SGXLKL_LTP_TSTAPP_CFG="--enclave-config=../ltp_tstapp_enclave_config.json"
 SGXLKL_LTP_HOST_CFG="--host-config=../ltp_host_config.json"
 
