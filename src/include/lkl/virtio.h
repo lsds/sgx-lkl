@@ -12,14 +12,14 @@ struct virtio_dev
     uint32_t device_id;
     uint32_t vendor_id;
     uint64_t device_features;
-    uint32_t device_features_sel;
+    _Atomic(uint32_t) device_features_sel;
     uint64_t driver_features;
-    uint32_t driver_features_sel;
-    uint32_t queue_sel;
+    _Atomic(uint32_t) driver_features_sel;
+    _Atomic(uint32_t) queue_sel;
     struct virtq* queue;
     uint32_t queue_notify;
-    uint32_t int_status;
-    uint32_t status;
+    _Atomic(uint32_t) int_status;
+    _Atomic(uint32_t) status;
     uint32_t config_gen;
 
     struct virtio_dev_ops* ops;

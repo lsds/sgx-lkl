@@ -8,24 +8,17 @@
 #include "enclave/vio_enclave_event_channel.h"
 #include "lkl/virtio.h"
 
-static struct ticketlock __vio_event_notifier_lock;
-
 /*
  * Function to trigger block dev irq to notify front end driver
  */
 static void lkl_deliver_irq(uint8_t dev_id)
 {
-    ticket_lock(&__vio_event_notifier_lock);
-
     struct virtio_dev* dev =
         sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem[dev_id];
 
-    __sync_synchronize();
     dev->int_status |= VIRTIO_MMIO_INT_VRING;
 
     lkl_trigger_irq(dev->irq);
-
-    ticket_unlock(&__vio_event_notifier_lock);
 }
 
 /*
@@ -36,8 +29,6 @@ int lkl_add_disks(
     const sgxlkl_enclave_mount_config_t* mounts,
     size_t num_mounts)
 {
-    memset(&__vio_event_notifier_lock, 0, sizeof(struct ticketlock));
-
     struct virtio_dev* root_dev =
         sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem
             [sgxlkl_enclave_state.disk_state[0].host_disk_index];

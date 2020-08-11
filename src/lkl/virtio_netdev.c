@@ -14,7 +14,6 @@
 static uint8_t registered_dev_idx = 0;
 
 struct virtio_dev* registered_devs[MAX_NET_DEVS];
-static struct ticketlock __event_notifier_lock;
 
 /*
  * Function to get netdev instance to use its attributes
@@ -53,14 +52,10 @@ static int dev_register(struct virtio_dev* dev)
 static void lkl_deliver_irq(uint64_t dev_id)
 {
     struct virtio_dev* dev = get_netdev_instance(dev_id);
-    ticket_lock(&__event_notifier_lock);
 
-    __sync_synchronize();
     dev->int_status |= VIRTIO_MMIO_INT_VRING;
 
     lkl_trigger_irq(dev->irq);
-
-    ticket_unlock(&__event_notifier_lock);
 }
 
 /*
@@ -70,7 +65,6 @@ static void lkl_deliver_irq(uint64_t dev_id)
 int lkl_virtio_netdev_add(struct virtio_dev* netdev)
 {
     int ret = -1;
-    memset(&__event_notifier_lock, 0, sizeof(struct ticketlock));
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
 
     registered_devs[registered_dev_idx] = netdev;
