@@ -215,7 +215,7 @@ static void sem_free(struct lkl_sem* sem)
 * sem->count is the number of flags available at the current time
 *
 * sem_up adds a flag back into the bucket.
-* sem_down removes a flag the bucket allowing an action to be taken
+* sem_down removes a flag from the bucket allowing an action to be taken
 *
 * That is:
 * - sem_down is ACQUIRE
