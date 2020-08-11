@@ -604,8 +604,10 @@ void override_disk_config(const char* root_disk_path)
     }
 }
 
-void check_envs(const char** pres, char** envp, const char* warn_msg)
+void check_envs_all(char** envp)
 {
+#ifndef DEBUG
+    static const char* pres[] = {"SGXLKL_TRACE_", "SGXLKL_PRINT_"};
     char envname[128];
     for (char** env = envp; *env != 0; env++)
     {
@@ -620,21 +622,15 @@ void check_envs(const char** pres, char** envp, const char* warn_msg)
                     *env);
                 if (getenv_bool(envname, 0))
                 {
-                    fprintf(stderr, warn_msg, envname);
+                    fprintf(
+                        stderr,
+                        "[   SGX-LKL  ] Warning: %s ignored in non-debug "
+                        "mode.\n",
+                        envname);
                 }
             }
         }
     }
-}
-
-void check_envs_all(char** envp)
-{
-#ifndef DEBUG
-    const char* dbg_pres[] = {"SGXLKL_TRACE_", "SGXLKL_PRINT_"};
-    check_envs(
-        dbg_pres,
-        envp,
-        "[   SGX-LKL  ] Warning: %s ignored in non-debug mode.\n");
 #endif /* DEBUG */
 }
 
