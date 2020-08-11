@@ -46,8 +46,8 @@
 #include "enclave/lthread_int.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
-#include "shared/tree.h"
 #include "openenclave/corelibc/oemalloc.h"
+#include "shared/tree.h"
 
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
@@ -191,9 +191,7 @@ void __schedqueue_inc()
     a_inc(&schedqueuelen);
 }
 
-void lthread_sched_global_init(
-    size_t sleepspins_,
-    size_t sleeptime_ns_)
+void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_)
 {
     sleepspins = sleepspins_;
     sleeptime_ns = sleeptime_ns_;
@@ -204,7 +202,7 @@ void lthread_sched_global_init(
 void lthread_notify_completion(void)
 {
     SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] lthread_notify_completion. \n", lthread_self()->tid);
+        "[%4d] lthread_notify_completion\n", lthread_self()->tid);
     _lthread_should_stop = true;
 }
 
@@ -243,7 +241,7 @@ void lthread_run(void)
                 pauses = sleepspins;
                 a_dec(&schedqueuelen);
                 SGXLKL_TRACE_THREAD(
-                    "[tid=%-3d] lthread_run(): lthread_resume (dequeue)\n",
+                    "[%4d] lthread_run(): lthread_resume (dequeue)\n",
                     lt ? lt->tid : -1);
                 _lthread_resume(lt);
             }
@@ -281,7 +279,7 @@ void lthread_run(void)
         if (_lthread_should_stop)
         {
             SGXLKL_TRACE_THREAD(
-                "[tid=%-3d] lthread_run(): quitting\n", lt ? lt->tid : -1);
+                "[%4d] lthread_run(): quitting\n", lt ? lt->tid : -1);
             break;
         }
     }
@@ -296,7 +294,7 @@ void _lthread_desched_sleep(struct lthread* lt)
 {
     ticket_lock(&sleeplock);
     SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_desched_sleep() TICKET_LOCK lock=SLEEPLOCK tid=%d "
+        "[%4d] _lthread_desched_sleep() TICKET_LOCK lock=SLEEPLOCK tid=%d "
         "\n",
         (lthread_self() ? lthread_self()->tid : 0),
         lt->tid);
@@ -312,7 +310,7 @@ void _lthread_desched_sleep(struct lthread* lt)
     ticket_unlock(&sleeplock);
 
     SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] _lthread_desched_sleep() TICKET_UNLOCK lock=SLEEPLOCK "
+        "[%4d] _lthread_desched_sleep() TICKET_UNLOCK lock=SLEEPLOCK "
         "tid=%d\n",
         (lthread_self() ? lthread_self()->tid : 0),
         lt->tid);
@@ -336,6 +334,10 @@ static void _lthread_lock(struct lthread* lt)
 static void _lthread_unlock(struct lthread* lt)
 {
     a_barrier();
+
+    // We should never unlock an lthread that is not locked.
+    SGXLKL_ASSERT(lt->attr.state & BIT(LT_ST_BUSY));
+
     lt->attr.state &= CLEARBIT(LT_ST_BUSY);
 }
 
@@ -378,7 +380,8 @@ void _lthread_free(struct lthread* lt)
         lt->robust_list.head = *rp;
         int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
         lt->robust_list.pending = 0;
-        if (cont < 0 || waiters) {
+        if (cont < 0 || waiters)
+        {
             enclave_futex_wake((int*)&m->_m_lock, 1);
         }
     }
@@ -629,12 +632,13 @@ int lthread_create_primitive(
     lt->itlssz = libc.tls_size;
     if (libc.tls_size)
     {
-        if ((intptr_t)(lt->itls = (uint8_t*)enclave_mmap(
-                 0,
-                 lt->itlssz,
-                 0, /* map_fixed */
-                 PROT_READ | PROT_WRITE,
-                 1 /* zero_pages */)) < 0)
+        if ((intptr_t)(
+                lt->itls = (uint8_t*)enclave_mmap(
+                    0,
+                    lt->itlssz,
+                    0, /* map_fixed */
+                    PROT_READ | PROT_WRITE,
+                    1 /* zero_pages */)) < 0)
         {
             lthread_dealloc(lt);
             return -1;
@@ -666,8 +670,7 @@ int lthread_create_primitive(
 
     a_inc(&libc.threads_minus_1);
 
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+    SGXLKL_TRACE_THREAD("[%4d] create: count=%d\n", lt->tid, thread_count);
 
 #if DEBUG
     struct lthread_queue* new_ltq =
@@ -723,12 +726,13 @@ int lthread_create(
         return -1;
     }
     lt->attr.stack = attrp ? attrp->stack : 0;
-    if ((!lt->attr.stack) && ((intptr_t)(lt->attr.stack = enclave_mmap(
-                                   0,
-                                   stack_size,
-                                   0, /* map_fixed */
-                                   PROT_READ | PROT_WRITE,
-                                   1 /* zero_pages */)) < 0))
+    if ((!lt->attr.stack) && ((intptr_t)(
+                                  lt->attr.stack = enclave_mmap(
+                                      0,
+                                      stack_size,
+                                      0, /* map_fixed */
+                                      PROT_READ | PROT_WRITE,
+                                      1 /* zero_pages */)) < 0))
     {
         lthread_dealloc(lt);
         return -1;
@@ -739,12 +743,13 @@ int lthread_create(
     lt->itlssz = libc.tls_size;
     if (libc.tls_size)
     {
-        if ((intptr_t)(lt->itls = (uint8_t*)enclave_mmap(
-                 0,
-                 lt->itlssz,
-                 0, /* map_fixed */
-                 PROT_READ | PROT_WRITE,
-                 1 /* zero_pages */)) < 0)
+        if ((intptr_t)(
+                lt->itls = (uint8_t*)enclave_mmap(
+                    0,
+                    lt->itlssz,
+                    0, /* map_fixed */
+                    PROT_READ | PROT_WRITE,
+                    1 /* zero_pages */)) < 0)
         {
             lthread_dealloc(lt);
             return -1;
@@ -778,8 +783,7 @@ int lthread_create(
 
     a_inc(&libc.threads_minus_1);
 
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] create: thread_count=%d\n", lt->tid, thread_count);
+    SGXLKL_TRACE_THREAD("[%4d] create: count=%d\n", lt->tid, thread_count);
 
 #if DEBUG
     struct lthread_queue* new_ltq =
@@ -835,8 +839,7 @@ void lthread_exit(void* ptr)
     /* switch thread to exiting state */
     _lthread_lock(lt);
 
-    SGXLKL_TRACE_THREAD(
-        "[tid=%-3d] thread_exit: thread_count=%d\n", lt->tid, thread_count);
+    SGXLKL_TRACE_THREAD("[%4d] thread_exit: count=%d\n", lt->tid, thread_count);
 
     lt->yield_cbarg = ptr;
     lt->attr.state |= BIT(LT_ST_EXITED);
@@ -857,36 +860,44 @@ int lthread_join(struct lthread* lt, void** ptr, uint64_t timeout)
     struct lthread* current = lthread_get_sched()->current_lthread;
     if (lt->attr.state & BIT(LT_ST_DETACH))
     {
+        SGXLKL_TRACE_THREAD(
+            "[%4d] join (detached): tid=%d count=%d\n",
+            (lthread_self() ? lthread_self()->tid : 0),
+            lt->tid,
+            thread_count);
         return EINVAL;
     }
     _lthread_lock(lt);
     if (lt->attr.state & BIT(LT_ST_EXITED))
     {
         SGXLKL_TRACE_THREAD(
-            "[tid=%-3d] join:  tid=%d count=%d\n",
+            "[%4d] join (exited): tid=%d count=%d\n",
             (lthread_self() ? lthread_self()->tid : 0),
             lt->tid,
             thread_count);
-
-        /* we can test for exited flag only with lock acquired */
-        _lthread_unlock(lt);
     }
     else
     {
         SGXLKL_TRACE_THREAD(
-            "[tid=%-3d] join:  tid=%d count=%d\n",
+            "[%4d] join (waiting): tid=%d count=%d\n",
             (lthread_self() ? lthread_self()->tid : 0),
             lt->tid,
             thread_count);
 
         /* thread is still running, set current lthread as joiner */
-        if (a_cas_p(&lt->lt_join, 0, current) != 0)
+        void* null_ptr = NULL;
+        if (!atomic_compare_exchange_strong(&lt->lt_join, &null_ptr, current) !=
+            0)
         {
             /* there already is a joiner */
             _lthread_unlock(lt);
             return EINVAL;
         }
         _lthread_yield_cb(current, (void*)_lthread_unlock, lt);
+
+        // Reacquire the lthread lock before we start freeing the lthread. It
+        // may still be exiting concurrently.
+        _lthread_lock(lt);
     }
     if (ptr)
     {
@@ -974,7 +985,7 @@ int lthread_setcancelstate(int new, int* old)
  * accessed.  `lthread_current()` is always safe to use here as is any lthread
  * that has not yet been scheduled.
  */
-static struct lthread_tls* lthread_findtlsslot(struct lthread *lt, long key)
+static struct lthread_tls* lthread_findtlsslot(struct lthread* lt, long key)
 {
     struct lthread_tls *d, *d_tmp;
     LIST_FOREACH_SAFE(d, &lt->tls, tls_next, d_tmp)
@@ -1104,26 +1115,50 @@ void lthread_set_expired(struct lthread* lt)
 }
 
 #ifdef DEBUG
-void lthread_dump_all_threads(void)
+void lthread_dump_all_threads(bool is_lthread)
 {
     struct lthread_queue* lt_queue = __active_lthreads;
 
-    sgxlkl_info("=============================================================\n");
+    sgxlkl_info(
+        "=============================================================\n");
     sgxlkl_info("Stack traces for all lthreads:\n");
+
+    struct lthread* this_lthread = NULL;
+
+    // Is this called from an lthread?
+    if (is_lthread)
+        this_lthread = lthread_self();
 
     for (int i = 1; lt_queue; i++)
     {
         struct lthread* lt = lt_queue->lt;
-        SGXLKL_ASSERT(lt);
-        int tid = lt->tid;
-        char* funcname = lt->funcname;
-        sgxlkl_info("-------------------------------------------------------------\n");
-        sgxlkl_info("%s%i: tid=%i [%s]\n", lt == lthread_self() ? "*" : "", i, tid, funcname);
-        sgxlkl_print_backtrace(lt == lthread_self() ? __builtin_frame_address(0) : lt->ctx.ebp);
+
+        // Do we have a valid lthread?
+        if (lt)
+        {
+            int tid = lt->tid;
+            char* funcname = lt->funcname;
+            sgxlkl_info("------------------------------------------------------"
+                        "-------\n");
+            sgxlkl_info(
+                "%s%i: tid=%i (%p) [%s]\n",
+                lt == this_lthread ? "*" : "",
+                i,
+                tid,
+                lt,
+                funcname);
+            sgxlkl_print_backtrace(
+                lt == this_lthread ? __builtin_frame_address(0) : lt->ctx.ebp);
+        }
+        else
+        {
+            sgxlkl_info("lt == NULL\n");
+        }
 
         lt_queue = lt_queue->next;
     }
 
-    sgxlkl_info("=============================================================\n");
+    sgxlkl_info(
+        "=============================================================\n");
 }
 #endif

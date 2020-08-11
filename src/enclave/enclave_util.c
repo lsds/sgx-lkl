@@ -19,7 +19,7 @@ void sgxlkl_fail(const char* msg, ...)
     oe_host_vfprintf(OE_STDERR_FILENO, msg, args);
 
 #ifdef DEBUG
-    lthread_dump_all_threads();
+    lthread_dump_all_threads(true);
 #endif
 
     oe_abort();
@@ -82,6 +82,7 @@ void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...)
  * other lthreads.
  */
 extern int oe_backtrace_impl(void** start_frame, void** buffer, int size);
+extern void oe_backtrace_symbols_free(char** ptr);
 
 void sgxlkl_print_backtrace(void** start_frame)
 {
@@ -99,7 +100,7 @@ void sgxlkl_print_backtrace(void** start_frame)
     for (i = 0; i < size; i++)
         sgxlkl_info("    #%ld: %p in %s(...)\n", i, buf[i], strings[i]);
 
-    oe_free(strings);
+    oe_backtrace_symbols_free(strings);
 }
 #endif
 

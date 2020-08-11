@@ -861,7 +861,8 @@ void lkl_mount_disks(
     if (!root)
         sgxlkl_fail("No root disk provided. Aborting...\n");
 
-    lkl_add_disks(root, mounts, num_mounts);
+    if (lkl_add_disks(root, mounts, num_mounts) != 0)
+        sgxlkl_fail("Add root disk failed. Aborting...\n");
 
     lkl_mount_root_disk(root, 0);
 
@@ -1261,10 +1262,6 @@ static void* lkl_termination_thread(void* args)
         }
     }
 
-#ifdef DEBUG
-    display_mount_table();
-#endif
-
     /* Unmount root.
      * We are calling umount with the MNT_DETACH flag for the root
      * file system, otherwise the call fails to unmount the file
@@ -1276,6 +1273,10 @@ static void* lkl_termination_thread(void* args)
     res = lkl_umount_timeout("/", MNT_DETACH, UMOUNT_DISK_TIMEOUT);
     if (res < 0)
         sgxlkl_warn("Could not unmount root disk, %s\n", lkl_strerror(res));
+
+#ifdef DEBUG
+    display_mount_table();
+#endif
 
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
