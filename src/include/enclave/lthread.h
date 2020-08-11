@@ -44,9 +44,7 @@
 
 #include "enclave/mpmc_queue.h"
 #include "shared/queue.h"
-#include "shared/tree.h"
 
-#define DEFINE_LTHREAD (lthread_set_funcname(__func__))
 #define CLOCK_LTHREAD CLOCK_REALTIME
 
 // Configures after how many scheduler cycles futexes are woken up
@@ -146,7 +144,6 @@ struct lthread
     struct lthread_tls_l tls;     /* pointer to TLS */
     uint8_t* itls;                /* image TLS */
     size_t itlssz;                /* size of TLS image */
-    RB_ENTRY(lthread) sleep_node; /* sleep tree node pointer */
     int err;                      /* errno value */
     char* dlerror_buf;
     int dlerror_flag;
@@ -171,8 +168,6 @@ struct lthread_queue
     struct lthread* lt;
     struct lthread_queue* next;
 };
-
-RB_HEAD(lthread_rb_sleep, lthread);
 
 LIST_HEAD(lthread_l, lthread);
 TAILQ_HEAD(lthread_q, lthread);
@@ -235,6 +230,13 @@ extern "C"
     void lthread_detach2(struct lthread* lt);
 
     void lthread_exit(void* ptr) __attribute__((noreturn));
+
+    /**
+     * Yields to the scheduler and puts the current lthread to sleep by
+     * marking it as sleeping. The lthread can be added back to the scheduler
+     * queue by calling lthread_wakeup afterwards.
+     */
+    void lthread_yield_and_sleep(void);
 
     void lthread_wakeup(struct lthread* lt);
 

@@ -1,8 +1,6 @@
 #include <atomic.h>
 #include <string.h>
 
-#include "pthread_impl.h"
-
 #include <lkl/virtio.h>
 
 #include "enclave/enclave_util.h"
@@ -33,17 +31,6 @@ static inline uint8_t vio_shutdown_requested(void)
 }
 
 /*
- * Function callback to set the thread state before yeilding the task
- */
-static inline void set_thread_state(void* lth)
-{
-    struct lthread* lt = lth;
-    /* set the sleep attribute to signify sleeping state */
-    lt->attr.state &= CLEARBIT(LT_ST_READY);
-    lt->attr.state |= BIT(LT_ST_SLEEPING);
-}
-
-/*
  * Function to yield the virtio event channel task
  */
 static inline void vio_wait_for_host_event(
@@ -55,7 +42,7 @@ static inline void vio_wait_for_host_event(
     SGXLKL_ASSERT(evt_chn);
 
     struct lthread* lt = vio_tasks[dev_id];
-    SGXLKL_ASSERT(lt);
+    SGXLKL_ASSERT(lt && lt == lthread_self());
 
     /* Return if the event channel was signaled */
     if ((__atomic_load_n(evt_chn, __ATOMIC_SEQ_CST) != val) ||
@@ -65,7 +52,7 @@ static inline void vio_wait_for_host_event(
     }
 
     /* Release CPU for other tasks */
-    _lthread_yield_cb(lt, set_thread_state, lt);
+    lthread_yield_and_sleep();
 }
 
 /*
