@@ -47,7 +47,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown03
 #/ltp/testcases/kernel/syscalls/chown/chown04
 #/ltp/testcases/kernel/syscalls/chown/chown05
-/ltp/testcases/kernel/syscalls/chroot/chroot01
+#/ltp/testcases/kernel/syscalls/chroot/chroot01
 #/ltp/testcases/kernel/syscalls/chroot/chroot02
 #/ltp/testcases/kernel/syscalls/chroot/chroot03
 #/ltp/testcases/kernel/syscalls/chroot/chroot04
@@ -550,7 +550,7 @@
 #/ltp/testcases/kernel/syscalls/mmap/mmap07
 #/ltp/testcases/kernel/syscalls/mmap/mmap08
 #/ltp/testcases/kernel/syscalls/mmap/mmap09
-/ltp/testcases/kernel/syscalls/mmap/mmap10
+#/ltp/testcases/kernel/syscalls/mmap/mmap10
 #/ltp/testcases/kernel/syscalls/mmap/mmap11
 /ltp/testcases/kernel/syscalls/mmap/mmap12
 /ltp/testcases/kernel/syscalls/mmap/mmap13
@@ -622,7 +622,7 @@
 /ltp/testcases/kernel/syscalls/open/open09
 /ltp/testcases/kernel/syscalls/open/open10
 /ltp/testcases/kernel/syscalls/open/open11
-/ltp/testcases/kernel/syscalls/open/open12
+#/ltp/testcases/kernel/syscalls/open/open12
 /ltp/testcases/kernel/syscalls/open/open12_child
 /ltp/testcases/kernel/syscalls/open/open13
 /ltp/testcases/kernel/syscalls/open/open14
@@ -699,7 +699,7 @@
 /ltp/testcases/kernel/syscalls/quotactl/quotactl02
 /ltp/testcases/kernel/syscalls/quotactl/quotactl03
 /ltp/testcases/kernel/syscalls/read/read01
-/ltp/testcases/kernel/syscalls/read/read02
+#/ltp/testcases/kernel/syscalls/read/read02
 /ltp/testcases/kernel/syscalls/read/read03
 /ltp/testcases/kernel/syscalls/read/read04
 /ltp/testcases/kernel/syscalls/readahead/readahead01
@@ -1054,5 +1054,5 @@
 /ltp/testcases/kernel/syscalls/writev/writev01
 /ltp/testcases/kernel/syscalls/writev/writev02
 /ltp/testcases/kernel/syscalls/writev/writev05
-/ltp/testcases/kernel/syscalls/writev/writev06
+#/ltp/testcases/kernel/syscalls/writev/writev06
 /ltp/testcases/kernel/syscalls/writev/writev07

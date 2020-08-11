@@ -149,7 +149,7 @@
 /ltp/testcases/kernel/syscalls/fadvise/posix_fadvise02
 /ltp/testcases/kernel/syscalls/fadvise/posix_fadvise03
 /ltp/testcases/kernel/syscalls/fadvise/posix_fadvise04
-/ltp/testcases/kernel/syscalls/fallocate/fallocate01
+#/ltp/testcases/kernel/syscalls/fallocate/fallocate01
 /ltp/testcases/kernel/syscalls/fallocate/fallocate02
 /ltp/testcases/kernel/syscalls/fallocate/fallocate03
 /ltp/testcases/kernel/syscalls/fallocate/fallocate04
@@ -283,7 +283,7 @@
 /ltp/testcases/kernel/syscalls/futex/futex_wake04
 /ltp/testcases/kernel/syscalls/futimesat/futimesat01
 /ltp/testcases/kernel/syscalls/get_mempolicy/get_mempolicy01
-/ltp/testcases/kernel/syscalls/get_robust_list/get_robust_list01
+#/ltp/testcases/kernel/syscalls/get_robust_list/get_robust_list01
 /ltp/testcases/kernel/syscalls/getcpu/getcpu01
 /ltp/testcases/kernel/syscalls/getcwd/getcwd01
 /ltp/testcases/kernel/syscalls/getcwd/getcwd02
