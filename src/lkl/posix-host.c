@@ -203,7 +203,7 @@ static void sem_free(struct lkl_sem* sem)
 /*
 * sem_up/sem_down interaction
 *
-* Because sem_up and sem_down underpin the a lot of sgx-lkl functionality, it is
+* Because sem_up and sem_down underpins a lot of sgx-lkl functionality, it is
 * very important that they interact correctly. However, that interact might
 * not be immediately obvious. What follows is a description of how they
 * interact.
