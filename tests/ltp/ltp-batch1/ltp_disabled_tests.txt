@@ -948,7 +948,7 @@
 /ltp/testcases/kernel/syscalls/sync/sync02
 /ltp/testcases/kernel/syscalls/sync/sync03
 /ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range01
-/ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range02
+#/ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range02
 /ltp/testcases/kernel/syscalls/syncfs/syncfs01
 /ltp/testcases/kernel/syscalls/syscall/syscall01
 /ltp/testcases/kernel/syscalls/sysconf/sysconf01
@@ -1008,7 +1008,7 @@
 /ltp/testcases/kernel/syscalls/unlink/unlink07
 /ltp/testcases/kernel/syscalls/unlink/unlink08
 /ltp/testcases/kernel/syscalls/unlinkat/unlinkat01
-/ltp/testcases/kernel/syscalls/unshare/unshare01
+#/ltp/testcases/kernel/syscalls/unshare/unshare01
 /ltp/testcases/kernel/syscalls/unshare/unshare02
 /ltp/testcases/kernel/syscalls/userfaultfd/userfaultfd01
 /ltp/testcases/kernel/syscalls/ustat/ustat01
