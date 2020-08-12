@@ -147,7 +147,7 @@ struct lthread
     struct lthread_tls_l tls;     /* pointer to TLS */
     uint8_t* itls;                /* image TLS */
     size_t itlssz;                /* size of TLS image */
-    uintptr_t tp;                 /* thread pointer */
+    uintptr_t* tp;                 /* thread pointer */
     int err;                      /* errno value */
     /* yield_cb_* are a callback to call after yield finished and it's arg */
     /* they are required to release futex lock on FUTEX_WAIT operation */
