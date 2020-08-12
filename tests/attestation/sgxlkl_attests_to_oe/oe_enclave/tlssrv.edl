@@ -1,0 +1,9 @@
+enclave {
+    from "openenclave/edl/logging.edl" import *;
+    from "openenclave/edl/syscall.edl" import *;
+    from "platform.edl" import *;
+
+    trusted {
+        public int setup_tls_server([in, string] const char* port);
+    };
+};
