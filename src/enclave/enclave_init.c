@@ -5,6 +5,8 @@
 #include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
 
+#include "enclave/enclave_cert.h"
+#include "enclave/enclave_cert_user.h"
 #include "enclave/enclave_mem.h"
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
@@ -12,6 +14,9 @@
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
+
+#define SGXLKL_TLS_CERT_PATH "/run/sgxlkl_cert.der"
+#define SGXLKL_TLS_PRIVATE_KEY_PATH "/run/sgxlkl_private_key.pem"
 
 extern struct mpmcq __scheduler_queue;
 
@@ -90,6 +95,11 @@ static void init_wireguard()
 
 static int startmain(void* args)
 {
+    uint8_t* cert;
+    size_t cert_size;
+    uint8_t* private_key;
+    size_t private_key_size;
+
     __libc_start_init();
     a_barrier();
 
@@ -106,6 +116,26 @@ static int startmain(void* args)
 
     init_wireguard();
     find_and_mount_disks();
+
+    /* Generate TLS certificate and private key and save them to files.
+     * Once we have kernel/user separation, pass the cert and private
+     * key to user space through the stack, and move
+     * sgxlkl_write_tls_credentials to user space.
+     */
+
+    if (!sgxlkl_in_sw_debug_mode())
+    {
+        enclave_generate_tls_credentials(
+            &cert, &cert_size, &private_key, &private_key_size);
+
+        sgxlkl_write_tls_credentials(
+            cert,
+            cert_size,
+            private_key,
+            private_key_size,
+            SGXLKL_TLS_CERT_PATH,
+            SGXLKL_TLS_PRIVATE_KEY_PATH);
+    }
 
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
