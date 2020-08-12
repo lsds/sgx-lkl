@@ -36,7 +36,8 @@ build:
 	$(CXX) -o tlssrv_enc tlssrv.o gencreds.o tlssrv_t.o $(LDFLAGS) -lmbedtls -lmbedcrypto -loehostsock -loehostresolver -loecore -loelibc -loesyscall
 
 sign:
+	openssl genrsa -out private.pem -3 3072
 	oesign sign -e tlssrv_enc -c enc.conf -k private.pem
 
 clean:
-	rm -f *.o tlssrv_enc tlssrv_enc.signed tlssrv_t.* tlssrv_args.h
+	rm -f *.o tlssrv_enc tlssrv_enc.signed tlssrv_t.* tlssrv_args.h private.pem
