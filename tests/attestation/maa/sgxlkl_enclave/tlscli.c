@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -139,6 +140,21 @@ done:
     return ret;
 }
 
+// This helper function converts a hex character 
+// a..f A..F 0..9 to corresponding uint8_t binary value between 0..15
+uint8_t hex_to_uint8(char ch) {
+    if (ch >= '0' && ch <= '9')
+        return (uint8_t)(ch - '0');
+    if (ch >= 'a' && ch <= 'f')
+        return (uint8_t)(ch - 'a' + 10);
+    if (ch >= 'A' && ch <= 'F')
+        return (uint8_t)(ch - 'A' + 10);
+    
+    // This function supposed to return 0..15
+    // Return 16 as an invalid value
+    return 16;
+}
+
 oe_result_t _verifier_callback(oe_identity_t* identity, void* arg)
 {
     oe_result_t result = OE_VERIFY_FAILED;
@@ -150,15 +166,35 @@ oe_result_t _verifier_callback(oe_identity_t* identity, void* arg)
     log_hex_data("MRENCLAVE", identity->unique_id, OE_UNIQUE_ID_SIZE);
     log_hex_data("MRSIGNER", identity->signer_id, OE_SIGNER_ID_SIZE);
     log_hex_data("ISVPRODID", identity->product_id, OE_PRODUCT_ID_SIZE);
-    // printf("ISVSVN: %u\n", identity->security_version);
     printf("\n");
 
-    const uint8_t MRSIGNER[] =
-        {
-            0x9f, 0xa4, 0x8b, 0x16, 0x29, 0xbd, 0x24, 0x6a,
-            0x1d, 0xe3, 0xd3, 0x8f, 0xb7, 0xdf, 0x97, 0xf6,
-            0x55, 0x4c, 0xd6, 0x5d, 0x6b, 0x3b, 0x72, 0xe8,
-            0x5b, 0x86, 0x84, 0x8a, 0xe6, 0xb5, 0x78, 0xba};
+    // Read string MRSIGNER from environment variable MAA_TEST1_OE_ENCLAVE_MRSIGNER    
+    // Convert to uint8_t array
+    const char *oe_enclave_mrsigner = getenv("MAA_TEST1_OE_ENCLAVE_MRSIGNER");
+    uint8_t MRSIGNER[32];
+    uint8_t part1, part2;
+
+    // MRSIGNER string in environment variable must be 64 characters
+    if (strlen(oe_enclave_mrsigner) != 64) {
+        printf("Invalid MRSIGNER value set in environment variable MAA_TEST1_OE_ENCLAVE_MRSIGNER: %s\n", oe_enclave_mrsigner);
+        result = OE_FAILURE;
+        goto done;	
+    }
+    
+    for (int i=0; i<64; i+=2) {
+    	part1 = hex_to_uint8(oe_enclave_mrsigner[i]);
+	part2 = hex_to_uint8(oe_enclave_mrsigner[i+1]);
+	// Each character must be 0..9 or a..f or A..F 
+	// Valid values are between 0 and 15 for hex string
+        if (part1 > 15 || part2 > 15 ) {
+	    printf("Invalid MRSIGNER value set in environment variable MAA_TEST1_OE_ENCLAVE_MRSIGNER: %s\n", oe_enclave_mrsigner);
+	    result = OE_FAILURE;
+	    goto done;
+	}
+
+	MRSIGNER[i/2] = (uint8_t)(part1 << 4 | part2);
+    }
+
     const uint8_t ISVPRODID[] = {
         '1', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
         '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
