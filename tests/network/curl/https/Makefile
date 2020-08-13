@@ -10,8 +10,6 @@ CURL_APP_CMDLINE=${CURL_APP} --trace-ascii - https://www.wikipedia.org/
 # Test 2 - iperf
 # This test requires iperf3 to be installed on the host.
 IPERF_APP=/usr/bin/iperf3
-# The following iperf test still suffers from a problem in which the
-# throughput collapses to zero after a few seconds.
 IPERF_APP_CMDLINE=${IPERF_APP} -V -c 10.0.1.254 -t 60 -P 8
 
 CC_IMAGE_SIZE=64M
@@ -33,8 +31,7 @@ clean:
 $(CC_IMAGE):
 	${SGXLKL_DISK_TOOL} create --size=${CC_IMAGE_SIZE} --alpine="curl iperf3" ${CC_IMAGE}
 
-# Only run the curl test by default, as the iperf test is still broken.
-run-hw: run-curl-hw
+run-hw: run-curl-hw run-iperf-hw
 
 run-curl-hw: $(CC_IMAGE)
 	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(CC_IMAGE) $(CURL_APP_CMDLINE)
@@ -44,8 +41,7 @@ run-iperf-hw: $(CC_IMAGE)
 	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(CC_IMAGE) $(IPERF_APP_CMDLINE)
 	killall iperf3
 
-# Only runt the curl test by default, as the iperf test is still broken.
-run-sw: run-curl-sw
+run-sw: run-curl-sw run-iperf-sw
 
 run-curl-sw: $(CC_IMAGE)
 	${SGXLKL_ENV} ${SGXLKL_STARTER} --sw-debug $(CC_IMAGE) $(CURL_APP_CMDLINE)
