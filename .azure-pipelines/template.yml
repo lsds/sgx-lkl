@@ -156,6 +156,11 @@ stages:
                 DB_SERVER_NAME: $(DbServerName)
                 DB_USERID: $(DbUserId)
                 MAA_URL: $(MaaAddr)
+                MAA_CLIENT_ID: $(MaaClientId)
+                MAA_CLIENT_SECRET: $(MaaClientSecret)
+                MAA_APP_ID: $(MaaAppId)
+                MAA_ADDR: $(MaaAddr)
+                MAA_ADDR_APP: $(MaaAddrApp)
 
             - task: PublishTestResults@2
               displayName: "Publish Test Results *.xml"
