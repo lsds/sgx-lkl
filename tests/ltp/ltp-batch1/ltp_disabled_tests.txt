@@ -458,7 +458,7 @@
 #/ltp/testcases/kernel/syscalls/lchown/lchown02
 #/ltp/testcases/kernel/syscalls/lchown/lchown03
 /ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr01
-/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
+#/ltp/testcases/kernel/syscalls/lgetxattr/lgetxattr02
 #/ltp/testcases/kernel/syscalls/link/link02
 #/ltp/testcases/kernel/syscalls/link/link03
 #/ltp/testcases/kernel/syscalls/link/link04
@@ -564,9 +564,9 @@
 /ltp/testcases/kernel/syscalls/mount/mount02
 /ltp/testcases/kernel/syscalls/mount/mount03
 /ltp/testcases/kernel/syscalls/mount/mount03_setuid_test
-/ltp/testcases/kernel/syscalls/mount/mount04
+#/ltp/testcases/kernel/syscalls/mount/mount04
 #/ltp/testcases/kernel/syscalls/mount/mount05
-/ltp/testcases/kernel/syscalls/mount/mount06
+#/ltp/testcases/kernel/syscalls/mount/mount06
 /ltp/testcases/kernel/syscalls/move_pages/move_pages01
 /ltp/testcases/kernel/syscalls/move_pages/move_pages02
 /ltp/testcases/kernel/syscalls/move_pages/move_pages03
