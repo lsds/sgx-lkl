@@ -9,7 +9,7 @@
 #include "openenclave/internal/backtrace.h"
 #endif
 
-#define OE_STDERR_FILENO 2
+#define OE_STDERR_FILENO 1
 
 void sgxlkl_fail(const char* msg, ...)
 {
