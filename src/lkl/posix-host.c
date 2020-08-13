@@ -24,6 +24,7 @@
 
 #include "enclave/lthread.h"
 #include "enclave/lthread_int.h"
+#include "enclave/enclave_state.h"
 #include "enclave/enclave_timer.h"
 #include "enclave/enclave_util.h"
 #include "shared/sgxlkl_enclave_config.h"
@@ -762,6 +763,71 @@ static void host_free(void *ptr)
     oe_free(ptr);
 }
 
+/**
+ * Returns the information displayed in /proc/cpuinfo
+ */
+static unsigned int sgxlkl_cpuinfo_get(char *buffer, unsigned int buffer_len)
+{
+    const sgxlkl_enclave_config_t* econf = sgxlkl_enclave_state.config;
+
+    int len;
+    unsigned int total_len = 0;
+    unsigned int current_core = 0;
+    unsigned int num_cores = econf->ethreads;
+
+    for (current_core = 0; current_core < num_cores; current_core++) {
+
+        len = snprintf(buffer, buffer_len,
+            "processor       : %u\n"
+            "cpu family      : 6\n"
+            "model           : 158\n"
+            "model name      : Intel(R) Xeon(R) CPU E3-1280 v6 @ 3.90GHz\n"
+            "stepping        : 9\n"
+            "microcode       : 0xb4\n"
+            "cpu MHz         : 800.063\n"
+            "cache size      : 8192 KB\n"
+            "physical id     : %u\n"
+            "siblings        : %u\n"
+            "core id         : %u\n"
+            "cpu cores       : %u\n"
+            "apicid          : 0\n"
+            "initial apicid  : 0\n"
+            "fpu             : yes\n"
+            "fpu_exception   : yes\n"
+            "cpuid level     : 22\n"
+            "wp              : yes\n"
+            "flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse3 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bt rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm aabm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d\n"
+            "bugs            : cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs\n"
+            "bogomips        : 7824.00\n"
+            "clflush size    : 64\n"
+            "cache_alignment : 64\n"
+            "address sizes   : 39 bits physical, 48 bits virtual\n"
+            "power management: \n"
+            "\n",
+            current_core,
+            current_core, num_cores,
+            current_core, num_cores);
+
+        if (len < 0) {
+            // This can only happen if there is some sort of output error, which
+            // shouldn't happen for snprintf().
+            return 0;
+        }
+
+        if (len >= buffer_len) {
+            buffer = NULL;
+            buffer_len = 0;
+        } else {
+            buffer += len;
+            buffer_len -= len;
+        }
+
+        total_len += len;
+    }
+
+    return total_len;
+}
+
 struct lkl_host_operations sgxlkl_host_ops = {
     .panic = panic,
     .terminate = terminate,
@@ -798,4 +864,5 @@ struct lkl_host_operations sgxlkl_host_ops = {
     .gettid = _gettid,
     .jmp_buf_set = sgxlkl_jmp_buf_set,
     .jmp_buf_longjmp = sgxlkl_jmp_buf_longjmp,
+    .cpuinfo_get = sgxlkl_cpuinfo_get,
 };
