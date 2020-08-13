@@ -1115,6 +1115,43 @@ void lthread_set_expired(struct lthread* lt)
 }
 
 #ifdef DEBUG
+
+#define STRINGIFY_LT_STATE(enum_lt_state)     \
+    if (state & BIT(LT_ST_##enum_lt_state))   \
+    {                                         \
+        str_len = sizeof(#enum_lt_state "|"); \
+        oe_strncpy_s(                         \
+            lt_state_str + offset,            \
+            size - offset,                    \
+            #enum_lt_state "|",               \
+            str_len);                         \
+        offset += str_len - 1;                \
+    }
+
+static void lthread_state_to_string(
+    struct lthread* lt,
+    char* lt_state_str,
+    const size_t size)
+{
+    int state = lt->attr.state;
+    size_t str_len = 0;
+    size_t offset = 0;
+
+    STRINGIFY_LT_STATE(NEW)
+    STRINGIFY_LT_STATE(READY)
+    STRINGIFY_LT_STATE(EXITED)
+    STRINGIFY_LT_STATE(BUSY)
+    STRINGIFY_LT_STATE(SLEEPING)
+    STRINGIFY_LT_STATE(EXPIRED)
+    STRINGIFY_LT_STATE(DETACH)
+    STRINGIFY_LT_STATE(CANCELLED)
+    STRINGIFY_LT_STATE(CANCELSTATE)
+    STRINGIFY_LT_STATE(CANCEL_DISABLED)
+    STRINGIFY_LT_STATE(PINNED)
+
+    lt_state_str[offset - 1] = '\0';
+}
+
 void lthread_dump_all_threads(bool is_lthread)
 {
     struct lthread_queue* lt_queue = __active_lthreads;
@@ -1124,6 +1161,7 @@ void lthread_dump_all_threads(bool is_lthread)
     sgxlkl_info("Stack traces for all lthreads:\n");
 
     struct lthread* this_lthread = NULL;
+    char lt_state_str[1024] = "";
 
     // Is this called from an lthread?
     if (is_lthread)
@@ -1138,21 +1176,26 @@ void lthread_dump_all_threads(bool is_lthread)
         {
             int tid = lt->tid;
             char* funcname = lt->funcname;
+
+            lthread_state_to_string(lt, lt_state_str, 1024);
+
             sgxlkl_info("------------------------------------------------------"
                         "-------\n");
             sgxlkl_info(
-                "%s%i: tid=%i (%p) [%s]\n",
+                "%s%i: tid=%i (%p) [%s] (%s) %s\n",
                 lt == this_lthread ? "*" : "",
                 i,
                 tid,
                 lt,
-                funcname);
+                funcname,
+                lt_state_str,
+                lt->lt_join ? "J" : "");
             sgxlkl_print_backtrace(
                 lt == this_lthread ? __builtin_frame_address(0) : lt->ctx.ebp);
         }
         else
         {
-            sgxlkl_info("lt == NULL\n");
+            sgxlkl_info("%i: lt=NULL\n", i);
         }
 
         lt_queue = lt_queue->next;
