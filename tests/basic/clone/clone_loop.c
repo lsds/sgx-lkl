@@ -13,7 +13,7 @@
 #include <sys/mman.h>
 
 #define RUNS 10000
-static char child_tls1[4069];
+static size_t child_tls1[512];
 
 static char child_stack1[8192];
 static char *child_stack_end1 = child_stack1 + 8192;

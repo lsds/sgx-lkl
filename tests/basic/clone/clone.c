@@ -14,9 +14,9 @@
 
 static char *child_stack;
 static char *child_stack_end;
-static char child_tls[4069];
-static char child_tls1[4069];
-static char child_tls2[4069];
+static size_t child_tls[512];
+static size_t child_tls1[512];
+static size_t child_tls2[512];
 
 static char child_stack1[8192];
 static char *child_stack_end1 = child_stack1 + 8192;
@@ -132,7 +132,7 @@ int main(int argc, char** argv)
 	fprintf(stderr, "Clone returned %d, ctid: %d ptid: %d\n", clone_ret, ctid, ptid);
 	assert(ctid == clone_ret, "ctid is %d, should be %d\n", ctid, clone_ret);
 	int futex_ret = futex_wait(&ctid, clone_ret);
-	assert(futex_ret == 0, "futex syscall returned %d\n", futex_ret);
+	assert(futex_ret == 0, "futex syscall returned %d (%s)\n", futex_ret, strerror(errno));
 	fprintf(stderr, "After futex call, ctid is %d\n", ctid);
 	assert(ctid == 0, "ctid was not zeroed during futex wait\n");
 	fprintf(stderr, "Other thread should have terminated by now.\n");
