@@ -88,7 +88,7 @@ if [[ $exit_code -ne 0 ]]; then
     echo "Failed to build OE_ENCLAVE"
     exit 1
 fi
-MAA_TEST1_OE_ENCLAVE_MRSIGNER=$(oesign dump -e $SGXLKL_ROOT/tests/attestation/maa/oe_enclave/enc/oeApp_enc.signed | grep mrsigner | awk -F'=' '{print $2}')
+MAA_TEST1_OE_ENCLAVE_MRSIGNER=$(oesign dump -e "$SGXLKL_ROOT/tests/attestation/maa/oe_enclave/enc/oeApp_enc.signed" | grep mrsigner | awk -F'=' '{print $2}')
 export MAA_TEST1_OE_ENCLAVE_MRSIGNER
 echo "MAA_TEST1_OE_ENCLAVE_MRSIGNER=$MAA_TEST1_OE_ENCLAVE_MRSIGNER"
 make run
