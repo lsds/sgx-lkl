@@ -20,7 +20,7 @@
 #include <mbedtls/ssl_cache.h>
 #include <mbedtls/x509.h>
 
-#include "gencreds.h"
+#include "../../../common/gencreds.h"
 #include "tlssrv.h"
 
 #define DEBUG_LEVEL 0

@@ -32,7 +32,7 @@ build:
 		--search-path $(INCDIR)/openenclave/edl/sgx
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) -std=c++11 server.cpp
 	$(CXX) -c $(CFLAGS) $(CINCLUDES) tlssrv.cpp
-	$(CXX) -c $(CFLAGS) $(CINCLUDES) gencreds.cpp
+	$(CXX) -c $(CFLAGS) $(CINCLUDES) $(COMMONS)/gencreds.cpp
 	$(CC) -c $(CFLAGS) $(CINCLUDES) -I$(COMMONS) $(COMMONS)/transport_utils.c
 	$(CC) -c $(CFLAGS) $(CINCLUDES) -I$(COMMONS) $(COMMONS)/log_utils.c
 	$(CC) -c $(CFLAGS) $(CINCLUDES) oeApp_t.c
