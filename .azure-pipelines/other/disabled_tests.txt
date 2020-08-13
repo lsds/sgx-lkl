@@ -1,2 +1,4 @@
 tests/virtio/python_read/Makefile
 tests/languages/java/network/Makefile
+tests/basic/pthread_detach/Makefile
+tests/languages/nodejs/Makefile
