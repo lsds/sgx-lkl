@@ -39,7 +39,8 @@ build:
 	$(CXX) -o oeApp_enc server.o tlssrv.o gencreds.o oeApp_t.o log_utils.o transport_utils.o $(LDFLAGS) -lmbedtls -lmbedcrypto -loehostsock -loehostresolver -loecore -loelibc -loesyscall
 
 sign:
+	openssl genrsa -out private.pem -3 3072
 	oesign sign -e oeApp_enc -c enc.conf -k private.pem
 
 clean:
-	rm -f *.o oeApp_enc oeApp_enc.signed oeApp_t.* oeApp_args.h
+	rm -f *.o oeApp_enc oeApp_enc.signed oeApp_t.* oeApp_args.h private.pem
