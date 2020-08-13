@@ -47,19 +47,6 @@ struct netdev_fd
 {
     /* file-descriptor based device */
     int fd;
-    /*
-     * Controlls the poll mask for fd. Can be acccessed concurrently from
-     * poll, tx, or rx routines but there is no need for syncronization
-     * because:
-     *
-     * (a) TX and RX routines set different variables so even if they update
-     * at the same time there is no race condition
-     *
-     * (b) Even if poll and TX / RX update at the same time poll cannot
-     * stall: when poll resets the poll variable we know that TX / RX will
-     * run which means that eventually the poll variable will be set.
-     */
-    int poll_tx, poll_rx;
     /* control pipe */
     int pipe[2];
 };
@@ -161,6 +148,7 @@ static int virtio_net_fd_net_poll(uint8_t netdev_id)
     struct pollfd pfds[2] = {
         {
             .fd = nd_fd->fd,
+            .events = POLLIN | POLLOUT | POLLPRI,
         },
         {
             .fd = nd_fd->pipe[0],
@@ -168,10 +156,6 @@ static int virtio_net_fd_net_poll(uint8_t netdev_id)
         },
     };
 
-    if (nd_fd->poll_rx)
-        pfds[0].events |= POLLIN | POLLPRI;
-    if (nd_fd->poll_tx)
-        pfds[0].events |= POLLOUT;
 
     do
     {
@@ -206,13 +190,11 @@ static int virtio_net_fd_net_poll(uint8_t netdev_id)
     ret = 0;
     if (pfds[0].revents & (POLLIN | POLLPRI))
     {
-        nd_fd->poll_rx = 0;
         ret |= DEV_NET_POLL_RX;
     }
 
     if (pfds[0].revents & POLLOUT)
     {
-        nd_fd->poll_tx = 0;
         ret |= DEV_NET_POLL_TX;
     }
     return ret;
@@ -256,7 +238,7 @@ static int virtio_net_fd_net_tx(uint8_t netdev_id, struct iovec* iov, int cnt)
         switch (errno)
         {
             case EAGAIN:
-                nd_fd->poll_tx = 1;
+            {
                 int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
 
                 // Check if there was an error but the fd has not been closed
@@ -269,6 +251,7 @@ static int virtio_net_fd_net_tx(uint8_t netdev_id, struct iovec* iov, int cnt)
                         errno,
                         strerror(errno));
                 break;
+            }
 
             // Check if the fd has been closed and return error
             case EBADF:
@@ -307,7 +290,7 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
         switch (errno)
         {
             case EAGAIN:
-                nd_fd->poll_rx = 1;
+            {
                 int pipe_ret = write(nd_fd->pipe[1], &tmp, 1);
 
                 // Check if there was an error but the fd has not been closed
@@ -321,6 +304,7 @@ static int virtio_net_fd_net_rx(uint8_t netdev_id, struct iovec* iov, int cnt)
                         errno,
                         strerror(errno));
                 break;
+            }
 
             // Check if the fd has been closed and return error
             case EBADF:
