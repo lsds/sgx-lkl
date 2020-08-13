@@ -138,10 +138,6 @@ int __libc_init_enclave(int argc, char** argv)
     SGXLKL_VERBOSE("calling enclave_mman_init()\n");
     enclave_mman_init(
         sgxlkl_heap_base, sgxlkl_heap_size / PAGESIZE, cfg->mmap_files);
-    // Add read only buffer page towards the end of enclave heap
-    // This is to be defensive against buffer overflows which read
-    // off the  end of heap. See Issue# 742 for more.
-    enclave_mmap(0, 4096, 0, PROT_READ, 1);
 
     libc.user_tls_enabled = sgxlkl_in_sw_debug_mode() ? 1 : cfg->fsgsbase;
 
