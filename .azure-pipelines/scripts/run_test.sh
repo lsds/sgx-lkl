@@ -61,7 +61,7 @@ case "$run_mode" in
        ;;
 esac
 
-timeout --kill-after=$((timeout + 15)) $timeout make "$run_mode"
+timeout --kill-after=$((timeout + 60)) $timeout make "$run_mode"
 make_exit=$?
 
 if [[ "$make_exit" == "124" ]]; then
