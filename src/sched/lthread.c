@@ -664,6 +664,8 @@ int lthread_create(
     lt->attr.stack_size = stack_size;
 
     /* mmap tls image */
+    // To maintain tls alignment, calculates
+    // closest multiple of TLS_ALIGN > sizeof(struct lthread_tcb_base)
     lt->itlssz = (sizeof(struct lthread_tcb_base) + TLS_ALIGN - 1) & -TLS_ALIGN;
     if ((lt->itls = (uint8_t*)enclave_mmap(
                  0,
