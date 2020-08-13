@@ -433,14 +433,14 @@ static void set_fsbase(void* tp){
 }
 void set_tls_tp(struct lthread* lt)
 {
-    if (!lt->itls)
+    if (!lt->tp)
         return;
     set_fsbase(lt->tp);
 }
 
 void reset_tls_tp(struct lthread* lt)
 {
-    if (!lt->itls)
+    if (!lt->tp)
         return;
 
     struct schedctx* sp = __scheduler_self();
@@ -581,12 +581,16 @@ int lthread_create_primitive(
         return -1;
     }
 
-    lt->itls = tls;
-    // for cloned threads, tls argument is a ptr to the Thread Control Block
+    // For USERSPACE_THREADS created via clone(), lthread doesn't manage the
+    // tls region(stored in lt->itls, not be confused by lt->tls, which is similar
+    // to key based tsd in pthreads)
+    // Also for these threads, the tls pointer passed to this function is the
+    // pointer to the thread's control block. So we save it here in lt->tp for
+    // setting up fsbase on a context switch.
+    size_t* tp = tls;
+    SGXLKL_ASSERT(tp[0] == (size_t)tls); // check if tls self pointer is set
     lt->tp = tls;
-    // set self pointer for fs segment
-    struct lthread_tcb_base *tcb = (struct lthread_tcb_base *)lt->tp;
-    tcb->self = lt->tp;
+
     LIST_INIT(&lt->tls);
     lt->attr.state = BIT(LT_ST_READY);
     lt->attr.thread_type = USERSPACE_THREAD;
