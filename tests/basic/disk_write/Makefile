@@ -14,7 +14,7 @@ print("File `test_file.txt` written to disk")'
 CC_APP_CMDLINE2=${CC_APP} -c 'import os; \
 f = open("test_file.txt", "r"); \
 content = f.read(); \
-print("TEST PASSED" if content == "TEST WRITE" else "TEST FAILED"); \
+print("File successfully read" if content == "TEST WRITE" else "Failed to read file"); \
 exit (0 if content == "TEST WRITE" else -1)'
 
 CC_IMAGE_SIZE=64M
