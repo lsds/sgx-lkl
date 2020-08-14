@@ -26,7 +26,7 @@ ESCALATE_CMD=sudo
 LTP_SOURCE_DIR=$(SGXLKL_ROOT)/ltp
 
 # file system image to be mount in ltp tests
-LTP_TEST_MNT_IMG="ltp_tst_mntfs.img"
+LTP_TEST_MNT_IMG=ltp_tst_mntfs.img
 LTP_TEST_MNT_IMG_SIZE=256
 
 .DELETE_ON_ERROR:
