@@ -1225,16 +1225,6 @@ static void* lkl_termination_thread(void* args)
             lkl_strerror(ret));
     }
 
-    SGXLKL_VERBOSE("calling lkl_sys_sync()\n");
-    ret = lkl_sys_sync();
-    if (ret != 0)
-    {
-        sgxlkl_warn(
-            "lkl_sys_sync() failed: ret=%i error=\"%s\"\n",
-            ret,
-            lkl_strerror(ret));
-    }
-
 #ifdef DEBUG
     display_mount_table();
 #endif
@@ -1274,6 +1264,16 @@ static void* lkl_termination_thread(void* args)
                     lkl_strerror(res));
             }
         }
+    }
+
+    SGXLKL_VERBOSE("calling lkl_sys_sync()\n");
+    ret = lkl_sys_sync();
+    if (ret != 0)
+    {
+        sgxlkl_warn(
+            "lkl_sys_sync() failed: ret=%i error=\"%s\"\n",
+            ret,
+            lkl_strerror(ret));
     }
 
     /* Unmount root.
