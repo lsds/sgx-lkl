@@ -149,7 +149,7 @@
 /ltp/testcases/kernel/syscalls/fadvise/posix_fadvise02
 /ltp/testcases/kernel/syscalls/fadvise/posix_fadvise03
 /ltp/testcases/kernel/syscalls/fadvise/posix_fadvise04
-#/ltp/testcases/kernel/syscalls/fallocate/fallocate01
+/ltp/testcases/kernel/syscalls/fallocate/fallocate01
 /ltp/testcases/kernel/syscalls/fallocate/fallocate02
 /ltp/testcases/kernel/syscalls/fallocate/fallocate03
 /ltp/testcases/kernel/syscalls/fallocate/fallocate04
@@ -183,7 +183,7 @@
 /ltp/testcases/kernel/syscalls/fchown/fchown01
 /ltp/testcases/kernel/syscalls/fchown/fchown02
 /ltp/testcases/kernel/syscalls/fchown/fchown03
-#/ltp/testcases/kernel/syscalls/fchown/fchown04
+/ltp/testcases/kernel/syscalls/fchown/fchown04
 /ltp/testcases/kernel/syscalls/fchown/fchown05
 /ltp/testcases/kernel/syscalls/fchownat/fchownat01
 /ltp/testcases/kernel/syscalls/fchownat/fchownat02
@@ -699,7 +699,7 @@
 /ltp/testcases/kernel/syscalls/quotactl/quotactl02
 /ltp/testcases/kernel/syscalls/quotactl/quotactl03
 #/ltp/testcases/kernel/syscalls/read/read01
-#/ltp/testcases/kernel/syscalls/read/read02
+/ltp/testcases/kernel/syscalls/read/read02
 #/ltp/testcases/kernel/syscalls/read/read03
 #/ltp/testcases/kernel/syscalls/read/read04
 #/ltp/testcases/kernel/syscalls/readahead/readahead01
@@ -739,7 +739,7 @@
 #/ltp/testcases/kernel/syscalls/rename/rename12
 #/ltp/testcases/kernel/syscalls/rename/rename13
 /ltp/testcases/kernel/syscalls/rename/rename14
-#/ltp/testcases/kernel/syscalls/renameat/renameat01
+/ltp/testcases/kernel/syscalls/renameat/renameat01
 #/ltp/testcases/kernel/syscalls/renameat2/renameat201
 #/ltp/testcases/kernel/syscalls/renameat2/renameat202
 /ltp/testcases/kernel/syscalls/request_key/request_key01
@@ -854,7 +854,7 @@
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid01
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid02
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid03
-#/ltp/testcases/kernel/syscalls/setresuid/setresuid04
+/ltp/testcases/kernel/syscalls/setresuid/setresuid04
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid05
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid01
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid02
@@ -862,7 +862,7 @@
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid04
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid05
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid06
-#/ltp/testcases/kernel/syscalls/setreuid/setreuid07
+/ltp/testcases/kernel/syscalls/setreuid/setreuid07
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit01
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit02
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit03
@@ -1009,7 +1009,7 @@
 #/ltp/testcases/kernel/syscalls/unlink/unlink08
 #/ltp/testcases/kernel/syscalls/unlinkat/unlinkat01
 /ltp/testcases/kernel/syscalls/unshare/unshare01
-#/ltp/testcases/kernel/syscalls/unshare/unshare02
+/ltp/testcases/kernel/syscalls/unshare/unshare02
 /ltp/testcases/kernel/syscalls/userfaultfd/userfaultfd01
 #/ltp/testcases/kernel/syscalls/ustat/ustat01
 /ltp/testcases/kernel/syscalls/ustat/ustat02
