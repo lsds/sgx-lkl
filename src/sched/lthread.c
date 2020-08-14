@@ -240,6 +240,17 @@ void lthread_run(void)
                     "[%4d] lthread_run(): lthread_resume (dequeue)\n",
                     lt ? lt->tid : -1);
                 _lthread_resume(lt);
+
+                // Break out of scheduler loop when previous thread triggered
+                // termination
+                if (_lthread_should_stop)
+                {
+                    SGXLKL_TRACE_THREAD(
+                        "[%4d] lthread_run(): quitting\n", lt ? lt->tid : -1);
+                    // We only need this ethread to leave the enclave
+                    _lthread_should_stop = false;
+                    return;
+                }
             }
 
             if (vio_enclave_wakeup_event_channel())
@@ -251,12 +262,6 @@ void lthread_run(void)
             spins--;
             if (spins <= 0)
             {
-                /* Do not handle futexes when enclave is terminating */
-                if (_lthread_should_stop)
-                {
-                    break;
-                }
-
                 futex_tick();
                 spins = futex_wake_spins;
             }
@@ -269,14 +274,6 @@ void lthread_run(void)
             spins = 0;
             /* sleep outside the enclave */
             sgxlkl_host_idle_ethread(sleeptime_ns);
-        }
-
-        /* Break out of scheduler loop when enclave is terminating */
-        if (_lthread_should_stop)
-        {
-            SGXLKL_TRACE_THREAD(
-                "[%4d] lthread_run(): quitting\n", lt ? lt->tid : -1);
-            break;
         }
     }
 }

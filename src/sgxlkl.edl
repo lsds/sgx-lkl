@@ -29,7 +29,7 @@ enclave {
             [in] const sgxlkl_shared_memory_t* shared_memory);
 
         // Enclave call for initializing ethreads to enter enclave
-        public void sgxlkl_ethread_init(void);
+        public int sgxlkl_ethread_init(void);
 
         // Enclave call to dump stack traces for all lthreads (DEBUG only)
         // TODO: This should only be included for a DEBUG build, but EDL doesn't seem to

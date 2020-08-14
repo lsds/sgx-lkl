@@ -902,7 +902,7 @@ void lkl_mount_disks(
 
     if (cwd)
     {
-        SGXLKL_VERBOSE("Set working directory: %s\n", cwd);
+        SGXLKL_VERBOSE("Set working directory: \'%s\'\n", cwd);
         int ret = lkl_sys_chdir(cwd);
         if (ret != 0)
         {
@@ -1295,16 +1295,20 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
 
-    SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
-    res = lkl_sys_halt();
-    if (res < 0)
-    {
-        sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
-    }
+    /**
+     * If kernel threads are stuck, this may block indefinitely under
+     * cooperative scheduling.
+     */
+    // SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
+    // res = lkl_sys_halt();
+    // if (res < 0)
+    //     sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
 
+    SGXLKL_VERBOSE("calling sgxlkl_host_shutdown_notification()\n");
     /* Notify host about the guest shutdown */
     sgxlkl_host_shutdown_notification();
 
+    SGXLKL_VERBOSE("calling lthread_notify_completion()\n");
     /* Set termination flag to notify lthread scheduler to bail out. */
     lthread_notify_completion();
 

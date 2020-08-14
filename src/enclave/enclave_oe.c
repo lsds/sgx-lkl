@@ -274,7 +274,7 @@ static void _sgxlkl_enclave_show_attribute(const void* sgxlkl_enclave_base)
 }
 #endif
 
-void sgxlkl_ethread_init(void)
+int sgxlkl_ethread_init(void)
 {
     void* tls_page;
     __asm__ __volatile__("mov %%gs:0,%0" : "=r"(tls_page));
@@ -296,7 +296,7 @@ void sgxlkl_ethread_init(void)
     _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
     lthread_run();
 
-    return;
+    return sgxlkl_enclave_state.exit_status;
 }
 
 static void _read_eeid_config()
