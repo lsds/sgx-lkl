@@ -1312,14 +1312,6 @@ void* ethread_init(ethread_args_t* args)
 {
     int exit_status = 0;
     oe_result_t result = sgxlkl_ethread_init(args->oe_enclave, &exit_status);
-
-    pthread_mutex_lock(&first_ethread_exited_mtx);
-    int ret = pthread_cond_signal(&first_ethread_exited_cv);
-    if (ret != 0)
-        sgxlkl_host_fail("Failed to signal enclave termination: ret=%i\n", ret);
-    enclave_return_status = exit_status;
-    pthread_mutex_unlock(&first_ethread_exited_mtx);
-
     if (result != OE_OK)
     {
         sgxlkl_host_fail(
@@ -1328,6 +1320,14 @@ void* ethread_init(ethread_args_t* args)
             result,
             oe_result_str(result));
     }
+
+    pthread_mutex_lock(&first_ethread_exited_mtx);
+    int ret = pthread_cond_signal(&first_ethread_exited_cv);
+    if (ret != 0)
+        sgxlkl_host_fail("Failed to signal enclave termination: ret=%i\n", ret);
+    enclave_return_status = exit_status;
+    pthread_mutex_unlock(&first_ethread_exited_mtx);
+
     return NULL;
 }
 
@@ -1339,14 +1339,6 @@ void* enclave_init(ethread_args_t* args)
     int exit_status = 0;
     oe_result_t result =
         sgxlkl_enclave_init(args->oe_enclave, &exit_status, args->shm);
-
-    pthread_mutex_lock(&first_ethread_exited_mtx);
-    int ret = pthread_cond_signal(&first_ethread_exited_cv);
-    if (ret != 0)
-        sgxlkl_host_fail("Failed to signal enclave termination: ret=%i\n", ret);
-    enclave_return_status = exit_status;
-    pthread_mutex_unlock(&first_ethread_exited_mtx);
-
     if (result != OE_OK)
     {
         sgxlkl_host_fail(
@@ -1355,6 +1347,14 @@ void* enclave_init(ethread_args_t* args)
             result,
             oe_result_str(result));
     }
+
+    pthread_mutex_lock(&first_ethread_exited_mtx);
+    int ret = pthread_cond_signal(&first_ethread_exited_cv);
+    if (ret != 0)
+        sgxlkl_host_fail("Failed to signal enclave termination: ret=%i\n", ret);
+    enclave_return_status = exit_status;
+    pthread_mutex_unlock(&first_ethread_exited_mtx);
+
     return NULL;
 }
 
