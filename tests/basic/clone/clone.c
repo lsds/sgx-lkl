@@ -14,9 +14,9 @@
 
 static char *child_stack;
 static char *child_stack_end;
-static char child_tls[4069];
-static char child_tls1[4069];
-static char child_tls2[4069];
+static size_t child_tls[512];
+static size_t child_tls1[512];
+static size_t child_tls2[512];
 
 static char child_stack1[8192];
 static char *child_stack_end1 = child_stack1 + 8192;
@@ -25,6 +25,12 @@ static char *child_stack_end2 = child_stack2 + 8192;
 
 volatile int thread_started;
 __attribute__((weak)) int lkl_syscall(int, long*);
+
+static void set_tls_self_ptrs() {
+	child_tls[0] = &child_tls;
+	child_tls1[0] = &child_tls1;
+	child_tls2[0] = &child_tls2;
+}
 
 static void assert(int cond, const char *msg, ...)
 {
@@ -101,6 +107,7 @@ int parallelthr(void* arg)
 
 int main(int argc, char** argv)
 {
+	set_tls_self_ptrs();
 	unsigned flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND
 		| CLONE_THREAD | CLONE_SYSVSEM | CLONE_SETTLS | CLONE_CHILD_SETTID
 		| CLONE_PARENT_SETTID | CLONE_CHILD_CLEARTID | CLONE_DETACHED;
@@ -125,7 +132,7 @@ int main(int argc, char** argv)
 	fprintf(stderr, "Clone returned %d, ctid: %d ptid: %d\n", clone_ret, ctid, ptid);
 	assert(ctid == clone_ret, "ctid is %d, should be %d\n", ctid, clone_ret);
 	int futex_ret = futex_wait(&ctid, clone_ret);
-	assert(futex_ret == 0, "futex syscall returned %d (%s)\n", strerror(errno));
+	assert(futex_ret == 0, "futex syscall returned %d (%s)\n", futex_ret, strerror(errno));
 	fprintf(stderr, "After futex call, ctid is %d\n", ctid);
 	assert(ctid == 0, "ctid was not zeroed during futex wait\n");
 	fprintf(stderr, "Other thread should have terminated by now.\n");

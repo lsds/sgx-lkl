@@ -13,7 +13,7 @@
 #include <sys/mman.h>
 
 #define RUNS 10000
-static char child_tls1[4069];
+static size_t child_tls1[512];
 
 static char child_stack1[8192];
 static char *child_stack_end1 = child_stack1 + 8192;
@@ -39,6 +39,7 @@ int main(int argc, char** argv)
 
 	pid_t ptid;
 	pid_t ctid_futex1, ctid_futex2;
+	child_tls1[0] = &child_tls1;
 	for (int i = 0; i < RUNS; i++) {
 		pid_t ctid1 = clone(newthr, child_stack_end1, 
 							flags, (void*)0, &ptid, &child_tls1,

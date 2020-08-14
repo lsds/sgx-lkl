@@ -47,6 +47,7 @@
 #endif
 
 #include "enclave/enclave_util.h"
+#include "enclave/lthread.h"
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"

@@ -36,7 +36,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "pthread_impl.h"
 #include "stdio_impl.h"
 
 #include <enclave/enclave_mem.h>
@@ -54,17 +53,23 @@
 
 extern int vio_enclave_wakeup_event_channel(void);
 
-int __init_utp(void*, int);
-void* __copy_utls(struct lthread*, uint8_t*, size_t);
 static void _exec(void* lt);
 static void _lthread_init(struct lthread* lt);
 static void _lthread_lock(struct lthread* lt);
 static void lthread_rundestructors(struct lthread* lt);
 
-static void dummy_0()
+#define TLS_ALIGN 16
+
+static int spawned_ethreads = 1;
+
+void init_ethread_tp()
 {
+	struct schedctx *td = __scheduler_self();
+	td->self = td;
+	// Prevent collisions with lthread TIDs which are assigned to newly spawned
+	// lthreads incrementally, starting from one.
+	td->tid = INT_MAX - a_fetch_add(&spawned_ethreads, 1);
 }
-weak_alias(dummy_0, __do_orphaned_stdio_locks);
 
 static inline int _lthread_sleep_cmp(struct lthread* l1, struct lthread* l2);
 
@@ -343,45 +348,21 @@ void _lthread_yield(struct lthread* lt)
 
 void _lthread_free(struct lthread* lt)
 {
-    volatile void* volatile* rp;
-    while (lt->cancelbuf)
-    {
-        void (*f)(void*) = lt->cancelbuf->__f;
-        void* x = lt->cancelbuf->__x;
-        lt->cancelbuf = lt->cancelbuf->__next;
-        f(x);
-    }
     if (lthread_self() != NULL)
         lthread_rundestructors(lt);
-    if (lt->itls != 0)
+    
+    // lthread only manages tls region for lkl kernel threads
+    if (lt->attr.thread_type == LKL_KERNEL_THREAD && lt->itls != 0)
     {
         enclave_munmap(lt->itls, lt->itlssz);
     }
-    while ((rp = lt->robust_list.head) && rp != &lt->robust_list.head)
-    {
-        pthread_mutex_t* m =
-            (void*)((char*)rp - offsetof(pthread_mutex_t, _m_next));
-        int waiters = m->_m_waiters;
-        lt->robust_list.pending = rp;
-        lt->robust_list.head = *rp;
-        int cont = a_swap(&m->_m_lock, lt->tid | 0x40000000);
-        lt->robust_list.pending = 0;
-        if (cont < 0 || waiters)
-        {
-            enclave_futex_wake((int*)&m->_m_lock, 1);
-        }
-    }
-    __do_orphaned_stdio_locks(lt);
+
     if (lt->attr.stack)
     {
         enclave_munmap(lt->attr.stack, lt->attr.stack_size);
         lt->attr.stack = NULL;
     }
     oe_memset_s(lt, sizeof(*lt), 0, sizeof(*lt));
-    if (a_fetch_add(&libc.threads_minus_1, -1) == 0)
-    {
-        libc.threads_minus_1 = 0;
-    }
 
 #if DEBUG
     if (__active_lthreads != NULL && __active_lthreads->lt == lt)
@@ -418,18 +399,16 @@ void _lthread_free(struct lthread* lt)
     lthread_dealloc(lt);
 }
 
-void set_tls_tp(struct lthread* lt)
+static void init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
 {
-    if (!libc.user_tls_enabled || !lt->itls)
-        return;
+	mem += sz - sizeof(struct lthread_tcb_base);
+	mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
+	lt->tp = mem;
+	struct lthread_tcb_base *tcb = (struct lthread_tcb_base *)mem;
+	tcb->self = mem;
+}
 
-    uintptr_t tp_unaligned =
-        (uintptr_t)(lt->itls + lt->itlssz - sizeof(struct lthread_tcb_base));
-    struct lthread_tcb_base* tp =
-        (struct
-         lthread_tcb_base*)(tp_unaligned - (tp_unaligned & (libc.tls_align - 1)));
-
-    tp->schedctx = __scheduler_self();
+static void set_fsbase(void* tp){
 
     if (!sgxlkl_in_sw_debug_mode())
     {
@@ -437,36 +416,38 @@ void set_tls_tp(struct lthread* lt)
     }
     else
     {
-        int r = __set_thread_area(TP_ADJ(tp));
-        if (r < 0)
+        int res;
+        __asm__ volatile(
+            "mov %1, %%rsi\n\t"
+            "movl $0x1002, %%edi\n\t"       /* SET_FS register */
+            "movl $158, %%eax\n\t"          /* set fs segment to */
+            "syscall"                       /* arch_prctl(SET_FS, arg)*/
+            : "=a" (res)
+            : "r" (tp)
+        );
+        if (res < 0)
         {
-            sgxlkl_fail("Could not set thread area %p\n", tp);
+            sgxlkl_fail( "Could not set thread area %p\n", tp);
         }
     }
+}
+void set_tls_tp(struct lthread* lt)
+{
+    if (!lt->tp)
+        return;
+    set_fsbase(lt->tp);
 }
 
 void reset_tls_tp(struct lthread* lt)
 {
-    if (!libc.user_tls_enabled || !lt->itls)
+    if (!lt->tp)
         return;
 
     struct schedctx* sp = __scheduler_self();
 
-    // The scheduler context is at a fixed offset from its ethread's fsbase.
+    // The scheduler context is at a fixed offset from its ethread's gsbase.
     char* tp = (char*)sp - SCHEDCTX_OFFSET;
-
-    if (!sgxlkl_in_sw_debug_mode())
-    {
-        __asm__ volatile("wrfsbase %0" ::"r"(tp));
-    }
-    else
-    {
-        int r = __set_thread_area(TP_ADJ(tp));
-        if (r < 0)
-        {
-            sgxlkl_fail("Could not set thread area %p: %s\n", tp);
-        }
-    }
+    set_fsbase(tp);
 }
 
 int _lthread_resume(struct lthread* lt)
@@ -499,6 +480,18 @@ int _lthread_resume(struct lthread* lt)
 
     set_tls_tp(lt);
     _switch(&lt->ctx, &sched->ctx);
+    // The first "startmain" thread eventually loads the app's ELF image
+    // and initializes its tls area. As lthread has to properly set the
+    // tls region on context switches, check if the fs has changed and
+    // update the lthread's thread pointer field accordingly.
+    if (sched->current_lthread->tid == 1 &&
+        (sched->current_lthread)->attr.thread_type == LKL_KERNEL_THREAD){
+        void* fs_ptr;
+        __asm__ __volatile__("mov %%fs:0,%0" : "=r"(fs_ptr));
+        if (fs_ptr != sched->current_lthread->tp){
+            sched->current_lthread->tp = fs_ptr;
+        }
+    }
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
 
@@ -563,28 +556,16 @@ int _lthread_sched_init(size_t stack_size)
 
     sched_stack_size = stack_size ? stack_size : MAX_STACK_SIZE;
 
-    struct schedctx* c = __scheduler_self();
+    struct lthread_sched* sched = lthread_get_sched();
 
-    c->sched.stack_size = sched_stack_size;
+    sched->stack_size = sched_stack_size;
 
-    c->sched.default_timeout = 3000000u;
+    sched->default_timeout = 3000000u;
 
     oe_memset_s(
-        &c->sched.ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
+        &sched->ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
 
     return (0);
-}
-
-static FILE* volatile dummy_file = 0;
-
-weak_alias(dummy_file, __stdin_used);
-weak_alias(dummy_file, __stdout_used);
-weak_alias(dummy_file, __stderr_used);
-
-static void init_file_lock(FILE* f)
-{
-    if (f && f->lock < 0)
-        f->lock = 0;
 }
 
 int lthread_create_primitive(
@@ -595,52 +576,25 @@ int lthread_create_primitive(
 {
     struct lthread* lt;
 
-    // FIXME: Remove when we no longer have lthread / libc layering issues.
-    if (!libc.threaded && libc.threads_minus_1 >= 0)
-    {
-        for (FILE* f = *__ofl_lock(); f; f = f->next)
-            init_file_lock(f);
-        __ofl_unlock();
-        init_file_lock(__stdin_used);
-        init_file_lock(__stdout_used);
-        init_file_lock(__stderr_used);
-        libc.threaded = 1;
-    }
-
-    if ((lt = lthread_alloc(1, sizeof(struct lthread))) == NULL)
+    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
     {
         return -1;
     }
 
-    // FIXME: Once lthread / pthread layering is fixed, just use the tls
-    // argument as gs base.  We can't do that now because _lthread_free
-    // attempts to unmap this area.
-    lt->itlssz = libc.tls_size;
-    if (libc.tls_size)
-    {
-        if ((intptr_t)(
-                lt->itls = (uint8_t*)enclave_mmap(
-                    0,
-                    lt->itlssz,
-                    0, /* map_fixed */
-                    PROT_READ | PROT_WRITE,
-                    1 /* zero_pages */)) < 0)
-        {
-            lthread_dealloc(lt);
-            return -1;
-        }
-        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
-        {
-            lthread_dealloc(lt);
-            return -1;
-        }
-    }
-    LIST_INIT(&lt->tls);
-    lt->locale = &libc.global_locale;
+    // For USERSPACE_THREADS created via clone(), lthread doesn't manage the
+    // tls region(stored in lt->itls, not be confused by lt->tls, which is similar
+    // to key based tsd in pthreads)
+    // Also for these threads, the tls pointer passed to this function is the
+    // pointer to the thread's control block. So we save it here in lt->tp for
+    // setting up fsbase on a context switch.
+    size_t* tp = tls;
+    SGXLKL_ASSERT(tp[0] == (size_t)tls); // check if tls self pointer is set
+    lt->tp = tls;
 
+    LIST_INIT(&lt->tls);
     lt->attr.state = BIT(LT_ST_READY);
+    lt->attr.thread_type = USERSPACE_THREAD;
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
-    lt->robust_list.head = &lt->robust_list.head;
 
     static unsigned long long n = 0;
     oe_snprintf(
@@ -653,8 +607,6 @@ int lthread_create_primitive(
     {
         *new_lt = lt;
     }
-
-    a_inc(&libc.threads_minus_1);
 
     SGXLKL_TRACE_THREAD("[%4d] create: count=%d\n", lt->tid, thread_count);
 
@@ -694,23 +646,13 @@ int lthread_create(
     size_t stack_size;
     struct lthread_sched* sched = lthread_get_sched();
 
-    if (!libc.threaded && libc.threads_minus_1 >= 0)
+    if ((lt = oe_calloc(1, sizeof(struct lthread))) == NULL)
     {
-        for (FILE* f = *__ofl_lock(); f; f = f->next)
-            init_file_lock(f);
-        __ofl_unlock();
-        init_file_lock(__stdin_used);
-        init_file_lock(__stdout_used);
-        init_file_lock(__stderr_used);
-        libc.threaded = 1;
+        return -1;
     }
 
     stack_size =
         attrp && attrp->stack_size ? attrp->stack_size : sched->stack_size;
-    if ((lt = lthread_alloc(1, sizeof(struct lthread))) == NULL)
-    {
-        return -1;
-    }
     lt->attr.stack = attrp ? attrp->stack : 0;
     if ((!lt->attr.stack) && ((intptr_t)(
                                   lt->attr.stack = enclave_mmap(
@@ -726,35 +668,28 @@ int lthread_create(
     lt->attr.stack_size = stack_size;
 
     /* mmap tls image */
-    lt->itlssz = libc.tls_size;
-    if (libc.tls_size)
+    // To maintain tls alignment, calculates
+    // closest multiple of TLS_ALIGN > sizeof(struct lthread_tcb_base)
+    lt->itlssz = (sizeof(struct lthread_tcb_base) + TLS_ALIGN - 1) & -TLS_ALIGN;
+    if ((lt->itls = (uint8_t*)enclave_mmap(
+                 0,
+                 lt->itlssz,
+                 0, /* map_fixed */
+                 PROT_READ | PROT_WRITE,
+                 1 /* zero_pages */)) == MAP_FAILED)
     {
-        if ((intptr_t)(
-                lt->itls = (uint8_t*)enclave_mmap(
-                    0,
-                    lt->itlssz,
-                    0, /* map_fixed */
-                    PROT_READ | PROT_WRITE,
-                    1 /* zero_pages */)) < 0)
-        {
-            lthread_dealloc(lt);
-            return -1;
-        }
-        if (__init_utp(__copy_utls(lt, lt->itls, lt->itlssz), 0))
-        {
-            enclave_munmap(lt->attr.stack, stack_size);
-            lthread_dealloc(lt);
-            return -1;
-        }
+        oe_free(lt);
+        return -1;
     }
+    init_tp(lt, lt->itls, lt->itlssz);
 
     lt->attr.state = BIT(LT_ST_NEW) | (attrp ? attrp->state : 0);
+    lt->attr.thread_type = LKL_KERNEL_THREAD;
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
     lt->fun = fun;
     lt->arg = arg;
-    lt->locale = &libc.global_locale;
+
     LIST_INIT(&lt->tls);
-    lt->robust_list.head = &lt->robust_list.head;
 
     // Inherit name from parent
     if (lthread_self() && lthread_self()->funcname)
@@ -766,8 +701,6 @@ int lthread_create(
     {
         *new_lt = lt;
     }
-
-    a_inc(&libc.threads_minus_1);
 
     SGXLKL_TRACE_THREAD("[%4d] create: count=%d\n", lt->tid, thread_count);
 

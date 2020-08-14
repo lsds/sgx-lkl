@@ -9,6 +9,7 @@
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
+#include "enclave/lthread_int.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
@@ -90,6 +91,8 @@ static void init_wireguard()
 
 static int startmain(void* args)
 {
+    __init_libc(sgxlkl_enclave_state.elf64_stack.envp,
+        sgxlkl_enclave_state.elf64_stack.argv[0]);
     __libc_start_init();
     a_barrier();
 
@@ -104,6 +107,10 @@ static int startmain(void* args)
     lkl_start_init();
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
 
+    /* Set locale for usersapce components using it */
+    pthread_t self = __pthread_self();
+    self->locale = &libc.global_locale;
+
     init_wireguard();
     find_and_mount_disks();
 
@@ -115,7 +122,6 @@ static int startmain(void* args)
 int __libc_init_enclave(int argc, char** argv)
 {
     struct lthread* lt;
-    char** envp = argv + argc + 1;
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
     /* Upper heap memory area is allotted to OE and rest is used by SGXLKL */
@@ -150,9 +156,8 @@ int __libc_init_enclave(int argc, char** argv)
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-
-    __init_libc(envp, argv[0]);
-    __init_tls();
+    
+    init_ethread_tp();
 
     size_t espins = cfg->espins;
     size_t esleep = cfg->esleep;
@@ -167,6 +172,5 @@ int __libc_init_enclave(int argc, char** argv)
     }
 
     lthread_run();
-
     return sgxlkl_enclave_state.exit_status;
 }

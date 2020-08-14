@@ -22,6 +22,8 @@
 #include "lkl/posix-host.h"
 #include "lkl/setup.h"
 
+#include "enclave/lthread.h"
+#include "enclave/lthread_int.h"
 #include "enclave/enclave_timer.h"
 #include "enclave/enclave_util.h"
 #include "shared/sgxlkl_enclave_config.h"
