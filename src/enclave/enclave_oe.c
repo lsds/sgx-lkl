@@ -190,7 +190,7 @@ static void _prepare_elf_stack()
     // auxv
     stack->auxv = (Elf64_auxv_t*)(out + j);
     init_auxv((size_t*)(out + j), buf_ptr, stack->argv[0]);
-    j += AUXV_ENTRIES * sizeof(Elf64_auxv_t);
+    j += AUXV_ENTRIES * 2;
 
     // end marker
     out[j++] = NULL;
