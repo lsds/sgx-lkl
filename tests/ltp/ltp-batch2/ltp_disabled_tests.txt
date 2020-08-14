@@ -854,7 +854,7 @@
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid01
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid02
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid03
-/ltp/testcases/kernel/syscalls/setresuid/setresuid04
+#/ltp/testcases/kernel/syscalls/setresuid/setresuid04
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid05
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid01
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid02
@@ -862,7 +862,7 @@
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid04
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid05
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid06
-/ltp/testcases/kernel/syscalls/setreuid/setreuid07
+#/ltp/testcases/kernel/syscalls/setreuid/setreuid07
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit01
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit02
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit03
