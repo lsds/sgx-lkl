@@ -241,14 +241,21 @@ void lthread_run(void)
                     lt ? lt->tid : -1);
                 _lthread_resume(lt);
 
-                // Break out of scheduler loop when previous thread triggered
-                // termination
-                if (_lthread_should_stop)
+                // Break out of scheduler loop when the previous thread
+                // triggered termination. Change the _lthread_should_stop flag
+                // atomically, so only one ethread terminates and leaves the
+                // enclave.
+                bool true_value = true;
+                if (__atomic_compare_exchange_n(
+                        &_lthread_should_stop,
+                        &true_value,
+                        false,
+                        true,
+                        __ATOMIC_SEQ_CST,
+                        __ATOMIC_SEQ_CST))
                 {
                     SGXLKL_TRACE_THREAD(
                         "[%4d] lthread_run(): quitting\n", lt ? lt->tid : -1);
-                    // We only need this ethread to leave the enclave
-                    _lthread_should_stop = false;
                     return;
                 }
             }

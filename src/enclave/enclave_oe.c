@@ -296,6 +296,8 @@ int sgxlkl_ethread_init(void)
     _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
     lthread_run();
 
+    // This may be the first ethread exiting, so return the exit status from the
+    // enclave.
     return sgxlkl_enclave_state.exit_status;
 }
 

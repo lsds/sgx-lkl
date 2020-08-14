@@ -1321,6 +1321,8 @@ void* ethread_init(ethread_args_t* args)
             oe_result_str(result));
     }
 
+    sgxlkl_host_verbose("ethread exited (ethread_id=%i)\n", args->ethread_id);
+
     pthread_mutex_lock(&first_ethread_exited_mtx);
     int ret = pthread_cond_signal(&first_ethread_exited_cv);
     if (ret != 0)
@@ -1347,6 +1349,8 @@ void* enclave_init(ethread_args_t* args)
             result,
             oe_result_str(result));
     }
+
+    sgxlkl_host_verbose("ethread exited (ethread_id=%i)\n", args->ethread_id);
 
     pthread_mutex_lock(&first_ethread_exited_mtx);
     int ret = pthread_cond_signal(&first_ethread_exited_cv);
