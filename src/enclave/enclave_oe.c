@@ -194,7 +194,7 @@ static void _prepare_elf_stack()
     // Check that the allocated memory was correct.
     SGXLKL_ASSERT(j + 1 == num_ptrs);
     SGXLKL_ASSERT(out[j] == NULL);
-    SGXLKL_ASSERT(out[j - 4] == (char*) AT_HW_MODE);
+    SGXLKL_ASSERT(out[j - 4] == (char*)AT_HW_MODE);
 
     oe_free(imported_env);
 }
