@@ -48,7 +48,7 @@ else
 fi
 
 # Set variables
-timeout=60
+timeout=120
 total_passed=0
 total_failed=0
 counter=0
