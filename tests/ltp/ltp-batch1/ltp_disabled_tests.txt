@@ -343,7 +343,7 @@
 /ltp/testcases/kernel/syscalls/getsockopt/getsockopt02
 #/ltp/testcases/kernel/syscalls/gettid/gettid01
 /ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday01
-#/ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday02
+/ltp/testcases/kernel/syscalls/gettimeofday/gettimeofday02
 #/ltp/testcases/kernel/syscalls/getuid/getuid01
 #/ltp/testcases/kernel/syscalls/getuid/getuid03
 #/ltp/testcases/kernel/syscalls/getxattr/getxattr01
@@ -551,7 +551,7 @@
 #/ltp/testcases/kernel/syscalls/mmap/mmap08
 #/ltp/testcases/kernel/syscalls/mmap/mmap09
 /ltp/testcases/kernel/syscalls/mmap/mmap10
-#/ltp/testcases/kernel/syscalls/mmap/mmap11
+/ltp/testcases/kernel/syscalls/mmap/mmap11
 /ltp/testcases/kernel/syscalls/mmap/mmap12
 /ltp/testcases/kernel/syscalls/mmap/mmap13
 /ltp/testcases/kernel/syscalls/mmap/mmap14

@@ -268,7 +268,7 @@
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate01
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate03
 /ltp/testcases/kernel/syscalls/ftruncate/ftruncate04
-#/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue01
+/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue01
 #/ltp/testcases/kernel/syscalls/futex/futex_cmp_requeue02
 /ltp/testcases/kernel/syscalls/futex/futex_wait01
 /ltp/testcases/kernel/syscalls/futex/futex_wait02
@@ -288,7 +288,7 @@
 /ltp/testcases/kernel/syscalls/getcwd/getcwd01
 /ltp/testcases/kernel/syscalls/getcwd/getcwd02
 /ltp/testcases/kernel/syscalls/getcwd/getcwd03
-#/ltp/testcases/kernel/syscalls/getcwd/getcwd04
+/ltp/testcases/kernel/syscalls/getcwd/getcwd04
 #/ltp/testcases/kernel/syscalls/getdents/getdents01
 /ltp/testcases/kernel/syscalls/getdents/getdents02
 /ltp/testcases/kernel/syscalls/getdomainname/getdomainname01
@@ -790,7 +790,7 @@
 #/ltp/testcases/kernel/syscalls/select/select02
 #/ltp/testcases/kernel/syscalls/select/select03
 #/ltp/testcases/kernel/syscalls/select/select04
-#/ltp/testcases/kernel/syscalls/send/send01
+/ltp/testcases/kernel/syscalls/send/send01
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile02
 #/ltp/testcases/kernel/syscalls/sendfile/sendfile03
 /ltp/testcases/kernel/syscalls/sendfile/sendfile04
@@ -854,7 +854,7 @@
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid01
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid02
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid03
-#/ltp/testcases/kernel/syscalls/setresuid/setresuid04
+/ltp/testcases/kernel/syscalls/setresuid/setresuid04
 #/ltp/testcases/kernel/syscalls/setresuid/setresuid05
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid01
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid02
@@ -862,7 +862,7 @@
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid04
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid05
 #/ltp/testcases/kernel/syscalls/setreuid/setreuid06
-#/ltp/testcases/kernel/syscalls/setreuid/setreuid07
+/ltp/testcases/kernel/syscalls/setreuid/setreuid07
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit01
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit02
 #/ltp/testcases/kernel/syscalls/setrlimit/setrlimit03
@@ -938,7 +938,7 @@
 /ltp/testcases/kernel/syscalls/swapon/swapon02
 /ltp/testcases/kernel/syscalls/swapon/swapon03
 /ltp/testcases/kernel/syscalls/switch/endian_switch01
-#/ltp/testcases/kernel/syscalls/symlink/symlink01
+/ltp/testcases/kernel/syscalls/symlink/symlink01
 /ltp/testcases/kernel/syscalls/symlink/symlink02
 #/ltp/testcases/kernel/syscalls/symlink/symlink03
 #/ltp/testcases/kernel/syscalls/symlink/symlink04
