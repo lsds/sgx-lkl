@@ -1299,10 +1299,10 @@ static void* lkl_termination_thread(void* args)
      * If kernel threads are stuck, this may block indefinitely under
      * cooperative scheduling.
      */
-    // SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
-    // res = lkl_sys_halt();
-    // if (res < 0)
-    //     sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
+    SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
+    res = lkl_sys_halt();
+    if (res < 0)
+        sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
 
     SGXLKL_VERBOSE("calling sgxlkl_host_shutdown_notification()\n");
     /* Notify host about the guest shutdown */
@@ -1312,6 +1312,7 @@ static void* lkl_termination_thread(void* args)
     /* Set termination flag to notify lthread scheduler to bail out. */
     lthread_notify_completion();
 
+    SGXLKL_VERBOSE("done\n");
     return NULL;
 }
 
