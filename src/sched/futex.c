@@ -45,6 +45,11 @@ static uint32_t to_futex_key(int* uaddr)
     return (uint32_t)uaddr;
 }
 
+void futex_init()
+{
+    SLIST_INIT(&futex_queues);
+}
+
 /**
  * If a thread is being exited while blocked, remove it from the futex list.
  */
@@ -134,7 +139,7 @@ static struct futex_q* __futex_wait_new(uint32_t futex_key)
 }
 
 #ifdef SGXLKL_DEBUG_FUTEX
-static uint64_t _lthread_timespec_to_usec_safe(struct timespec* ts)
+static uint64_t _lthread_timespec_to_usec_safe(const struct timespec* ts)
 {
     if (!ts)
         return 0;

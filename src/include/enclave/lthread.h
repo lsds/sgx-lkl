@@ -152,6 +152,9 @@ struct lthread
     void (*yield_cb)(void*);
     void* yield_cbarg;
     struct futex_q fq;
+#ifdef DEBUG
+    LIST_ENTRY(lthread) entries;
+#endif
 };
 
 struct lthread_queue
