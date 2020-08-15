@@ -24,7 +24,7 @@ run-hw: run-exit-hw run-segfault-hw run-raise-hw run-spin-hw
 run-sw: run-exit-sw run-segfault-sw run-raise-sw run-spin-sw
 
 $(DISK_IMAGE): $(SRCS)
-	${SGXLKL_DISK_TOOL} create --size=${IMAGE_SIZE} --docker=./Dockerfile ${DISK_IMAGE}
+	${SGXLKL_DISK_TOOL} create --force --size=${IMAGE_SIZE} --docker=./Dockerfile ${DISK_IMAGE}
 
 run-exit-hw: $(DISK_IMAGE)
 	@${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug ${DISK_IMAGE} $(TEST_EXIT); \
