@@ -202,15 +202,6 @@ void lthread_notify_completion(void)
     _lthread_should_stop = true;
 }
 
-/*
- * Returns whether thread should stop. This function is called by enclave task
- * to check whether a shutdown has been triggered to do a graceful exit.
- */
-bool lthread_should_stop(void)
-{
-    return _lthread_should_stop;
-}
-
 void lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();

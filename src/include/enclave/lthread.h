@@ -237,8 +237,6 @@ extern "C"
 
     void lthread_notify_completion(void);
 
-    bool lthread_should_stop(void);
-
     void lthread_run(void);
 
     int lthread_join(struct lthread* lt, void** ptr, uint64_t timeout);

@@ -24,14 +24,6 @@ static bool _event_channel_initialized = false;
 static uint8_t _evt_channel_num;
 
 /*
- * Function to check whether virtio event channel task should stop or not
- */
-static inline uint8_t vio_shutdown_requested(void)
-{
-    return lthread_should_stop();
-}
-
-/*
  * Function to yield the virtio event channel task
  */
 static inline void vio_wait_for_host_event(
@@ -46,8 +38,7 @@ static inline void vio_wait_for_host_event(
     SGXLKL_ASSERT(lt && lt == lthread_self());
 
     /* Return if the event channel was signaled */
-    if ((__atomic_load_n(evt_chn, __ATOMIC_SEQ_CST) != val) ||
-        vio_shutdown_requested())
+    if ((__atomic_load_n(evt_chn, __ATOMIC_SEQ_CST) != val))
     {
         return;
     }
@@ -125,12 +116,7 @@ static void vio_enclave_process_host_event(uint8_t* param)
             lkl_virtio_deliver_irq(dev_id);
             *evt_processed = cur;
         }
-
-        if (vio_shutdown_requested())
-            break;
     }
-    lthread_detach2(lthread_self());
-    lthread_exit(0);
 }
 
 /*
@@ -217,7 +203,7 @@ int vio_enclave_wakeup_event_channel(void)
             continue;
 
         int rc = vio_signal_evt_channel(dev_id);
-        if (rc || vio_shutdown_requested())
+        if (rc)
             lthread_wakeup(vio_tasks[dev_id]);
         ret |= rc;
         ticket_unlock(evt_chn_lock[dev_id]);
