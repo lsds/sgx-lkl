@@ -1162,7 +1162,12 @@ static struct lkl_sem* termination_sem;
 /* Record whether we are terminmating LKL */
 static _Atomic(bool) _is_lkl_terminating = false;
 
-/* Function to carry out the shutdown sequence */
+/**
+ * Thread to carry out the shutdown sequence.
+ *
+ * Note that we cannot make this thread detached, as it would then immediately
+ * get deallocated when it exits to the scheduler.
+ */
 static void* lkl_termination_thread(void* args)
 {
     SGXLKL_VERBOSE("enter\n");
@@ -1178,7 +1183,6 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_ASSERT(pid);
 
     lthread_set_funcname(lthread_self(), "sgx-lkl-terminate");
-    lthread_detach();
 
     /* Block on semaphore until shutdown */
     sgxlkl_host_ops.sem_down(termination_sem);

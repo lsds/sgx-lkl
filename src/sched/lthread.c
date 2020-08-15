@@ -165,7 +165,7 @@ static inline void lthread_dealloc(struct lthread* lt)
 #ifdef LTHREAD_UAF_CHECKS
     return paranoid_dealloc(lt, sizeof(struct lthread));
 #else
-    return; // oe_free(lt);
+    return oe_free(lt);
 #endif
 }
 
