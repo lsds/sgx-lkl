@@ -136,7 +136,7 @@ static void _prepare_elf_stack()
     }
 
     size_t num_bytes = 0;
-    size_t num_ptrs = 1;
+    size_t num_ptrs = 0;
     for (size_t i = 0; i < cfg->num_args; i++)
         num_bytes += oe_strlen(cfg->args[i]) + 1;
     num_ptrs += cfg->num_args + 1;
@@ -149,7 +149,6 @@ static void _prepare_elf_stack()
     num_ptrs += 2 * AUXV_ENTRIES; // auxv vector entries
     num_bytes += oe_strlen(at_platform) + 1; // AT_PLATFORM
     num_bytes += 16; // AT_RANDOM
-    num_ptrs += 1; // end marker
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
     stack->data = oe_calloc_or_die(
@@ -190,10 +189,12 @@ static void _prepare_elf_stack()
     // auxv
     stack->auxv = (Elf64_auxv_t*)(out + j);
     init_auxv((size_t*)(out + j), buf_ptr, stack->argv[0]);
-    j += AUXV_ENTRIES * sizeof(Elf64_auxv_t);
+    j += AUXV_ENTRIES * 2;
 
-    // end marker
-    out[j++] = NULL;
+    // Check that the allocated memory was correct.
+    SGXLKL_ASSERT(j + 1 == num_ptrs);
+    SGXLKL_ASSERT(out[j] == NULL);
+    SGXLKL_ASSERT(out[j - 4] == (char*)AT_HW_MODE);
 
     oe_free(imported_env);
 }
