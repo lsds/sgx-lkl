@@ -1298,19 +1298,19 @@ static void* lkl_termination_thread(void* args)
     display_mount_table();
 #endif
 
+    SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
+    lkl_virtio_netdev_remove();
+
     SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
     res = lkl_sys_halt();
     if (res < 0)
         sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
 
-    SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
-    lkl_virtio_netdev_remove();
+    SGXLKL_VERBOSE("calling sgxlkl_host_shutdown_notification()\n");
+    sgxlkl_host_shutdown_notification();
 
     SGXLKL_VERBOSE("calling vio_terminate()\n");
     vio_terminate();
-
-    SGXLKL_VERBOSE("calling sgxlkl_host_shutdown_notification()\n");
-    sgxlkl_host_shutdown_notification();
 
     // Ensure that the last ethread will exit the enclave when this lthread
     // returns.
