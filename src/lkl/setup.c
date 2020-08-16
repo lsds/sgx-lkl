@@ -99,6 +99,7 @@ extern void initialize_enclave_event_channel(
     size_t evt_channel_num);
 
 extern void lkl_virtio_netdev_remove(void);
+extern void vio_terminate(void);
 
 /* Set by sgx-lkl-disk measure */
 const uint8_t disk_dm_verity_root_hash[32] = {
@@ -1182,6 +1183,12 @@ static void* lkl_termination_thread(void* args)
     /* Block on semaphore until shutdown */
     sgxlkl_host_ops.sem_down(termination_sem);
 
+    // Terminate all other ethreads except the present one. This will make the
+    // enclave single-threaded, which means that other activity is less likely
+    // to interfere with the LKL shutdown syscalls below.
+    SGXLKL_VERBOSE("calling lthread_terminate_other_schedulers()\n");
+    lthread_terminate_other_schedulers();
+
     SGXLKL_VERBOSE("termination thread unblocked\n");
 
     /* Expose exit status based on enclave config */
@@ -1212,12 +1219,6 @@ static void* lkl_termination_thread(void* args)
             runtime.tv_sec,
             runtime.tv_nsec);
     }
-
-    // Terminate all other ethreads except the present one. This will make the
-    // enclave single-threaded, which means that no other activity can interfere
-    // with the LKL shutdown syscalls below.
-    SGXLKL_VERBOSE("calling lthread_terminate_other_schedulers()\n");
-    lthread_terminate_other_schedulers();
 
     // Switch back to root so we can unmount all filesystems
     SGXLKL_VERBOSE("calling lkl_sys_chdir(\"/\")\n");
@@ -1297,15 +1298,17 @@ static void* lkl_termination_thread(void* args)
     display_mount_table();
 #endif
 
-    SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
-    lkl_virtio_netdev_remove();
-
     SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
     res = lkl_sys_halt();
     if (res < 0)
         sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
 
-    // Notify the host about the guest shutdown
+    SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
+    lkl_virtio_netdev_remove();
+
+    SGXLKL_VERBOSE("calling vio_terminate()\n");
+    vio_terminate();
+
     SGXLKL_VERBOSE("calling sgxlkl_host_shutdown_notification()\n");
     sgxlkl_host_shutdown_notification();
 

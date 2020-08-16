@@ -455,12 +455,6 @@ int _lthread_resume(struct lthread* lt)
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
 
-    // Bail out early if this lthread indicated termination
-    if (lt->attr.state & BIT(LT_ST_TERMINATE))
-    {
-        return -1;
-    }
-
     if (lt->attr.state & BIT(LT_ST_EXITED))
     {
         /* lt is always locked before LT_ST_EXITED is set */

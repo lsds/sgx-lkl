@@ -23,6 +23,8 @@ static enc_dev_config_t* _enc_dev_config = NULL;
 static bool _event_channel_initialized = false;
 static uint8_t _evt_channel_num;
 
+static _Atomic(bool) _vio_terminate = false;
+
 /*
  * Function to yield the virtio event channel task
  */
@@ -44,7 +46,8 @@ static inline void vio_wait_for_host_event(
     }
 
     /* Release CPU for other tasks */
-    lthread_yield_and_sleep();
+    if (!_vio_terminate)
+        lthread_yield_and_sleep();
 }
 
 /*
@@ -78,6 +81,7 @@ static void vio_enclave_process_host_event(uint8_t* param)
     char thread_name[16];
     oe_snprintf(thread_name, sizeof(thread_name), "vio-%i", dev_id);
     lthread_set_funcname(lthread_self(), thread_name);
+    lthread_detach();
 
     /* release memory after extracting dev_id */
     oe_free(param);
@@ -89,6 +93,9 @@ static void vio_enclave_process_host_event(uint8_t* param)
 
     for (;;)
     {
+        if (_vio_terminate)
+            return;
+
         new = cur;
         while ((cur = __atomic_load_n(evt_chn, __ATOMIC_SEQ_CST)) == new)
         {
@@ -108,6 +115,7 @@ static void vio_enclave_process_host_event(uint8_t* param)
                 cur = __atomic_add_fetch(evt_chn, -1, __ATOMIC_SEQ_CST);
                 break;
             }
+
         }
 
         /* ignore the event if it is already seen */
@@ -167,6 +175,11 @@ void initialize_enclave_event_channel(
     _event_channel_initialized = true;
 }
 
+void vio_terminate()
+{
+    _vio_terminate = true;
+}
+
 /*
  * Function to notify host device event handler for the processing of events
  */
@@ -192,8 +205,8 @@ int vio_enclave_wakeup_event_channel(void)
 {
     int ret = 0;
 
-    /* Event channel processing not available */
-    if (!_event_channel_initialized)
+    /* Event channel processing not available or terminating */
+    if (!_event_channel_initialized || _vio_terminate)
         return 0;
 
     /* Schedule picks up the available event channel processing */
@@ -203,7 +216,7 @@ int vio_enclave_wakeup_event_channel(void)
             continue;
 
         int rc = vio_signal_evt_channel(dev_id);
-        if (rc)
+        if (rc && !_vio_terminate)
             lthread_wakeup(vio_tasks[dev_id]);
         ret |= rc;
         ticket_unlock(evt_chn_lock[dev_id]);
