@@ -46,8 +46,6 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/ticketlock.h"
 #include "openenclave/corelibc/oemalloc.h"
-
-#include "openenclave/corelibc/oemalloc.h"
 #include "openenclave/corelibc/oestring.h"
 #include "openenclave/internal/safecrt.h"
 
@@ -83,7 +81,9 @@ static inline int _lthread_sleep_cmp(struct lthread* l1, struct lthread* l2)
 }
 
 static int spawned_lthreads = 1;
-static _Atomic(bool) _lthread_should_stop = false;
+
+// Record the scheduler that runs the lthread responsible for termination
+static _Atomic(struct lthread_sched*) _lthread_terminating_scheduler = NULL;
 
 static size_t sleepspins = 500000000;
 static size_t sleeptime_ns = 1600;
@@ -194,14 +194,22 @@ void lthread_sched_global_init(size_t sleepspins_, size_t sleeptime_ns_)
 #endif
 }
 
-void lthread_notify_completion(void)
+void lthread_terminate_other_schedulers(void)
 {
     SGXLKL_TRACE_THREAD(
-        "[%4d] lthread_notify_completion\n", lthread_self()->tid);
-    _lthread_should_stop = true;
+        "[%4d] lthread_terminate_other_schedulers\n", lthread_self()->tid);
+    _lthread_terminating_scheduler = lthread_get_sched();
 }
 
-void lthread_run(void)
+void lthread_terminate_this_scheduler(void)
+{
+    struct lthread* lt = lthread_self();
+    SGXLKL_ASSERT(lt);
+    SGXLKL_TRACE_THREAD("[%4d] lthread_terminate_this_scheduler\n", lt->tid);
+    lt->attr.state |= BIT(LT_ST_TERMINATE);
+}
+
+int lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();
     struct lthread* lt = NULL;
@@ -209,10 +217,10 @@ void lthread_run(void)
     int spins = futex_wake_spins;
     int dequeued;
 
-    /* scheduler not initiliazed, and no lthreads where created */
+    /* Check if the scheduler was initialized. */
     if (sched == NULL)
     {
-        return;
+        sgxlkl_fail("Scheduler not initialised\n");
     }
 
     for (;;)
@@ -223,6 +231,8 @@ void lthread_run(void)
             dequeued = 0;
             if (mpmc_dequeue(&__scheduler_queue, (void**)&lt))
             {
+                SGXLKL_ASSERT(!(lt->attr.state & BIT(LT_ST_EXITED)));
+
                 dequeued++;
                 pauses = sleepspins;
                 SGXLKL_TRACE_THREAD(
@@ -230,22 +240,21 @@ void lthread_run(void)
                     lt ? lt->tid : -1);
                 _lthread_resume(lt);
 
-                // Break out of scheduler loop when the previous thread
-                // triggered termination. Change the _lthread_should_stop flag
-                // atomically, so only one ethread terminates and leaves the
-                // enclave.
-                bool true_value = true;
-                if (__atomic_compare_exchange_n(
-                        &_lthread_should_stop,
-                        &true_value,
-                        false,
-                        true,
-                        __ATOMIC_SEQ_CST,
-                        __ATOMIC_SEQ_CST))
+                // Bail out if there is a terminating scheduler, and we are not
+                // it.
+                if (_lthread_terminating_scheduler &&
+                    _lthread_terminating_scheduler != sched)
                 {
-                    SGXLKL_TRACE_THREAD(
-                        "[%4d] lthread_run(): quitting\n", lt ? lt->tid : -1);
-                    return;
+                    return 0;
+                }
+
+                // If we are the terminating scheduler, and the lthread
+                // indicated termination return, This will be the last ethread
+                // exiting the enclave.
+                if (_lthread_terminating_scheduler == sched &&
+                    lt->attr.state & BIT(LT_ST_TERMINATE))
+                {
+                    return 1;
                 }
             }
 
@@ -362,7 +371,6 @@ void _lthread_free(struct lthread* lt)
     ticket_unlock(&_lt_active_threads_lock);
 #endif
 
-    oe_memset_s(lt, sizeof(*lt), 0, sizeof(*lt));
     lthread_dealloc(lt);
 }
 
@@ -446,6 +454,12 @@ int _lthread_resume(struct lthread* lt)
     }
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
+
+    // Bail out early if this lthread indicated termination
+    if (lt->attr.state & BIT(LT_ST_TERMINATE))
+    {
+        return -1;
+    }
 
     if (lt->attr.state & BIT(LT_ST_EXITED))
     {
@@ -976,6 +990,7 @@ static void lthread_state_to_string(
     STRINGIFY_LT_STATE(EXPIRED)
     STRINGIFY_LT_STATE(DETACH)
     STRINGIFY_LT_STATE(PINNED)
+    STRINGIFY_LT_STATE(TERMINATE)
 
     lt_state_str[offset - 1] = '\0';
 }

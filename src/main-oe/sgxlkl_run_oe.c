@@ -88,9 +88,15 @@ typedef struct ethread_args
     oe_enclave_t* oe_enclave;
 } ethread_args_t;
 
-static pthread_cond_t first_ethread_exited_cv;
-static pthread_mutex_t first_ethread_exited_mtx;
+// CV to wait for the terminating ethreads, which shuts down the enclave
+static pthread_cond_t terminating_ethread_exited_cv;
+static pthread_mutex_t terminating_ethread_exited_mtx;
+
+// Exit status returned from the enclave
 static long enclave_return_status = 0;
+
+// Counts the number of exited ethreads
+static _Atomic(int) exited_ethread_count = 0;
 
 /**************************************************************************************************************************/
 
@@ -1308,6 +1314,25 @@ void parse_cpu_affinity_params(char* config, int** cores, size_t* cores_len)
     }
 }
 
+static void handle_ethread_exit(int exit_status)
+{
+    exited_ethread_count++;
+
+    // Check if this is the terminating ethread that returns the exit
+    // status
+    if (exit_status != INT_MAX)
+    {
+        // Signal that the terminating ethread has exited
+        pthread_mutex_lock(&terminating_ethread_exited_mtx);
+        enclave_return_status = exit_status;
+        int ret = pthread_cond_signal(&terminating_ethread_exited_cv);
+        if (ret != 0)
+            sgxlkl_host_fail(
+                "Failed to signal enclave termination: ret=%i\n", ret);
+        pthread_mutex_unlock(&terminating_ethread_exited_mtx);
+    }
+}
+
 void* ethread_init(ethread_args_t* args)
 {
     int exit_status = 0;
@@ -1321,15 +1346,7 @@ void* ethread_init(ethread_args_t* args)
             oe_result_str(result));
     }
 
-    sgxlkl_host_verbose("ethread exited (ethread_id=%i)\n", args->ethread_id);
-
-    pthread_mutex_lock(&first_ethread_exited_mtx);
-    int ret = pthread_cond_signal(&first_ethread_exited_cv);
-    if (ret != 0)
-        sgxlkl_host_fail("Failed to signal enclave termination: ret=%i\n", ret);
-    enclave_return_status = exit_status;
-    pthread_mutex_unlock(&first_ethread_exited_mtx);
-
+    handle_ethread_exit(exit_status);
     return NULL;
 }
 
@@ -1350,15 +1367,7 @@ void* enclave_init(ethread_args_t* args)
             oe_result_str(result));
     }
 
-    sgxlkl_host_verbose("ethread exited (ethread_id=%i)\n", args->ethread_id);
-
-    pthread_mutex_lock(&first_ethread_exited_mtx);
-    int ret = pthread_cond_signal(&first_ethread_exited_cv);
-    if (ret != 0)
-        sgxlkl_host_fail("Failed to signal enclave termination: ret=%i\n", ret);
-    enclave_return_status = exit_status;
-    pthread_mutex_unlock(&first_ethread_exited_mtx);
-
+    handle_ethread_exit(exit_status);
     return NULL;
 }
 
@@ -2000,8 +2009,8 @@ int main(int argc, char* argv[], char* envp[])
     __gdb_hook_starter_ready(base_addr, econf->mode, libsgxlkl);
 #endif
 
-    pthread_mutex_init(&first_ethread_exited_mtx, NULL);
-    pthread_cond_init(&first_ethread_exited_cv, NULL);
+    pthread_mutex_init(&terminating_ethread_exited_mtx, NULL);
+    pthread_cond_init(&terminating_ethread_exited_cv, NULL);
 
     ethread_args_t ethreads_args[econf->ethreads];
 
@@ -2041,27 +2050,35 @@ int main(int argc, char* argv[], char* envp[])
         pthread_setname_np(sgxlkl_threads[i], "ENCLAVE");
     }
 
-    pthread_mutex_lock(&first_ethread_exited_mtx);
-    ret =
-        pthread_cond_wait(&first_ethread_exited_cv, &first_ethread_exited_mtx);
+    // Wait for the terminating ethread to exit the enclave
+    pthread_mutex_lock(&terminating_ethread_exited_mtx);
+    ret = pthread_cond_wait(
+        &terminating_ethread_exited_cv, &terminating_ethread_exited_mtx);
     if (ret != 0)
         sgxlkl_host_fail("Failed to wait for enclave to finish: ret=%i\n", ret);
     long exit_status = (long)enclave_return_status;
-    pthread_mutex_unlock(&first_ethread_exited_mtx);
+    pthread_mutex_unlock(&terminating_ethread_exited_mtx);
 
-    /**
-     * This fails with an error when we try to terminate the enclave while
-     * ethreads are still executing (?). We need to figure out a way to shutdown
-     * the enclave under coperative scheduling, i.e., when an ethread may be
-     * stuck executing an application busy-loop.
-     */
-    // if (oe_enclave)
-    // {
-    //     sgxlkl_host_verbose("oe_terminate_enclave... ");
-    //     oe_terminate_enclave(oe_enclave);
-    //     sgxlkl_host_verbose_raw("done\n");
-    // }
+    // Only try to destroy enclave if all ethreads successfully exited
+    if (oe_enclave && exited_ethread_count == econf->ethreads)
+    {
+        sgxlkl_host_verbose("oe_terminate_enclave... ");
+        oe_terminate_enclave(oe_enclave);
+        sgxlkl_host_verbose_raw("done\n");
+    }
+    else
+    {
+        sgxlkl_host_verbose(
+            "Could not terminate enclave because not all ethreads (%i/%i) "
+            "exited. This may happen under cooperating scheduling, and the "
+            "enclave is still destroyed on process termination.\n",
+            exited_ethread_count,
+            econf->ethreads);
+    }
 
-    sgxlkl_host_verbose("SGX-LKL-OE exit: exit_status=%i\n", exit_status);
+    sgxlkl_host_verbose(
+        "SGX-LKL-OE exit: exited_ethread_count=%i exit_status=%i\n",
+        exited_ethread_count,
+        exit_status);
     return exit_status;
 }

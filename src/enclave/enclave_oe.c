@@ -294,11 +294,20 @@ int sgxlkl_ethread_init(void)
     /* Initialization completed, now run the scheduler */
     init_ethread_tp();
     _lthread_sched_init(sgxlkl_enclave_state.config->stacksize);
-    lthread_run();
 
-    // This may be the first ethread exiting, so return the exit status from the
-    // enclave.
-    return sgxlkl_enclave_state.exit_status;
+    int terminating_ethread = lthread_run();
+
+    // This may be the terminating ethread exiting, so return the exit status
+    // from the enclave.
+    if (terminating_ethread)
+    {
+        return sgxlkl_enclave_state.exit_status;
+    }
+    else
+    {
+        // This ethread is not the terminating ethread
+        return INT_MAX;
+    }
 }
 
 static void _read_eeid_config()

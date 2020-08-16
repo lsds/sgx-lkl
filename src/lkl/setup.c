@@ -1162,12 +1162,7 @@ static struct lkl_sem* termination_sem;
 /* Record whether we are terminmating LKL */
 static _Atomic(bool) _is_lkl_terminating = false;
 
-/**
- * Thread to carry out the shutdown sequence.
- *
- * Note that we cannot make this thread detached, as it would then immediately
- * get deallocated when it exits to the scheduler.
- */
+// Thread to carry out the shutdown sequence
 static void* lkl_termination_thread(void* args)
 {
     SGXLKL_VERBOSE("enter\n");
@@ -1217,6 +1212,12 @@ static void* lkl_termination_thread(void* args)
             runtime.tv_sec,
             runtime.tv_nsec);
     }
+
+    // Terminate all other ethreads except the present one. This will make the
+    // enclave single-threaded, which means that no other activity can interfere
+    // with the LKL shutdown syscalls below.
+    SGXLKL_VERBOSE("calling lthread_terminate_other_schedulers()\n");
+    lthread_terminate_other_schedulers();
 
     // Switch back to root so we can unmount all filesystems
     SGXLKL_VERBOSE("calling lkl_sys_chdir(\"/\")\n");
@@ -1299,22 +1300,19 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("calling lkl_virtio_netdev_remove()\n");
     lkl_virtio_netdev_remove();
 
-    /**
-     * If kernel threads are stuck, this may block indefinitely under
-     * cooperative scheduling.
-     */
     SGXLKL_VERBOSE("calling lkl_sys_halt()\n");
     res = lkl_sys_halt();
     if (res < 0)
         sgxlkl_fail("LKL halt, %s\n", lkl_strerror(res));
 
+    // Notify the host about the guest shutdown
     SGXLKL_VERBOSE("calling sgxlkl_host_shutdown_notification()\n");
-    /* Notify host about the guest shutdown */
     sgxlkl_host_shutdown_notification();
 
-    SGXLKL_VERBOSE("calling lthread_notify_completion()\n");
-    /* Set termination flag to notify lthread scheduler to bail out. */
-    lthread_notify_completion();
+    // Ensure that the last ethread will exit the enclave when this lthread
+    // returns.
+    SGXLKL_VERBOSE("calling lthread_terminate_this_scheduler()\n");
+    lthread_terminate_this_scheduler();
 
     SGXLKL_VERBOSE("done\n");
     return NULL;

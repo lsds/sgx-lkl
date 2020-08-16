@@ -78,6 +78,7 @@ enum lthread_st
     LT_ST_EXPIRED,         /* lthread has expired and needs to run */
     LT_ST_DETACH,          /* lthread frees when done, else it waits to join */
     LT_ST_PINNED,          /* lthread pinned to ethread */
+    LT_ST_TERMINATE,       /* lthread that makes the ethread scheduler quit */
 };
 
 enum lthread_type
@@ -238,9 +239,27 @@ extern "C"
         void* lthread_func,
         void* arg);
 
-    void lthread_notify_completion(void);
+    /**
+     * Makes all schedulers in all ethreads except the caller's scheduler
+     * terminate and exit the enclave. Afterwards, the enclave will be
+     * single-threaded, with only the current ethread's scheduler running.
+     */
+    void lthread_terminate_other_schedulers(void);
 
-    void lthread_run(void);
+    /**
+     * Make the current scheduler also terminate and exit the enclave after the
+     * calling lthread has returned.
+     */
+    void lthread_terminate_this_scheduler(void);
+
+    /**
+     * Run the main scheduler loop.
+     *
+     * Returns 1 if this is the last ethread terminating (which should return
+     * the exit status from the enclave); all other ethreads return 0 when
+     * exiting.
+     */
+    int lthread_run(void);
 
     int lthread_join(struct lthread* lt, void** ptr, uint64_t timeout);
 
