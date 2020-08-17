@@ -1215,7 +1215,7 @@ static void* lkl_termination_thread(void* args)
     }
 
     // Switch back to root so we can unmount all filesystems
-    SGXLKL_VERBOSE("calling lkl_sys_chdir(/)\n");
+    SGXLKL_VERBOSE("calling lkl_sys_chdir(\"/\")\n");
     int ret = lkl_sys_chdir("/");
     if (ret != 0)
     {
@@ -1264,6 +1264,16 @@ static void* lkl_termination_thread(void* args)
                     lkl_strerror(res));
             }
         }
+    }
+
+    SGXLKL_VERBOSE("calling lkl_sys_sync()\n");
+    ret = lkl_sys_sync();
+    if (ret != 0)
+    {
+        sgxlkl_warn(
+            "lkl_sys_sync() failed: ret=%i error=\"%s\"\n",
+            ret,
+            lkl_strerror(ret));
     }
 
     /* Unmount root.
