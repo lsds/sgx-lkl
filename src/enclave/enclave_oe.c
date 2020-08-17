@@ -304,17 +304,17 @@ static void _read_eeid_config()
     sgxlkl_enclave_state.config = cfg;
 }
 
-#define CHECK_INSIDE(X, S)                                  \
-    {                                                       \
-        if ((X) != NULL && !oe_is_within_enclave((X), (S))) \
-            oe_abort();                                     \
-    }
+void sgxlkl_ensure_inside(const void* ptr, size_t sz)
+{
+    if (ptr != NULL && !oe_is_within_enclave(ptr, sz))
+        sgxlkl_fail("Unexpected: buffer is not in enclave memory.\n");
+}
 
-#define CHECK_OUTSIDE(X, S)                                  \
-    {                                                        \
-        if ((X) != NULL && !oe_is_outside_enclave((X), (S))) \
-            oe_abort();                                      \
-    }
+void sgxlkl_ensure_outside(const void* ptr, size_t sz)
+{
+    if (ptr != NULL && !oe_is_outside_enclave(ptr, sz))
+        sgxlkl_fail("Unexpected: buffer is in enclave memory.\n");
+}
 
 static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
@@ -322,7 +322,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 
     /* The host shared memory struct has been copied by OE (but not its
      * contents). */
-    CHECK_INSIDE(host, sizeof(sgxlkl_shared_memory_t));
+    sgxlkl_ensure_inside(host, sizeof(sgxlkl_shared_memory_t));
 
     /* Temporary, volatile copy to make sure checks aren't reordered */
     volatile sgxlkl_shared_memory_t* enc = oe_calloc_or_die(
@@ -333,26 +333,80 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     if (cfg->io.network)
     {
         enc->virtio_net_dev_mem = host->virtio_net_dev_mem;
-        CHECK_OUTSIDE(enc->virtio_net_dev_mem, sizeof(struct virtio_dev));
+        sgxlkl_ensure_outside(
+            enc->virtio_net_dev_mem, sizeof(struct virtio_dev));
     }
 
     if (cfg->io.console)
     {
         enc->virtio_console_mem = host->virtio_console_mem;
-        CHECK_OUTSIDE(enc->virtio_console_mem, sizeof(struct virtio_dev));
+        sgxlkl_ensure_outside(
+            enc->virtio_console_mem, sizeof(struct virtio_dev));
     }
 
     enc->evt_channel_num = host->evt_channel_num;
-    enc->enc_dev_config = host->enc_dev_config;
-    CHECK_OUTSIDE(
-        enc->enc_dev_config, sizeof(enc_dev_config_t) * enc->evt_channel_num);
+
+    if (enc->evt_channel_num > 0)
+    {
+        _Static_assert(
+            sizeof(enc_dev_config_t) == 24UL,
+            "enc_dev_config_t size has changed");
+
+        enc->enc_dev_config = oe_calloc_or_die(
+            enc->evt_channel_num,
+            sizeof(enc_dev_config_t),
+            "Could not allocate memory for event channel device config\n");
+
+        for (size_t i = 0; i < enc->evt_channel_num; i++)
+        {
+            const enc_dev_config_t* host_conf_i = &host->enc_dev_config[i];
+            enc_dev_config_t* enc_conf_i = &enc->enc_dev_config[i];
+
+            enc_conf_i->dev_id = host_conf_i->dev_id;
+
+            enc_evt_channel_t* host_chn = host_conf_i->enc_evt_chn;
+            if (host_chn)
+            {
+                enc_conf_i->enc_evt_chn = host_chn;
+
+                // enc_conf_i->enc_evt_chn = oe_calloc_or_die(
+                //     1,
+                //     sizeof(enc_evt_channel_t),
+                //     "Could not allocate memory for event channel config\n ");
+
+                // enc_conf_i->enc_evt_chn->host_evt_channel = oe_calloc_or_die(
+                //     1,
+                //     sizeof(evt_t),
+                //     "Could not allocate memory for host event channel
+                //     evt_t\n");
+
+                // enc_conf_i->enc_evt_chn->qidx_p = oe_calloc_or_die(
+                //     1,
+                //     sizeof(uint32_t),
+                //     "Could not allocate memory for event channel qidx_p\n ");
+
+                // enc_evt_channel_t* enc_chn = enc_conf_i->enc_evt_chn;
+
+                // enc_chn->enclave_evt_channel = host_chn->enclave_evt_channel;
+
+                // evt_t* hechan = host_chn->host_evt_channel;
+                // sgxlkl_ensure_outside(hechan, sizeof(evt_t));
+                //*enc_chn->host_evt_channel = *hechan;
+
+                // uint32_t* qidx_p = host_chn->qidx_p;
+                // sgxlkl_ensure_outside(qidx_p, sizeof(uint32_t));
+                //*enc_chn->qidx_p = *qidx_p;
+            }
+            enc_conf_i->evt_processed = host_conf_i->evt_processed;
+        }
+    }
 
     enc->virtio_swiotlb = host->virtio_swiotlb;
     enc->virtio_swiotlb_size = host->virtio_swiotlb_size;
-    CHECK_OUTSIDE(enc->virtio_swiotlb, enc->virtio_swiotlb_size);
+    sgxlkl_ensure_outside(enc->virtio_swiotlb, enc->virtio_swiotlb_size);
 
     enc->timer_dev_mem = host->timer_dev_mem;
-    CHECK_OUTSIDE(enc->timer_dev_mem, sizeof(struct timer_dev));
+    sgxlkl_ensure_outside(enc->timer_dev_mem, sizeof(struct timer_dev));
 
     if (cfg->io.block)
     {
@@ -369,12 +423,12 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
         {
             enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
-            CHECK_OUTSIDE(
+            sgxlkl_ensure_outside(
                 enc->virtio_blk_dev_mem[i], sizeof(struct virtio_dev));
 
             const char* name = host->virtio_blk_dev_names[i];
             size_t name_len = oe_strlen(name) + 1;
-            CHECK_OUTSIDE(name, name_len);
+            sgxlkl_ensure_outside(name, name_len);
             enc->virtio_blk_dev_names[i] = oe_calloc_or_die(
                 name_len,
                 sizeof(char),
@@ -388,7 +442,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     size_t henvc = host->envc;
     if (henv && henvc)
     {
-        CHECK_OUTSIDE(henv, sizeof(char*) * henvc);
+        sgxlkl_ensure_outside(henv, sizeof(char*) * henvc);
         char** tmp = oe_calloc_or_die(
             henvc,
             sizeof(char*),
@@ -397,13 +451,13 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         {
             const char* env_i = henv[i];
             size_t n = strlen(env_i) + 1;
-            CHECK_OUTSIDE(env_i, n);
+            sgxlkl_ensure_outside(env_i, n);
             tmp[i] = oe_malloc(n);
             memcpy(tmp[i], env_i, n);
         }
         enc->env = tmp;
         enc->envc = henvc;
-        CHECK_INSIDE(enc->env, sizeof(char*) * enc->envc);
+        sgxlkl_ensure_inside(enc->env, sizeof(char*) * enc->envc);
     }
 
     /* Commit to the temporary copy */
@@ -414,6 +468,17 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 static void _free_shared_memory()
 {
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
+
+    for (size_t i = 0; i < shm->evt_channel_num; i++)
+    {
+        if (shm->enc_dev_config[i].enc_evt_chn)
+        {
+            oe_free(shm->enc_dev_config[i].enc_evt_chn->host_evt_channel);
+            oe_free(shm->enc_dev_config[i].enc_evt_chn->qidx_p);
+            oe_free(shm->enc_dev_config[i].enc_evt_chn);
+        }
+    }
+    oe_free(shm->enc_dev_config);
 
     for (size_t i = 0; i < shm->num_virtio_blk_dev; i++)
         oe_free(shm->virtio_blk_dev_names[i]);

@@ -137,9 +137,8 @@ void initialize_enclave_event_channel(
     uint8_t* dev_id = NULL;
     _evt_channel_num = evt_channel_num;
 
-    if (!oe_is_outside_enclave(
-            enc_dev_config, sizeof(enc_dev_config_t) * _evt_channel_num))
-        oe_abort();
+    sgxlkl_ensure_inside(
+        enc_dev_config, sizeof(enc_dev_config_t) * _evt_channel_num);
 
     evt_chn_lock = (struct ticketlock**)oe_calloc_or_die(
         evt_channel_num,
@@ -154,16 +153,10 @@ void initialize_enclave_event_channel(
     _enc_dev_config = enc_dev_config;
     for (int i = 0; i < evt_channel_num; i++)
     {
-        if (!oe_is_outside_enclave(
-                &enc_dev_config[i], sizeof(enc_dev_config_t)) ||
-            !oe_is_outside_enclave(
-                &enc_dev_config[i].enc_evt_chn, sizeof(enc_evt_channel_t)) ||
-            !oe_is_outside_enclave(
-                &enc_dev_config[i].enc_evt_chn->host_evt_channel,
-                sizeof(evt_t)) ||
-            !oe_is_outside_enclave(
-                &enc_dev_config[i].enc_evt_chn->qidx_p, sizeof(uint32_t)))
-            oe_abort();
+        const enc_dev_config_t* ed_conf_i = &enc_dev_config[i];
+        // const enc_evt_channel_t* ee_chan_i = ed_conf_i->enc_evt_chn;
+        // sgxlkl_ensure_outside(ee_chan_i->host_evt_channel, sizeof(evt_t));
+        // sgxlkl_ensure_outside(ee_chan_i->qidx_p, sizeof(uint32_t));
 
         evt_chn_lock[i] = (struct ticketlock*)oe_calloc_or_die(
             1,
@@ -174,7 +167,7 @@ void initialize_enclave_event_channel(
         dev_id = (uint8_t*)oe_calloc_or_die(
             1, sizeof(uint8_t), "Could not allocate memory for dev_id\n");
 
-        *dev_id = enc_dev_config[i].dev_id;
+        *dev_id = ed_conf_i->dev_id;
 
         if (lthread_create(
                 &vio_tasks[i],
