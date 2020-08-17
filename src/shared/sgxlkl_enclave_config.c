@@ -9,8 +9,8 @@
 #endif
 
 #include <json.h>
-#include <shared/oe_compat.h>
 #include <shared/env.h>
+#include <shared/oe_compat.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
 

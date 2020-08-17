@@ -34,9 +34,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "openenclave/corelibc/oemalloc.h"
-#include "enclave/enclave_util.h"
 #include "enclave/mpmc_queue.h"
+#include "enclave/enclave_util.h"
+#include "openenclave/corelibc/oemalloc.h"
 
 static void pause(void);
 static void pause()
@@ -53,7 +53,8 @@ int newmpmcq(struct mpmcq* q, size_t buffer_size, void* buffer)
     q->buffer =
         buffer != 0 ? buffer : oe_calloc(sizeof(struct cell_t), buffer_size);
     q->buffer_mask = (buffer_size - 1);
-    SGXLKL_ASSERT((buffer_size >= 2) && ((buffer_size & (buffer_size - 1)) == 0));
+    SGXLKL_ASSERT(
+        (buffer_size >= 2) && ((buffer_size & (buffer_size - 1)) == 0));
     for (i = 0; i != buffer_size; i += 1)
     {
         __atomic_store_n(&q->buffer[i].seq, i, __ATOMIC_RELAXED);
