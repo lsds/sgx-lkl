@@ -252,6 +252,7 @@ void register_lkl_syscall_overrides()
         __lkl__NR##name, (lkl_syscall_handler_t)unsupported##name);
 #include "unsupported-syscalls.h"
     }
+		/*
     // Register overrides for the memory management functions.
     // These are internal - use the trace versions if we are doing internal
     // syscall tracing.
@@ -260,4 +261,5 @@ void register_lkl_syscall_overrides()
 #else
     syscall_register_mem_overrides(false);
 #endif
+    */
 }
