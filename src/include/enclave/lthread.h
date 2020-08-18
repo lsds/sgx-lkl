@@ -77,9 +77,6 @@ enum lthread_st
     LT_ST_SLEEPING,        /* lthread is sleeping */
     LT_ST_EXPIRED,         /* lthread has expired and needs to run */
     LT_ST_DETACH,          /* lthread frees when done, else it waits to join */
-    LT_ST_CANCELLED,       /* lthread has been cancelled */
-    LT_ST_CANCELSTATE,     /* lthread cancellation has been disabled */
-    LT_ST_CANCEL_DISABLED, /* lthread cancellation has been deferred */
     LT_ST_PINNED,          /* lthread pinned to ethread */
 };
 
@@ -238,8 +235,6 @@ extern "C"
         void* lthread_func,
         void* arg);
 
-    void lthread_cancel(struct lthread* lt);
-
     void lthread_notify_completion(void);
 
     bool lthread_should_stop(void);
@@ -272,8 +267,6 @@ extern "C"
     uint64_t lthread_id();
 
     struct lthread* lthread_self(void);
-
-    int lthread_setcancelstate(int, int*);
 
     void lthread_set_expired(struct lthread* lt);
 
