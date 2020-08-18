@@ -453,21 +453,6 @@ void reset_tls_tp(struct lthread* lt)
 int _lthread_resume(struct lthread* lt)
 {
     struct lthread_sched* sched = lthread_get_sched();
-    if (lt->attr.state & BIT(LT_ST_CANCELLED))
-    {
-        /* if an lthread was joining on it, schedule it to run */
-        if (lt->lt_join)
-        {
-            __scheduler_enqueue(lt->lt_join);
-            lt->lt_join = NULL;
-        }
-        /* if lthread is detached, then we can free it up */
-        if (lt->attr.state & BIT(LT_ST_DETACH))
-        {
-            _lthread_free(lt);
-        }
-        return (-1);
-    }
 
     if (lt->attr.state & BIT(LT_ST_NEW))
         _lthread_init(lt);
@@ -729,20 +714,6 @@ struct lthread* lthread_current(void)
     return (lthread_get_sched()->current_lthread);
 }
 
-void lthread_cancel(struct lthread* lt)
-{
-    if (lt == NULL)
-        return;
-
-    if (lt->attr.state & BIT(LT_ST_CANCELSTATE))
-    {
-        return;
-    }
-    lt->attr.state |= BIT(LT_ST_CANCELLED);
-    _lthread_desched_sleep(lt);
-    __scheduler_enqueue(lt);
-}
-
 static inline void _lthread_desched_ready(void* _lt)
 {
     // Update lthread state to sleep.
@@ -890,26 +861,6 @@ struct lthread* lthread_self(void)
     {
         return NULL;
     }
-}
-
-int lthread_setcancelstate(int new, int* old)
-{
-    if (new > 2U)
-        return EINVAL;
-    struct lthread* curr = lthread_get_sched()->current_lthread;
-    if (old)
-    {
-        *old = (curr->attr.state & BIT(LT_ST_CANCELSTATE)) > 0;
-    }
-    if (new)
-    {
-        curr->attr.state |= BIT(LT_ST_CANCELSTATE);
-    }
-    else
-    {
-        curr->attr.state &= ~BIT(LT_ST_CANCELSTATE);
-    }
-    return 0;
 }
 
 /**
@@ -1077,9 +1028,6 @@ static void lthread_state_to_string(
     STRINGIFY_LT_STATE(SLEEPING)
     STRINGIFY_LT_STATE(EXPIRED)
     STRINGIFY_LT_STATE(DETACH)
-    STRINGIFY_LT_STATE(CANCELLED)
-    STRINGIFY_LT_STATE(CANCELSTATE)
-    STRINGIFY_LT_STATE(CANCEL_DISABLED)
     STRINGIFY_LT_STATE(PINNED)
 
     lt_state_str[offset - 1] = '\0';
