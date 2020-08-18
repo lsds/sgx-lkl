@@ -1184,8 +1184,7 @@ void lkl_terminate(int exit_status)
             sgxlkl_enclave_state.exit_status = exit_status;
             break;
         case EXIT_STATUS_BINARY:
-            sgxlkl_enclave_state.exit_status =
-                sgxlkl_enclave_state.exit_status == 0 ? 0 : 1;
+            sgxlkl_enclave_state.exit_status = (exit_status == 0) ? 0 : 1;
             break;
         case EXIT_STATUS_NONE:
             sgxlkl_enclave_state.exit_status = 0;
