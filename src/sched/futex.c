@@ -8,9 +8,9 @@
 #include <enclave/lthread.h>
 #include <enclave/lthread_int.h>
 #include <enclave/ticketlock.h>
+#include "enclave/enclave_timer.h"
 #include "enclave/enclave_util.h"
 #include "enclave/sgxlkl_t.h"
-#include "enclave/enclave_timer.h"
 
 /* stores all the futex_q's */
 SLIST_HEAD(__futex_q_head, futex_q)
@@ -48,7 +48,7 @@ static uint32_t to_futex_key(int* uaddr)
 /**
  * If a thread is being exited while blocked, remove it from the futex list.
  */
-void futex_dequeue(struct lthread *lt)
+void futex_dequeue(struct lthread* lt)
 {
     struct futex_q *fq, *tmp;
 
@@ -148,9 +148,7 @@ static void __do_futex_unlock(void* lock)
     ticket_unlock((struct ticketlock*)lock);
 }
 
-static int __do_futex_sleep(
-    struct futex_q* fq,
-    const struct timespec* ts)
+static int __do_futex_sleep(struct futex_q* fq, const struct timespec* ts)
 {
     FUTEX_SGXLKL_VERBOSE(
         "about to sleep in tid %d on key 0x%x\n",
@@ -176,10 +174,7 @@ static int __do_futex_sleep(
 }
 
 /* a FUTEX_WAIT operation */
-static int futex_wait(
-    int* uaddr,
-    int val,
-    const struct timespec* ts)
+static int futex_wait(int* uaddr, int val, const struct timespec* ts)
 {
     /* XXX (lkurusa): this should be an atomic read */
     int r, rc;
@@ -259,10 +254,7 @@ static int futex_wake(int* uaddr, unsigned int num)
     return w;
 }
 
-int enclave_futex_timedwait(
-    int* uaddr,
-    int val,
-    const struct timespec* timeout)
+int enclave_futex_timedwait(int* uaddr, int val, const struct timespec* timeout)
 {
     ticket_lock(&futex_q_lock);
 

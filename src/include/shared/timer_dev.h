@@ -15,7 +15,7 @@ struct timer_dev
     uint64_t version;
 
     /*
-    * The number of monotonic nanos that have passed outside of the
+     * The number of monotonic nanos that have passed outside of the
      * enclave since it was started up. nanos is used in enclave_timer.c to
      * update the internal clock for the passage of time.
      */

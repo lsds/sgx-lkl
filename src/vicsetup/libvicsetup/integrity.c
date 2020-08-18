@@ -1,15 +1,15 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "hexdump.h"
 #include "integrity.h"
 #include "raise.h"
-#include "hexdump.h"
 
 // Layout: SB | JOURNAL | [ DATA | TAGS ]*
 //
 // SB is padded out to 4096
 
-static uint8_t _magic[8] = { 'i', 'n', 't', 'e', 'g', 'r', 't', '\0' };
+static uint8_t _magic[8] = {'i', 'n', 't', 'e', 'g', 'r', 't', '\0'};
 
 static uint64_t _inverse_log2(uint8_t log)
 {
@@ -52,21 +52,32 @@ vic_result_t vic_integrity_dump_sb(const vic_integrity_sb_t* sb)
 
     printf("vic_luks_integrity_sb\n");
     printf("{\n");
-    printf("  magic=%s (%02x %02x %02x %02x %02x %02x %02x %02x)\n", sb->magic,
-        sb->magic[0], sb->magic[1], sb->magic[2], sb->magic[3],
-        sb->magic[4], sb->magic[5], sb->magic[6], sb->magic[7]);
+    printf(
+        "  magic=%s (%02x %02x %02x %02x %02x %02x %02x %02x)\n",
+        sb->magic,
+        sb->magic[0],
+        sb->magic[1],
+        sb->magic[2],
+        sb->magic[3],
+        sb->magic[4],
+        sb->magic[5],
+        sb->magic[6],
+        sb->magic[7]);
     printf("  version=%u\n", sb->version);
-    printf("  log2_interleave_sectors=%u (%lu)\n",
+    printf(
+        "  log2_interleave_sectors=%u (%lu)\n",
         sb->log2_interleave_sectors,
         _inverse_log2(sb->log2_interleave_sectors));
     printf("  integrity_tag_size=%u\n", sb->integrity_tag_size);
     printf("  journal_sections=%u\n", sb->journal_sections);
     printf("  provided_data_sectors=%lu\n", sb->provided_data_sectors);
     printf("  flags=%u\n", sb->flags);
-    printf("  log2_sectors_per_block=%u (%lu)\n",
+    printf(
+        "  log2_sectors_per_block=%u (%lu)\n",
         sb->log2_sectors_per_block,
         _inverse_log2(sb->log2_sectors_per_block));
-    printf("  log2_blocks_per_bitmap_bit=%u (%lu)\n",
+    printf(
+        "  log2_blocks_per_bitmap_bit=%u (%lu)\n",
         sb->log2_blocks_per_bitmap_bit,
         _inverse_log2(sb->log2_blocks_per_bitmap_bit));
     printf("  recalc_sector=%lu\n", sb->recalc_sector);

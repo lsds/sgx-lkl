@@ -1,11 +1,11 @@
 #include "uuid.h"
 
 #include <stdint.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
-#include "defs.h"
 #include "crypto.h"
+#include "defs.h"
 
 void vic_uuid_generate(char uuid[VIC_UUID_STRING_SIZE])
 {
@@ -96,7 +96,9 @@ void vic_uuid_bin2str(
     if (binary && str)
     {
         /* example: 6ef272c7-663b-4655-b80b-8dd369021a3a */
-        snprintf(str, VIC_UUID_STRING_SIZE,
+        snprintf(
+            str,
+            VIC_UUID_STRING_SIZE,
             "%02x%02x%02x%02x-"
             "%02x%02x-"
             "%02x%02x-"

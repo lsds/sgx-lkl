@@ -134,21 +134,21 @@ struct futex_q
 
 struct lthread
 {
-    struct cpu_ctx ctx;           /* cpu ctx info */
-    lthread_func fun;             /* func lthread is running */
-    void* arg;                    /* func args passed to func */
-    struct lthread_attr attr;     /* various attributes */
-    int tid;                      /* lthread id */
-    char funcname[64];            /* optional func name */
-    struct lthread* lt_join;      /* lthread we want to join on */
-    void** lt_exit_ptr;           /* exit ptr for lthread_join */
-    uint32_t ops;                 /* num of ops since yield */
-    uint64_t sleep_usecs;         /* how long lthread is sleeping */
-    struct lthread_tls_l tls;     /* pointer to TLS */
-    uint8_t* itls;                /* image TLS */
-    size_t itlssz;                /* size of TLS image */
-    uintptr_t* tp;                 /* thread pointer */
-    int err;                      /* errno value */
+    struct cpu_ctx ctx;       /* cpu ctx info */
+    lthread_func fun;         /* func lthread is running */
+    void* arg;                /* func args passed to func */
+    struct lthread_attr attr; /* various attributes */
+    int tid;                  /* lthread id */
+    char funcname[64];        /* optional func name */
+    struct lthread* lt_join;  /* lthread we want to join on */
+    void** lt_exit_ptr;       /* exit ptr for lthread_join */
+    uint32_t ops;             /* num of ops since yield */
+    uint64_t sleep_usecs;     /* how long lthread is sleeping */
+    struct lthread_tls_l tls; /* pointer to TLS */
+    uint8_t* itls;            /* image TLS */
+    size_t itlssz;            /* size of TLS image */
+    uintptr_t* tp;            /* thread pointer */
+    int err;                  /* errno value */
     /* yield_cb_* are a callback to call after yield finished and it's arg */
     /* they are required to release futex lock on FUTEX_WAIT operation */
     /* and in sched_yield (see comment there) to avoid race among schedulers */
@@ -177,18 +177,20 @@ struct lthread_sched
 };
 /**
  * lthread scheduler context. Pointer to this structure can be fetched by
- * calling __scheduler_self(). 
+ * calling __scheduler_self().
  * The structure is located towards the end of the page pointed by %gs.
  */
-struct schedctx {
-	struct schedctx *self;
-	int tid;
-	struct lthread_sched sched;
+struct schedctx
+{
+    struct schedctx* self;
+    int tid;
+    struct lthread_sched sched;
 };
 
 /* Thread Control Block (TCB) for lthreads and lthread scheduler */
-struct lthread_tcb_base {
-    void *self;
+struct lthread_tcb_base
+{
+    void* self;
     char _pad_0[32];
     // SGX-LKL does not have full stack smashing protection (SSP) support right
     // now. In particular, we do not generate a random stack guard for every
@@ -198,7 +200,7 @@ struct lthread_tcb_base {
     // guard/canary value at an offset 0x28 (40 bytes) from the FS segment
     // base/start of the TCB (see schedctx struct above).
     uint64_t stack_guard_dummy;
-    struct schedctx *schedctx;
+    struct schedctx* schedctx;
 };
 
 typedef struct lthread* lthread_t;
@@ -211,9 +213,7 @@ extern "C"
      */
     void init_ethread_tp();
 
-    void lthread_sched_global_init(
-        size_t sleepspins,
-        size_t sleeptime_ns);
+    void lthread_sched_global_init(size_t sleepspins, size_t sleeptime_ns);
 
     /**
      * Create a new thread where the caller manages the initial thread state.

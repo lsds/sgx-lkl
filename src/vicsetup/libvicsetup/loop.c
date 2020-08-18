@@ -1,14 +1,14 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <linux/loop.h>
-#include <string.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <linux/loop.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "loop.h"
 #include "raise.h"

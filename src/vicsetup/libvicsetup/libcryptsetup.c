@@ -1,20 +1,20 @@
-#include <libcryptsetup.h>
-#include <vic.h>
-#include <limits.h>
 #include <errno.h>
+#include <libcryptsetup.h>
+#include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <unistd.h>
+#include <vic.h>
 
+#include "crypto.h"
 #include "eraise.h"
+#include "integrity.h"
 #include "luks1.h"
 #include "luks2.h"
-#include "integrity.h"
 #include "strings.h"
-#include "crypto.h"
-#include "verity.h"
 #include "trace.h"
+#include "verity.h"
 
 #define MAGIC 0xa8ea23c6
 
@@ -45,8 +45,7 @@ struct crypt_device
     struct
     {
         luks1_hdr_t* hdr;
-    }
-    luks1;
+    } luks1;
     struct
     {
         char cipher[LUKS2_ENCRYPTION_SIZE];
@@ -54,13 +53,11 @@ struct crypt_device
         char pbkdf_type_buf[32];
         char pbkdf_hash_buf[VIC_MAX_HASH_SIZE];
         luks2_hdr_t* hdr;
-    }
-    luks2;
+    } luks2;
     struct
     {
         vic_verity_sb_t sb;
-    }
-    verity;
+    } verity;
 };
 
 static int _set_pbkdf_type(
@@ -332,14 +329,14 @@ int crypt_format(
         }
 
         if ((r = luks1_format(
-            cd->bd,
-            cipher_name,
-            cipher_mode,
-            uuid,
-            hash,
-            0, /* mk_iterations */
-            (const vic_key_t*)volume_key,
-            volume_key_size)) != VIC_OK)
+                 cd->bd,
+                 cipher_name,
+                 cipher_mode,
+                 uuid,
+                 hash,
+                 0, /* mk_iterations */
+                 (const vic_key_t*)volume_key,
+                 volume_key_size)) != VIC_OK)
         {
             ERAISE(EINVAL);
         }
@@ -393,16 +390,16 @@ int crypt_format(
         ECHECK(STRLCPY(cd->luks2.cipher, cipher));
 
         if ((r = luks2_format(
-            cd->bd,
-            label,
-            subsystem,
-            cipher,
-            uuid,
-            hash,
-            iterations,
-            (const vic_key_t*)volume_key,
-            volume_key_size,
-            p->integrity)) != VIC_OK)
+                 cd->bd,
+                 label,
+                 subsystem,
+                 cipher,
+                 uuid,
+                 hash,
+                 iterations,
+                 (const vic_key_t*)volume_key,
+                 volume_key_size,
+                 p->integrity)) != VIC_OK)
         {
             ERAISE(EINVAL);
         }
@@ -469,12 +466,12 @@ int crypt_keyslot_add_by_key(
         vic_result_t r;
 
         if ((r = luks1_add_key_by_master_key(
-            cd->bd,
-            0,
-            (const vic_key_t*)volume_key,
-            volume_key_size,
-            passphrase,
-            passphrase_size)) != VIC_OK)
+                 cd->bd,
+                 0,
+                 (const vic_key_t*)volume_key,
+                 volume_key_size,
+                 passphrase,
+                 passphrase_size)) != VIC_OK)
         {
             ERAISE(EINVAL);
         }
@@ -482,8 +479,7 @@ int crypt_keyslot_add_by_key(
     else if (_is_luks2(cd->type))
     {
         vic_result_t r;
-        vic_kdf_t kdf =
-        {
+        vic_kdf_t kdf = {
             .hash = cd->luks2.pbkdf.hash,
             .iterations = cd->luks2.pbkdf.iterations,
             .time = cd->luks2.pbkdf.time_ms,
@@ -492,14 +488,14 @@ int crypt_keyslot_add_by_key(
         };
 
         if ((r = luks2_add_key_by_master_key(
-            cd->bd,
-            cd->luks2.cipher,
-            cd->luks2.pbkdf.type,
-            &kdf,
-            (const vic_key_t*)volume_key,
-            volume_key_size,
-            passphrase,
-            passphrase_size)) != VIC_OK)
+                 cd->bd,
+                 cd->luks2.cipher,
+                 cd->luks2.pbkdf.type,
+                 &kdf,
+                 (const vic_key_t*)volume_key,
+                 volume_key_size,
+                 passphrase,
+                 passphrase_size)) != VIC_OK)
         {
             ERAISE(EINVAL);
         }
@@ -677,8 +673,8 @@ int crypt_activate_by_passphrase(
             ECHECK(_force_open_for_write(cd));
 
         /* Use the passphrase to recover the master key */
-        if (luks1_recover_master_key(cd->bd, passphrase, passphrase_size,
-            &key, &key_size) != VIC_OK)
+        if (luks1_recover_master_key(
+                cd->bd, passphrase, passphrase_size, &key, &key_size) != VIC_OK)
         {
             ERAISE(EIO);
         }
@@ -700,12 +696,12 @@ int crypt_activate_by_passphrase(
             ECHECK(_force_open_for_write(cd));
 
         if (luks2_open_by_passphrase(
-            cd->bd,
-            cd->luks2.hdr,
-            cd->path,
-            name,
-            passphrase,
-            passphrase_size) != VIC_OK)
+                cd->bd,
+                cd->luks2.hdr,
+                cd->path,
+                name,
+                passphrase,
+                passphrase_size) != VIC_OK)
         {
             ERAISE(EIO);
         }
@@ -802,11 +798,11 @@ int crypt_activate_by_volume_key(
             ERAISE(EINVAL);
 
         if (vic_verity_open(
-            name,
-            cd->bd,
-            cd->hbd,
-            volume_key, /* root hash */
-            volume_key_size) != VIC_OK)
+                name,
+                cd->bd,
+                cd->hbd,
+                volume_key, /* root hash */
+                volume_key_size) != VIC_OK)
         {
             ERAISE(EIO);
         }
@@ -821,7 +817,7 @@ done:
     return ret;
 }
 
-int crypt_get_volume_key_size(struct crypt_device *cd)
+int crypt_get_volume_key_size(struct crypt_device* cd)
 {
     int ret = 0;
 

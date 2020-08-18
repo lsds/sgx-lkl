@@ -1,14 +1,14 @@
-#include <vic.h>
-#include <string.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <sys/mount.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <vic.h>
 
-#include "strings.h"
 #include "raise.h"
+#include "strings.h"
 
 /* A magic number for blockdev_t.magic used to verify valid blockdev structs */
 #define MAGIC 0xf3fcef718ce744bd
@@ -28,8 +28,7 @@ typedef struct _blockdev
     uint32_t flags;
     int open_flags; /* flags passed to open() */
     int fd;
-}
-blockdev_t;
+} blockdev_t;
 
 static bool _is_power_of_two(size_t x)
 {
@@ -168,9 +167,7 @@ done:
     return result;
 }
 
-static vic_result_t _bd_get_path(
-    const vic_blockdev_t* bd_,
-    char path[PATH_MAX])
+static vic_result_t _bd_get_path(const vic_blockdev_t* bd_, char path[PATH_MAX])
 {
     vic_result_t result = VIC_OK;
     const blockdev_t* bd = (const blockdev_t*)bd_;
@@ -217,9 +214,7 @@ done:
     return result;
 }
 
-static vic_result_t _bd_set_block_size(
-    vic_blockdev_t* bd_,
-    size_t block_size)
+static vic_result_t _bd_set_block_size(vic_blockdev_t* bd_, size_t block_size)
 {
     vic_result_t result = VIC_OK;
     blockdev_t* bd = (blockdev_t*)bd_;
@@ -275,7 +270,8 @@ static vic_result_t _bd_get(
     if (!blocks)
         RAISE(VIC_BAD_PARAMETER);
 
-    off = (blkno * bd->block_size) + bd->offset;;
+    off = (blkno * bd->block_size) + bd->offset;
+    ;
     size = nblocks * bd->block_size;
 
     if (off + size > bd->size)
@@ -308,7 +304,8 @@ static vic_result_t _bd_put(
     if (!blocks)
         RAISE(VIC_BAD_PARAMETER);
 
-    off = (blkno * bd->block_size) + bd->offset;;
+    off = (blkno * bd->block_size) + bd->offset;
+    ;
     size = nblocks * bd->block_size;
 
     if (!(bd->flags & VIC_CREATE) && (off + size) > bd->size)
@@ -501,9 +498,7 @@ done:
     return result;
 }
 
-vic_result_t vic_blockdev_set_block_size(
-    vic_blockdev_t* bd,
-    size_t block_size)
+vic_result_t vic_blockdev_set_block_size(vic_blockdev_t* bd, size_t block_size)
 {
     vic_result_t result = VIC_OK;
 
@@ -516,9 +511,7 @@ done:
     return result;
 }
 
-vic_result_t vic_blockdev_get_size(
-    const vic_blockdev_t* bd,
-    size_t* size)
+vic_result_t vic_blockdev_get_size(const vic_blockdev_t* bd, size_t* size)
 {
     vic_result_t result = VIC_OK;
 
@@ -531,9 +524,7 @@ done:
     return result;
 }
 
-vic_result_t vic_blockdev_get_num_blocks(
-    vic_blockdev_t* bd,
-    size_t* num_blocks)
+vic_result_t vic_blockdev_get_num_blocks(vic_blockdev_t* bd, size_t* num_blocks)
 {
     vic_result_t result = VIC_OK;
 

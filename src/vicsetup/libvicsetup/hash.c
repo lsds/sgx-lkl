@@ -1,12 +1,12 @@
+#include <mbedtls/ripemd160.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
-#include <mbedtls/ripemd160.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include "hash.h"
 #include "defs.h"
+#include "hash.h"
 
 /* The OE version of mbedtls does not include ripemd160 */
 // #define HAVE_RIPEMD160

@@ -1,36 +1,35 @@
-#include <vic.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <vic.h>
+#include "../libvicsetup/crypto.h"
 #include "../libvicsetup/hexdump.h"
-#include "../libvicsetup/verity.h"
-#include "../libvicsetup/crypto.h"
-#include "../libvicsetup/lukscommon.h"
 #include "../libvicsetup/include/libcryptsetup.h"
+#include "../libvicsetup/lukscommon.h"
 #include "../libvicsetup/trace.h"
-#include "../libvicsetup/crypto.h"
+#include "../libvicsetup/verity.h"
 
-#define USAGE \
-    "\n" \
-    "Usage: %s <action> ...\n" \
-    "\n" \
-    "actions:\n" \
-    "    luksDump\n" \
-    "    luksFormat\n" \
-    "    luksGetMasterKey\n" \
-    "    luksAddKey\n" \
-    "    luksChangeKey\n" \
-    "    luksRemoveKey\n" \
-    "    luksOpen\n" \
-    "    luksOpenByKey\n" \
-    "    luksClose\n" \
-    "    verityDump\n" \
-    "    verityFormat\n" \
-    "    verityOpen\n" \
+#define USAGE                    \
+    "\n"                         \
+    "Usage: %s <action> ...\n"   \
+    "\n"                         \
+    "actions:\n"                 \
+    "    luksDump\n"             \
+    "    luksFormat\n"           \
+    "    luksGetMasterKey\n"     \
+    "    luksAddKey\n"           \
+    "    luksChangeKey\n"        \
+    "    luksRemoveKey\n"        \
+    "    luksOpen\n"             \
+    "    luksOpenByKey\n"        \
+    "    luksClose\n"            \
+    "    verityDump\n"           \
+    "    verityFormat\n"         \
+    "    verityOpen\n"           \
     "    cryptsetupLuksFormat\n" \
-    "    veritysetupOpen\n" \
+    "    veritysetupOpen\n"      \
     "\n"
 
 static const char* arg0;
@@ -39,8 +38,7 @@ void vic_hexdump_formatted(const void* data, size_t size);
 
 void vic_hexdump_indent(const void* data, size_t size, size_t indent);
 
-__attribute__((format(printf, 1, 2)))
-static void err(const char* fmt, ...)
+__attribute__((format(printf, 1, 2))) static void err(const char* fmt, ...)
 {
     va_list ap;
 
@@ -53,11 +51,7 @@ static void err(const char* fmt, ...)
     exit(1);
 }
 
-int get_opt(
-    int* argc,
-    const char* argv[],
-    const char* opt,
-    const char** optarg)
+int get_opt(int* argc, const char* argv[], const char* opt, const char** optarg)
 {
     size_t olen = strlen(opt);
 
@@ -67,8 +61,7 @@ int get_opt(
     if (!opt)
         err("unexpected");
 
-
-    for (int i = 0; i < *argc; )
+    for (int i = 0; i < *argc;)
     {
         if (strcmp(argv[i], opt) == 0)
         {
@@ -77,14 +70,15 @@ int get_opt(
                 if (i + 1 == *argc)
                     err("%s: missing option argument", opt);
 
-                *optarg = argv[i+1];
-                memmove(&argv[i], &argv[i+2], (*argc - i - 1) * sizeof(char*));
+                *optarg = argv[i + 1];
+                memmove(
+                    &argv[i], &argv[i + 2], (*argc - i - 1) * sizeof(char*));
                 (*argc) -= 2;
                 return 0;
             }
             else
             {
-                memmove(&argv[i], &argv[i+1], (*argc - i) * sizeof(char*));
+                memmove(&argv[i], &argv[i + 1], (*argc - i) * sizeof(char*));
                 (*argc)--;
                 return 0;
             }
@@ -95,7 +89,7 @@ int get_opt(
                 err("%s: extraneous '='", opt);
 
             *optarg = &argv[i][olen + 1];
-            memmove(&argv[i], &argv[i+1], (*argc - i) * sizeof(char*));
+            memmove(&argv[i], &argv[i + 1], (*argc - i) * sizeof(char*));
             (*argc)--;
             return 0;
         }
@@ -150,12 +144,14 @@ static int luksDump(int argc, const char* argv[])
 
     if (argc != 3)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile>\n"
             "OPTIONS:\n"
             "    --dump-payload\n"
             "\n",
-            argv[0], argv[1]);
+            argv[0],
+            argv[1]);
         exit(1);
     }
 
@@ -282,7 +278,8 @@ static int luksFormat(int argc, const char* argv[])
     /* Check usage */
     if (argc != 4)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s [OPTIONS] <luksfile> <pwd>\n"
             "OPTIONS:\n"
             "    --luks1\n"
@@ -320,34 +317,33 @@ static int luksFormat(int argc, const char* argv[])
     }
 
     if ((r = vic_luks_format(
-        dev,
-        version,
-        cipher,
-        uuid,
-        hash,
-        mk_iterations,
-        key,
-        key_size,
-        integrity)) != VIC_OK)
+             dev,
+             version,
+             cipher,
+             uuid,
+             hash,
+             mk_iterations,
+             key,
+             key_size,
+             integrity)) != VIC_OK)
     {
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
 
-    vic_kdf_t kdf =
-    {
+    vic_kdf_t kdf = {
         .iterations = slot_iterations,
         .memory = pbkdf_memory,
     };
 
     if ((r = vic_luks_add_key_by_master_key(
-        dev,
-        keyslot_cipher,
-        "pbkdf2",
-        &kdf,
-        key,
-        key_size,
-        pwd,
-        strlen(pwd))) != VIC_OK)
+             dev,
+             keyslot_cipher,
+             "pbkdf2",
+             &kdf,
+             key,
+             key_size,
+             pwd,
+             strlen(pwd))) != VIC_OK)
     {
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
@@ -439,7 +435,8 @@ static int cryptsetupLuksFormat(int argc, const char* argv[])
     /* Check usage */
     if (argc != 4)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s [OPTIONS] <luksfile> <pwd>\n"
             "OPTIONS:\n"
             "    --luks1\n"
@@ -482,8 +479,7 @@ static int cryptsetupLuksFormat(int argc, const char* argv[])
 
     if (!type || strcmp(type, CRYPT_LUKS1) == 0)
     {
-        struct crypt_params_luks1 params =
-        {
+        struct crypt_params_luks1 params = {
             .hash = "sha256",
         };
 
@@ -491,70 +487,64 @@ static int cryptsetupLuksFormat(int argc, const char* argv[])
             params.hash = hash;
 
         if ((r = crypt_format(
-            cd,
-            CRYPT_LUKS1,
-            cipher,
-            cipher_mode,
-            NULL,
-            (const char*)key,
-            key_size,
-            &params)) != 0)
+                 cd,
+                 CRYPT_LUKS1,
+                 cipher,
+                 cipher_mode,
+                 NULL,
+                 (const char*)key,
+                 key_size,
+                 &params)) != 0)
         {
             err("crypt_format() failed: %d %s\n", r, strerror(r));
         }
 
         if ((r = crypt_keyslot_add_by_key(
-            cd,
-            CRYPT_ANY_SLOT,
-            NULL, /* volume_key */
-            0, /* volume_key_size */
-            pwd,
-            strlen(pwd),
-            0)) != 0) /* flags */
+                 cd,
+                 CRYPT_ANY_SLOT,
+                 NULL, /* volume_key */
+                 0,    /* volume_key_size */
+                 pwd,
+                 strlen(pwd),
+                 0)) != 0) /* flags */
         {
             err("crypt_keyslot_add_by_key() failed: %d %s\n", r, strerror(r));
         }
     }
     else if (strcmp(type, CRYPT_LUKS2) == 0)
     {
-        struct crypt_pbkdf_type pbkdf =
-        {
-            .type = pbkdf_type,
-            .hash = hash,
-            .iterations = slot_iterations,
-            .time_ms = iter_time,
-            .max_memory_kb = pbkdf_memory,
-            .parallel_threads = pbkdf_parallel,
-            .flags = CRYPT_PBKDF_NO_BENCHMARK
-        };
-        struct crypt_params_luks2 params =
-        {
-            .sector_size = VIC_SECTOR_SIZE,
-            .pbkdf = &pbkdf,
-            .integrity = integrity
-        };
+        struct crypt_pbkdf_type pbkdf = {.type = pbkdf_type,
+                                         .hash = hash,
+                                         .iterations = slot_iterations,
+                                         .time_ms = iter_time,
+                                         .max_memory_kb = pbkdf_memory,
+                                         .parallel_threads = pbkdf_parallel,
+                                         .flags = CRYPT_PBKDF_NO_BENCHMARK};
+        struct crypt_params_luks2 params = {.sector_size = VIC_SECTOR_SIZE,
+                                            .pbkdf = &pbkdf,
+                                            .integrity = integrity};
 
         if ((r = crypt_format(
-            cd,
-            CRYPT_LUKS2,
-            cipher,
-            cipher_mode,
-            NULL, /* uuid */
-            (const char*)key, /* volume_key */
-            key_size, /* volume_key_size */
-            &params)) != 0)
+                 cd,
+                 CRYPT_LUKS2,
+                 cipher,
+                 cipher_mode,
+                 NULL,             /* uuid */
+                 (const char*)key, /* volume_key */
+                 key_size,         /* volume_key_size */
+                 &params)) != 0)
         {
             err("crypt_format() failed: %d %s\n", r, strerror(r));
         }
 
         if ((r = crypt_keyslot_add_by_key(
-            cd,
-            CRYPT_ANY_SLOT,
-            NULL, /* volume_key */
-            0, /* volume_key_size */
-            pwd,
-            strlen(pwd),
-            0)) != 0) /* flags */
+                 cd,
+                 CRYPT_ANY_SLOT,
+                 NULL, /* volume_key */
+                 0,    /* volume_key_size */
+                 pwd,
+                 strlen(pwd),
+                 0)) != 0) /* flags */
         {
             err("crypt_keyslot_add_by_key() failed: %d %s\n", r, strerror(r));
         }
@@ -590,7 +580,8 @@ static int veritysetupOpen(int argc, const char* argv[])
     /* Check usage */
     if (argc != 6)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <datafile> <name> <hashfile> <root_hash>\n"
             "\n",
             argv[0],
@@ -606,8 +597,7 @@ static int veritysetupOpen(int argc, const char* argv[])
     if (crypt_init(&cd, datafile_opt) != 0)
         err("crypt_init() failed: %s", datafile_opt);
 
-    struct crypt_params_verity params =
-    {
+    struct crypt_params_verity params = {
         .data_device = datafile_opt,
         .hash_device = hashfile_opt,
         .data_size = data_size / data_block_size,
@@ -631,11 +621,11 @@ static int veritysetupOpen(int argc, const char* argv[])
     }
 
     if (crypt_activate_by_volume_key(
-        cd,
-        name_opt,
-        (const char*)root_hash,
-        root_hash_size,
-        CRYPT_ACTIVATE_READONLY) != 0)
+            cd,
+            name_opt,
+            (const char*)root_hash,
+            root_hash_size,
+            CRYPT_ACTIVATE_READONLY) != 0)
     {
         err("crypt_activate_by_volume_key() failed");
     }
@@ -657,7 +647,8 @@ static int luksGetMasterKey(int argc, const char* argv[])
     /* Check usage */
     if (argc != 4)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile> <pwd>\n"
             "\n",
             argv[0],
@@ -672,11 +663,7 @@ static int luksGetMasterKey(int argc, const char* argv[])
         err("cannot open %s\n", luksfile);
 
     if ((r = vic_luks_recover_master_key(
-        dev,
-        pwd,
-        strlen(pwd),
-        &key,
-        &key_size)) != VIC_OK)
+             dev, pwd, strlen(pwd), &key, &key_size)) != VIC_OK)
     {
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
@@ -712,7 +699,8 @@ static int luksAddKey(int argc, const char* argv[])
     /* Check usage */
     if (argc != 5)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile> <pwd> <new-pwd>\n"
             "OPTIONS:\n"
             "    --keyslot-cipher <type>\n"
@@ -732,21 +720,20 @@ static int luksAddKey(int argc, const char* argv[])
     if (vic_blockdev_open(luksfile, VIC_RDWR, 0, &dev) != VIC_OK)
         err("cannot open %s\n", luksfile);
 
-    vic_kdf_t kdf =
-    {
+    vic_kdf_t kdf = {
         .iterations = slot_iterations,
         .memory = pbkdf_memory,
     };
 
     if ((r = vic_luks_add_key(
-        dev,
-        keyslot_cipher,
-        pbkdf,
-        &kdf,
-        pwd,
-        strlen(pwd),
-        new_pwd,
-        strlen(new_pwd))) != VIC_OK)
+             dev,
+             keyslot_cipher,
+             pbkdf,
+             &kdf,
+             pwd,
+             strlen(pwd),
+             new_pwd,
+             strlen(new_pwd))) != VIC_OK)
     {
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
@@ -764,7 +751,8 @@ static int luksChangeKey(int argc, const char* argv[])
     /* Check usage */
     if (argc != 5)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile> <old-pwd> <new-pwd>\n"
             "\n",
             argv[0],
@@ -780,11 +768,8 @@ static int luksChangeKey(int argc, const char* argv[])
         err("cannot open %s\n", luksfile);
 
     if ((r = vic_luks_change_key(
-        dev,
-        old_pwd,
-        strlen(old_pwd),
-        new_pwd,
-        strlen(new_pwd))) != VIC_OK)
+             dev, old_pwd, strlen(old_pwd), new_pwd, strlen(new_pwd))) !=
+        VIC_OK)
     {
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
@@ -802,7 +787,8 @@ static int luksRemoveKey(int argc, const char* argv[])
     /* Check usage */
     if (argc != 4)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile> <pwd>\n"
             "\n",
             argv[0],
@@ -836,7 +822,8 @@ static int luksOpen(int argc, const char* argv[])
     /* Check usage */
     if (argc != 5)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile> <pwd> <dev-mapper-name>\n"
             "\n",
             argv[0],
@@ -852,11 +839,7 @@ static int luksOpen(int argc, const char* argv[])
         err("cannot open %s\n", luksfile);
 
     if ((r = vic_luks_recover_master_key(
-        dev,
-        pwd,
-        strlen(pwd),
-        &key,
-        &key_size)) != VIC_OK)
+             dev, pwd, strlen(pwd), &key, &key_size)) != VIC_OK)
     {
         err("%s() failed: %s\n", argv[1], vic_result_string(r));
     }
@@ -878,7 +861,8 @@ static int luksOpenByKey(int argc, const char* argv[])
     /* Check usage */
     if (argc != 5)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <luksfile> <keyfile> <dev-mapper-name>\n"
             "\n",
             argv[0],
@@ -906,7 +890,8 @@ static int luksClose(int argc, const char* argv[])
     /* Check usage */
     if (argc != 3)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <dev-mapper-name>\n"
             "\n",
             argv[0],
@@ -929,7 +914,8 @@ static int verityClose(int argc, const char* argv[])
     /* Check usage */
     if (argc != 3)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <dev-mapper-name>\n"
             "\n",
             argv[0],
@@ -973,7 +959,8 @@ static int verityDump(int argc, const char* argv[])
     /* Check usage */
     if (argc != 3)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <hashfile>\n"
             "\n",
             argv[0],
@@ -1034,7 +1021,8 @@ static int verityFormat(int argc, const char* argv[])
     /* Check usage */
     if (argc != 4)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <datafile> <hashfile>\n"
             "OPTIONS:\n"
             "    --salt <value>\n"
@@ -1075,17 +1063,17 @@ static int verityFormat(int argc, const char* argv[])
         err("cannot open hash file: %s\n", hashfile);
 
     if ((r = vic_verity_format(
-        data_dev,
-        hash_dev,
-        hash_opt,
-        uuid_opt,
-        salt,
-        salt_size,
-        need_superblock,
-        data_block_size,
-        hash_block_size,
-        root_hash,
-        &root_hash_size)) != 0)
+             data_dev,
+             hash_dev,
+             hash_opt,
+             uuid_opt,
+             salt,
+             salt_size,
+             need_superblock,
+             data_block_size,
+             hash_block_size,
+             root_hash,
+             &root_hash_size)) != 0)
     {
         err("verityFormat: failed: r=%u: %s\n", r, vic_result_string(r));
     }
@@ -1107,7 +1095,8 @@ static int verityOpen(int argc, const char* argv[])
     /* Check usage */
     if (argc != 6)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s <datafile> <name> <hashfile> <root_hash>\n"
             "\n",
             argv[0],
@@ -1136,11 +1125,8 @@ static int verityOpen(int argc, const char* argv[])
         err("cannot open hash file: %s\n", hashfile);
 
     if ((r = vic_verity_open(
-        name_opt,
-        data_dev,
-        hash_dev,
-        root_hash,
-        root_hash_size)) != VIC_OK)
+             name_opt, data_dev, hash_dev, root_hash, root_hash_size)) !=
+        VIC_OK)
     {
         err("vic_verity_open() failed: %u: %s\n", r, vic_result_string(r));
     }
@@ -1160,7 +1146,8 @@ static int randomAction(int argc, const char* argv[])
     /* Check usage */
     if (argc != 3)
     {
-        fprintf(stderr,
+        fprintf(
+            stderr,
             "Usage: %s %s count\n"
             "\n",
             argv[0],
@@ -1212,7 +1199,6 @@ int main(int argc, const char* argv[])
                 err("bad --trace option: %s", trace);
         }
     }
-
 
     if (argc < 2)
     {

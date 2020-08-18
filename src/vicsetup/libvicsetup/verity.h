@@ -11,7 +11,7 @@ VIC_PACK_BEGIN
 typedef struct _vic_verity_sb
 {
     /* (0) "verity\0\0" */
-    uint8_t  signature[8];
+    uint8_t signature[8];
 
     /* (8) superblock version, 1 */
     uint32_t version;
@@ -38,15 +38,14 @@ typedef struct _vic_verity_sb
     uint16_t salt_size;
 
     /* (82) Padding */
-    uint8_t  _pad1[6];
+    uint8_t _pad1[6];
 
     /* (88) The salt */
-    uint8_t  salt[VIC_VERITY_MAX_SALT_SIZE];
+    uint8_t salt[VIC_VERITY_MAX_SALT_SIZE];
 
     /* Padding */
-    uint8_t  _pad2[168];
-}
-vic_verity_sb_t;
+    uint8_t _pad2[168];
+} vic_verity_sb_t;
 VIC_PACK_END
 
 VIC_STATIC_ASSERT(sizeof(vic_verity_sb_t) == 512);

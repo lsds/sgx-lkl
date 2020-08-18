@@ -1,8 +1,8 @@
 #include "load_file.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 int json_load_file(

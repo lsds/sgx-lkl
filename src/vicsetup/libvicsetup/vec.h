@@ -7,7 +7,6 @@ typedef struct _vic_vec
 {
     void* data;
     size_t size;
-}
-vic_vec_t;
+} vic_vec_t;
 
 #endif /* _VIC_VEC_H */

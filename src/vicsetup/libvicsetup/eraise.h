@@ -1,8 +1,8 @@
 #ifndef _VIC_ERAISE_H
 #define _VIC_ERAISE_H
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <vic.h>
 #include "trace.h"
@@ -14,8 +14,7 @@
         __eraise(__FILE__, __LINE__, __FUNCTION__, ret); \
         fflush(stdout);                                  \
         goto done;                                       \
-    }                                                    \
-    while (0)
+    } while (0)
 
 #define ECHECK(ERRNUM)                                       \
     do                                                       \
@@ -27,8 +26,7 @@
             __eraise(__FILE__, __LINE__, __FUNCTION__, ret); \
             goto done;                                       \
         }                                                    \
-    }                                                        \
-    while (0)
+    } while (0)
 
 static __inline__ void __eraise(
     const char* file,

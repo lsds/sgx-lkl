@@ -1,40 +1,39 @@
-#include <mbedtls/pkcs5.h>
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <json.h>
+#include <limits.h>
 #include <mbedtls/aes.h>
+#include <mbedtls/base64.h>
 #include <mbedtls/cipher.h>
+#include <mbedtls/pkcs5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
-#include <mbedtls/base64.h>
-#include <stdio.h>
-#include <sys/uio.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <stdio.h>
-#include <string.h>
-#include <limits.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
+#include <string.h>
 #include <sys/ioctl.h>
-#include <json.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
+#include <unistd.h>
 
-#include "luks2.h"
-#include "vic.h"
 #include "byteorder.h"
-#include "strings.h"
-#include "lukscommon.h"
-#include "hexdump.h"
-#include "raise.h"
-#include "hash.h"
 #include "crypto.h"
-#include "trace.h"
 #include "dm.h"
-#include "integrity.h"
-#include "round.h"
 #include "goto.h"
+#include "hash.h"
+#include "hexdump.h"
+#include "integrity.h"
+#include "luks2.h"
+#include "lukscommon.h"
+#include "raise.h"
+#include "round.h"
+#include "strings.h"
+#include "trace.h"
+#include "vic.h"
 
 /*
 **==============================================================================
@@ -145,8 +144,7 @@ typedef struct json_callback_data
     luks2_ext_hdr_t* hdr;
     size_t depth;
     const char* path[MAX_JSON_PATH];
-}
-json_callback_data_t;
+} json_callback_data_t;
 
 static int _strtou64(uint64_t* x, const char* str)
 {
@@ -174,8 +172,7 @@ static vic_kdf_t* _get_default_kdf(const char* kdf_type)
 {
     if (strcmp(kdf_type, "pbkdf2") == 0)
     {
-        static vic_kdf_t _pbkdf2 =
-        {
+        static vic_kdf_t _pbkdf2 = {
             .hash = "sha256",
             .iterations = DEFAULT_KDF_ITERATIONS,
         };
@@ -184,8 +181,7 @@ static vic_kdf_t* _get_default_kdf(const char* kdf_type)
     }
     else if (strncmp(kdf_type, "argon2i", 7) == 0)
     {
-        static vic_kdf_t _argon2i =
-        {
+        static vic_kdf_t _argon2i = {
             .time = DEFAULT_KDF_TIME,
             .memory = DEFAULT_KDF_MEMORY,
             .cpus = DEFAULT_KDF_CPUS,
@@ -199,8 +195,7 @@ static vic_kdf_t* _get_default_kdf(const char* kdf_type)
 
 static bool _valid_pbkdf_type(const char* type)
 {
-    if (strcmp(type, "pbkdf2") == 0 ||
-        strcmp(type, "argon2i") == 0 ||
+    if (strcmp(type, "pbkdf2") == 0 || strcmp(type, "argon2i") == 0 ||
         strcmp(type, "argon2id") == 0)
     {
         return true;
@@ -376,8 +371,7 @@ static json_result_t _json_read_callback(
                     GOTO(done);
                 }
             }
-            else if (json_match(
-                parser, "keyslots.#.kdf.iterations") == JSON_OK)
+            else if (json_match(parser, "keyslots.#.kdf.iterations") == JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -417,16 +411,16 @@ static json_result_t _json_read_callback(
                 size_t olen;
 
                 if (mbedtls_base64_decode(
-                    ks->kdf.salt,
-                    sizeof(ks->kdf.salt),
-                    &olen,
-                    (const unsigned char*)un->string,
-                    strlen(un->string)) != 0)
+                        ks->kdf.salt,
+                        sizeof(ks->kdf.salt),
+                        &olen,
+                        (const unsigned char*)un->string,
+                        strlen(un->string)) != 0)
                 {
-                {
-                    result = JSON_TYPE_MISMATCH;
-                    GOTO(done);
-                }
+                    {
+                        result = JSON_TYPE_MISMATCH;
+                        GOTO(done);
+                    }
                 }
 
                 if (olen != LUKS_SALT_SIZE)
@@ -505,8 +499,8 @@ static json_result_t _json_read_callback(
                     GOTO(done);
                 }
             }
-            else if (json_match(
-                parser, "keyslots.#.area.encryption") == JSON_OK)
+            else if (
+                json_match(parser, "keyslots.#.area.encryption") == JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -525,8 +519,7 @@ static json_result_t _json_read_callback(
                     GOTO(done);
                 }
             }
-            else if (json_match(
-                parser, "keyslots.#.area.key_size") == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.key_size") == JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -539,8 +532,7 @@ static json_result_t _json_read_callback(
                 luks2_keyslot_t* ks = &data->hdr->keyslots[i];
                 ks->area.key_size = un->integer;
             }
-            else if (json_match(
-                parser, "keyslots.#.area.offset") == JSON_OK)
+            else if (json_match(parser, "keyslots.#.area.offset") == JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -643,7 +635,7 @@ static json_result_t _json_read_callback(
 
                 luks2_segment_t* seg = &data->hdr->segments[i];
 
-                if (strcmp(un->string , "dynamic") == 0)
+                if (strcmp(un->string, "dynamic") == 0)
                     seg->size = (uint64_t)-1;
                 else if (_strtou64(&seg->size, un->string) != 0)
                 {
@@ -670,8 +662,7 @@ static json_result_t _json_read_callback(
                     GOTO(done);
                 }
             }
-            else if (json_match(
-                parser, "segments.#.sector_size") == JSON_OK)
+            else if (json_match(parser, "segments.#.sector_size") == JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -684,8 +675,7 @@ static json_result_t _json_read_callback(
                 luks2_segment_t* seg = &data->hdr->segments[i];
                 seg->sector_size = un->integer;
             }
-            else if (json_match(
-                parser, "segments.#.integrity.type") == JSON_OK)
+            else if (json_match(parser, "segments.#.integrity.type") == JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -704,8 +694,9 @@ static json_result_t _json_read_callback(
                     GOTO(done);
                 }
             }
-            else if (json_match(parser,
-                "segments.#.integrity.journal_encryption") == JSON_OK)
+            else if (
+                json_match(parser, "segments.#.integrity.journal_encryption") ==
+                JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -731,8 +722,9 @@ static json_result_t _json_read_callback(
                     GOTO(done);
                 }
             }
-            else if (json_match(parser,
-                "segments.#.integrity.journal_integrity") == JSON_OK)
+            else if (
+                json_match(parser, "segments.#.integrity.journal_integrity") ==
+                JSON_OK)
             {
                 uint64_t i = parser->path[1].number;
 
@@ -884,16 +876,16 @@ static json_result_t _json_read_callback(
                 size_t olen;
 
                 if (mbedtls_base64_decode(
-                    digest->salt,
-                    sizeof(digest->salt),
-                    &olen,
-                    (const unsigned char*)un->string,
-                    strlen(un->string)) != 0)
+                        digest->salt,
+                        sizeof(digest->salt),
+                        &olen,
+                        (const unsigned char*)un->string,
+                        strlen(un->string)) != 0)
                 {
-                {
-                    result = JSON_TYPE_MISMATCH;
-                    GOTO(done);
-                }
+                    {
+                        result = JSON_TYPE_MISMATCH;
+                        GOTO(done);
+                    }
                 }
 
                 if (olen != LUKS_SALT_SIZE)
@@ -916,11 +908,11 @@ static json_result_t _json_read_callback(
                 size_t olen;
 
                 if (mbedtls_base64_decode(
-                    digest->digest,
-                    sizeof(digest->digest),
-                    &olen,
-                    (const unsigned char*)un->string,
-                    strlen(un->string)) != 0)
+                        digest->digest,
+                        sizeof(digest->digest),
+                        &olen,
+                        (const unsigned char*)un->string,
+                        strlen(un->string)) != 0)
                 {
                     result = JSON_TYPE_MISMATCH;
                     GOTO(done);
@@ -973,8 +965,7 @@ typedef struct _traits
 {
     const char* sp;
     const char* nl;
-}
-traits_t;
+} traits_t;
 
 static void _indent(FILE* os, size_t indent, traits_t t)
 {
@@ -1015,12 +1006,7 @@ static void _put_base64_field(
 
     memset(buf, 0, sizeof(buf));
 
-    if (mbedtls_base64_encode(
-        buf,
-        sizeof(buf),
-        &olen,
-        data,
-        size) != 0)
+    if (mbedtls_base64_encode(buf, sizeof(buf), &olen, data, size) != 0)
     {
         assert(false);
     }
@@ -1059,8 +1045,8 @@ static void _dump_keyslot(
         if (strcmp(p->kdf.type, "pbkdf2") == 0)
         {
             _indent(os, indent, t);
-            fprintf(os, "\"iterations\":%s%lu,%s",
-                t.sp, p->kdf.iterations, t.nl);
+            fprintf(
+                os, "\"iterations\":%s%lu,%s", t.sp, p->kdf.iterations, t.nl);
 
             _indent(os, indent, t);
             _put_str_field(os, "hash", p->kdf.hash, ",", t);
@@ -1172,8 +1158,8 @@ static void _dump_segment(
     {
         const char* comma = p->integrity.type[0] ? "," : "";
         _indent(os, indent, t);
-        fprintf(os, "\"sector_size\":%s%lu%s%s",
-            t.sp, p->sector_size, comma, t.nl);
+        fprintf(
+            os, "\"sector_size\":%s%lu%s%s", t.sp, p->sector_size, comma, t.nl);
     }
 
     /* dump integrity object if any */
@@ -1420,12 +1406,20 @@ static int _dump_json_objects(
         fprintf(os, "\"config\":%s{%s", t.sp, t.nl);
 
         _indent(os, indent, t);
-        fprintf(os, "\"json_size\":%s\"%lu\",%s",
-            t.sp, ext->config.json_size, t.nl);
+        fprintf(
+            os,
+            "\"json_size\":%s\"%lu\",%s",
+            t.sp,
+            ext->config.json_size,
+            t.nl);
 
         _indent(os, indent, t);
-        fprintf(os, "\"keyslots_size\":%s\"%lu\"%s",
-            t.sp, ext->config.keyslots_size, t.nl);
+        fprintf(
+            os,
+            "\"keyslots_size\":%s\"%lu\"%s",
+            t.sp,
+            ext->config.keyslots_size,
+            t.nl);
 
         _indent(os, --indent, t);
         fprintf(os, "}%s", t.nl);
@@ -1443,7 +1437,7 @@ static int _dump_json_objects(
 static char* _to_json(luks2_ext_hdr_t* hdr)
 {
     char* ret = NULL;
-    traits_t t = { "", "" };
+    traits_t t = {"", ""};
     FILE* os;
     char* data = NULL;
     size_t size;
@@ -1471,10 +1465,7 @@ done:
     return ret;
 }
 
-static void _dump_binary_hdr(
-    FILE* os,
-    const luks2_hdr_t* hdr,
-    size_t indent);
+static void _dump_binary_hdr(FILE* os, const luks2_hdr_t* hdr, size_t indent);
 
 static int _calculate_csum(
     const luks2_hdr_t* hdr,
@@ -1539,12 +1530,9 @@ done:
     return ret;
 }
 
-static void _dump_binary_hdr(
-    FILE* os,
-    const luks2_hdr_t* hdr,
-    size_t indent)
+static void _dump_binary_hdr(FILE* os, const luks2_hdr_t* hdr, size_t indent)
 {
-    traits_t t = { " ", "\n" };
+    traits_t t = {" ", "\n"};
 
     _indent(os, indent++, t);
     printf("{\n");
@@ -1590,8 +1578,8 @@ static void _dump_binary_hdr(
 
     _indent(os, indent, t);
     printf("csum:\n");
-    vic_hexdump(hdr->csum, vic_hash_size(hdr->csum_alg),
-        true, true, indent + 1);
+    vic_hexdump(
+        hdr->csum, vic_hash_size(hdr->csum_alg), true, true, indent + 1);
 
     _indent(os, --indent, t);
     printf("}\n");
@@ -1618,11 +1606,11 @@ int luks2_dump_hdr(const luks2_hdr_t* hdr)
             size_t hash_size;
 
             if (_calculate_csum(
-                &ext->phdr,
-                ext->json_data,
-                ext->json_size,
-                &hash,
-                &hash_size) != 0)
+                    &ext->phdr,
+                    ext->json_data,
+                    ext->json_size,
+                    &hash,
+                    &hash_size) != 0)
             {
                 GOTO(done);
             }
@@ -1638,12 +1626,11 @@ int luks2_dump_hdr(const luks2_hdr_t* hdr)
 
         /* Dump the JSON objects */
         {
-            traits_t t = { " ", "\n" };
+            traits_t t = {" ", "\n"};
 
             if (_dump_json_objects(stdout, ext, 1, t) != 0)
                 GOTO(done);
         }
-
     }
     printf("}\n");
 
@@ -1660,29 +1647,24 @@ typedef struct
 
     /* The size of the JSON area in kilobytes */
     uint64_t json_kbytes;
-}
-sec_hdr_offset_t;
+} sec_hdr_offset_t;
 
-static sec_hdr_offset_t _sec_hdr_offsets[] =
-{
-    { 16384,  12 }, /* default header size */
-    { 32768,  28 },
-    { 65536,  60 },
-    { 131072,  124 },
-    { 262144,  252 },
-    { 524288,  508 },
-    { 1048576,  1020 },
-    { 2097152,  2044 },
-    { 4194304,  4092 },
+static sec_hdr_offset_t _sec_hdr_offsets[] = {
+    {16384, 12}, /* default header size */
+    {32768, 28},
+    {65536, 60},
+    {131072, 124},
+    {262144, 252},
+    {524288, 508},
+    {1048576, 1020},
+    {2097152, 2044},
+    {4194304, 4092},
 };
 
-static int _read_binary_hdr(
-    vic_blockdev_t* dev,
-    luks2_hdr_t* hdr,
-    bool primary)
+static int _read_binary_hdr(vic_blockdev_t* dev, luks2_hdr_t* hdr, bool primary)
 {
     int ret = -1;
-    size_t blkno =  primary ? 0 : (DEFAULT_HDR_SIZE / VIC_SECTOR_SIZE);
+    size_t blkno = primary ? 0 : (DEFAULT_HDR_SIZE / VIC_SECTOR_SIZE);
     uint8_t blocks[sizeof(luks2_hdr_t)];
     const size_t nblocks = sizeof(blocks) / VIC_SECTOR_SIZE;
 
@@ -1936,11 +1918,11 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
         size_t hash_size;
 
         if (_calculate_csum(
-            &ext->phdr,
-            ext->json_data,
-            ext->json_size,
-            &hash,
-            &hash_size) != 0)
+                &ext->phdr,
+                ext->json_data,
+                ext->json_size,
+                &hash,
+                &hash_size) != 0)
         {
             GOTO(done);
         }
@@ -1952,13 +1934,12 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
     /* Parse and read the JSON elements */
     {
         json_parser_t parser;
-        static json_allocator_t allocator =
-        {
+        static json_allocator_t allocator = {
             malloc,
             free,
         };
 
-        json_callback_data_t callback_data = { ext, 0, { 0 } };
+        json_callback_data_t callback_data = {ext, 0, {0}};
 
         /* Copy the JSON data since the parser destroys its input */
         {
@@ -1968,17 +1949,17 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
             memcpy(data, ext->json_data, ext->json_size);
         }
 
-        const json_parser_options_t options = { 1 };
+        const json_parser_options_t options = {1};
 
         /* Initialize the JSON parser */
         if (json_parser_init(
-            &parser,
-            data,
-            ext->json_size,
-            _json_read_callback,
-            &callback_data,
-            &allocator,
-            &options) != JSON_OK)
+                &parser,
+                data,
+                ext->json_size,
+                _json_read_callback,
+                &callback_data,
+                &allocator,
+                &options) != JSON_OK)
         {
             GOTO(done);
         }
@@ -2006,11 +1987,8 @@ int luks2_read_hdr(vic_blockdev_t* dev, luks2_hdr_t** hdr_out)
             size_t hash_size;
 
             if (_calculate_csum(
-                shdr,
-                ext->json_data,
-                ext->json_size,
-                &hash,
-                &hash_size) != 0)
+                    shdr, ext->json_data, ext->json_size, &hash, &hash_size) !=
+                0)
             {
                 GOTO(done);
             }
@@ -2159,7 +2137,7 @@ static int _gen_iv(
 
     /* Use the SHA256-generated hash as the key */
     if (mbedtls_aes_setkey_enc(
-        &aes_ctx, hash.u.sha256, sizeof(hash.u.sha256) * 8) != 0)
+            &aes_ctx, hash.u.sha256, sizeof(hash.u.sha256) * 8) != 0)
     {
         GOTO(done);
     }
@@ -2191,7 +2169,7 @@ static int _crypt(
     size_t key_bytes,
     const vic_key_t* key,
     const uint8_t* data_in,
-    uint8_t *data_out,
+    uint8_t* data_out,
     size_t data_size,
     uint64_t sector)
 {
@@ -2229,13 +2207,13 @@ static int _crypt(
         pos = i * block_len;
 
         if (mbedtls_cipher_crypt(
-            &cipher_ctx,
-            iv, /* iv */
-            LUKS_IV_SIZE, /* iv_size */
-            data_in + pos, /* input */
-            block_len, /* ilen */
-            data_out + pos, /* output */
-            &olen) != 0) /* olen */
+                &cipher_ctx,
+                iv,             /* iv */
+                LUKS_IV_SIZE,   /* iv_size */
+                data_in + pos,  /* input */
+                block_len,      /* ilen */
+                data_out + pos, /* output */
+                &olen) != 0)    /* olen */
         {
             GOTO(done);
         }
@@ -2254,20 +2232,13 @@ static int _encrypt(
     uint64_t key_bytes,
     const vic_key_t* key,
     const uint8_t* data_in,
-    uint8_t *data_out,
+    uint8_t* data_out,
     size_t data_size,
     uint64_t sector)
 {
     const mbedtls_operation_t op = MBEDTLS_ENCRYPT;
     return _crypt(
-        op,
-        encryption,
-        key_bytes,
-        key,
-        data_in,
-        data_out,
-        data_size,
-        sector);
+        op, encryption, key_bytes, key, data_in, data_out, data_size, sector);
 }
 
 static int _decrypt(
@@ -2275,20 +2246,13 @@ static int _decrypt(
     uint64_t key_bytes,
     const vic_key_t* key,
     const uint8_t* data_in,
-    uint8_t *data_out,
+    uint8_t* data_out,
     size_t data_size,
     uint64_t sector)
 {
     const mbedtls_operation_t op = MBEDTLS_DECRYPT;
     return _crypt(
-        op,
-        encryption,
-        key_bytes,
-        key,
-        data_in,
-        data_out,
-        data_size,
-        sector);
+        op, encryption, key_bytes, key, data_in, data_out, data_size, sector);
 }
 
 static const luks2_digest_t* _find_digest(
@@ -2348,14 +2312,14 @@ static vic_result_t _find_key_by_pwd(
         if (strcmp(ks->kdf.type, "pbkdf2") == 0)
         {
             if (vic_pbkdf2(
-                pwd,
-                pwd_size,
-                ks->kdf.salt,
-                sizeof(ks->kdf.salt),
-                ks->kdf.iterations,
-                ks->kdf.hash,
-                &pbkdf2_key,
-                ks->area.key_size) != 0)
+                    pwd,
+                    pwd_size,
+                    ks->kdf.salt,
+                    sizeof(ks->kdf.salt),
+                    ks->kdf.iterations,
+                    ks->kdf.hash,
+                    &pbkdf2_key,
+                    ks->area.key_size) != 0)
             {
                 RAISE(VIC_PBKDF2_FAILED);
             }
@@ -2363,15 +2327,15 @@ static vic_result_t _find_key_by_pwd(
         else if (strcmp(ks->kdf.type, "argon2i") == 0)
         {
             if (vic_argon2i(
-                pwd,
-                pwd_size,
-                ks->kdf.salt,
-                sizeof(ks->kdf.salt),
-                ks->kdf.time,
-                ks->kdf.memory,
-                ks->kdf.cpus,
-                &pbkdf2_key,
-                ks->area.key_size) != 0)
+                    pwd,
+                    pwd_size,
+                    ks->kdf.salt,
+                    sizeof(ks->kdf.salt),
+                    ks->kdf.time,
+                    ks->kdf.memory,
+                    ks->kdf.cpus,
+                    &pbkdf2_key,
+                    ks->area.key_size) != 0)
             {
                 RAISE(VIC_ARGON2I_FAILED);
             }
@@ -2379,15 +2343,15 @@ static vic_result_t _find_key_by_pwd(
         else if (strcmp(ks->kdf.type, "argon2id") == 0)
         {
             if (vic_argon2id(
-                pwd,
-                pwd_size,
-                ks->kdf.salt,
-                sizeof(ks->kdf.salt),
-                ks->kdf.time,
-                ks->kdf.memory,
-                ks->kdf.cpus,
-                &pbkdf2_key,
-                ks->area.key_size) != 0)
+                    pwd,
+                    pwd_size,
+                    ks->kdf.salt,
+                    sizeof(ks->kdf.salt),
+                    ks->kdf.time,
+                    ks->kdf.memory,
+                    ks->kdf.cpus,
+                    &pbkdf2_key,
+                    ks->area.key_size) != 0)
             {
                 RAISE(VIC_ARGON2I_FAILED);
             }
@@ -2398,11 +2362,8 @@ static vic_result_t _find_key_by_pwd(
         if (!(cipher = calloc(size, 1)))
             RAISE(VIC_OUT_OF_MEMORY);
 
-        if (_read_key_material(
-            dev,
-            ks->area.offset,
-            ks->area.size,
-            cipher) != 0)
+        if (_read_key_material(dev, ks->area.offset, ks->area.size, cipher) !=
+            0)
         {
             RAISE(VIC_KEY_MATERIAL_READ_FAILED);
         }
@@ -2411,23 +2372,19 @@ static vic_result_t _find_key_by_pwd(
             RAISE(VIC_OUT_OF_MEMORY);
 
         if (_decrypt(
-            ks->area.encryption,
-            ks->area.key_size,
-            &pbkdf2_key,
-            cipher,
-            plain,
-            size,
-            0) != 0)
+                ks->area.encryption,
+                ks->area.key_size,
+                &pbkdf2_key,
+                cipher,
+                plain,
+                size,
+                0) != 0)
         {
             RAISE(VIC_DECRYPT_FAILED);
         }
 
         if (vic_afmerge(
-            ks->key_size,
-            ks->af.stripes,
-            ks->af.hash,
-            plain,
-            &mk) != 0)
+                ks->key_size, ks->af.stripes, ks->af.hash, plain, &mk) != 0)
         {
             RAISE(VIC_AFMERGE_FAILED);
         }
@@ -2441,14 +2398,14 @@ static vic_result_t _find_key_by_pwd(
         if (strcmp(digest->type, "pbkdf2") == 0)
         {
             if (vic_pbkdf2(
-                &mk,
-                ks->key_size,
-                digest->salt,
-                sizeof(digest->salt),
-                digest->iterations,
-                digest->hash,
-                mk_digest,
-                digest_size) != 0)
+                    &mk,
+                    ks->key_size,
+                    digest->salt,
+                    sizeof(digest->salt),
+                    digest->iterations,
+                    digest->hash,
+                    mk_digest,
+                    digest_size) != 0)
             {
                 RAISE(VIC_PBKDF2_FAILED);
             }
@@ -2561,35 +2518,34 @@ static int _init_keyslot(
     if ((hash_size = vic_hash_size(pbkdf2_hash)) == (size_t)-1)
         goto done;
 
-    luks2_keyslot_t ks =
-    {
+    luks2_keyslot_t ks = {
         .type = "luks2",
         .key_size = key_size,
         .kdf =
-        {
-            .type = "",
-            .salt = { 0 },
-            /* pbkdf2 */
-            .hash = "",
-            .iterations = 0,
-            /* argon2 */
-            .time = 0,
-            .memory = 0,
-            .cpus = 0,
-        },
+            {
+                .type = "",
+                .salt = {0},
+                /* pbkdf2 */
+                .hash = "",
+                .iterations = 0,
+                /* argon2 */
+                .time = 0,
+                .memory = 0,
+                .cpus = 0,
+            },
         .af =
-        {
-            .type = "luks1",
-            .hash = DEFAULT_HASH,
-            .stripes = DEFAULT_AF_STRIPES,
-        },
+            {
+                .type = "luks1",
+                .hash = DEFAULT_HASH,
+                .stripes = DEFAULT_AF_STRIPES,
+            },
         .area =
-        {
-            .type = "raw",
-            .key_size = area_key_size,
-            .offset = area_offset,
-            .size = area_size,
-        },
+            {
+                .type = "raw",
+                .key_size = area_key_size,
+                .offset = area_offset,
+                .size = area_size,
+            },
     };
 
     if (STRLCPY(ks.kdf.type, pbkdf_type) != 0)
@@ -2646,21 +2602,20 @@ static vic_result_t _initialize_hdr(
 
     /* hdr */
     {
-        luks2_hdr_t hdr =
-        {
+        luks2_hdr_t hdr = {
             .magic = LUKS_MAGIC_1ST,
             .version = LUKS_VERSION_2,
             .hdr_size = hdr_size,
             .seqid = 1,
             .label = "",
             .csum_alg = DEFAULT_HASH,
-            .salt = { 0 },
+            .salt = {0},
             .uuid = "",
             .subsystem = "",
             .hdr_offset = 0,
-            ._padding = { 0 },
-            .csum = { 0 },
-            ._padding4096 = { 0 },
+            ._padding = {0},
+            .csum = {0},
+            ._padding4096 = {0},
         };
 
         /* hdr.label */
@@ -2696,8 +2651,7 @@ static vic_result_t _initialize_hdr(
 
     /* hdr.segments[] */
     {
-        luks2_segment_t s =
-        {
+        luks2_segment_t s = {
             .type = "crypt",
             .iv_tweak = 0,
             .size = (uint64_t)-1, /* dynamic */
@@ -2728,10 +2682,9 @@ static vic_result_t _initialize_hdr(
     {
         size_t digest_size;
 
-        luks2_digest_t d =
-        {
+        luks2_digest_t d = {
             .type = "pbkdf2",
-            .segments = { 1 },
+            .segments = {1},
             .iterations = iterations,
         };
 
@@ -2743,14 +2696,14 @@ static vic_result_t _initialize_hdr(
         vic_random(d.salt, sizeof(d.salt));
 
         if (vic_pbkdf2(
-            key->buf,
-            key_size,
-            d.salt,
-            sizeof(d.salt),
-            d.iterations,
-            d.hash,
-            d.digest,
-            digest_size) != 0)
+                key->buf,
+                key_size,
+                d.salt,
+                sizeof(d.salt),
+                d.iterations,
+                d.hash,
+                d.digest,
+                digest_size) != 0)
         {
             RAISE(VIC_PBKDF2_FAILED);
         }
@@ -2795,11 +2748,7 @@ static vic_result_t _initialize_hdr(
         size_t hash_size;
 
         if (_calculate_csum(
-            &p->phdr,
-            p->json_data,
-            p->json_size,
-            &hash,
-            &hash_size) != 0)
+                &p->phdr, p->json_data, p->json_size, &hash, &hash_size) != 0)
         {
             GOTO(done);
         }
@@ -2835,7 +2784,7 @@ static vic_result_t _generate_key_material(
     if (data_out)
         *data_out = NULL;
 
-    if (!ext || !ks || !key|| !pwd)
+    if (!ext || !ks || !key || !pwd)
         RAISE(VIC_BAD_PARAMETER);
 
     if (!(plain = calloc(1, ks->area.size)))
@@ -2847,14 +2796,14 @@ static vic_result_t _generate_key_material(
     if (strcmp(ks->kdf.type, "pbkdf2") == 0)
     {
         if (vic_pbkdf2(
-            pwd,
-            pwd_size,
-            ks->kdf.salt,
-            sizeof(ks->kdf.salt),
-            ks->kdf.iterations,
-            ks->kdf.hash,
-            &pbkdf2_key,
-            ks->area.key_size) != 0)
+                pwd,
+                pwd_size,
+                ks->kdf.salt,
+                sizeof(ks->kdf.salt),
+                ks->kdf.iterations,
+                ks->kdf.hash,
+                &pbkdf2_key,
+                ks->area.key_size) != 0)
         {
             RAISE(VIC_PBKDF2_FAILED);
         }
@@ -2862,15 +2811,15 @@ static vic_result_t _generate_key_material(
     else if (strcmp(ks->kdf.type, "argon2i") == 0)
     {
         if (vic_argon2i(
-            pwd,
-            pwd_size,
-            ks->kdf.salt,
-            sizeof(ks->kdf.salt),
-            ks->kdf.time,
-            ks->kdf.memory,
-            ks->kdf.cpus,
-            &pbkdf2_key,
-            ks->area.key_size) != 0)
+                pwd,
+                pwd_size,
+                ks->kdf.salt,
+                sizeof(ks->kdf.salt),
+                ks->kdf.time,
+                ks->kdf.memory,
+                ks->kdf.cpus,
+                &pbkdf2_key,
+                ks->area.key_size) != 0)
         {
             RAISE(VIC_ARGON2I_FAILED);
         }
@@ -2878,39 +2827,34 @@ static vic_result_t _generate_key_material(
     else if (strcmp(ks->kdf.type, "argon2id") == 0)
     {
         if (vic_argon2id(
-            pwd,
-            pwd_size,
-            ks->kdf.salt,
-            sizeof(ks->kdf.salt),
-            ks->kdf.time,
-            ks->kdf.memory,
-            ks->kdf.cpus,
-            &pbkdf2_key,
-            ks->area.key_size) != 0)
+                pwd,
+                pwd_size,
+                ks->kdf.salt,
+                sizeof(ks->kdf.salt),
+                ks->kdf.time,
+                ks->kdf.memory,
+                ks->kdf.cpus,
+                &pbkdf2_key,
+                ks->area.key_size) != 0)
         {
             RAISE(VIC_ARGON2I_FAILED);
         }
     }
 
-    if (vic_afsplit(
-        ks->af.hash,
-        key,
-        ks->key_size,
-        ks->af.stripes,
-        plain) != 0)
+    if (vic_afsplit(ks->af.hash, key, ks->key_size, ks->af.stripes, plain) != 0)
     {
         RAISE(VIC_AFSPLIT_FAILED);
     }
 
     /* Encrypt the stripes */
     if (_encrypt(
-        ks->area.encryption,
-        ks->area.key_size,
-        &pbkdf2_key,
-        plain,
-        cipher,
-        ks->area.size,
-        0) != 0)
+            ks->area.encryption,
+            ks->area.key_size,
+            &pbkdf2_key,
+            plain,
+            cipher,
+            ks->area.size,
+            0) != 0)
     {
         RAISE(VIC_ENCRYPT_FAILED);
     }
@@ -3267,11 +3211,7 @@ vic_result_t luks2_format(
         RAISE(VIC_FAILED);
 
     /* Write the primary JSON area */
-    if (_write_json_area(
-        dev,
-        &ext->phdr,
-        ext->json_data,
-        ext->json_size) != 0)
+    if (_write_json_area(dev, &ext->phdr, ext->json_data, ext->json_size) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -3293,11 +3233,11 @@ vic_result_t luks2_format(
             size_t hash_size;
 
             if (_calculate_csum(
-                &ext->shdr,
-                ext->json_data,
-                ext->json_size,
-                &hash,
-                &hash_size) != 0)
+                    &ext->shdr,
+                    ext->json_data,
+                    ext->json_size,
+                    &hash,
+                    &hash_size) != 0)
             {
                 GOTO(done);
             }
@@ -3312,11 +3252,7 @@ vic_result_t luks2_format(
     }
 
     /* Write the secondary JSON area (identical to the first) */
-    if (_write_json_area(
-        dev,
-        &ext->shdr,
-        ext->json_data,
-        ext->json_size) != 0)
+    if (_write_json_area(dev, &ext->shdr, ext->json_data, ext->json_size) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -3346,12 +3282,7 @@ vic_result_t luks2_format(
         snprintf(dmpath, sizeof(dmpath), "/dev/mapper/%s", name_dif);
 
         CHECK(_open_integrity_luks2_device(
-            dev,
-            ext,
-            name,
-            dmpath,
-            master_key,
-            master_key_bytes));
+            dev, ext, name, dmpath, master_key, master_key_bytes));
 
         snprintf(dmpath, sizeof(dmpath), "/dev/mapper/%s", name);
 
@@ -3414,11 +3345,11 @@ static vic_result_t _write_hdr(vic_blockdev_t* dev, luks2_ext_hdr_t* ext)
             size_t hash_size;
 
             if (_calculate_csum(
-                &ext->phdr,
-                ext->json_data,
-                ext->json_size,
-                &hash,
-                &hash_size) != 0)
+                    &ext->phdr,
+                    ext->json_data,
+                    ext->json_size,
+                    &hash,
+                    &hash_size) != 0)
             {
                 GOTO(done);
             }
@@ -3433,11 +3364,7 @@ static vic_result_t _write_hdr(vic_blockdev_t* dev, luks2_ext_hdr_t* ext)
     }
 
     /* Write the primary JSON area */
-    if (_write_json_area(
-        dev,
-        &ext->phdr,
-        ext->json_data,
-        ext->json_size) != 0)
+    if (_write_json_area(dev, &ext->phdr, ext->json_data, ext->json_size) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -3453,11 +3380,11 @@ static vic_result_t _write_hdr(vic_blockdev_t* dev, luks2_ext_hdr_t* ext)
             size_t hash_size;
 
             if (_calculate_csum(
-                &ext->shdr,
-                ext->json_data,
-                ext->json_size,
-                &hash,
-                &hash_size) != 0)
+                    &ext->shdr,
+                    ext->json_data,
+                    ext->json_size,
+                    &hash,
+                    &hash_size) != 0)
             {
                 GOTO(done);
             }
@@ -3472,11 +3399,7 @@ static vic_result_t _write_hdr(vic_blockdev_t* dev, luks2_ext_hdr_t* ext)
     }
 
     /* Write the secondary JSON area (identical to the first) */
-    if (_write_json_area(
-        dev,
-        &ext->shdr,
-        ext->json_data,
-        ext->json_size) != 0)
+    if (_write_json_area(dev, &ext->shdr, ext->json_data, ext->json_size) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -3528,12 +3451,11 @@ vic_result_t luks2_add_key(
         RAISE(VIC_HEADER_READ_FAILED);
 
     /* Use password to find the master key */
-    CHECK(_find_key_by_pwd(dev, ext, pwd, pwd_size, &key, &key_size,
-        &index));
+    CHECK(_find_key_by_pwd(dev, ext, pwd, pwd_size, &key, &key_size, &index));
 
     /* The area key excludes the integrity key suffix (if any) */
-    area_key_size = key_size - vic_integrity_key_size(
-        ext->segments[0].integrity.type);
+    area_key_size =
+        key_size - vic_integrity_key_size(ext->segments[0].integrity.type);
 
     if (!keyslot_cipher)
         keyslot_cipher = ext->keyslots[index].area.encryption;
@@ -3544,17 +3466,17 @@ vic_result_t luks2_add_key(
             RAISE(VIC_OUT_OF_KEYSLOTS);
 
         if (_init_keyslot(
-            &ext->keyslots[index],
-            keyslot_cipher,
-            key_size,
-            area_key_size,
-            kdf_type,
-            kdf->hash,
-            kdf->iterations,
-            kdf->time,
-            kdf->memory,
-            kdf->cpus,
-            index) != 0)
+                &ext->keyslots[index],
+                keyslot_cipher,
+                key_size,
+                area_key_size,
+                kdf_type,
+                kdf->hash,
+                kdf->iterations,
+                kdf->time,
+                kdf->memory,
+                kdf->cpus,
+                index) != 0)
         {
             RAISE(VIC_FAILED);
         }
@@ -3570,8 +3492,8 @@ vic_result_t luks2_add_key(
     {
         const luks2_keyslot_t* ks = &ext->keyslots[index];
 
-        CHECK(_generate_key_material(ext, ks, &key, new_pwd, new_pwd_size,
-            &data));
+        CHECK(_generate_key_material(
+            ext, ks, &key, new_pwd, new_pwd_size, &data));
 
         if (_write_key_material(dev, ks, data) != 0)
             RAISE(VIC_KEY_MATERIAL_WRITE_FAILED);
@@ -3625,8 +3547,8 @@ vic_result_t luks2_add_key_by_master_key(
         RAISE(VIC_HEADER_READ_FAILED);
 
     /* The area key excludes the integrity key suffix (if any) */
-    area_key_size = master_key_bytes - vic_integrity_key_size(
-        ext->segments[0].integrity.type);
+    area_key_size = master_key_bytes -
+                    vic_integrity_key_size(ext->segments[0].integrity.type);
 
     /* Add a new key slot */
     {
@@ -3634,17 +3556,17 @@ vic_result_t luks2_add_key_by_master_key(
             RAISE(VIC_OUT_OF_KEYSLOTS);
 
         if (_init_keyslot(
-            &ext->keyslots[index],
-            keyslot_cipher,
-            master_key_bytes,
-            area_key_size,
-            kdf_type,
-            kdf->hash,
-            kdf->iterations,
-            kdf->time,
-            kdf->memory,
-            kdf->cpus,
-            index) != 0)
+                &ext->keyslots[index],
+                keyslot_cipher,
+                master_key_bytes,
+                area_key_size,
+                kdf_type,
+                kdf->hash,
+                kdf->iterations,
+                kdf->time,
+                kdf->memory,
+                kdf->cpus,
+                index) != 0)
         {
             RAISE(VIC_FAILED);
         }
@@ -3660,8 +3582,8 @@ vic_result_t luks2_add_key_by_master_key(
     {
         const luks2_keyslot_t* ks = &ext->keyslots[index];
 
-        CHECK(_generate_key_material(
-            ext, ks, master_key, pwd, pwd_size, &data));
+        CHECK(
+            _generate_key_material(ext, ks, master_key, pwd, pwd_size, &data));
 
         if (_write_key_material(dev, ks, data) != 0)
             RAISE(VIC_KEY_MATERIAL_WRITE_FAILED);

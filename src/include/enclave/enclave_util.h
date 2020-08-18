@@ -93,8 +93,9 @@ void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...);
 
 /**
  *
- * Note that generating a stack trace by unwinding stack frames could be exploited
- * by an attacker and therefore should only be possible in a DEBUG build.
+ * Note that generating a stack trace by unwinding stack frames could be
+ * exploited by an attacker and therefore should only be possible in a DEBUG
+ * build.
  */
 #ifdef DEBUG
 /**

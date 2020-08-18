@@ -1,11 +1,11 @@
 #ifndef _VIC_HASH_H
 #define _VIC_HASH_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <vic.h>
-#include "vec.h"
 #include "defs.h"
+#include "vec.h"
 
 #define VIC_HASH_SPEC_SHA1 "sha1"
 #define VIC_HASH_SPEC_SHA256 "sha256"
@@ -25,29 +25,24 @@ typedef enum vic_hash_type
     VIC_HASH_SHA256,
     VIC_HASH_SHA512,
     VIC_HASH_RIPEMD160,
-}
-vic_hash_type_t;
+} vic_hash_type_t;
 
 typedef struct vic_hash_ctx
 {
     vic_hash_type_t type;
     uint64_t impl[32];
-}
-vic_hash_ctx_t;
+} vic_hash_ctx_t;
 
 typedef struct _vic_hash
 {
-    union
-    {
+    union {
         uint8_t sha1[VIC_SHA1_SIZE];
         uint8_t sha256[VIC_SHA256_SIZE];
         uint8_t sha512[VIC_SHA512_SIZE];
         uint8_t ripemd160[VIC_RIPE160_SIZE];
         uint8_t buf[VIC_MAX_HASH_SIZE];
-    }
-    u;
-}
-vic_hash_t;
+    } u;
+} vic_hash_t;
 
 int vic_hash_init(vic_hash_ctx_t* ctx, vic_hash_type_t type);
 
@@ -71,7 +66,7 @@ VIC_INLINE int vic_hash1(
     size_t n,
     vic_hash_t* hash)
 {
-    vic_vec_t vec[] = { { (void*)s, n } };
+    vic_vec_t vec[] = {{(void*)s, n}};
     return vic_hashv(type, vec, VIC_COUNTOF(vec), hash);
 }
 
@@ -83,7 +78,7 @@ VIC_INLINE int vic_hash2(
     size_t n2,
     vic_hash_t* hash)
 {
-    vic_vec_t vec[] = { { (void*)s1, n1 }, { (void*)s2, n2} };
+    vic_vec_t vec[] = {{(void*)s1, n1}, {(void*)s2, n2}};
     return vic_hashv(type, vec, VIC_COUNTOF(vec), hash);
 }
 

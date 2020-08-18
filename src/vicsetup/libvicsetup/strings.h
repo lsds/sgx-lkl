@@ -1,10 +1,10 @@
 #ifndef _VIC_STRINGS_H
 #define _VIC_STRINGS_H
 
-#include "vic.h"
-#include "defs.h"
-#include <stddef.h>
 #include <errno.h>
+#include <stddef.h>
+#include "defs.h"
+#include "vic.h"
 
 size_t vic_strlcpy(char* dest, const char* src, size_t size);
 

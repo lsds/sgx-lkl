@@ -1,24 +1,24 @@
-#include <string.h>
-#include <sys/time.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
 
-#include <mbedtls/pkcs5.h>
 #include <mbedtls/aes.h>
+#include <mbedtls/base64.h>
 #include <mbedtls/cipher.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/pkcs5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
-#include <mbedtls/base64.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
 #include <pthread.h>
 
 #include <argon2.h>
-#include "crypto.h"
-#include "hash.h"
 #include "byteorder.h"
+#include "crypto.h"
 #include "goto.h"
+#include "hash.h"
 #include "hexdump.h"
 
 static mbedtls_ctr_drbg_context _drbg;
@@ -108,14 +108,14 @@ int vic_pbkdf2(
         GOTO(done);
 
     if (mbedtls_pkcs5_pbkdf2_hmac(
-        &ctx,
-        password,
-        password_size,
-        salt,
-        salt_size,
-        iterations,
-        key_size,
-        key) != 0)
+            &ctx,
+            password,
+            password_size,
+            salt,
+            salt_size,
+            iterations,
+            key_size,
+            key) != 0)
     {
         GOTO(done);
     }
@@ -249,8 +249,7 @@ int vic_argon2i(
 {
     int ret = -1;
     int r;
-    argon2_context context =
-    {
+    argon2_context context = {
         .flags = ARGON2_DEFAULT_FLAGS,
         .version = ARGON2_VERSION_NUMBER,
         .t_cost = (uint32_t)time,
@@ -295,8 +294,7 @@ int vic_argon2id(
 {
     int ret = -1;
     int r;
-    argon2_context context =
-    {
+    argon2_context context = {
         .flags = ARGON2_DEFAULT_FLAGS,
         .version = ARGON2_VERSION_NUMBER,
         .t_cost = (uint32_t)time,
@@ -372,7 +370,7 @@ int vic_afsplit(
     vic_random(split_key, key_size * stripes);
 
     if (_gen_split_material(
-        hash_spec, split_key, prev.buf, key_size, stripes) != 0)
+            hash_spec, split_key, prev.buf, key_size, stripes) != 0)
     {
         GOTO(done);
     }

@@ -1,9 +1,9 @@
 #ifndef _VIC_HEXDUMP_H
 #define _VIC_HEXDUMP_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "vic.h"
 

@@ -1,14 +1,20 @@
 #ifndef _VIC_LUKSCOMMON_H
 #define _VIC_LUKSCOMMON_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include "uuid.h"
 
 #define LUKS_VERSION_1 1
 #define LUKS_VERSION_2 2
-#define LUKS_MAGIC_1ST { 'L', 'U', 'K', 'S', 0xba, 0xbe }
-#define LUKS_MAGIC_2ND { 'S', 'K', 'U', 'L', 0xba, 0xbe }
+#define LUKS_MAGIC_1ST                 \
+    {                                  \
+        'L', 'U', 'K', 'S', 0xba, 0xbe \
+    }
+#define LUKS_MAGIC_2ND                 \
+    {                                  \
+        'S', 'K', 'U', 'L', 0xba, 0xbe \
+    }
 #define LUKS_MAGIC_SIZE 6
 #define VIC_HASH_SPEC_SIZE 32
 #define LUKS_SALT_SIZE 32
@@ -26,8 +32,7 @@ typedef struct vic_luks_hdr
     uint8_t padding1[160];
     char uuid[VIC_UUID_STRING_SIZE];
     uint8_t padding2[304];
-}
-vic_luks_hdr_t;
+} vic_luks_hdr_t;
 
 int vic_luks_read_hdr(vic_blockdev_t* device, vic_luks_hdr_t* hdr);
 

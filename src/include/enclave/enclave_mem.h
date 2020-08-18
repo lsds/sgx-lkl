@@ -10,16 +10,16 @@
 #include "enclave/sgxlkl_t.h"
 
 #ifndef PROT_NONE
-#    define PROT_NONE 0x0
+#define PROT_NONE 0x0
 #endif
 #ifndef PROT_READ
-#    define PROT_READ 0x1
+#define PROT_READ 0x1
 #endif
 #ifndef PROT_WRITE
-#    define PROT_WRITE 0x2
+#define PROT_WRITE 0x2
 #endif
 #ifndef PROT_EXEC
-#    define PROT_EXEC 0x4
+#define PROT_EXEC 0x4
 #endif
 
 void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files);

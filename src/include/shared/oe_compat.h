@@ -3,8 +3,8 @@
 
 #ifdef SGXLKL_ENCLAVE
 
-/* Rewire some libc functions to oecorelibc equivalents, to avoid dependencies on
- * sgx-lkl-musl in SGX-LKL kernel space. */
+/* Rewire some libc functions to oecorelibc equivalents, to avoid dependencies
+ * on sgx-lkl-musl in SGX-LKL kernel space. */
 
 #include <openenclave/corelibc/bits/types.h>
 #include <openenclave/corelibc/oemalloc.h>

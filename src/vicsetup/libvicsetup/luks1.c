@@ -1,33 +1,32 @@
-#include <mbedtls/pkcs5.h>
+#include <assert.h>
+#include <ctype.h>
+#include <limits.h>
 #include <mbedtls/aes.h>
+#include <mbedtls/base64.h>
 #include <mbedtls/cipher.h>
+#include <mbedtls/pkcs5.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/sha256.h>
 #include <mbedtls/sha512.h>
-#include <mbedtls/base64.h>
-#include <stdio.h>
-#include <sys/uio.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <stdio.h>
-#include <string.h>
-#include <limits.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <string.h>
+#include <sys/uio.h>
 
-#include "luks1.h"
-#include "vic.h"
 #include "byteorder.h"
-#include "strings.h"
-#include "hash.h"
-#include "lukscommon.h"
-#include "hexdump.h"
-#include "raise.h"
 #include "crypto.h"
-#include "uuid.h"
 #include "dm.h"
-#include "round.h"
 #include "goto.h"
+#include "hash.h"
+#include "hexdump.h"
+#include "luks1.h"
+#include "lukscommon.h"
+#include "raise.h"
+#include "round.h"
+#include "strings.h"
+#include "uuid.h"
+#include "vic.h"
 
 /*
 **==============================================================================
@@ -116,8 +115,7 @@ static void _fix_luks1_hdr_byte_order(luks1_hdr_t* hdr)
 
 static bool _valid_cipher_name(const char* cipher_name)
 {
-    static const char* _cipher_names[] =
-    {
+    static const char* _cipher_names[] = {
         LUKS_CIPHER_NAME_AES,
         LUKS_CIPHER_NAME_TWOFISH,
         LUKS_CIPHER_NAME_SERPENT,
@@ -139,8 +137,7 @@ static bool _valid_cipher_name(const char* cipher_name)
 
 static bool _valid_cipher_mode(const char* cipher_mode)
 {
-    static const char* _cipher_modes[] =
-    {
+    static const char* _cipher_modes[] = {
         LUKS_CIPHER_MODE_ECB,
         LUKS_CIPHER_MODE_CBC_PLAIN,
         LUKS_CIPHER_MODE_CBC_ESSIV,
@@ -164,8 +161,7 @@ static bool _valid_cipher_mode(const char* cipher_mode)
 
 static bool _valid_hash_spec(const char* hash_spec)
 {
-    static const char* _hash_specs[] =
-    {
+    static const char* _hash_specs[] = {
         VIC_HASH_SPEC_SHA1,
         VIC_HASH_SPEC_SHA256,
         VIC_HASH_SPEC_SHA512,
@@ -352,7 +348,7 @@ static int _gen_iv(
     if (!hdr || !iv || !key)
         GOTO(done);
 
-    if (strcmp(LUKS_CIPHER_MODE_ECB,  hdr->cipher_mode) == 0)
+    if (strcmp(LUKS_CIPHER_MODE_ECB, hdr->cipher_mode) == 0)
     {
         memset(iv, 0, LUKS_IV_SIZE);
         ret = 0;
@@ -380,7 +376,7 @@ static int _gen_iv(
 
     /* Use the SHA256-generated hash as the key */
     if (mbedtls_aes_setkey_enc(
-        &aes_ctx, hash.u.sha256, sizeof(hash.u.sha256) * 8) != 0)
+            &aes_ctx, hash.u.sha256, sizeof(hash.u.sha256) * 8) != 0)
     {
         GOTO(done);
     }
@@ -470,13 +466,13 @@ static int _crypt(
         pos = i * block_size;
 
         if ((r = mbedtls_cipher_crypt(
-            &ctx,
-            iv, /* iv */
-            LUKS_IV_SIZE, /* iv_size */
-            data_in + pos, /* input */
-            block_size, /* ilen */
-            data_out + pos, /* output */
-            &olen)) != 0) /* olen */
+                 &ctx,
+                 iv,             /* iv */
+                 LUKS_IV_SIZE,   /* iv_size */
+                 data_in + pos,  /* input */
+                 block_size,     /* ilen */
+                 data_out + pos, /* output */
+                 &olen)) != 0)   /* olen */
         {
             printf("r=%d\n", r);
             printf("%d\n", MBEDTLS_ERR_CIPHER_FULL_BLOCK_EXPECTED);
@@ -499,7 +495,7 @@ static int _encrypt(
     const luks1_hdr_t* hdr,
     const vic_key_t* key,
     const uint8_t* data_in,
-    uint8_t *data_out,
+    uint8_t* data_out,
     size_t data_size,
     uint64_t sector)
 {
@@ -511,7 +507,7 @@ static int _decrypt(
     const luks1_hdr_t* hdr,
     const vic_key_t* key,
     const uint8_t* data_in,
-    uint8_t *data_out,
+    uint8_t* data_out,
     size_t data_size,
     uint64_t sector)
 {
@@ -701,14 +697,14 @@ static int _initialize_hdr(
 
     /* Derive the digest from the master key and the salt */
     if (vic_pbkdf2(
-        master_key->buf,
-        master_key_bytes,
-        hdr->mk_digest_salt,
-        sizeof(hdr->mk_digest_salt),
-        hdr->mk_digest_iter,
-        hdr->hash_spec,
-        hdr->mk_digest,
-        sizeof(hdr->mk_digest)) != 0)
+            master_key->buf,
+            master_key_bytes,
+            hdr->mk_digest_salt,
+            sizeof(hdr->mk_digest_salt),
+            hdr->mk_digest_iter,
+            hdr->hash_spec,
+            hdr->mk_digest,
+            sizeof(hdr->mk_digest)) != 0)
     {
         GOTO(done);
     }
@@ -728,7 +724,7 @@ static int _initialize_hdr(
     /* Initialize the key slots */
     for (size_t i = 0; i < LUKS_NUM_KEYS; i++)
     {
-        vic_luks_keyslot_t* ks =  &hdr->keyslots[i];
+        vic_luks_keyslot_t* ks = &hdr->keyslots[i];
 
         ks->active = LUKS_KEY_DISABLED;
         ks->stripes = stripes;
@@ -770,7 +766,7 @@ static int _add_key(
     size_t* index_out)
 {
     int ret = -1;
-    vic_luks_keyslot_t* ks =  NULL;
+    vic_luks_keyslot_t* ks = NULL;
     uint8_t* plain = NULL;
     uint8_t* cipher = NULL;
     vic_key_t pbkdf2_key;
@@ -821,24 +817,21 @@ static int _add_key(
         GOTO(done);
 
     if (vic_pbkdf2(
-        (const uint8_t*)pwd,
-        pwd_size,
-        ks->salt,
-        sizeof(ks->salt),
-        ks->iterations,
-        hdr->hash_spec,
-        &pbkdf2_key,
-        hdr->key_bytes) != 0)
+            (const uint8_t*)pwd,
+            pwd_size,
+            ks->salt,
+            sizeof(ks->salt),
+            ks->iterations,
+            hdr->hash_spec,
+            &pbkdf2_key,
+            hdr->key_bytes) != 0)
     {
         GOTO(done);
     }
 
     if (vic_afsplit(
-        hdr->hash_spec,
-        master_key,
-        hdr->key_bytes,
-        ks->stripes,
-        plain) != 0)
+            hdr->hash_spec, master_key, hdr->key_bytes, ks->stripes, plain) !=
+        0)
     {
         GOTO(done);
     }
@@ -903,14 +896,14 @@ static vic_result_t _find_key_by_pwd(
             vic_luks_keyslot_t* ks = &hdr->keyslots[i];
 
             if (vic_pbkdf2(
-                (const uint8_t*)pwd,
-                pwd_size,
-                ks->salt,
-                sizeof(ks->salt),
-                ks->iterations,
-                hdr->hash_spec,
-                &pbkdf2_key,
-                hdr->key_bytes) != 0)
+                    (const uint8_t*)pwd,
+                    pwd_size,
+                    ks->salt,
+                    sizeof(ks->salt),
+                    ks->iterations,
+                    hdr->hash_spec,
+                    &pbkdf2_key,
+                    hdr->key_bytes) != 0)
             {
                 RAISE(VIC_PBKDF2_FAILED);
             }
@@ -930,24 +923,21 @@ static vic_result_t _find_key_by_pwd(
                 RAISE(VIC_DECRYPT_FAILED);
 
             if (vic_afmerge(
-                hdr->key_bytes,
-                ks->stripes,
-                hdr->hash_spec,
-                plain,
-                &mk) != 0)
+                    hdr->key_bytes, ks->stripes, hdr->hash_spec, plain, &mk) !=
+                0)
             {
                 RAISE(VIC_AFMERGE_FAILED);
             }
 
             if (vic_pbkdf2(
-                &mk,
-                hdr->key_bytes,
-                hdr->mk_digest_salt,
-                sizeof(hdr->mk_digest_salt),
-                hdr->mk_digest_iter,
-                hdr->hash_spec,
-                mk_digest,
-                sizeof(mk_digest)) != 0)
+                    &mk,
+                    hdr->key_bytes,
+                    hdr->mk_digest_salt,
+                    sizeof(hdr->mk_digest_salt),
+                    hdr->mk_digest_iter,
+                    hdr->hash_spec,
+                    mk_digest,
+                    sizeof(mk_digest)) != 0)
             {
                 RAISE(VIC_PBKDF2_FAILED);
             }
@@ -1038,15 +1028,15 @@ vic_result_t luks1_format(
 
     /* Initialize the hdr struct */
     if (_initialize_hdr(
-        &hdr,
-        LUKS_VERSION_1,
-        cipher_name,
-        cipher_mode,
-        master_key,
-        master_key_bytes,
-        hash,
-        uuid,
-        mk_iterations) != 0)
+            &hdr,
+            LUKS_VERSION_1,
+            cipher_name,
+            cipher_mode,
+            master_key,
+            master_key_bytes,
+            hash,
+            uuid,
+            mk_iterations) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -1140,8 +1130,15 @@ vic_result_t luks1_add_key(
         RAISE(VIC_FAILED);
     }
 
-    if (_add_key(hdr, &mk, new_pwd, new_pwd_size, slot_iterations, &data,
-        &size, &index) != 0)
+    if (_add_key(
+            hdr,
+            &mk,
+            new_pwd,
+            new_pwd_size,
+            slot_iterations,
+            &data,
+            &size,
+            &index) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -1198,14 +1195,14 @@ vic_result_t luks1_add_key_by_master_key(
         slot_iterations = LUKS_MIN_SLOT_ITERATIONS;
 
     if (_add_key(
-        hdr,
-        master_key,
-        pwd,
-        pwd_size,
-        slot_iterations,
-        &data,
-        &size,
-        &index) != 0)
+            hdr,
+            master_key,
+            pwd,
+            pwd_size,
+            slot_iterations,
+            &data,
+            &size,
+            &index) != 0)
     {
         RAISE(VIC_FAILED);
     }
@@ -1354,24 +1351,20 @@ vic_result_t luks1_change_key(
         GOTO(done);
 
     if (vic_pbkdf2(
-        (const uint8_t*)new_pwd,
-        new_pwd_size,
-        ks->salt,
-        sizeof(ks->salt),
-        ks->iterations,
-        hdr->hash_spec,
-        &pbkdf2_key,
-        hdr->key_bytes) != 0)
+            (const uint8_t*)new_pwd,
+            new_pwd_size,
+            ks->salt,
+            sizeof(ks->salt),
+            ks->iterations,
+            hdr->hash_spec,
+            &pbkdf2_key,
+            hdr->key_bytes) != 0)
     {
         GOTO(done);
     }
 
-    if (vic_afsplit(
-        hdr->hash_spec,
-        &mk,
-        hdr->key_bytes,
-        ks->stripes,
-        plain) != 0)
+    if (vic_afsplit(hdr->hash_spec, &mk, hdr->key_bytes, ks->stripes, plain) !=
+        0)
     {
         GOTO(done);
     }
@@ -1475,27 +1468,32 @@ vic_result_t luks1_open(
         {
             vic_strlcpy(cipher, "aes-cbc-essiv:sha256", sizeof(cipher));
         }
-        else if (strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) == 0 &&
+        else if (
+            strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) == 0 &&
             strcmp(hdr->cipher_mode, LUKS_CIPHER_MODE_XTS_PLAIN64) == 0)
         {
             vic_strlcpy(cipher, "aes-xts-plain64", sizeof(cipher));
         }
-        else if (strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_TWOFISH) == 0 &&
+        else if (
+            strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_TWOFISH) == 0 &&
             strcmp(hdr->cipher_mode, LUKS_CIPHER_MODE_ECB) == 0)
         {
             vic_strlcpy(cipher, "twofish-ecb", sizeof(cipher));
         }
-        else if (strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_SERPENT) == 0 &&
+        else if (
+            strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_SERPENT) == 0 &&
             strcmp(hdr->cipher_mode, LUKS_CIPHER_MODE_CBC_PLAIN) == 0)
         {
             vic_strlcpy(cipher, "serpent-cbc-plain", sizeof(cipher));
         }
-        else if (strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) == 0 &&
+        else if (
+            strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) == 0 &&
             strcmp(hdr->cipher_mode, LUKS_CIPHER_MODE_CBC_PLAIN) == 0)
         {
             vic_strlcpy(cipher, "aes-cbc-plain", sizeof(cipher));
         }
-        else if (strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) == 0 &&
+        else if (
+            strcmp(hdr->cipher_name, LUKS_CIPHER_NAME_AES) == 0 &&
             strcmp(hdr->cipher_mode, LUKS_CIPHER_MODE_ECB) == 0)
         {
             vic_strlcpy(cipher, "aes-ecb", sizeof(cipher));
