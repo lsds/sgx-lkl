@@ -22,6 +22,14 @@ $(DISK_IMAGE): $(MAINAPP_JAVA) $(FILEREADER_JAVA)
 
 run: run-hw run-sw
 
+ifeq ($(SGXLKL_ETHREADS),1)
+skip-run-hw:
+	@echo "true"
+
+skip-run-sw:
+	@echo "true"
+endif
+
 run-hw: $(DISK_IMAGE)
 	@echo "sgx-lkl-java --hw-debug ${DISK_IMAGE} ${PROG}"
 	@${SGXLKL_ENV} ${SGXLKL_JAVA_RUN} --hw-debug ${DISK_IMAGE} ${PROG}
