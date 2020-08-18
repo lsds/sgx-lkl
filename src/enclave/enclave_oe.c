@@ -105,29 +105,8 @@ static void _prepare_elf_stack()
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
     const sgxlkl_enclave_config_t* cfg = state->config;
 
-    size_t num_imported_env = 0;
-    const char** imported_env = NULL;
-
-    if (sgxlkl_enclave_state.shared_memory.env &&
-        sgxlkl_enclave_state.shared_memory.envc && cfg->num_host_import_env > 0)
-    {
-        imported_env = oe_calloc_or_die(
-            cfg->num_host_import_env,
-            sizeof(char*),
-            "Could not allocate memory for imported host environment\n");
-
-        for (size_t i = 0; i < cfg->num_host_import_env; i++)
-        {
-            const char* name = cfg->host_import_env[i];
-            size_t n = oe_strlen(name);
-            for (size_t i = 0; i < sgxlkl_enclave_state.shared_memory.envc; i++)
-            {
-                const char* henv_i = sgxlkl_enclave_state.shared_memory.env[i];
-                if (_strncmp(name, henv_i, n) == 0 && henv_i[n] == '=')
-                    imported_env[num_imported_env++] = henv_i;
-            }
-        }
-    }
+    size_t num_imported_env = state->num_env_imported;
+    char* const* imported_env = state->env_imported;
 
     size_t num_bytes = 0;
     size_t num_ptrs = 0;
@@ -189,8 +168,6 @@ static void _prepare_elf_stack()
     SGXLKL_ASSERT(j + 1 == num_ptrs);
     SGXLKL_ASSERT(out[j] == NULL);
     SGXLKL_ASSERT(out[j - 4] == (char*)AT_HW_MODE);
-
-    oe_free(imported_env);
 }
 
 static void _free_elf_stack()
@@ -407,27 +384,58 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         }
     }
 
-    /* Copy the host's environment variables to enclave memory */
-    char* const* henv = host->env;
-    size_t henvc = host->envc;
-    if (henv && henvc)
+    /* Import environment variables from the host */
+    const char* henv = host->env;
+    size_t henv_len = host->env_length;
+    if (cfg->num_host_import_env && cfg->host_import_env && henv && henv_len)
     {
-        sgxlkl_ensure_outside(henv, sizeof(char*) * henvc);
+        sgxlkl_ensure_outside(henv, sizeof(char) * henv_len);
+
+        size_t num_vars = 0;
+        for (size_t i = 0; i < henv_len; i++)
+            if (henv[i] == '\0')
+                num_vars++;
+
         char** tmp = oe_calloc_or_die(
-            henvc,
+            num_vars,
             sizeof(char*),
-            "Could not allocate memory for host import environment variable\n");
-        for (size_t i = 0; i < henvc; i++)
+            "Could not allocate memory for host-imported environment "
+            "variables\n");
+
+        size_t begin = 0;
+        sgxlkl_enclave_state.num_env_imported = 0;
+        for (size_t i = 0; i < henv_len; i++)
         {
-            const char* env_i = henv[i];
-            size_t n = strlen(env_i) + 1;
-            sgxlkl_ensure_outside(env_i, n);
-            tmp[i] = oe_malloc(n);
-            memcpy(tmp[i], env_i, n);
+            if (henv[i] == '\0')
+            {
+                const char* henv_i = henv + begin;
+                size_t henv_i_len = i - begin;
+
+                for (size_t j = 0; j < cfg->num_host_import_env; j++)
+                {
+                    const char* name = cfg->host_import_env[j];
+                    size_t name_len = oe_strlen(name);
+                    if (name_len + 1 < henv_i_len &&
+                        _strncmp(name, henv_i, name_len) == 0 &&
+                        henv_i[name_len] == '=')
+                    {
+                        tmp[sgxlkl_enclave_state.num_env_imported++] =
+                            oe_strdup(henv_i);
+                    }
+                }
+
+                begin = i + 1;
+            }
         }
-        enc->env = tmp;
-        enc->envc = henvc;
-        sgxlkl_ensure_inside(enc->env, sizeof(char*) * enc->envc);
+
+        if (sgxlkl_enclave_state.num_env_imported == 0)
+            oe_free(tmp);
+        else
+            sgxlkl_enclave_state.env_imported = tmp;
+
+        /* Shared memory not needed anymore. */
+        sgxlkl_enclave_state.shared_memory.env = NULL;
+        sgxlkl_enclave_state.shared_memory.env_length = 0;
     }
 
     /* Commit to the temporary copy */
@@ -474,11 +482,6 @@ static void _free_shared_memory()
 
     oe_free(shm->virtio_blk_dev_mem);
     oe_free(shm->virtio_blk_dev_names);
-
-    if (shm->env && shm->envc)
-        for (size_t i = 0; i < shm->envc; i++)
-            oe_free(shm->env[i]);
-    oe_free((char**)shm->env);
 }
 
 int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
@@ -547,6 +550,10 @@ void sgxlkl_free_enclave_state()
 
     state->num_event_channel_state = 0;
     oe_free(state->event_channel_state);
+
+    for (size_t i = 0; i < state->num_env_imported; i++)
+        oe_free(state->env_imported[i]);
+    oe_free((void*)state->env_imported);
 }
 
 void sgxlkl_debug_dump_stack_traces(void)

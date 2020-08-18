@@ -28,8 +28,8 @@ typedef struct sgxlkl_shared_memory
     char** virtio_blk_dev_names;
 
     /* Host environment variables for optional import */
-    char* const* env;
-    size_t envc;
+    char const* env;
+    size_t env_length;
 } sgxlkl_shared_memory_t;
 
 #endif /* SGXLKL_SHARED_MEMORY_H */

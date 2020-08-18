@@ -65,6 +65,10 @@ typedef struct sgxlkl_enclave_state
     /* Event channel state */
     size_t num_event_channel_state;
     enc_dev_state_t* event_channel_state;
+
+    /* Environment variables imported from the host */
+    size_t num_env_imported;
+    char* const* env_imported;
 } sgxlkl_enclave_state_t;
 
 extern sgxlkl_enclave_state_t sgxlkl_enclave_state;

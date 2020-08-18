@@ -820,6 +820,18 @@ void set_clock_res(bool have_enclave_config)
     }
 }
 
+static void set_host_env(char* const* envp)
+{
+    sgxlkl_host_state.shared_memory.env_length = 0;
+    for (char* const* env = envp; *env != 0; env++)
+        sgxlkl_host_state.shared_memory.env_length += strlen(*env) + 1;
+
+    char* tmp = malloc(sgxlkl_host_state.shared_memory.env_length);
+    sgxlkl_host_state.shared_memory.env = tmp;
+    for (char* const* env = envp; *env != 0; env++)
+        tmp += sprintf(tmp, "%s", *env) + 1;
+}
+
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
 {
     rdfsbase_caused_sigill = 1;
@@ -1884,10 +1896,7 @@ int main(int argc, char* argv[], char* envp[])
 
     bool have_enclave_config_file = enclave_config_path != NULL;
     set_clock_res(have_enclave_config_file);
-    sgxlkl_host_state.shared_memory.envc = 0;
-    for (char** env = envp; *env != 0; env++)
-        sgxlkl_host_state.shared_memory.envc++;
-    sgxlkl_host_state.shared_memory.env = envp;
+    set_host_env(envp);
     set_tls(have_enclave_config_file);
     register_hds(root_hd);
     register_net();
