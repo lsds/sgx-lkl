@@ -15,8 +15,8 @@ void* thread1_func(void* arg)
 {
     printf("Thread 1 in busy loop...\n");
 
-    // for (;;)
-    //     ;
+    for (;;)
+        ;
 
     return NULL;
 }
