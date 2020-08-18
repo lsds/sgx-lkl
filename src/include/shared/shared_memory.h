@@ -13,7 +13,7 @@ typedef struct sgxlkl_shared_memory
     struct virtio_dev* virtio_net_dev_mem; /* Virtio network device */
     struct virtio_dev* virtio_console_mem; /* Virtio console device */
 
-    size_t evt_channel_num;           /* Number of event channels */
+    size_t num_evt_channel;           /* Number of event channels */
     enc_dev_config_t* enc_dev_config; /* Device configuration */
 
     void* virtio_swiotlb;       /* Memory for setting up bounce buffer */

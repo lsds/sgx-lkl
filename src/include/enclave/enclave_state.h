@@ -31,6 +31,12 @@ typedef struct
     char* data;         /* Buffer that holds all strings on the stack */
 } elf64_stack_t;
 
+/* State of event channels */
+typedef struct enc_dev_state
+{
+    evt_t evt_processed;
+} enc_dev_state_t;
+
 typedef struct sgxlkl_enclave_state
 {
     _Atomic(bool) initialized;
@@ -55,6 +61,10 @@ typedef struct sgxlkl_enclave_state
 
     /* This flag is used by the tracing macros */
     bool verbose;
+
+    /* Event channel state */
+    size_t num_event_channel_state;
+    enc_dev_state_t* event_channel_state;
 } sgxlkl_enclave_state_t;
 
 extern sgxlkl_enclave_state_t sgxlkl_enclave_state;

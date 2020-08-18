@@ -1963,7 +1963,7 @@ int main(int argc, char* argv[], char* envp[])
      * console device. Each block disk is treated as a seperate block
      * device and have an event channel associated with it.
      */
-    sgxlkl_host_state.shared_memory.evt_channel_num =
+    sgxlkl_host_state.shared_memory.num_evt_channel =
         sgxlkl_host_state.num_disks + HOST_NETWORK_DEV_COUNT +
         HOST_CONSOLE_DEV_COUNT;
 
@@ -1976,11 +1976,11 @@ int main(int argc, char* argv[], char* envp[])
         &sgxlkl_host_state.shared_memory,
         &host_dev_cfg,
         &enc_dev_config,
-        sgxlkl_host_state.shared_memory.evt_channel_num);
+        sgxlkl_host_state.shared_memory.num_evt_channel);
 
     /* Initialize the host dev configuration in host event handler */
     vio_host_initialize_device_cfg(
-        host_dev_cfg, sgxlkl_host_state.shared_memory.evt_channel_num);
+        host_dev_cfg, sgxlkl_host_state.shared_memory.num_evt_channel);
 
     int dev_index = 0;
 

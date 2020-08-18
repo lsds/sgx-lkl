@@ -344,60 +344,30 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
             enc->virtio_console_mem, sizeof(struct virtio_dev));
     }
 
-    enc->evt_channel_num = host->evt_channel_num;
-
-    if (enc->evt_channel_num > 0)
+    size_t num_channels = host->num_evt_channel;
+    if (num_channels > 0)
     {
         _Static_assert(
-            sizeof(enc_dev_config_t) == 24UL,
+            sizeof(enc_dev_config_t) == 16UL,
             "enc_dev_config_t size has changed");
 
-        enc->enc_dev_config = oe_calloc_or_die(
-            enc->evt_channel_num,
-            sizeof(enc_dev_config_t),
-            "Could not allocate memory for event channel device config\n");
+        _Static_assert(
+            sizeof(enc_dev_state_t) == 8UL, "enc_dev_state_t size has changed");
 
-        for (size_t i = 0; i < enc->evt_channel_num; i++)
+        enc->num_evt_channel = num_channels;
+        enc->enc_dev_config = oe_calloc_or_die(
+            num_channels,
+            sizeof(enc_dev_config_t),
+            "Could not allocate memory for event channel config\n");
+
+        for (size_t i = 0; i < num_channels; i++)
         {
             const enc_dev_config_t* host_conf_i = &host->enc_dev_config[i];
             enc_dev_config_t* enc_conf_i = &enc->enc_dev_config[i];
-
             enc_conf_i->dev_id = host_conf_i->dev_id;
-
-            enc_evt_channel_t* host_chn = host_conf_i->enc_evt_chn;
-            if (host_chn)
-            {
-                enc_conf_i->enc_evt_chn = host_chn;
-
-                // enc_conf_i->enc_evt_chn = oe_calloc_or_die(
-                //     1,
-                //     sizeof(enc_evt_channel_t),
-                //     "Could not allocate memory for event channel config\n ");
-
-                // enc_conf_i->enc_evt_chn->host_evt_channel = oe_calloc_or_die(
-                //     1,
-                //     sizeof(evt_t),
-                //     "Could not allocate memory for host event channel
-                //     evt_t\n");
-
-                // enc_conf_i->enc_evt_chn->qidx_p = oe_calloc_or_die(
-                //     1,
-                //     sizeof(uint32_t),
-                //     "Could not allocate memory for event channel qidx_p\n ");
-
-                // enc_evt_channel_t* enc_chn = enc_conf_i->enc_evt_chn;
-
-                // enc_chn->enclave_evt_channel = host_chn->enclave_evt_channel;
-
-                // evt_t* hechan = host_chn->host_evt_channel;
-                // sgxlkl_ensure_outside(hechan, sizeof(evt_t));
-                //*enc_chn->host_evt_channel = *hechan;
-
-                // uint32_t* qidx_p = host_chn->qidx_p;
-                // sgxlkl_ensure_outside(qidx_p, sizeof(uint32_t));
-                //*enc_chn->qidx_p = *qidx_p;
-            }
-            enc_conf_i->evt_processed = host_conf_i->evt_processed;
+            enc_conf_i->enc_evt_chn = host_conf_i->enc_evt_chn;
+            sgxlkl_ensure_outside(
+                enc_conf_i->enc_evt_chn, sizeof(enc_evt_channel_t));
         }
     }
 
@@ -465,11 +435,30 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     oe_free((sgxlkl_shared_memory_t*)enc);
 }
 
+static void _init_event_channel_state(void)
+{
+    const sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
+    size_t num_channels = shm->num_evt_channel;
+
+    sgxlkl_enclave_state.event_channel_state = oe_calloc_or_die(
+        num_channels,
+        sizeof(enc_dev_state_t),
+        "Could not allocate memory for event channel state\n");
+
+    sgxlkl_enclave_state.num_event_channel_state = num_channels;
+    for (size_t i = 0; i < num_channels; i++)
+    {
+        enc_dev_state_t* enc_state_i =
+            &sgxlkl_enclave_state.event_channel_state[i];
+        enc_state_i->evt_processed = 0;
+    }
+}
+
 static void _free_shared_memory()
 {
     sgxlkl_shared_memory_t* shm = &sgxlkl_enclave_state.shared_memory;
 
-    for (size_t i = 0; i < shm->evt_channel_num; i++)
+    for (size_t i = 0; i < shm->num_evt_channel; i++)
     {
         if (shm->enc_dev_config[i].enc_evt_chn)
         {
@@ -508,6 +497,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 
     _read_eeid_config();
     _copy_shared_memory(shared_memory);
+    _init_event_channel_state();
 
 #ifdef DEBUG
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
@@ -554,6 +544,9 @@ void sgxlkl_free_enclave_state()
     state->libc_state = libc_not_started;
 
     _free_shared_memory();
+
+    state->num_event_channel_state = 0;
+    oe_free(state->event_channel_state);
 }
 
 void sgxlkl_debug_dump_stack_traces(void)

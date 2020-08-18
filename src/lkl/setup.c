@@ -96,9 +96,7 @@ int sgxlkl_mtu = 0;
 extern struct timespec sgxlkl_app_starttime;
 
 /* Function to setup bounce buffer in LKL */
-extern void initialize_enclave_event_channel(
-    enc_dev_config_t* enc_dev_config,
-    size_t evt_channel_num);
+extern void initialize_enclave_event_channels(void);
 
 extern void lkl_virtio_netdev_remove(void);
 extern void vio_terminate(void);
@@ -1393,7 +1391,7 @@ void lkl_start_init()
     sgxlkl_mtu = cfg->tap_mtu;
 
     SGXLKL_VERBOSE("calling initialize_enclave_event_channel()\n");
-    initialize_enclave_event_channel(shm->enc_dev_config, shm->evt_channel_num);
+    initialize_enclave_event_channels();
 
     // Register console device
     lkl_virtio_console_add(shm->virtio_console_mem);
