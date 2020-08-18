@@ -47,7 +47,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown03
 #/ltp/testcases/kernel/syscalls/chown/chown04
 #/ltp/testcases/kernel/syscalls/chown/chown05
-/ltp/testcases/kernel/syscalls/chroot/chroot01
+#/ltp/testcases/kernel/syscalls/chroot/chroot01
 #/ltp/testcases/kernel/syscalls/chroot/chroot02
 #/ltp/testcases/kernel/syscalls/chroot/chroot03
 #/ltp/testcases/kernel/syscalls/chroot/chroot04
@@ -149,7 +149,7 @@
 #/ltp/testcases/kernel/syscalls/fadvise/posix_fadvise02
 #/ltp/testcases/kernel/syscalls/fadvise/posix_fadvise03
 #/ltp/testcases/kernel/syscalls/fadvise/posix_fadvise04
-/ltp/testcases/kernel/syscalls/fallocate/fallocate01
+#/ltp/testcases/kernel/syscalls/fallocate/fallocate01
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate02
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate03
 #/ltp/testcases/kernel/syscalls/fallocate/fallocate04
@@ -283,7 +283,7 @@
 #/ltp/testcases/kernel/syscalls/futex/futex_wake04
 /ltp/testcases/kernel/syscalls/futimesat/futimesat01
 /ltp/testcases/kernel/syscalls/get_mempolicy/get_mempolicy01
-/ltp/testcases/kernel/syscalls/get_robust_list/get_robust_list01
+#/ltp/testcases/kernel/syscalls/get_robust_list/get_robust_list01
 /ltp/testcases/kernel/syscalls/getcpu/getcpu01
 /ltp/testcases/kernel/syscalls/getcwd/getcwd01
 #/ltp/testcases/kernel/syscalls/getcwd/getcwd02
@@ -550,7 +550,7 @@
 #/ltp/testcases/kernel/syscalls/mmap/mmap07
 #/ltp/testcases/kernel/syscalls/mmap/mmap08
 #/ltp/testcases/kernel/syscalls/mmap/mmap09
-/ltp/testcases/kernel/syscalls/mmap/mmap10
+#/ltp/testcases/kernel/syscalls/mmap/mmap10
 /ltp/testcases/kernel/syscalls/mmap/mmap11
 /ltp/testcases/kernel/syscalls/mmap/mmap12
 /ltp/testcases/kernel/syscalls/mmap/mmap13
@@ -622,7 +622,7 @@
 /ltp/testcases/kernel/syscalls/open/open09
 /ltp/testcases/kernel/syscalls/open/open10
 /ltp/testcases/kernel/syscalls/open/open11
-/ltp/testcases/kernel/syscalls/open/open12
+#/ltp/testcases/kernel/syscalls/open/open12
 /ltp/testcases/kernel/syscalls/open/open12_child
 /ltp/testcases/kernel/syscalls/open/open13
 /ltp/testcases/kernel/syscalls/open/open14
@@ -948,7 +948,7 @@
 /ltp/testcases/kernel/syscalls/sync/sync02
 /ltp/testcases/kernel/syscalls/sync/sync03
 /ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range01
-/ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range02
+#/ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range02
 /ltp/testcases/kernel/syscalls/syncfs/syncfs01
 /ltp/testcases/kernel/syscalls/syscall/syscall01
 /ltp/testcases/kernel/syscalls/sysconf/sysconf01
@@ -1054,5 +1054,5 @@
 /ltp/testcases/kernel/syscalls/writev/writev01
 /ltp/testcases/kernel/syscalls/writev/writev02
 /ltp/testcases/kernel/syscalls/writev/writev05
-/ltp/testcases/kernel/syscalls/writev/writev06
+#/ltp/testcases/kernel/syscalls/writev/writev06
 /ltp/testcases/kernel/syscalls/writev/writev07
