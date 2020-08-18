@@ -21,10 +21,9 @@ if [[ $(git config --get user.name | wc -w) -lt 2 ]]; then
     exit_ "Commit failed: please fix your Git user name (see docs/Contributing.md)"
 fi
 
-# TODO enable after formatting is enabled
-#if ! git diff-index --check --cached HEAD --; then
-#    exit_ "Commit failed: please fix the conflict markers or whitespace errors"
-#fi
+if ! git diff-index --check --cached HEAD --; then
+    exit_ "Commit failed: please fix the conflict markers or whitespace errors"
+fi
 
 mapfile -t files < <(git diff --cached --name-only --diff-filter=ACMR)
 
@@ -38,11 +37,10 @@ fi
 
 scripts=$(git rev-parse --show-toplevel)/scripts
 
-# TODO enable after files have been formatted
-# shellcheck disable=SC2154
-#if ! "$scripts/format-c-code" --quiet --whatif --files="${files[*]}"; then
-#    exit_ "Commit failed: please run './scripts/format-c-code --staged' to fix the formatting"
-#fi
+#shellcheck disable=SC2154
+if ! "$scripts/format-c-code" --quiet --whatif --files="${files[*]}"; then
+    exit_ "Commit failed: please run './scripts/format-c-code --staged' to fix the formatting"
+fi
 
 if ! "$scripts/format-py-code" --quiet --whatif; then
     exit_ "Commit failed: please run './scripts/format-py-code' to fix the formatting"
