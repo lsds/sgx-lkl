@@ -232,6 +232,7 @@ int lthread_run(void)
             if (mpmc_dequeue(&__scheduler_queue, (void**)&lt))
             {
                 SGXLKL_ASSERT(!(lt->attr.state & BIT(LT_ST_EXITED)));
+                SGXLKL_ASSERT(!(lt->attr.state & BIT(LT_ST_TERMINATE)));
 
                 dequeued++;
                 pauses = sleepspins;
@@ -240,21 +241,21 @@ int lthread_run(void)
                     lt ? lt->tid : -1);
                 _lthread_resume(lt);
 
+                // The lthread indicated termination, and we are likely to be
+                // the terminatng scheduler.
+                if (lt->attr.state & BIT(LT_ST_TERMINATE))
+                {
+                    SGXLKL_VERBOSE("Exiting scheduler due to terminating lthread\n");
+                    return 1;
+                }
+
                 // Bail out if there is a terminating scheduler, and we are not
                 // it.
                 if (_lthread_terminating_scheduler &&
                     _lthread_terminating_scheduler != sched)
                 {
+                    SGXLKL_VERBOSE("Exiting non-terminating scheduler\n");
                     return 0;
-                }
-
-                // If we are the terminating scheduler, and the lthread
-                // indicated termination return, This will be the last ethread
-                // exiting the enclave.
-                if (_lthread_terminating_scheduler == sched &&
-                    lt->attr.state & BIT(LT_ST_TERMINATE))
-                {
-                    return 1;
                 }
             }
 
@@ -454,6 +455,12 @@ int _lthread_resume(struct lthread* lt)
     }
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
+
+    if (lt->attr.state & BIT(LT_ST_TERMINATE))
+    {
+        SGXLKL_VERBOSE("lthread LT_ST_TERMINATE\n");
+        return 0;
+    }
 
     if (lt->attr.state & BIT(LT_ST_EXITED))
     {

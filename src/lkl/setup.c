@@ -1157,31 +1157,18 @@ static void display_mount_table()
 }
 #endif
 
-/* Semaphore used to block LKL termination thread */
-static struct lkl_sem* termination_sem;
-
-/* Record whether we are terminmating LKL */
+/* Record whether we are terminating LKL */
 static _Atomic(bool) _is_lkl_terminating = false;
 
-// Thread to carry out the shutdown sequence
-static void* lkl_termination_thread(void* args)
+/* Terminate LKL with a given exit status */
+void lkl_terminate(int exit_status)
 {
-    SGXLKL_VERBOSE("enter\n");
+    int ret;
+    long res;
 
-    /*
-     * We need to issue a system call here to ensure that this applicaiton
-     * thread is mapped to an LKL host thread. This way, no new kernel thread
-     * will be created when we are actually shutting down.
-     */
-    long pid __attribute__((unused)) = lkl_sys_getpid();
-    SGXLKL_VERBOSE(
-        "Performed LKL syscall to get host task allocated (pid=%li)\n", pid);
-    SGXLKL_ASSERT(pid);
+    SGXLKL_VERBOSE("terminating LKL (exit_status=%i)\n", exit_status);
 
-    lthread_set_funcname(lthread_self(), "sgx-lkl-terminate");
-
-    /* Block on semaphore until shutdown */
-    sgxlkl_host_ops.sem_down(termination_sem);
+    _is_lkl_terminating = true;
 
     // Terminate all other ethreads except the present one. This will make the
     // enclave single-threaded, which means that other activity is less likely
@@ -1189,14 +1176,12 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("calling lthread_terminate_other_schedulers()\n");
     lthread_terminate_other_schedulers();
 
-    SGXLKL_VERBOSE("termination thread unblocked\n");
-
     /* Expose exit status based on enclave config */
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
     switch (cfg->exit_status)
     {
         case EXIT_STATUS_FULL:
-            /* do nothing */
+            sgxlkl_enclave_state.exit_status = exit_status;
             break;
         case EXIT_STATUS_BINARY:
             sgxlkl_enclave_state.exit_status =
@@ -1222,7 +1207,7 @@ static void* lkl_termination_thread(void* args)
 
     // Switch back to root so we can unmount all filesystems
     SGXLKL_VERBOSE("calling lkl_sys_chdir(\"/\")\n");
-    int ret = lkl_sys_chdir("/");
+    ret = lkl_sys_chdir("/");
     if (ret != 0)
     {
         sgxlkl_warn(
@@ -1236,7 +1221,6 @@ static void* lkl_termination_thread(void* args)
 #endif
 
     // Unmount mounts
-    long res;
     for (int i = cfg->num_mounts - 1; i >= 0; i--)
     {
         if (!sgxlkl_enclave_state.disk_state[i].mounted)
@@ -1317,40 +1301,7 @@ static void* lkl_termination_thread(void* args)
     SGXLKL_VERBOSE("calling lthread_terminate_this_scheduler()\n");
     lthread_terminate_this_scheduler();
 
-    SGXLKL_VERBOSE("done\n");
-    return NULL;
-}
-
-/* Create the LKL termination thread */
-static void create_lkl_termination_thread()
-{
-    SGXLKL_VERBOSE("enter\n");
-
-    termination_sem = sgxlkl_host_ops.sem_alloc(0);
-
-    struct lthread* lt;
-    int ret = lthread_create(&lt, NULL, lkl_termination_thread, NULL);
-    if (ret != 0)
-    {
-        sgxlkl_fail("Could not create lkl_termination thread (ref=%i)\n", ret);
-    }
-}
-
-/* Terminate LKL with a given exit status */
-void lkl_terminate(int exit_status)
-{
-    /*
-     * We only want to trigger the shutdown once. Since we are shutting down
-     * the applicaton and the kernel, many other threads will be exiting now.
-     */
-    if (!_is_lkl_terminating)
-    {
-        SGXLKL_VERBOSE("terminating LKL (exit_status=%i)\n", exit_status);
-        _is_lkl_terminating = true;
-        sgxlkl_enclave_state.exit_status = exit_status;
-        /* Wake up LKL termination thread to carry out the work. */
-        sgxlkl_host_ops.sem_up(termination_sem);
-    }
+    return;
 }
 
 /* Return if LKL is currently terminating */
@@ -1531,9 +1482,6 @@ void lkl_start_init()
         sgxlkl_fail("Could not start LKL kernel, %s\n", lkl_strerror(res));
     }
     SGXLKL_VERBOSE("lkl_start_kernel() finished\n");
-
-    SGXLKL_VERBOSE("creating LKL termination thread\n");
-    create_lkl_termination_thread();
 
     // Now that our kernel is ready to handle syscalls, mount root
     SGXLKL_VERBOSE("calling lkl_mount_virtual()\n");

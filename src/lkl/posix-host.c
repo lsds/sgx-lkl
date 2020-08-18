@@ -456,14 +456,6 @@ static int thread_join(lkl_thread_t tid)
 
     struct lthread* lt = (struct lthread*) tid;
 
-    // If LKL is terminating, and we still have userspace threads around, don't
-    // require them to join. Under cooperative scheduling, they may otherwise
-    // never stop running.
-    if (is_lkl_terminating() && lt->attr.thread_type == USERSPACE_THREAD)
-    {
-        return 0;
-    }
-
     int ret = lthread_join(lt, NULL, -1);
     if (ret)
     {
