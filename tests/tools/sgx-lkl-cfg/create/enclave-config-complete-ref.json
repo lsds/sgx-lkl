@@ -86,5 +86,18 @@
     "network": true,
     "block": true,
     "console": true
+  },
+  "trace": {
+    "print_app_runtime": false,
+    "mmap": false,
+    "signal": false,
+    "thread": false,
+    "disk": false,
+    "syscall": false,
+    "lkl_syscall": false,
+    "internal_syscall": false,
+    "ignored_syscall": false,
+    "unsupported_syscall": false,
+    "redirect_syscall": false
   }
 }
