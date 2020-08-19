@@ -8,10 +8,10 @@
 
 #include <json.h>
 
+#include "host/env.h"
 #include "host/sgxlkl_host_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
-#include "shared/env.h"
 
 #define FAIL sgxlkl_host_fail
 

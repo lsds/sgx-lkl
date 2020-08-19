@@ -10,9 +10,9 @@
 
 #include <json.h>
 #include <shared/oe_compat.h>
-#include <shared/env.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
+#include <shared/util.h>
 
 #define CHECKMEM(C) \
     if (!C)         \
@@ -431,6 +431,21 @@ static json_result_t json_read_callback(
             JBOOL("io.block", io->block);
             JBOOL("io.network", io->network);
 
+#ifndef SGXLKL_RELEASE
+            sgxlkl_trace_config_t* trace = &cfg->trace;
+            JBOOL("trace.print_app_runtime", trace->print_app_runtime);
+            JBOOL("trace.mmap", trace->mmap);
+            JBOOL("trace.signal", trace->signal);
+            JBOOL("trace.thread", trace->thread);
+            JBOOL("trace.disk", trace->disk);
+            JBOOL("trace.syscall", trace->syscall);
+            JBOOL("trace.lkl_syscall", trace->lkl_syscall);
+            JBOOL("trace.internal_syscall", trace->internal_syscall);
+            JBOOL("trace.ignored_syscall", trace->ignored_syscall);
+            JBOOL("trace.unsupported_syscall", trace->unsupported_syscall);
+            JBOOL("trace.redirect_syscall", trace->redirect_syscall);
+#endif
+
             FAIL(
                 "Invalid unknown json element '%s'; refusing to run with this "
                 "enclave config.\n",
@@ -481,7 +496,7 @@ void sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from)

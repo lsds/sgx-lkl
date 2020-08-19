@@ -25,14 +25,16 @@ run: run-hw
 
 run-gdb: run-hw-gdb
 
+CONFIGS=--host-config host-config.json --enclave-config enclave_config.json
+
 run-hw: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) --enclave-config enclave_config.json $(SGXLKL_ROOTFS)
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(CONFIGS)  $(SGXLKL_ROOTFS)
 
 run-hw-gdb: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) --enclave-config enclave_config.json $(SGXLKL_ROOTFS)
+	  $(SGXLKL_ENV) $(SGXLKL_GDB) --args $(SGXLKL_STARTER) $(SGXLKL_HW_PARAMS) $(CONFIGS) $(SGXLKL_ROOTFS)
 
 run-sw: ${SGXLKL_ROOTFS}
-	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) --enclave-config enclave_config.json $(SGXLKL_ROOTFS)
+	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) $(CONFIGS) $(SGXLKL_ROOTFS)
 
 clean:
 	rm -f $(SGXLKL_ROOTFS) $(PROG)

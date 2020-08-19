@@ -5,9 +5,10 @@
 
 #include <json.h>
 #include "enclave/wireguard.h"
+#include "host/env.h"
 #include "host/sgxlkl_util.h"
-#include "shared/env.h"
 #include "shared/sgxlkl_enclave_config.h"
+#include "shared/util.h"
 
 #include "host/serialize_enclave_config.h"
 
@@ -268,6 +269,70 @@ static json_obj_t* encode_io(char* key, const sgxlkl_io_config_t* io)
     return r;
 }
 
+#ifndef SGXLKL_RELEASE
+static bool get_config_env(
+    const char* name,
+    const sgxlkl_enclave_config_t* config)
+{
+    size_t name_len = strlen(name);
+    for (size_t i = 0; i < config->num_env; i++)
+    {
+        const char* setting = config->env[i];
+        if (strncmp(name, setting, name_len) == 0 && setting[name_len] == '=')
+            return strcmp(setting + name_len, "1") == 0;
+    }
+    for (size_t i = 0; i < config->num_host_import_env; i++)
+    {
+        const char* import_name = config->host_import_env[i];
+        if (strncmp(name, import_name, name_len) == 0)
+            return getenv_bool(name, 0);
+    }
+    return false;
+}
+
+static json_obj_t* encode_tracing_options(
+    char* key,
+    const sgxlkl_enclave_config_t* config)
+{
+    _Static_assert(
+        sizeof(sgxlkl_trace_config_t) == 11,
+        "sgxlkl_trace_config_t size has changed");
+
+    json_obj_t* r = create_json_objects(key, 10);
+    r->objects[0] = encode_boolean(
+        "print_app_runtime",
+        get_config_env("SGXLKL_PRINT_APP_RUNTIME", config));
+    r->objects[1] = encode_boolean(
+        "syscall",
+        ((get_config_env("SGXLKL_TRACE_SYSCALL", config) ||
+          get_config_env("SGXLKL_TRACE_LKL_SYSCALL", config))));
+    r->objects[2] = encode_boolean(
+        "internal_syscall",
+        ((get_config_env("SGXLKL_TRACE_SYSCALL", config) ||
+          get_config_env("SGXLKL_TRACE_INTERNAL_SYSCALL", config))));
+    r->objects[3] = encode_boolean(
+        "ignored_syscall",
+        ((get_config_env("SGXLKL_TRACE_SYSCALL", config) ||
+          get_config_env("SGXLKL_TRACE_IGNORED_SYSCALL", config))));
+    r->objects[4] = encode_boolean(
+        "unsupported_syscall",
+        ((get_config_env("SGXLKL_TRACE_SYSCALL", config) ||
+          get_config_env("SGXLKL_TRACE_UNSUPPORTED_SYSCALL", config))));
+    r->objects[5] = encode_boolean(
+        "redirect_syscall",
+        get_config_env("SGXLKL_TRACE_REDIRECT_SYSCALL", config));
+    r->objects[6] =
+        encode_boolean("mmap", get_config_env("SGXLKL_TRACE_MMAP", config));
+    r->objects[7] =
+        encode_boolean("signal", get_config_env("SGXLKL_TRACE_SIGNAL", config));
+    r->objects[8] =
+        encode_boolean("thread", get_config_env("SGXLKL_TRACE_THREAD", config));
+    r->objects[9] =
+        encode_boolean("disk", get_config_env("SGXLKL_TRACE_DISK", config));
+    return r;
+}
+#endif
+
 static void print_to_buffer(
     char** buffer,
     size_t* buffer_size,
@@ -449,7 +514,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = encode_boolean(#N, config->N)
@@ -513,6 +578,10 @@ void serialize_enclave_config(
         encode_image_sizes("image_sizes", &config->image_sizes);
 
     root->objects[cnt++] = encode_io("io", &config->io);
+
+#ifndef SGXLKL_RELEASE
+    root->objects[cnt++] = encode_tracing_options("trace", config);
+#endif
 
     root->size = cnt;
 

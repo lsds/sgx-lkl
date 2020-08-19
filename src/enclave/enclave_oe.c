@@ -12,8 +12,8 @@
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
 #include "enclave/lthread_int.h"
-#include "shared/env.h"
 #include "shared/timer_dev.h"
+#include "shared/util.h"
 
 #define AUXV_ENTRIES 13
 

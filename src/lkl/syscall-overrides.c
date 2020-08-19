@@ -204,7 +204,7 @@ void register_lkl_syscall_overrides()
 #define LKL_SYSCALL_DEFINE6(name, ...)                    \
     real_syscalls[__lkl__NR##name] = lkl_replace_syscall( \
         __lkl__NR##name, (lkl_syscall_handler_t)log##name);
-    if (sgxlkl_trace_lkl_syscall)
+    if (sgxlkl_enclave_state.config->trace.lkl_syscall)
     {
 #include <lkl/asm/syscall_defs.h>
     }
@@ -219,7 +219,7 @@ void register_lkl_syscall_overrides()
     // version that does the tracing and exits, otherwise replace them with a
     // version that silently returns success.
 #if SGXLKL_ENABLE_SYSCALL_TRACING
-    if (sgxlkl_trace_ignored_syscall)
+    if (sgxlkl_enclave_state.config->trace.ignored_syscall)
     {
 #define IGNORED_SYSCALL(name, args) \
     lkl_replace_syscall(            \
@@ -237,7 +237,7 @@ void register_lkl_syscall_overrides()
     // a version that does the tracing and exits, otherwise replace them with a
     // version that silently returns failure.
 #if SGXLKL_ENABLE_SYSCALL_TRACING
-    if (sgxlkl_trace_unsupported_syscall)
+    if (sgxlkl_enclave_state.config->trace.unsupported_syscall)
     {
 #define UNSUPPORTED_SYSCALL(name, args) \
     lkl_replace_syscall(                \
@@ -256,7 +256,8 @@ void register_lkl_syscall_overrides()
     // These are internal - use the trace versions if we are doing internal
     // syscall tracing.
 #if SGXLKL_ENABLE_SYSCALL_TRACING
-    syscall_register_mem_overrides(sgxlkl_trace_internal_syscall);
+    syscall_register_mem_overrides(
+        sgxlkl_enclave_state.config->trace.internal_syscall);
 #else
     syscall_register_mem_overrides(false);
 #endif

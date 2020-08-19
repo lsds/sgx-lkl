@@ -111,19 +111,20 @@ long __sgxlkl_log_syscall(
     int params_len,
     ...)
 {
+    const sgxlkl_trace_config_t* tcfg = &sgxlkl_enclave_state.config->trace;
     const char* name = NULL;
     char errmsg[255] = {0};
 
-    if (!sgxlkl_trace_ignored_syscall && type == SGXLKL_IGNORED_SYSCALL)
+    if (!tcfg->ignored_syscall && type == SGXLKL_IGNORED_SYSCALL)
         return res;
 
-    if (!sgxlkl_trace_unsupported_syscall && type == SGXLKL_UNSUPPORTED_SYSCALL)
+    if (!tcfg->unsupported_syscall && type == SGXLKL_UNSUPPORTED_SYSCALL)
         return res;
 
-    if (!sgxlkl_trace_lkl_syscall && type == SGXLKL_LKL_SYSCALL)
+    if (!tcfg->lkl_syscall && type == SGXLKL_LKL_SYSCALL)
         return res;
 
-    if (!sgxlkl_trace_internal_syscall && type == SGXLKL_INTERNAL_SYSCALL)
+    if (!tcfg->internal_syscall && type == SGXLKL_INTERNAL_SYSCALL)
         return res;
 
     long params[6] = {0};

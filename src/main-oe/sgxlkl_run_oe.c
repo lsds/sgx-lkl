@@ -28,13 +28,13 @@
 #include <arpa/inet.h>
 #include <netinet/ip.h>
 
+#include "host/env.h"
 #include "host/host_state.h"
 #include "host/serialize_enclave_config.h"
 #include "host/sgxlkl_host_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "host/vio_host_event_channel.h"
-#include "shared/env.h"
 #include "shared/sgxlkl_enclave_config.h"
 
 #include "lkl/linux/virtio_net.h"

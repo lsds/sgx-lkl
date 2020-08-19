@@ -12,7 +12,7 @@
 #include "enclave/lthread_int.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "shared/env.h"
+#include "shared/util.h"
 
 #include "../../user/userargs.h"
 
@@ -179,7 +179,8 @@ static int app_main_thread(void* args_)
 
 static int kernel_main_thread(void* args)
 {
-    __init_libc(sgxlkl_enclave_state.elf64_stack.envp,
+    __init_libc(
+        sgxlkl_enclave_state.elf64_stack.envp,
         sgxlkl_enclave_state.elf64_stack.argv[0]);
     __libc_start_init();
     a_barrier();
@@ -252,7 +253,7 @@ int __libc_init_enclave(int argc, char** argv)
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-    
+
     init_ethread_tp();
 
     size_t espins = cfg->espins;

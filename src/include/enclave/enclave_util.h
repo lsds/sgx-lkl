@@ -113,16 +113,6 @@ uint64_t next_power_of_2(uint64_t n);
 
 #include "openenclave/internal/print.h"
 
-extern int sgxlkl_trace_thread;
-extern int sgxlkl_trace_mmap;
-extern int sgxlkl_trace_signal;
-extern int sgxlkl_trace_disk;
-extern int sgxlkl_trace_lkl_syscall;
-extern int sgxlkl_trace_internal_syscall;
-extern int sgxlkl_trace_ignored_syscall;
-extern int sgxlkl_trace_unsupported_syscall;
-extern int sgxlkl_trace_redirect_syscall;
-
 #define SGXLKL_ASSERT(EXPR)                                   \
     do                                                        \
     {                                                         \
@@ -161,21 +151,22 @@ extern int sgxlkl_trace_redirect_syscall;
         oe_host_printf(x, ##__VA_ARGS__); \
     }
 #define SGXLKL_TRACE_THREAD(x, ...)                         \
-    if (sgxlkl_trace_thread)                                \
+    if (sgxlkl_enclave_state.config->trace.thread)          \
     {                                                       \
         oe_host_printf("[[  THREAD  ]] " x, ##__VA_ARGS__); \
     }
 #define SGXLKL_TRACE_MMAP(x, ...)                           \
-    if (sgxlkl_trace_mmap)                                  \
+    if (sgxlkl_enclave_state.config->trace.mmap)            \
     {                                                       \
         oe_host_printf("[[   MMAP   ]] " x, ##__VA_ARGS__); \
     }
 #define SGXLKL_TRACE_SYSCALL(type, x, ...)                                     \
-    if ((sgxlkl_trace_lkl_syscall && type == SGXLKL_LKL_SYSCALL))              \
+    if ((sgxlkl_enclave_state.config->trace.lkl_syscall &&                     \
+         type == SGXLKL_LKL_SYSCALL))                                          \
     {                                                                          \
         oe_host_printf("[[ LKL SYSC ]] " x, ##__VA_ARGS__);                    \
     }                                                                          \
-    else if ((sgxlkl_trace_internal_syscall &&                                 \
+    else if ((sgxlkl_enclave_state.config->trace.internal_syscall &&           \
               type == SGXLKL_INTERNAL_SYSCALL))                                \
     {                                                                          \
         oe_host_printf("[[ INT SYSC ]] " x, ##__VA_ARGS__);                    \
@@ -196,13 +187,13 @@ extern int sgxlkl_trace_redirect_syscall;
     }
 
 #define SGXLKL_TRACE_SIGNAL(x, ...)                         \
-    if (sgxlkl_trace_signal)                                \
+    if (sgxlkl_enclave_state.config->trace.signal)          \
     {                                                       \
         oe_host_printf("[[  SIGNAL  ]] " x, ##__VA_ARGS__); \
     }
 
 #define SGXLKL_TRACE_DISK(x, ...)                           \
-    if (sgxlkl_trace_disk)                                  \
+    if (sgxlkl_enclave_state.config->trace.disk)            \
     {                                                       \
         oe_host_printf("[[   DISK   ]] " x, ##__VA_ARGS__); \
     }

@@ -314,6 +314,66 @@
         }
       }
     },
+    "sgxlkl_trace_config_t": {
+      "type": "object",
+      "properties": {
+        "print_app_runtime": {
+          "type": "boolean",
+          "description": "Print total runtime of the application excluding the enclave and SGX-LKL startup/shutdown time.",
+          "default": false
+        },
+        "mmap": {
+          "type": "boolean",
+          "description": "Trace in-enclave mmap/munmap operations.",
+          "default": false
+        },
+        "signal": {
+          "type": "boolean",
+          "description": "Trace signal handling.",
+          "default": false
+        },
+        "thread": {
+          "type": "boolean",
+          "description": "Trace in-enclave user level thread scheduling.",
+          "default": false
+        },
+        "disk": {
+          "type": "boolean",
+          "description": "Trace in-enclave disk setup.",
+          "default": false
+        },
+        "syscall": {
+          "type": "boolean",
+          "description": "Trace all system calls.",
+          "default": false
+        },
+        "lkl_syscall": {
+          "type": "boolean",
+          "description": "Trace in-enclave system calls handled by LKL.",
+          "default": false
+        },
+        "internal_syscall": {
+          "type": "boolean",
+          "description": "Trace in-enclave system calls not handled by LKL (in particular mmap/mremap/munmap and futex).",
+          "default": false
+        },
+        "ignored_syscall": {
+          "type": "boolean",
+          "description": "Trace ignored system calls.",
+          "default": false
+        },
+        "unsupported_syscall": {
+          "type": "boolean",
+          "description": "Trace unsupported system calls.",
+          "default": false
+        },
+        "redirect_syscall": {
+          "type": "boolean",
+          "description": "Trace redirected system calls.",
+          "default": false
+        }
+      }
+    },
     "sgxlkl_enclave_config_t": {
       "type": "object",
       "properties": {
@@ -541,6 +601,10 @@
         "io": {
           "$ref": "#/definitions/sgxlkl_io_config_t",
           "description": "I/O configuration."
+        },
+        "trace": {
+          "$ref": "#/definitions/sgxlkl_trace_config_t",
+          "description": "Tracing configuration (debug only)."
         }
       }
     }

@@ -24,7 +24,7 @@
 #include <host/virtio_debug.h>
 #include <host/virtio_netdev.h>
 #include <poll.h>
-#include <shared/env.h>
+#include <shared/util.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

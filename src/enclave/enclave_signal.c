@@ -5,8 +5,8 @@
 
 #include <asm-generic/ucontext.h>
 
-#include <lkl_host.h>
 #include <lkl/setup.h>
+#include <lkl_host.h>
 #include <string.h>
 
 #include <openenclave/enclave.h>
@@ -16,7 +16,6 @@
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
 #include "enclave/sgxlkl_t.h"
-#include "shared/env.h"
 
 #define RDTSC_OPCODE 0x310F
 
@@ -151,7 +150,7 @@ static uint64_t sgxlkl_enclave_signal_handler(
             opcode);
 
 #ifdef DEBUG
-        if (sgxlkl_trace_signal)
+        if (sgxlkl_enclave_state.config->trace.signal)
         {
             sgxlkl_print_backtrace((void*)oe_ctx->rbp);
         }

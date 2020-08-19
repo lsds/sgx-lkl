@@ -6,7 +6,7 @@
 #include <host/vio_host_event_channel.h>
 #include <host/virtio_blkdev.h>
 #include <host/virtio_debug.h>
-#include <shared/env.h>
+#include <shared/util.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
