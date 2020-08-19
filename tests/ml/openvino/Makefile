@@ -34,6 +34,14 @@ $(DISK_IMAGE): Dockerfile
 
 run: run-hw
 
+ifeq ($(SGXLKL_ETHREADS),1)
+skip-run-hw:
+	@echo "true"
+
+skip-run-sw:
+	@echo "true"
+endif
+
 run-hw: $(DISK_IMAGE)
 	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(DISK_IMAGE) $(ENCLAVE_CMD)
 
