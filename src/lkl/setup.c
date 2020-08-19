@@ -646,9 +646,8 @@ static void lkl_mount_disk(
     if ((tcfg->lkl_syscall || tcfg->internal_syscall) &&
         (disk->roothash || is_encrypted_cfg(disk)))
     {
-        // Check: const-casts acceptable?
-        *((bool*)&tcfg->lkl_syscall) = 0;
-        *((bool*)&tcfg->internal_syscall) = 0;
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall = false;
+        sgxlkl_enclave_state.trace_enabled.internal_syscall = false;
         SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily "
                        "disabling tracing to reduce noise.\n");
     }
@@ -696,9 +695,10 @@ static void lkl_mount_disk(
     {
         SGXLKL_VERBOSE(
             "Disk encryption/integrity enabled: Re-enabling tracing.\n");
-        // Check: const-casts acceptable?
-        *((bool*)&tcfg->lkl_syscall) = lkl_trace_lkl_syscall_bak;
-        *((bool*)&tcfg->internal_syscall) = lkl_trace_internal_syscall_bak;
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall =
+            lkl_trace_lkl_syscall_bak;
+        sgxlkl_enclave_state.trace_enabled.internal_syscall =
+            lkl_trace_internal_syscall_bak;
     }
 
     if (disk->create)

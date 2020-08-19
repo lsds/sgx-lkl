@@ -51,8 +51,13 @@ typedef struct sgxlkl_enclave_state
     /* Memory shared with the host */
     sgxlkl_shared_memory_t shared_memory;
 
-    /* This flag is used by the tracing macros */
-    bool verbose;
+    /* Flags to track whether tracing macros are currently enabled */
+    struct
+    {
+        bool verbose;
+        bool lkl_syscall;
+        bool internal_syscall;
+    } trace_enabled;
 } sgxlkl_enclave_state_t;
 
 extern sgxlkl_enclave_state_t sgxlkl_enclave_state;

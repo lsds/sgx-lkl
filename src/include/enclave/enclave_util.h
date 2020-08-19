@@ -93,8 +93,9 @@ void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...);
 
 /**
  *
- * Note that generating a stack trace by unwinding stack frames could be exploited
- * by an attacker and therefore should only be possible in a DEBUG build.
+ * Note that generating a stack trace by unwinding stack frames could be
+ * exploited by an attacker and therefore should only be possible in a DEBUG
+ * build.
  */
 #ifdef DEBUG
 /**
@@ -129,7 +130,8 @@ uint64_t next_power_of_2(uint64_t n);
     } while (0)
 
 #define SGXLKL_VERBOSE(x, ...)                                               \
-    if (sgxlkl_enclave_state.verbose)                                        \
+    if (sgxlkl_enclave_state.config->verbose &&                              \
+        sgxlkl_enclave_state.trace_enabled.verbose)                          \
     {                                                                        \
         struct schedctx* _sgxlkl_verbose_self;                               \
         __asm__ __volatile__("mov %%gs:48,%0" : "=r"(_sgxlkl_verbose_self)); \
@@ -145,10 +147,11 @@ uint64_t next_power_of_2(uint64_t n);
             __func__,                                                        \
             ##__VA_ARGS__);                                                  \
     }
-#define SGXLKL_VERBOSE_RAW(x, ...)        \
-    if (sgxlkl_enclave_state.verbose)     \
-    {                                     \
-        oe_host_printf(x, ##__VA_ARGS__); \
+#define SGXLKL_VERBOSE_RAW(x, ...)                  \
+    if (sgxlkl_enclave_state.config->verbose &&     \
+        sgxlkl_enclave_state.trace_enabled.verbose) \
+    {                                               \
+        oe_host_printf(x, ##__VA_ARGS__);           \
     }
 #define SGXLKL_TRACE_THREAD(x, ...)                         \
     if (sgxlkl_enclave_state.config->trace.thread)          \
@@ -162,11 +165,13 @@ uint64_t next_power_of_2(uint64_t n);
     }
 #define SGXLKL_TRACE_SYSCALL(type, x, ...)                                     \
     if ((sgxlkl_enclave_state.config->trace.lkl_syscall &&                     \
+         sgxlkl_enclave_state.trace_enabled.lkl_syscall &&                     \
          type == SGXLKL_LKL_SYSCALL))                                          \
     {                                                                          \
         oe_host_printf("[[ LKL SYSC ]] " x, ##__VA_ARGS__);                    \
     }                                                                          \
     else if ((sgxlkl_enclave_state.config->trace.internal_syscall &&           \
+              sgxlkl_enclave_state.trace_enabled.internal_syscall &&           \
               type == SGXLKL_INTERNAL_SYSCALL))                                \
     {                                                                          \
         oe_host_printf("[[ INT SYSC ]] " x, ##__VA_ARGS__);                    \
