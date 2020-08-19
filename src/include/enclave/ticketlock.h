@@ -29,6 +29,11 @@ static inline void ticket_lock(struct ticketlock* t)
         a_spin();
 #if DEBUG
     t->lt = NULL;
+    struct lthread *lt = lthread_self();
+    if (lt)
+    {
+        lt->ticketlocks_held++;
+    }
     // t->lt = lthread_self();
 #endif /* DEBUG */
 }
@@ -38,6 +43,11 @@ static inline void ticket_unlock(struct ticketlock* t)
     a_barrier();
     t->s.ticket++;
 #if DEBUG
+    struct lthread *lt = lthread_self();
+    if (lt)
+    {
+        lt->ticketlocks_held--;
+    }
     t->lt = NULL;
 #endif /* DEBUG */
 }
@@ -53,6 +63,11 @@ static inline int ticket_trylock(struct ticketlock* t)
     {
 #if DEBUG
         t->lt = NULL;
+        struct lthread *lt = lthread_self();
+        if (lt)
+        {
+            lt->ticketlocks_held++;
+        }
         // t->lt = lthread_self();
 #endif /* DEBUG */
         return 0;

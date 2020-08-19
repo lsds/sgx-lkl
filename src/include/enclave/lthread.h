@@ -155,6 +155,9 @@ struct lthread
     void (*yield_cb)(void*);
     void* yield_cbarg;
     struct futex_q fq;
+#ifndef NDEBUG
+    int ticketlocks_held;
+#endif
 };
 
 struct lthread_queue

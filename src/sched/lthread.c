@@ -343,6 +343,8 @@ void _lthread_yield_cb(struct lthread* lt, void (*f)(void*), void* arg)
 void _lthread_yield(struct lthread* lt)
 {
     struct lthread_sched* sched = lthread_get_sched();
+    // Yielding while holding a ticket lock may cause deadlock
+    SGXLKL_ASSERT(lt->ticketlocks_held == 0);
     _switch(&sched->ctx, &lt->ctx);
 }
 
@@ -492,8 +494,6 @@ int _lthread_resume(struct lthread* lt)
             sched->current_lthread->tp = fs_ptr;
         }
     }
-    sched->current_lthread = NULL;
-    reset_tls_tp(lt);
 
     if (lt->attr.state & BIT(LT_ST_EXITED))
     {
@@ -517,7 +517,12 @@ int _lthread_resume(struct lthread* lt)
     if (lt->yield_cb)
     {
         lt->yield_cb(lt->yield_cbarg);
+        // Yielding while holding a ticket lock may cause deadlock
+        SGXLKL_ASSERT(lt->ticketlocks_held == 0);
     }
+
+    sched->current_lthread = NULL;
+    reset_tls_tp(lt);
 
     return (0);
 }
