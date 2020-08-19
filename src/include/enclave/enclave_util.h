@@ -163,32 +163,33 @@ uint64_t next_power_of_2(uint64_t n);
     {                                                       \
         oe_host_printf("[[   MMAP   ]] " x, ##__VA_ARGS__); \
     }
-#define SGXLKL_TRACE_SYSCALL(type, x, ...)                                     \
-    if ((sgxlkl_enclave_state.config->trace.lkl_syscall &&                     \
-         sgxlkl_enclave_state.trace_enabled.lkl_syscall &&                     \
-         type == SGXLKL_LKL_SYSCALL))                                          \
-    {                                                                          \
-        oe_host_printf("[[ LKL SYSC ]] " x, ##__VA_ARGS__);                    \
-    }                                                                          \
-    else if ((sgxlkl_enclave_state.config->trace.internal_syscall &&           \
-              sgxlkl_enclave_state.trace_enabled.internal_syscall &&           \
-              type == SGXLKL_INTERNAL_SYSCALL))                                \
-    {                                                                          \
-        oe_host_printf("[[ INT SYSC ]] " x, ##__VA_ARGS__);                    \
-    }                                                                          \
-    else if ((sgxlkl_enclave_state.verbose && type == SGXLKL_IGNORED_SYSCALL)) \
-    {                                                                          \
-        oe_host_printf("[[ IGN SYSC ]] " x, ##__VA_ARGS__);                    \
-    }                                                                          \
-    else if ((sgxlkl_enclave_state.verbose &&                                  \
-              type == SGXLKL_UNSUPPORTED_SYSCALL))                             \
-    {                                                                          \
-        oe_host_printf("[[NO SYSC  !]] " x, ##__VA_ARGS__);                    \
-    }                                                                          \
-    else if ((sgxlkl_enclave_state.verbose &&                                  \
-              type == SGXLKL_REDIRECT_SYSCALL))                                \
-    {                                                                          \
-        oe_host_printf("[[REDIR SYSC]] " x, ##__VA_ARGS__);                    \
+#define SGXLKL_TRACE_SYSCALL(type, x, ...)                           \
+    if ((sgxlkl_enclave_state.config->trace.lkl_syscall &&           \
+         sgxlkl_enclave_state.trace_enabled.lkl_syscall &&           \
+         type == SGXLKL_LKL_SYSCALL))                                \
+    {                                                                \
+        oe_host_printf("[[ LKL SYSC ]] " x, ##__VA_ARGS__);          \
+    }                                                                \
+    else if ((sgxlkl_enclave_state.config->trace.internal_syscall && \
+              sgxlkl_enclave_state.trace_enabled.internal_syscall && \
+              type == SGXLKL_INTERNAL_SYSCALL))                      \
+    {                                                                \
+        oe_host_printf("[[ INT SYSC ]] " x, ##__VA_ARGS__);          \
+    }                                                                \
+    else if ((sgxlkl_enclave_state.config->trace.verbose &&          \
+              type == SGXLKL_IGNORED_SYSCALL))                       \
+    {                                                                \
+        oe_host_printf("[[ IGN SYSC ]] " x, ##__VA_ARGS__);          \
+    }                                                                \
+    else if ((sgxlkl_enclave_state.trace_enabled.verbose &&          \
+              type == SGXLKL_UNSUPPORTED_SYSCALL))                   \
+    {                                                                \
+        oe_host_printf("[[NO SYSC  !]] " x, ##__VA_ARGS__);          \
+    }                                                                \
+    else if ((sgxlkl_enclave_state.trace_enabled.verbose &&          \
+              type == SGXLKL_REDIRECT_SYSCALL))                      \
+    {                                                                \
+        oe_host_printf("[[REDIR SYSC]] " x, ##__VA_ARGS__);          \
     }
 
 #define SGXLKL_TRACE_SIGNAL(x, ...)                         \

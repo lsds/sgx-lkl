@@ -397,7 +397,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #ifdef DEBUG
     /* Make sure verbosity is off before loading the config (we don't know
      * whether it's enabled yet).*/
-    sgxlkl_enclave_state.verbose = false;
+    sgxlkl_enclave_state.trace_enabled.verbose = false;
 #endif
 
     _read_eeid_config();
@@ -406,7 +406,8 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #ifdef DEBUG
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
-    sgxlkl_enclave_state.verbose = sgxlkl_enclave_state.config->verbose;
+    sgxlkl_enclave_state.trace_enabled.verbose =
+        sgxlkl_enclave_state.config->verbose;
 #endif
 
     SGXLKL_VERBOSE("enter\n");
