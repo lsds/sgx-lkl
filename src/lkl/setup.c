@@ -114,6 +114,7 @@ static void lkl_prepare_rootfs(const char* dirname, int perm)
     {
         lkl_sys_chmod(dirname, perm);
     }
+    
 }
 
 static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
@@ -460,12 +461,15 @@ static void* lkl_create_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     // As we generate our own key and don't use a simple "password" we use
     // the minimal kdf settings possible.
-    struct crypt_pbkdf_type pbkdf = {
+    struct crypt_pbkdf_type pbkdf =
+    {
         .type = "pbkdf2",
         .hash = "sha256",
         .iterations = MIN_LUKS2_ITERATIONS,
     };
-    struct crypt_params_luks2 params = {.sector_size = SECTOR_SIZE,
+    struct crypt_params_luks2 params =
+    {
+        .sector_size = SECTOR_SIZE,
         .pbkdf = &pbkdf,
 #ifdef ENABLE_INTEGRITY
         .integrity = "hmac(sha256)"
