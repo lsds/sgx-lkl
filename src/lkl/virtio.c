@@ -88,27 +88,36 @@ static int virtio_read(void* data, int offset, void* res, int size)
         case VIRTIO_MMIO_VERSION:
             val = VIRTIO_DEV_VERSION;
             break;
+        /* Security Review: dev->device_id should be host-write-once */
         case VIRTIO_MMIO_DEVICE_ID:
             val = dev->device_id;
             break;
+        /* Security Review: dev->device_id should be host-write-once */
         case VIRTIO_MMIO_VENDOR_ID:
             val = dev->vendor_id;
             break;
+        /* Security Review: dev->device_features should be host-write-once */
         case VIRTIO_MMIO_DEVICE_FEATURES:
             val = virtio_read_device_features(dev);
             break;
+        /* Security Review: dev->queue[dev->queue_sel].num_max should be
+         * host-write-once
+         */
         case VIRTIO_MMIO_QUEUE_NUM_MAX:
             val = dev->queue[dev->queue_sel].num_max;
             break;
         case VIRTIO_MMIO_QUEUE_READY:
             val = dev->queue[dev->queue_sel].ready;
             break;
+        /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_STATUS:
             val = dev->int_status;
             break;
+        /* Security Review: dev->status is host-read-write */
         case VIRTIO_MMIO_STATUS:
             val = dev->status;
             break;
+        /* Security Review: dev->config_gen should be host-write-once */
         case VIRTIO_MMIO_CONFIG_GENERATION:
             val = dev->config_gen;
             break;
@@ -211,7 +220,9 @@ static void virtio_notify_host_device(struct virtio_dev* dev, uint32_t qidx)
  */
 static int virtio_write(void* data, int offset, void* res, int size)
 {
+    /* Security Review: use handle instead of virtio_dev pointer */
     struct virtio_dev* dev = (struct virtio_dev*)data;
+    /* Security Review: dev->queue_sel should be host-read-only */
     struct virtq* q = &dev->queue[dev->queue_sel];
     uint32_t val;
     int ret = 0;
@@ -219,7 +230,9 @@ static int virtio_write(void* data, int offset, void* res, int size)
     if (offset >= VIRTIO_MMIO_CONFIG)
     {
         offset -= VIRTIO_MMIO_CONFIG;
-
+        /* Security Review: dev->config_data and dev->config_len should be
+         * host-write-once
+         */
         if (offset + size >= dev->config_len)
             return -LKL_EINVAL;
         memcpy(dev->config_data + offset, res, size);
@@ -234,49 +247,69 @@ static int virtio_write(void* data, int offset, void* res, int size)
 
     switch (offset)
     {
+        /* Security Review: dev->device_features_sel should be host-read-only */
         case VIRTIO_MMIO_DEVICE_FEATURES_SEL:
             if (val > 1)
                 return -LKL_EINVAL;
             dev->device_features_sel = val;
             break;
+        /* Security Review: dev->driver_features_sel should be host-read-only */
         case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
             if (val > 1)
                 return -LKL_EINVAL;
             dev->driver_features_sel = val;
             break;
+        /* Security Review: dev->driver_features should be host-read-only */
         case VIRTIO_MMIO_DRIVER_FEATURES:
             virtio_write_driver_features(dev, val);
             break;
+        /* Security Review: dev->queue_sel should be host-read-only */
         case VIRTIO_MMIO_QUEUE_SEL:
             dev->queue_sel = val;
             break;
+        /* Security Review: dev->queue[dev->queue_sel].num should be
+         * host-read-only
+         */
         case VIRTIO_MMIO_QUEUE_NUM:
             dev->queue[dev->queue_sel].num = val;
             break;
+        /* Security Review: is dev->queue[dev->queue_sel].ready host-read-only?
+         */
         case VIRTIO_MMIO_QUEUE_READY:
             dev->queue[dev->queue_sel].ready = val;
             break;
         case VIRTIO_MMIO_QUEUE_NOTIFY:
             virtio_notify_host_device(dev, val);
             break;
+        /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_ACK:
             dev->int_status = 0;
             break;
+        /* Security Review: dev->status is host-read-write */
         case VIRTIO_MMIO_STATUS:
             set_status(dev, val);
             break;
+        /* Security Review: q->desc pointer and link list content should be
+         * host-read-only
+         */
         case VIRTIO_MMIO_QUEUE_DESC_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->desc, val);
             break;
         case VIRTIO_MMIO_QUEUE_DESC_HIGH:
             set_ptr_high((_Atomic(uint64_t)*)&q->desc, val);
             break;
+        /* Security Review: q->avail pointer and link list content should be
+         * host-read-only
+         */
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->avail, val);
             break;
         case VIRTIO_MMIO_QUEUE_AVAIL_HIGH:
             set_ptr_high((_Atomic(uint64_t)*)&q->avail, val);
             break;
+        /* Security Review: q->used pointer should be host-read-only, the link
+         * list content should be guest-read-only
+         */
         case VIRTIO_MMIO_QUEUE_USED_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->used, val);
             break;
@@ -319,11 +352,21 @@ int lkl_virtio_dev_setup(
     if (dev->irq < 0)
         return 1;
 
+    /* Security Review: dev-vendor_id might cause overflow in
+     * virtio_deliver_irq[DEVICE_COUNT]
+     */
     virtio_deliver_irq[dev->vendor_id] = deliver_irq_cb;
+    /* Security Review: pass handle instead of virtio_dev pointer to the rest of
+     * the system
+     */
+    /* Security Review: shadow dev->base used in guest side only */
     dev->base = register_iomem(dev, mmio_size, &virtio_ops);
 
     if (!lkl_is_running())
     {
+        /* Security Review: multi-thread invocation of this function can cause
+         * buffer overflow in lkl_virtio_devs[4096]
+         */
         avail = sizeof(lkl_virtio_devs) - (devs - lkl_virtio_devs);
         num_bytes = oe_snprintf(
             devs,
@@ -339,10 +382,12 @@ int lkl_virtio_dev_setup(
             return -LKL_ENOMEM;
         }
         devs += num_bytes;
+        /* Security Review: where is dev->virtio_mmio_id used? */
         dev->virtio_mmio_id = lkl_num_virtio_boot_devs++;
     }
     else
     {
+        /* Security Review: where is this function defined? */
         ret = lkl_sys_virtio_mmio_device_add(
             (long)dev->base, mmio_size, dev->irq);
         if (ret < 0)
@@ -350,6 +395,7 @@ int lkl_virtio_dev_setup(
             sgxlkl_error("Can't register mmio device\n");
             return -1;
         }
+        /* Security Review: where is dev->virtio_mmio_id used? */
         dev->virtio_mmio_id = lkl_num_virtio_boot_devs + ret;
     }
     return 0;
