@@ -23,12 +23,15 @@ uint64_t size_str_to_uint64(const char* str, uint64_t def, uint64_t max)
         case 'G':
         case 'g':
             m *= 1024;
+            __attribute__((fallthrough));
         case 'M':
         case 'm':
             m *= 1024;
+            __attribute__((fallthrough));
         case 'K':
         case 'k':
             m *= 1024;
+            __attribute__((fallthrough));
         default:
             break;
     }
