@@ -246,7 +246,8 @@ int lthread_run(void)
                 if (lt->attr.state & BIT(LT_ST_TERMINATE))
                 {
                     SGXLKL_VERBOSE("Exiting scheduler due to terminating lthread\n");
-                    return 1;
+                    // Report exit status
+                    return sgxlkl_enclave_state.exit_status;
                 }
 
                 // Bail out if there is a terminating scheduler, and we are not
@@ -255,7 +256,8 @@ int lthread_run(void)
                     _lthread_terminating_scheduler != sched)
                 {
                     SGXLKL_VERBOSE("Exiting non-terminating scheduler\n");
-                    return 0;
+                    // Do not report exit status
+                    return INT_MAX;
                 }
             }
 

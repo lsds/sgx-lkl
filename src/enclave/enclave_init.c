@@ -171,17 +171,5 @@ int __libc_init_enclave(int argc, char** argv)
         sgxlkl_fail("Failed to create lthread for startmain()\n");
     }
 
-    int terminating_ethread = lthread_run();
-
-    // This may be the terminating ethread exiting, so return the exit status
-    // from the enclave.
-    if (terminating_ethread)
-    {
-        return sgxlkl_enclave_state.exit_status;
-    }
-    else
-    {
-        // This ethread is not the terminating ethread
-        return INT_MAX;
-    }
+    return lthread_run();
 }

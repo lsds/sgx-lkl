@@ -255,9 +255,9 @@ extern "C"
     /**
      * Run the main scheduler loop.
      *
-     * Returns 1 if this is the last ethread terminating (which should return
-     * the exit status from the enclave); all other ethreads return 0 when
-     * exiting.
+     * Returns the exit status if this is the last ethread terminating (which
+     * should report the exit status from the enclave); all other ethreads
+     * return MAX_INT when exiting.
      */
     int lthread_run(void);
 

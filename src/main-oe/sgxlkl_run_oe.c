@@ -93,7 +93,7 @@ static pthread_cond_t terminating_ethread_exited_cv;
 static pthread_mutex_t terminating_ethread_exited_mtx;
 
 // Exit status returned from the enclave
-static long enclave_return_status = 0;
+static int enclave_return_status = INT_MAX;
 
 // Counts the number of exited ethreads
 static _Atomic(int) exited_ethread_count = 0;
@@ -1325,10 +1325,7 @@ static void handle_ethread_exit(int exit_status)
         // Signal that the terminating ethread has exited
         pthread_mutex_lock(&terminating_ethread_exited_mtx);
         enclave_return_status = exit_status;
-        int ret = pthread_cond_signal(&terminating_ethread_exited_cv);
-        if (ret != 0)
-            sgxlkl_host_fail(
-                "Failed to signal enclave termination: ret=%i\n", ret);
+        pthread_cond_signal(&terminating_ethread_exited_cv);
         pthread_mutex_unlock(&terminating_ethread_exited_mtx);
     }
 }
@@ -2056,10 +2053,11 @@ int main(int argc, char* argv[], char* envp[])
         &terminating_ethread_exited_cv, &terminating_ethread_exited_mtx);
     if (ret != 0)
         sgxlkl_host_fail("Failed to wait for enclave to finish: ret=%i\n", ret);
-    long exit_status = (long)enclave_return_status;
+    int exit_status = enclave_return_status;
     pthread_mutex_unlock(&terminating_ethread_exited_mtx);
 
-    // Only try to destroy enclave if all ethreads successfully exited
+    // Only try to destroy enclave if all ethreads successfully exited. If we
+    // call oe_terminate_enclave otherwise, it may sefault.
     if (oe_enclave && exited_ethread_count == econf->ethreads)
     {
         sgxlkl_host_verbose("oe_terminate_enclave... ");
