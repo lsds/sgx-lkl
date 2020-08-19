@@ -86,7 +86,7 @@ void futex_tick()
 
     a_barrier();
 
-    if (ticket_trylock(&futex_q_lock) == EBUSY)
+    if (ticket_trylock(&futex_q_lock))
         return;
 
     SLIST_FOREACH_SAFE(fq, &futex_queues, entries, tmp)

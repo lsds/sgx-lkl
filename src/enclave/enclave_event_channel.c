@@ -213,7 +213,7 @@ int vio_enclave_wakeup_event_channel(void)
     /* Schedule picks up the available event channel processing */
     for (uint8_t dev_id = 0; dev_id < _evt_channel_num; dev_id++)
     {
-        if (ticket_trylock(evt_chn_lock[dev_id]) == EBUSY)
+        if (ticket_trylock(evt_chn_lock[dev_id]))
             continue;
 
         int rc = vio_signal_evt_channel(dev_id);
