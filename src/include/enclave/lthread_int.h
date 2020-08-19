@@ -90,4 +90,8 @@ lthread_get_sched()
     return &c->sched;
 }
 
+void futex_init(void);
+
+void futex_tick(void);
+
 #endif /* LTHREAD_INT_H */

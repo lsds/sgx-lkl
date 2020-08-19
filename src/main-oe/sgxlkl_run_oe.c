@@ -2049,10 +2049,15 @@ int main(int argc, char* argv[], char* envp[])
 
     // Wait for the terminating ethread to exit the enclave
     pthread_mutex_lock(&terminating_ethread_exited_mtx);
-    ret = pthread_cond_wait(
-        &terminating_ethread_exited_cv, &terminating_ethread_exited_mtx);
-    if (ret != 0)
-        sgxlkl_host_fail("Failed to wait for enclave to finish: ret=%i\n", ret);
+    // Only wait if the enclave has not exited yet
+    if (enclave_return_status == INT_MAX)
+    {
+        ret = pthread_cond_wait(
+            &terminating_ethread_exited_cv, &terminating_ethread_exited_mtx);
+        if (ret != 0)
+            sgxlkl_host_fail(
+                "Failed to wait for enclave to finish: ret=%i\n", ret);
+    }
     int exit_status = enclave_return_status;
     pthread_mutex_unlock(&terminating_ethread_exited_mtx);
 

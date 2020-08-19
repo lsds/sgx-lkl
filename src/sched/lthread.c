@@ -252,8 +252,9 @@ int lthread_run(void)
 
                 // Bail out if there is a terminating scheduler, and we are not
                 // it.
-                if (_lthread_terminating_scheduler &&
-                    _lthread_terminating_scheduler != sched)
+                struct lthread_sched* terminating_sched =
+                    _lthread_terminating_scheduler;
+                if (terminating_sched && terminating_sched != sched)
                 {
                     SGXLKL_VERBOSE("Exiting non-terminating scheduler\n");
                     // Do not report exit status
