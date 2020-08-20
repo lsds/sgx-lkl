@@ -1488,7 +1488,9 @@ void enclave_config_from_file(const char* filename)
     if (ret < 0)
         sgxlkl_host_fail("Failed to read %s: %s.\n", filename, strerror(errno));
 
-    sgxlkl_read_enclave_config(buf, &sgxlkl_host_state.enclave_config, false);
+    const sgxlkl_enclave_config_page_t* config_page =
+        sgxlkl_read_enclave_config(buf, false, NULL);
+    sgxlkl_host_state.enclave_config = *(sgxlkl_enclave_config_t*)config_page;
 }
 
 void override_enclave_config(

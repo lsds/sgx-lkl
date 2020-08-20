@@ -10,6 +10,7 @@
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestdlib.h>
 #include <openenclave/corelibc/oestring.h>
+#include <openenclave/corelibc/stdlib.h>
 #include <openenclave/internal/safecrt.h>
 
 #define malloc oe_malloc
@@ -21,11 +22,13 @@
 #define strtok_r oe_strtok_r
 #define snprintf oe_snprintf
 #define strtoul oe_strtoul
+#define memalign oe_memalign
 
 #else
 
 #include <assert.h>
 #include <inttypes.h>
+#include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
