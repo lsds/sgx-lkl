@@ -101,12 +101,14 @@ static int app_main_thread(void* args)
     pthread_t self = __pthread_self();
     self->locale = &libc.global_locale;
 
+    init_wireguard_peers();
+
+    find_and_mount_disks();
+
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
     SGXLKL_VERBOSE("Invoking dynamic loader (stage 3)\n");
     __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
-
-    SGXLKL_VERBOSE("done\n");
 }
 
 static int kernel_main_thread(void* args)
@@ -127,9 +129,6 @@ static int kernel_main_thread(void* args)
     lkl_start_init();
 
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
-    init_wireguard_peers();
-
-    find_and_mount_disks();
 
     struct lthread* lt;
     if (lthread_create(&lt, NULL, app_main_thread, NULL) != 0)
