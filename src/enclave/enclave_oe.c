@@ -408,6 +408,10 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
     // point onwards
     sgxlkl_enclave_state.trace_enabled.verbose =
         sgxlkl_enclave_state.config->verbose;
+    sgxlkl_enclave_state.trace_enabled.internal_syscall =
+        sgxlkl_enclave_state.config->trace.internal_syscall;
+    sgxlkl_enclave_state.trace_enabled.lkl_syscall =
+        sgxlkl_enclave_state.config->trace.lkl_syscall;
 #endif
 
     SGXLKL_VERBOSE("enter\n");
