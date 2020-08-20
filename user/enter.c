@@ -13,12 +13,6 @@ void __libc_start_init(void);
 void sgxlkl_warn(const char* fmt, ...);
 void __init_libc(char **envp, char *pn);
 void* _dlstart_c(size_t base);
-
-_Noreturn void __dls3(void* conf, void* tos);
-void __libc_start_init(void);
-void sgxlkl_warn(const char* fmt, ...);
-void __init_libc(char **envp, char *pn);
-void* _dlstart_c(size_t base);
 void init_sysconf(long nproc_conf, long nproc_onln);
 
 static inline void _barrier()
@@ -58,10 +52,7 @@ void sgxlkl_user_enter(sgxlkl_userargs_t* args, size_t args_size)
     __sgxlkl_userargs = args;
 
     if (sizeof(sgxlkl_userargs_t) != args_size)
-    {
         a_crash();
-        *((int*)0) = 0;
-    }
 
     _dlstart_c((size_t)args->elf64_hdr);
 
