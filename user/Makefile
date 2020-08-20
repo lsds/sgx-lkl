@@ -35,7 +35,8 @@ LOCAL_OBJECTS = $(SOURCES:.c=.o)
 OBJECTS = $(LOCAL_OBJECTS) $(MUSL_OBJECTS)
 
 all: $(OBJECTS)
-	$(CC) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+	@ $(CC) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+	@ echo "########## Created $(TARGET)"
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(INCLUDES) -o $@ $<

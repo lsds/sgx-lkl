@@ -65,18 +65,6 @@ bool sgxlkl_in_sw_debug_mode()
     return __sgxlkl_userargs->sw_debug_mode;
 }
 
-struct lthread* lthread_current()
-{
-    return __sgxlkl_userargs->ua_lthread_current();
-}
-
-#if 0
-int enclave_mmap_flags_supported(int flags, int fd)
-{
-    return __sgxlkl_userargs->ua_enclave_mmap_flags_supported(flags, fd);
-}
-#endif
-
 void* enclave_mmap(
     void* addr,
     size_t length,
@@ -94,13 +82,6 @@ typedef enum
     OE_FAILURE,
 }
 oe_result_t;
-
-oe_result_t sgxlkl_host_syscall_mprotect(
-    int* retval, void* addr, size_t len, int prot)
-{
-    return __sgxlkl_userargs->ua_sgxlkl_host_syscall_mprotect(
-        retval, addr, len, prot);
-}
 
 /*
 **==============================================================================

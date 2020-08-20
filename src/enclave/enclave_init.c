@@ -91,17 +91,6 @@ static void init_wireguard()
         wgu_list_devices();
 }
 
-static int _sgxlkl_host_syscall_mprotect(
-    int* retval, void* addr, size_t len, int prot)
-{
-    return (int)sgxlkl_host_syscall_mprotect(retval, addr, len, prot);
-}
-
-void _barrier(void)
-{
-    a_barrier();
-}
-
 static long _lkl_syscall_wrapper(long no, long* params)
 {
     //sgxlkl_warn("syscall begin: no=%u\n", no);
@@ -119,32 +108,29 @@ static void _enter_user_space(
 {
     extern void* __oe_get_isolated_image_entry_point(void);
     extern const void* __oe_get_isolated_image_base();
-    typedef int (*sgxlkl_user_enter_proc_t)(void* userargs);
-    sgxlkl_user_enter_proc_t proc = __oe_get_isolated_image_entry_point();
-    static sgxlkl_userargs_t _userargs =
-    {
-        /* ATTN:MEB: eliminate all of these bypasses except lkl_syscall */
-        _lkl_syscall_wrapper,
-        sgxlkl_warn,
-        sgxlkl_error,
-        sgxlkl_fail,
-        lthread_current,
-        enclave_mmap,
-        _sgxlkl_host_syscall_mprotect,
-    };
+    typedef int (*sgxlkl_user_enter_proc_t)(void* args, size_t size);
+    sgxlkl_userargs_t args;
+    sgxlkl_user_enter_proc_t proc;
 
-    if (!proc)
+    memset(&args, 0, sizeof(args));
+
+    if (!(proc = __oe_get_isolated_image_entry_point()))
         sgxlkl_fail("failed to obtain user space entry point");
 
-    _userargs.argc = argc;
-    _userargs.argv = argv;
-    _userargs.stack = stack;
-    _userargs.elf64_hdr = (const void*)__oe_get_isolated_image_base();
-    _userargs.num_ethreads = num_ethreads;
-    _userargs.sw_debug_mode = sgxlkl_in_sw_debug_mode();
-    memcpy(_userargs.clock_res, clock_res, sizeof(_userargs.clock_res));
+    args.ua_lkl_syscall = _lkl_syscall_wrapper;
+    args.ua_sgxlkl_warn = sgxlkl_warn;
+    args.ua_sgxlkl_error = sgxlkl_error;
+    args.ua_sgxlkl_fail = sgxlkl_fail;
+    args.ua_enclave_mmap = enclave_mmap;
+    args.argc = argc;
+    args.argv = argv;
+    args.stack = stack;
+    args.elf64_hdr = (const void*)__oe_get_isolated_image_base();
+    args.num_ethreads = num_ethreads;
+    args.sw_debug_mode = sgxlkl_in_sw_debug_mode();
+    memcpy(args.clock_res, clock_res, sizeof(args.clock_res));
 
-    (*proc)(&_userargs);
+    (*proc)(&args, sizeof(args));
 }
 
 typedef struct startmain_args
