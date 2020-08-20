@@ -50,15 +50,14 @@ $(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git $(LTP_TEST_M
 	$(ESCALATE_CMD) tar -C $(MOUNTPOINT) -xvf $(ALPINE_TAR)
 	$(ESCALATE_CMD) cp /etc/resolv.conf $(MOUNTPOINT)/etc/resolv.conf
 	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp
+	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)/tests/ltp/ltp-batch1
+	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)/tests/ltp/ltp-batch2
+	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/tests/ltp/ltp-batch1/* $(MOUNTPOINT)/tests/ltp/ltp-batch1/
+	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/tests/ltp/ltp-batch2/* $(MOUNTPOINT)/tests/ltp/ltp-batch2/
 	$(ESCALATE_CMD) cp -R $(SGXLKL_ROOT)/ltp/* $(MOUNTPOINT)/ltp/
 	$(ESCALATE_CMD) install $(BUILDENV_SCRIPT) $(MOUNTPOINT)/usr/sbin
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash
-	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp_tst_mnt_fs
-	$(ESCALATE_CMD) dd if=/dev/zero of=$(MOUNTPOINT)/ltp_tst_mnt_fs/tstfs_ext4.img count=256 bs=1M
-	$(ESCALATE_CMD) mkfs -t ext4 $(MOUNTPOINT)/ltp_tst_mnt_fs/tstfs_ext4.img
-
-
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /bin/bash /usr/sbin/buildenv.sh 'build' '/ltp/testcases/kernel/syscalls'
 	$(ESCALATE_CMD) cp $(MOUNTPOINT)/ltp/.c_binaries_list .
 	$(ESCALATE_CMD) umount $(MOUNTPOINT)

@@ -49,7 +49,7 @@
 #/ltp/testcases/kernel/syscalls/chown/chown05
 #/ltp/testcases/kernel/syscalls/chroot/chroot01
 #/ltp/testcases/kernel/syscalls/chroot/chroot02
-#/ltp/testcases/kernel/syscalls/chroot/chroot03
+/ltp/testcases/kernel/syscalls/chroot/chroot03
 #/ltp/testcases/kernel/syscalls/chroot/chroot04
 #/ltp/testcases/kernel/syscalls/clock_adjtime/clock_adjtime01
 #/ltp/testcases/kernel/syscalls/clock_adjtime/clock_adjtime02
@@ -225,7 +225,7 @@
 /ltp/testcases/kernel/syscalls/fcntl/fcntl36
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync01
 #/ltp/testcases/kernel/syscalls/fdatasync/fdatasync02
-#/ltp/testcases/kernel/syscalls/fdatasync/fdatasync03
+/ltp/testcases/kernel/syscalls/fdatasync/fdatasync03
 #/ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr01
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr02
 /ltp/testcases/kernel/syscalls/fgetxattr/fgetxattr03
@@ -257,7 +257,7 @@
 /ltp/testcases/kernel/syscalls/fsetxattr/fsetxattr01
 /ltp/testcases/kernel/syscalls/fsetxattr/fsetxattr02
 #/ltp/testcases/kernel/syscalls/fstat/fstat02
-#/ltp/testcases/kernel/syscalls/fstat/fstat03
+/ltp/testcases/kernel/syscalls/fstat/fstat03
 #/ltp/testcases/kernel/syscalls/fstatat/fstatat01
 #/ltp/testcases/kernel/syscalls/fstatfs/fstatfs01
 #/ltp/testcases/kernel/syscalls/fstatfs/fstatfs02
@@ -948,7 +948,7 @@
 /ltp/testcases/kernel/syscalls/sync/sync02
 /ltp/testcases/kernel/syscalls/sync/sync03
 /ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range01
-#/ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range02
+/ltp/testcases/kernel/syscalls/sync_file_range/sync_file_range02
 /ltp/testcases/kernel/syscalls/syncfs/syncfs01
 /ltp/testcases/kernel/syscalls/syscall/syscall01
 /ltp/testcases/kernel/syscalls/sysconf/sysconf01
