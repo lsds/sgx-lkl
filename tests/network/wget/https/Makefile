@@ -1,11 +1,11 @@
-include ../../common.mk
+include ../../../common.mk
 
-CC_APP=/usr/bin/curl
+CC_APP=/usr/bin/wget
 
 # The following used to access https://www.microsoft.com, but this fails
 # with Github issue https://github.com/lsds/sgx-lkl/issues/499. Other URLs
 # appear to work fine.
-CC_APP_CMDLINE=${CC_APP} --trace-ascii - https://www.wikipedia.org/
+CC_APP_CMDLINE=${CC_APP} https://www.wikipedia.org/
 
 CC_IMAGE_SIZE=128M
 
@@ -26,7 +26,7 @@ clean:
 	rm -f $(CC_IMAGE)
 
 $(CC_IMAGE):
-	${SGXLKL_DISK_TOOL} create --size=${CC_IMAGE_SIZE} --alpine="curl" ${CC_IMAGE}
+	${SGXLKL_DISK_TOOL} create --size=${CC_IMAGE_SIZE} --alpine="wget" ${CC_IMAGE}
 
 run-hw: $(CC_IMAGE)
 	${SGXLKL_ENV} ${SGXLKL_STARTER} --hw-debug $(CC_IMAGE) $(CC_APP_CMDLINE)
