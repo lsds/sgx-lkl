@@ -22,15 +22,12 @@ typedef struct sgxlkl_userargs
     void (*ua_sgxlkl_warn)(const char* msg, ...);
     void (*ua_sgxlkl_error)(const char* msg, ...);
     void (*ua_sgxlkl_fail)(const char* msg, ...);
-    struct lthread* (*ua_lthread_current)(void);
     void* (*ua_enclave_mmap)(
         void* addr,
         size_t length,
         int mmap_fixed,
         int prot,
         int zero_pages);
-    int (*ua_sgxlkl_host_syscall_mprotect)(
-        int* retval, void* addr, size_t len, int prot);
 
     /* Arguments */
     int argc;

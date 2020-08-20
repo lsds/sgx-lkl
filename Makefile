@@ -122,7 +122,6 @@ $(SGXLKL_LIB_TARGET): $(SGXLKL_BUILD_VARIANT)
 
 # Generate the RSA key and sign the libsgxlkl.so
 $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED): $(SGXLKL_LIB_TARGET) $(SGXLKL_USER_LIB_TARGET)
-	$(MAKE) -C user
 	@echo "openssl genrsa -out private.pem -3 3072"
 	@openssl genrsa -out $(BUILD_DIR)/private.pem -3 3072
 	@echo "oesign sign -e $(SGXLKL_LIB_TARGET) -c config/eeid-params.conf -k private.pem"

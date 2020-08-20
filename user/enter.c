@@ -53,9 +53,15 @@ __gdb_hook_load_debug_symbols_from_file_wrap(struct dso *dso, char *libpath)
     return __gdb_hook_load_debug_symbols_from_file(dso, libpath);
 }
 
-void sgxlkl_user_enter(sgxlkl_userargs_t* args)
+void sgxlkl_user_enter(sgxlkl_userargs_t* args, size_t args_size)
 {
     __sgxlkl_userargs = args;
+
+    if (sizeof(sgxlkl_userargs_t) != args_size)
+    {
+        a_crash();
+        *((int*)0) = 0;
+    }
 
     _dlstart_c((size_t)args->elf64_hdr);
 
