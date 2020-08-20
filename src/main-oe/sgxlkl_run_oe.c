@@ -714,10 +714,10 @@ int getopt_sgxlkl(int argc, char* argv[], struct option long_options[])
         return -1;
 }
 
-/* Determines path of libsgxlkl.so.signed */
-void get_signed_libsgxlkl_path(char* path_buf, size_t len)
+/* Determines path of the given library */
+void find_lib(const char* libname, char* path_buf, size_t len)
 {
-    /* Look for libsgxlkl.so.signed in:
+    /* Look for library in:
      *  1. .
      *  2. ../lib
      *  3. /lib
@@ -766,7 +766,7 @@ void get_signed_libsgxlkl_path(char* path_buf, size_t len)
                 "%.*s/%s",
                 (int)base_len,
                 base,
-                "libsgxlkl.so.signed") < max_len)
+                libname) < max_len)
         {
             // If accessible, path found.
             if (!access(path_buf, R_OK))
@@ -777,7 +777,19 @@ void get_signed_libsgxlkl_path(char* path_buf, size_t len)
         base += strspn(base, ":");
     }
 
-    sgxlkl_host_fail("Unable to locate libsgxlkl.so.signed\n");
+    sgxlkl_host_fail("Unable to locate %s\n", libname);
+}
+
+/* Determines path of libsgxlkl.so.signed */
+void get_signed_libsgxlkl_path(char* path_buf, size_t len)
+{
+    find_lib("libsgxlkl.so.signed", path_buf, len);
+}
+
+/* Determines path of libsgxlkl-user */
+void get_libsgxlkl_user_path(char* path_buf, size_t len)
+{
+    find_lib("libsgxlkl-user.so", path_buf, len);
 }
 
 void mk_clock_res_string(int clock)
@@ -1371,6 +1383,7 @@ void* enclave_init(ethread_args_t* args)
 /* Creates an SGX-LKL enclave with enclave configuration in the EEID. */
 void _create_enclave(
     char* libsgxlkl,
+    char* libsgxlkl_user,
     uint32_t oe_flags,
     oe_enclave_t** oe_enclave)
 {
@@ -1380,6 +1393,7 @@ void _create_enclave(
 
     char* buffer = NULL;
     size_t buffer_size = 0;
+    char path[PATH_MAX];
 
     serialize_enclave_config(
         &sgxlkl_host_state.enclave_config, &buffer, &buffer_size);
@@ -1404,8 +1418,15 @@ void _create_enclave(
 
     setting.u.eeid = eeid;
 
+    // Format the follwing path <libsgxlkl>:<libsgxlkl_user>
+    if (snprintf(path, sizeof(path), "%s:%s", libsgxlkl, libsgxlkl_user)
+        >= sizeof(path))
+    {
+        sgxlkl_host_fail("path overflow: %s:%s\n", libsgxlkl, libsgxlkl_user);
+    }
+
     result = oe_create_sgxlkl_enclave(
-        libsgxlkl, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, oe_enclave);
+        path, OE_ENCLAVE_TYPE_SGX, oe_flags, &setting, 1, oe_enclave);
 
     free(eeid);
 
@@ -1695,6 +1716,7 @@ int main(int argc, char* argv[], char* envp[])
     char* host_config_path = NULL;
     char* enclave_config_path = NULL;
     char libsgxlkl[PATH_MAX];
+    char libsgxlkl_user[PATH_MAX];
     // const sgxlkl_host_config_t* hconf = &host_state.config;
     const sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
     char* root_hd = NULL;
@@ -1708,6 +1730,7 @@ int main(int argc, char* argv[], char* envp[])
     pthread_attr_t eattr;
     cpu_set_t set;
     bool enclave_image_provided = false;
+    bool isolated_image_provided = false;
 
     oe_enclave_t* oe_enclave = NULL;
     uint32_t oe_flags = 0;
@@ -1734,6 +1757,7 @@ int main(int argc, char* argv[], char* envp[])
         {"help-tls", no_argument, 0, 't'},
         {"help", no_argument, 0, 'h'},
         {"enclave-image", required_argument, 0, 'e'},
+        {"isolated-image", required_argument, 0, 'i'},
         {"host-config", required_argument, 0, 'H'},
         {"enclave-config", required_argument, 0, 'c'},
         {0, 0, 0, 0}};
@@ -1757,6 +1781,10 @@ int main(int argc, char* argv[], char* envp[])
             case 'e':
                 enclave_image_provided = true;
                 strcpy(libsgxlkl, optarg);
+                break;
+            case 'i':
+                enclave_image_provided = true;
+                strcpy(libsgxlkl_user, optarg);
                 break;
             case 'v':
                 version();
@@ -1875,6 +1903,13 @@ int main(int argc, char* argv[], char* envp[])
     }
     sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl);
 
+    sgxlkl_host_verbose("get_libsgxlkl_user_path... ");
+    if (!isolated_image_provided)
+    {
+        get_libsgxlkl_user_path(libsgxlkl_user, PATH_MAX);
+    }
+    sgxlkl_host_verbose_raw("result=%s\n", libsgxlkl_user);
+
     parse_cpu_affinity_params(
         sgxlkl_host_state.config.ethreads_affinity,
         &ethreads_cores,
@@ -1915,7 +1950,7 @@ int main(int argc, char* argv[], char* envp[])
 
     /* Enclave creation */
     sgxlkl_host_verbose("oe_create_enclave...\n");
-    _create_enclave(libsgxlkl, oe_flags, &oe_enclave);
+    _create_enclave(libsgxlkl, libsgxlkl_user, oe_flags, &oe_enclave);
 
     /* Perform host interface initialization */
     sgxlkl_host_interface_initialization();

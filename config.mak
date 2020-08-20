@@ -14,6 +14,7 @@ $(info $$SGXLKL_ROOT        = [${SGXLKL_ROOT}])
 
 SGXLKL_RUN_TARGET           ?= sgx-lkl-run-oe
 SGXLKL_LIB_TARGET           ?= libsgxlkl.so
+SGXLKL_USER_LIB_TARGET      ?= libsgxlkl-user.so
 SGXLKL_LIB_TARGET_SIGNED    ?= libsgxlkl.so.signed
 SGXLKL_STATIC_LIB           ?= libsgxlkl.a
 

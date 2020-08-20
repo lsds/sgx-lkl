@@ -121,11 +121,15 @@ sgx-lkl: ${THIRD_PARTY_LIB_DEVICE_MAPPER} ${THIRD_PARTY_LIB_EXT2FS} ${THIRD_PART
 $(SGXLKL_LIB_TARGET): $(SGXLKL_BUILD_VARIANT)
 
 # Generate the RSA key and sign the libsgxlkl.so
-$(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED): $(SGXLKL_LIB_TARGET)
+$(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED): $(SGXLKL_LIB_TARGET) $(SGXLKL_USER_LIB_TARGET)
+	$(MAKE) -C user
 	@echo "openssl genrsa -out private.pem -3 3072"
 	@openssl genrsa -out $(BUILD_DIR)/private.pem -3 3072
 	@echo "oesign sign -e $(SGXLKL_LIB_TARGET) -c config/eeid-params.conf -k private.pem"
-	@$(OE_OESIGN_TOOL_PATH)/oesign sign -e $(BUILD_DIR)/$(SGXLKL_LIB_TARGET) -c $(OESIGN_CONFIG_PATH)/eeid-params.conf -k $(BUILD_DIR)/private.pem
+	$(OE_OESIGN_TOOL_PATH)/oesign sign -e "$(BUILD_DIR)/$(SGXLKL_LIB_TARGET):$(BUILD_DIR)/$(SGXLKL_USER_LIB_TARGET)" -c $(OESIGN_CONFIG_PATH)/eeid-params.conf -k $(BUILD_DIR)/private.pem
+
+$(SGXLKL_USER_LIB_TARGET):
+	$(MAKE) -C user
 
 # Create a link named build to appropiate build directory.
 create-build-link:
