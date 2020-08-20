@@ -16,15 +16,16 @@ function CreateNotEnabledLtpTestFoldersListFile()
     # Get the unique syscall list that LTP test suite addresses
     cur_folder=$(pwd)
     cd "/ltp/testcases/kernel/syscalls"
+    # shellcheck disable=SC2012,SC2035
     ls -ld */  | sed 's/.* \(.*\)\//\1/g' | sort | uniq > "/ltp_folders.txt"
-    cd $cur_folder
+    cd "$cur_folder"
 
     rm -fr "/ltp_folders_enabled_tmp.txt"
 
     # Get the unique syscall list that enabled in sgx-lkl
     while IFS= read -r line
     do
-       sed -e 's/#\/ltp\/testcases\/kernel\/syscalls\/\(.*\)\/.*/\1/g' <<< $line >>"/ltp_folders_enabled_tmp.txt"
+       sed -e 's/#\/ltp\/testcases\/kernel\/syscalls\/\(.*\)\/.*/\1/g' <<< "$line" >>"/ltp_folders_enabled_tmp.txt"
     done<"/enabled_ltp_tests.txt"
 
     # Get the difference of above 2 lists to get the syscall list that zero LTP test enabled
@@ -107,9 +108,9 @@ if [[ "$mode" == "build" ]]; then
         c_file_count=${#c_file_list[@]}
         c_binaries_total=$((c_binaries_total + c_file_count))
 
-        folder_name=$(sed -e 's/\/ltp\/testcases\/kernel\/syscalls\/\(.*\)/\1/g' <<< $current_test_directory)
+        folder_name=$(sed -e 's/\/ltp\/testcases\/kernel\/syscalls\/\(.*\)/\1/g' <<< "$current_test_directory")
         # if matches, this syscall folder will be skipped since no LTP test enabled in it
-        match_count=$(grep -c -w $folder_name "/ltp_folders_skipped.txt")
+        match_count=$(grep -c -w "$folder_name" "/ltp_folders_skipped.txt")
         if [[ $match_count -ge 1 ]]; then
 	    printf '%-70s' "Skipping $current_test_directory "
 	    printf '%-10s\n' "Skipped"
