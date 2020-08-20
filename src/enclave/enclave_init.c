@@ -60,7 +60,7 @@ static void find_and_mount_disks()
     lkl_mount_disks(&cfg->root, cfg->mounts, cfg->num_mounts, cfg->cwd);
 }
 
-static void init_wireguard()
+static void init_wireguard_peers()
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
 
@@ -89,7 +89,27 @@ static void init_wireguard()
         wgu_list_devices();
 }
 
-static int startmain(void* args)
+static int app_main_thread(void* args)
+{
+    SGXLKL_VERBOSE("enter\n");
+
+    lthread_set_funcname(lthread_self(), "app-main");
+    lthread_set_app_main();
+
+    /* Set locale for userspace components using it */
+    SGXLKL_VERBOSE("Setting locale\n");
+    pthread_t self = __pthread_self();
+    self->locale = &libc.global_locale;
+
+    /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
+     * The dynamic linker will then load the application proper; here goes! */
+    SGXLKL_VERBOSE("Invoking dynamic loader (stage 3)\n");
+    __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
+
+    SGXLKL_VERBOSE("done\n");
+}
+
+static int kernel_main_thread(void* args)
 {
     __init_libc(sgxlkl_enclave_state.elf64_stack.envp,
         sgxlkl_enclave_state.elf64_stack.argv[0]);
@@ -105,18 +125,19 @@ static int startmain(void* args)
      * temporarily to be able to identify LKL kernel threads */
     lthread_set_funcname(lthread_self(), "kernel");
     lkl_start_init();
+
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
+    init_wireguard_peers();
 
-    /* Set locale for usersapce components using it */
-    pthread_t self = __pthread_self();
-    self->locale = &libc.global_locale;
-
-    init_wireguard();
     find_and_mount_disks();
 
-    /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
-     * The dynamic linker will then load the application proper; here goes! */
-    __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
+    struct lthread* lt;
+    if (lthread_create(&lt, NULL, app_main_thread, NULL) != 0)
+    {
+        sgxlkl_fail("Failed to create lthread for app_main_thread\n");
+    }
+
+    return 0;
 }
 
 int __libc_init_enclave(int argc, char** argv)
@@ -166,9 +187,9 @@ int __libc_init_enclave(int argc, char** argv)
     SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
     _lthread_sched_init(cfg->stacksize);
 
-    if (lthread_create(&lt, NULL, startmain, NULL) != 0)
+    if (lthread_create(&lt, NULL, kernel_main_thread, NULL) != 0)
     {
-        sgxlkl_fail("Failed to create lthread for startmain()\n");
+        sgxlkl_fail("Failed to create lthread for kernel_main_thread()\n");
     }
 
     return lthread_run();

@@ -209,6 +209,13 @@ void lthread_terminate_this_scheduler(void)
     lt->attr.state |= BIT(LT_ST_TERMINATE);
 }
 
+void lthread_set_app_main(void)
+{
+    struct lthread* lt = lthread_self();
+    SGXLKL_ASSERT(lt);
+    lt->attr.state |= BIT(LT_ST_APP_MAIN);
+}
+
 int lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();
@@ -354,8 +361,10 @@ void _lthread_yield(struct lthread* lt)
 
 void _lthread_free(struct lthread* lt)
 {
-    if (lthread_self() != NULL)
+    if (lthread_self() != NULL && !(lt->attr.state & BIT(LT_ST_APP_MAIN)))
+    {
         lthread_rundestructors(lt);
+    }
 
     // lthread only manages tls region for lkl kernel threads
     if (lt->attr.thread_type == LKL_KERNEL_THREAD && lt->itls != 0)
@@ -444,18 +453,23 @@ int _lthread_resume(struct lthread* lt)
 
     set_tls_tp(lt);
     _switch(&lt->ctx, &sched->ctx);
-    // The first "startmain" thread eventually loads the app's ELF image
-    // and initializes its tls area. As lthread has to properly set the
-    // tls region on context switches, check if the fs has changed and
+
+    // The "app-main" thread eventually loads the app's ELF image
+    // and initializes its TLS area. As an lthread has to properly set the
+    // TLS region on context switches, check if FS has changed and
     // update the lthread's thread pointer field accordingly.
-    if (sched->current_lthread->tid == 1 &&
-        (sched->current_lthread)->attr.thread_type == LKL_KERNEL_THREAD){
+    struct lthread* current_lt = sched->current_lthread;
+    if ((current_lt->attr.state & BIT(LT_ST_APP_MAIN)) &&
+        (current_lt->attr.thread_type == LKL_KERNEL_THREAD))
+    {
         void* fs_ptr;
         __asm__ __volatile__("mov %%fs:0,%0" : "=r"(fs_ptr));
-        if (fs_ptr != sched->current_lthread->tp){
-            sched->current_lthread->tp = fs_ptr;
+        if (fs_ptr != current_lt->tp)
+        {
+            current_lt->tp = fs_ptr;
         }
     }
+
     sched->current_lthread = NULL;
     reset_tls_tp(lt);
 

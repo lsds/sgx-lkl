@@ -78,6 +78,7 @@ enum lthread_st
     LT_ST_EXPIRED,         /* lthread has expired and needs to run */
     LT_ST_DETACH,          /* lthread frees when done, else it waits to join */
     LT_ST_PINNED,          /* lthread pinned to ethread */
+    LT_ST_APP_MAIN,        /* lthread that runs app main */
     LT_ST_TERMINATE,       /* lthread that makes the ethread scheduler quit */
 };
 
@@ -251,6 +252,8 @@ extern "C"
      * calling lthread has returned.
      */
     void lthread_terminate_this_scheduler(void);
+
+    void lthread_set_app_main(void);
 
     /**
      * Run the main scheduler loop.
