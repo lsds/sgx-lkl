@@ -150,13 +150,6 @@ static uint64_t sgxlkl_enclave_signal_handler(
             exception_record->address,
             opcode);
 
-#ifdef DEBUG
-        if (sgxlkl_trace_signal)
-        {
-            sgxlkl_print_backtrace((void*)oe_ctx->rbp);
-        }
-#endif
-
         /**
          * If LKL has not yet been initialised or is terminating (and thus no
          * longer accepts signals), we cannot handle the exception and fail
