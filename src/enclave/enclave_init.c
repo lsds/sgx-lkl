@@ -14,6 +14,8 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 
+#include "../../user/userargs.h"
+
 extern struct mpmcq __scheduler_queue;
 
 _Noreturn void __dls3(elf64_stack_t* conf, void* tos);
@@ -89,8 +91,74 @@ static void init_wireguard()
         wgu_list_devices();
 }
 
-static int startmain(void* args)
+static int _sgxlkl_host_syscall_mprotect(
+    int* retval, void* addr, size_t len, int prot)
 {
+    return (int)sgxlkl_host_syscall_mprotect(retval, addr, len, prot);
+}
+
+void _barrier(void)
+{
+    a_barrier();
+}
+
+static long _lkl_syscall_wrapper(long no, long* params)
+{
+    //sgxlkl_warn("syscall begin: no=%u\n", no);
+    long ret = lkl_syscall(no, params);
+    //sgxlkl_warn("syscall end: ret=%u\n", ret);
+    return ret;
+}
+
+static void _enter_user_space(
+    int argc,
+    char** argv,
+    void* stack,
+    size_t num_ethreads,
+    struct timespec clock_res[4])
+{
+    extern void* __oe_get_isolated_image_entry_point(void);
+    extern const void* __oe_get_isolated_image_base();
+    typedef int (*sgxlkl_user_enter_proc_t)(void* userargs);
+    sgxlkl_user_enter_proc_t proc = __oe_get_isolated_image_entry_point();
+    static sgxlkl_userargs_t _userargs =
+    {
+        /* ATTN:MEB: eliminate all of these bypasses except lkl_syscall */
+        _lkl_syscall_wrapper,
+        sgxlkl_warn,
+        sgxlkl_error,
+        sgxlkl_fail,
+        lthread_current,
+        enclave_mmap,
+        _sgxlkl_host_syscall_mprotect,
+    };
+
+    if (!proc)
+        sgxlkl_fail("failed to obtain user space entry point");
+
+    _userargs.argc = argc;
+    _userargs.argv = argv;
+    _userargs.stack = stack;
+    _userargs.elf64_hdr = (const void*)__oe_get_isolated_image_base();
+    _userargs.num_ethreads = num_ethreads;
+    _userargs.sw_debug_mode = sgxlkl_in_sw_debug_mode();
+    memcpy(_userargs.clock_res, clock_res, sizeof(_userargs.clock_res));
+
+    (*proc)(&_userargs);
+}
+
+typedef struct startmain_args
+{
+    int argc;
+    char** argv;
+    struct timespec clock_res[8];
+}
+startmain_args_t;
+
+static int startmain(void* args_)
+{
+    startmain_args_t* args = args_;
+
     __init_libc(sgxlkl_enclave_state.elf64_stack.envp,
         sgxlkl_enclave_state.elf64_stack.argv[0]);
     __libc_start_init();
@@ -114,9 +182,23 @@ static int startmain(void* args)
     init_wireguard();
     find_and_mount_disks();
 
+/* Change to 0 to run application within the kernel image */
+#if 1
+    /* Enter the isolated image */
+    _enter_user_space(
+        args->argc,
+        args->argv,
+        &sgxlkl_enclave_state.elf64_stack,
+        sgxlkl_enclave_state.config->ethreads,
+        args->clock_res);
+#else
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
     __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
+    (void)_enter_user_space;
+    (void)args;
+#endif
+    return 0;
 }
 
 int __libc_init_enclave(int argc, char** argv)
@@ -156,7 +238,7 @@ int __libc_init_enclave(int argc, char** argv)
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-    
+
     init_ethread_tp();
 
     size_t espins = cfg->espins;
@@ -166,9 +248,15 @@ int __libc_init_enclave(int argc, char** argv)
     SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
     _lthread_sched_init(cfg->stacksize);
 
-    if (lthread_create(&lt, NULL, startmain, NULL) != 0)
+    /* Run startmain() in a new lthread */
     {
-        sgxlkl_fail("Failed to create lthread for startmain()\n");
+        static startmain_args_t args;
+        args.argc = argc;
+        args.argv = argv;
+        memcpy(args.clock_res, tmp, sizeof(args.clock_res));
+
+        if (lthread_create(&lt, NULL, startmain, &args) != 0)
+            sgxlkl_fail("Failed to create lthread for startmain()\n");
     }
 
     lthread_run();
