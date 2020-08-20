@@ -22,7 +22,7 @@ Each pthread is run by the lthread scheduler but may be caused to block by LKL.
 Ethreads
 --------
 
-Ethreads are created by the host environment calling one of two ecalls, either [`sgxlkl_enclave_init`](https://github.com/lsds/sgx-lkl/blob/24467b08346cd7384eb93f845dec896a1d429711/src/enclave/enclave_oe.c#L395) (for the first ethread) or [`sgxlkl_ethread_init`](https://github.com/lsds/sgx-lkl/blob/24467b08346cd7384eb93f845dec896a1d429711/src/enclave/enclave_oe.c) (for subsequent ethreads).
+Ethreads are created by the host environment calling one of two ecalls, either [`sgxlkl_enclave_init`](https://github.com/lsds/sgx-lkl/blob/24467b08346cd7384eb93f845dec896a1d429711/src/enclave/enclave_oe.c#L395) (for the first ethread) or [`sgxlkl_ethread_init`](https://github.com/lsds/sgx-lkl/blob/24467b08346cd7384eb93f845dec896a1d429711/src/enclave/enclave_oe.c#L277) (for subsequent ethreads).
 Each of these threads calls `lthread_run` to start an instance of the lthread scheduler.
 
 The ethreads do not use the FS segment on x86-64.
