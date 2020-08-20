@@ -446,7 +446,7 @@ static void thread_detach(void)
 
 static void thread_exit(void)
 {
-    LKL_TRACE("enter\n");
+    SGXLKL_VERBOSE("enter\n");
     lthread_exit(0);
 }
 
