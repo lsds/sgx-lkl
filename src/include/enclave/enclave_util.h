@@ -176,17 +176,20 @@ uint64_t next_power_of_2(uint64_t n);
     {                                                                \
         oe_host_printf("[[ INT SYSC ]] " x, ##__VA_ARGS__);          \
     }                                                                \
-    else if ((sgxlkl_enclave_state.config->trace.verbose &&          \
+    else if ((sgxlkl_enclave_state.config->verbose &&                \
+              sgxlkl_enclave_state.trace_enabled.verbose &&          \
               type == SGXLKL_IGNORED_SYSCALL))                       \
     {                                                                \
         oe_host_printf("[[ IGN SYSC ]] " x, ##__VA_ARGS__);          \
     }                                                                \
-    else if ((sgxlkl_enclave_state.trace_enabled.verbose &&          \
+    else if ((sgxlkl_enclave_state.config->verbose &&                \
+              sgxlkl_enclave_state.trace_enabled.verbose &&          \
               type == SGXLKL_UNSUPPORTED_SYSCALL))                   \
     {                                                                \
         oe_host_printf("[[NO SYSC  !]] " x, ##__VA_ARGS__);          \
     }                                                                \
-    else if ((sgxlkl_enclave_state.trace_enabled.verbose &&          \
+    else if ((sgxlkl_enclave_state.config->verbose &&                \
+              sgxlkl_enclave_state.trace_enabled.verbose &&          \
               type == SGXLKL_REDIRECT_SYSCALL))                      \
     {                                                                \
         oe_host_printf("[[REDIR SYSC]] " x, ##__VA_ARGS__);          \
