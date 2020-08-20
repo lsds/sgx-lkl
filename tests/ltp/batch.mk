@@ -38,7 +38,11 @@ $(LTP_SOURCE_DIR)/.git:
 $(ALPINE_TAR):
 	curl -L -o "$@" "https://nl.alpinelinux.org/alpine/v$(ALPINE_MAJOR)/releases/$(ALPINE_ARCH)/alpine-minirootfs-$(ALPINE_VERSION)-$(ALPINE_ARCH).tar.gz"
 
-$(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git
+$(LTP_TEST_MNT_IMG):
+	dd if=/dev/zero of=$(LTP_TEST_MNT_IMG) count=$(LTP_TEST_MNT_IMG_SIZE) bs=1M
+	mkfs -t ext4 $(LTP_TEST_MNT_IMG)
+
+$(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git $(LTP_TEST_MNT_IMG)
 	dd if=/dev/zero of="$@" count=$(IMAGE_SIZE_MB) bs=1M
 	mkfs.ext4 "$@"
 	$(ESCALATE_CMD) mkdir -p $(MOUNTPOINT)
@@ -54,9 +58,6 @@ $(ROOT_FS): $(ALPINE_TAR) $(BUILDENV_SCRIPT) $(LTP_SOURCE_DIR)/.git
 	$(ESCALATE_CMD) install $(BUILDENV_SCRIPT) $(MOUNTPOINT)/usr/sbin
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk update
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /sbin/apk add bash
-	$(ESCALATE_CMD) mkdir $(MOUNTPOINT)/ltp_tst_mnt_fs
-	$(ESCALATE_CMD) dd if=/dev/zero of=$(MOUNTPOINT)/$(LTP_TEST_MNT_IMG) count=$(LTP_TEST_MNT_IMG_SIZE) bs=1M
-	$(ESCALATE_CMD) mkfs -t ext4 $(MOUNTPOINT)/$(LTP_TEST_MNT_IMG)
 	$(ESCALATE_CMD) chroot $(MOUNTPOINT) /bin/bash /usr/sbin/buildenv.sh 'build' '/ltp/testcases/kernel/syscalls'
 	$(ESCALATE_CMD) cp $(MOUNTPOINT)/ltp/.c_binaries_list .
 	$(ESCALATE_CMD) umount $(MOUNTPOINT)
@@ -96,6 +97,7 @@ run-sw-single-gdb: $(ROOT_FS)
 clean:
 	@test -f $(ALPINE_TAR) && rm $(ALPINE_TAR) || true
 	@test -f $(ROOT_FS) && rm $(ROOT_FS) || true
+	@test -f $(LTP_TEST_MNT_IMG) && rm $(LTP_TEST_MNT_IMG) || true
 	@test -f $(ROOT_FS_FRESH_COPY) && rm $(ROOT_FS_FRESH_COPY) || true
 	@rm -f .c_binaries_list
 
