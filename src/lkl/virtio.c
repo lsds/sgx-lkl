@@ -65,6 +65,25 @@ static inline uint32_t virtio_read_device_features(struct virtio_dev* dev)
  */
 static int virtio_read(void* data, int offset, void* res, int size)
 {
+     /* Security Review: use handle instead of virtio_dev pointer. The handle
+     * contains two virtio_dev pointers, one for the shadow structure in guest
+     * memory, one for the structure in host memory: struct virtio_dev_handle
+     * {
+     *     struct virtio_dev *dev; //shadow structure in guest memory
+     *     struct virtio_dev *dev_host;
+     * }
+     * dev->queue points to one or more virtq shadow structure. dev_host->queue
+     * points to virtq structure(s) in host memory. The desc ring and avail ring
+     * of the virtq shadow structure is also shadowed, as they should be
+     * host-read-only. The used ring of the virtq shadow structure points to the
+     * structure in host side directly, as it should be host-read-write and
+     * guest-read-only.
+     *
+     * For host-read-write members of a shadow structure, perform copy-through
+     * read (read from host structure & update the shadow structure). For
+     * host-write-once members, read from the shadow structure only, and the
+     * shadow structure init routine copy the content from the host structure.
+     */
     uint32_t val = 0;
     struct virtio_dev* dev = (struct virtio_dev*)data;
 
@@ -220,7 +239,24 @@ static void virtio_notify_host_device(struct virtio_dev* dev, uint32_t qidx)
  */
 static int virtio_write(void* data, int offset, void* res, int size)
 {
-    /* Security Review: use handle instead of virtio_dev pointer */
+    /* Security Review: use handle instead of virtio_dev pointer. The handle
+     * contains two virtio_dev pointers, one for the shadow structure in guest
+     * memory, one for the structure in host memory: struct virtio_dev_handle
+     * {
+     *     struct virtio_dev *dev; //shadow structure in guest memory
+     *     struct virtio_dev *dev_host;
+     * }
+     * dev->queue points to one or more virtq shadow structure. dev_host->queue
+     * points to virtq structure(s) in host memory. The desc ring and avail ring
+     * of the virtq shadow structure is also shadowed, as they should be
+     * host-read-only. The used ring of the virtq shadow structure points to the
+     * structure in host side directly, as it should be host-read-write and
+     * guest-read-only.
+     *
+     * For host-read-only and host-read-write members of a shadow structure,
+     * perform copy-through write (write to shadow structure & to host
+     * structure). virtq desc and avail ring address handling is a special case.
+     */
     struct virtio_dev* dev = (struct virtio_dev*)data;
     /* Security Review: dev->queue_sel should be host-read-only */
     struct virtq* q = &dev->queue[dev->queue_sel];
@@ -278,6 +314,10 @@ static int virtio_write(void* data, int offset, void* res, int size)
         case VIRTIO_MMIO_QUEUE_READY:
             dev->queue[dev->queue_sel].ready = val;
             break;
+        /* Security Review: guest virtio driver(s) writes to virtq desc ring and
+         * avail ring in guest memory. In queue notify flow, we need to copy the
+         * update to desc ring and avail ring in host memory.
+         */
         case VIRTIO_MMIO_QUEUE_NOTIFY:
             virtio_notify_host_device(dev, val);
             break;
@@ -290,7 +330,9 @@ static int virtio_write(void* data, int offset, void* res, int size)
             set_status(dev, val);
             break;
         /* Security Review: q->desc pointer and link list content should be
-         * host-read-only
+         * host-read-only. As desc ring is shadowed, need a way to make sure the
+         * guest virtio driver use the shadowed desc ring inside guest memory.
+         * How?
          */
         case VIRTIO_MMIO_QUEUE_DESC_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->desc, val);
@@ -299,7 +341,9 @@ static int virtio_write(void* data, int offset, void* res, int size)
             set_ptr_high((_Atomic(uint64_t)*)&q->desc, val);
             break;
         /* Security Review: q->avail pointer and link list content should be
-         * host-read-only
+         * host-read-only. As avail ring is shadowed, need a way to make sure the
+         * guest virtio driver use the shadowed desc ring inside guest memory.
+         * How?
          */
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->avail, val);
@@ -357,9 +401,11 @@ int lkl_virtio_dev_setup(
      */
     virtio_deliver_irq[dev->vendor_id] = deliver_irq_cb;
     /* Security Review: pass handle instead of virtio_dev pointer to the rest of
-     * the system
+     * the system. 
      */
-    /* Security Review: shadow dev->base used in guest side only */
+    /* Security Review: shadow dev->base used in guest side only. No
+     * copy-through to the host side structure
+     */
     dev->base = register_iomem(dev, mmio_size, &virtio_ops);
 
     if (!lkl_is_running())
