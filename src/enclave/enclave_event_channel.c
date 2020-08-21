@@ -143,6 +143,7 @@ void initialize_enclave_event_channels(void)
         sgxlkl_enclave_state.shared_memory.enc_dev_config;
 
     const size_t _num_channels = sgxlkl_enclave_state.num_event_channel_state;
+    SGXLKL_ASSERT(SIZE_MAX / sizeof(enc_dev_config_t) >= _num_channels);
     sgxlkl_ensure_inside(
         enc_dev_config, sizeof(enc_dev_config_t) * _num_channels);
 
