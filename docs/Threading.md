@@ -4,7 +4,7 @@ The SGX-LKL threading implementation
 SGX-LKL has four kinds of threads: ethreads, lthreads, Linux tasks, and pthreads.
 This document explains how they are implemented and how they relate.
 
-Ethreads are the lowest-level threads.
+Ethreads (enclave threads) are the lowest-level threads.
 These are roughly analogous to VCPUs in conventional VMs.
 In SGX, each ethread corresponds to a thread-control structure (TCS), allocated by [Open Enclave](https://openenclave.io/sdk/).
 
@@ -13,7 +13,9 @@ Each ethread runs an instance of the lthread scheduler, which pulls lthreads fro
 These threads run until they explicitly yield.
 
 The Linux kernel (LKL) manages its own task abstraction.
-Each Linux task is associated with an lthread.
+LKL, unlike other Linux architectures, expects the host environment to provide a threading abstraction.
+LKL associates each Linux task with a thread provided by its host environment ('host thread').
+In the case of SGX-LKL, lthreads provide LKL's host thread implementation and so each Linux task is backed by an lthread.
 The LKL documentation refers to 'host threads', these are lthreads in our use.
 
 The userspace libc (musl) provides a POSIX threads (pthreads) implementation that sits atop Linux's tasks.
@@ -51,7 +53,12 @@ Note that `_switch` does *not* switch between two arbitrary lthreads.
 One of the threads involved in a `_switch` call is always the scheduler.
 The `_switch` call in `_lthread_resume` switches to another thread, the call [in `_lthread_yield_cb`](https://github.com/lsds/sgx-lkl/blob/47a5f0e718badfa85694a9de6222af41d9bfbb84/src/sched/lthread.c#L340) and [in `_lthread_yield`](https://github.com/lsds/sgx-lkl/blob/47a5f0e718badfa85694a9de6222af41d9bfbb84/src/sched/lthread.c#L346) switch back to the scheduler.
 
+After the running lthread yeidds, `lthread_run` checks whether any sleeping threads (those blocked waiting for event channels or futexes) are runnable and, if so, adds them to the queue.
 
+`lthread_run` maintains a count of consecutive loop iterations in which there were not runnable lthreads.
+Once this reaches a threshold, the scheduler issues an ocall that suspends execution of the ethread until either an event channel is signaled or a timeout expires.
+
+`lthread_run` exits the loop and returns only when the enclave is terminating.
 ### Locking
 
 There are two primitives for building locks in the lthreads implementation.
