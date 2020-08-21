@@ -5,18 +5,18 @@
 #include "vic.h"
 
 vic_result_t vic_dm_create_crypt(
-    const char* prefix,         /* prefix for the uuid (e.g., "CRYPT-LUKS2") */
-    const char* name,           /* /dev/mapper name */
-    const char* device,         /* device name: example: /dev/loop0  */
-    const char* uuid,           /* LUKS UUID */
-    uint64_t start,             /* the starting sector number */
-    uint64_t size,              /* the number of payload sectors */
-    const char* integrity,      /* integrity type (or empty) */
-    const char* cipher,         /* cipher name */
-    const uint8_t* key,         /* the LUKS master key */
-    uint64_t key_bytes,         /* length of the LUKS master key */
-    uint64_t iv_offset,         /* offset to initialization vector */
-    uint64_t offset);           /* offset to encrypted data (payload) */
+    const char* prefix,    /* prefix for the uuid (e.g., "CRYPT-LUKS2") */
+    const char* name,      /* /dev/mapper name */
+    const char* device,    /* device name: example: /dev/loop0  */
+    const char* uuid,      /* LUKS UUID */
+    uint64_t start,        /* the starting sector number */
+    uint64_t size,         /* the number of payload sectors */
+    const char* integrity, /* integrity type (or empty) */
+    const char* cipher,    /* cipher name */
+    const uint8_t* key,    /* the LUKS master key */
+    uint64_t key_bytes,    /* length of the LUKS master key */
+    uint64_t iv_offset,    /* offset to initialization vector */
+    uint64_t offset);      /* offset to encrypted data (payload) */
 
 vic_result_t vic_dm_create_integrity(
     const char* name,

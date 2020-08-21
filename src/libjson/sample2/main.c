@@ -27,12 +27,12 @@
 **==============================================================================
 */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <json.h>
-#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "../common/load_file.h"
 
 const char* arg0;
@@ -45,8 +45,7 @@ typedef struct _callback_data
     char* ptr;
     size_t size;
     FILE* stream;
-}
-callback_data_t;
+} callback_data_t;
 
 static void _print_string(const char* str, callback_data_t* cd)
 {
@@ -134,11 +133,10 @@ static json_result_t _callback(
     const json_union_t* un,
     void* cd_)
 {
-    callback_data_t* cd= (callback_data_t*)cd_;
+    callback_data_t* cd = (callback_data_t*)cd_;
 
     /* Print commas */
-    if (reason != JSON_REASON_END_ARRAY &&
-        reason != JSON_REASON_END_OBJECT &&
+    if (reason != JSON_REASON_END_ARRAY && reason != JSON_REASON_END_OBJECT &&
         cd->comma)
     {
         cd->comma = 0;
@@ -146,8 +144,7 @@ static json_result_t _callback(
     }
 
     /* Decrease depth */
-    if (reason == JSON_REASON_END_OBJECT ||
-        reason == JSON_REASON_END_ARRAY)
+    if (reason == JSON_REASON_END_OBJECT || reason == JSON_REASON_END_ARRAY)
     {
         cd->depth--;
     }
@@ -217,8 +214,7 @@ static json_result_t _callback(
     }
 
     /* Final newline */
-    if (reason == JSON_REASON_END_OBJECT ||
-        reason == JSON_REASON_END_ARRAY)
+    if (reason == JSON_REASON_END_OBJECT || reason == JSON_REASON_END_ARRAY)
     {
         if (cd->depth == 0)
             fprintf(cd->stream, "\n");
@@ -245,8 +241,7 @@ static void _parse(const char* path)
     size_t size;
     json_result_t r;
     callback_data_t cd;
-    static json_allocator_t allocator =
-    {
+    static json_allocator_t allocator = {
         malloc,
         free,
     };
@@ -267,10 +262,11 @@ static void _parse(const char* path)
         exit(1);
     }
 
-    const json_parser_options_t options = { 1 };
+    const json_parser_options_t options = {1};
 
-    if ((r = json_parser_init(&parser, data, size, _callback,
-        &cd, &allocator, &options)) != JSON_OK)
+    if ((r = json_parser_init(
+             &parser, data, size, _callback, &cd, &allocator, &options)) !=
+        JSON_OK)
     {
         fprintf(stderr, "%s: json_parser_init() failed: %d\n", arg0, r);
         exit(1);

@@ -1,22 +1,22 @@
 #include "verity.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <assert.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "vic.h"
-#include "uuid.h"
-#include "hexdump.h"
-#include "hash.h"
-#include "raise.h"
 #include "crypto.h"
-#include "round.h"
 #include "dm.h"
+#include "hash.h"
+#include "hexdump.h"
+#include "raise.h"
+#include "round.h"
+#include "uuid.h"
+#include "vic.h"
 
 #define MIN_HASH_FILE_SIZE 4096
 #define MIN_BLKSZ 512
@@ -277,7 +277,7 @@ vic_result_t vic_verity_format(
         if (need_superblock)
             write_offset += blksz;
 
-        num_to_read = nnodes[i-1];
+        num_to_read = nnodes[i - 1];
         num_to_write = nnodes[i];
 
         /* For each interior node at this level */
@@ -495,12 +495,12 @@ vic_result_t vic_verity_dump(vic_blockdev_t* hash_dev)
             RAISE(VIC_UNEXPECTED);
 
         if (vic_hash2(
-            htype,
-            sb.salt,
-            sb.salt_size,
-            hash_block,
-            sb.hash_block_size,
-            &h) != 0)
+                htype,
+                sb.salt,
+                sb.salt_size,
+                hash_block,
+                sb.hash_block_size,
+                &h) != 0)
         {
             RAISE(VIC_UNEXPECTED);
         }

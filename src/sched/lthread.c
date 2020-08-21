@@ -64,11 +64,11 @@ static int spawned_ethreads = 1;
 
 void init_ethread_tp()
 {
-	struct schedctx *td = __scheduler_self();
-	td->self = td;
-	// Prevent collisions with lthread TIDs which are assigned to newly spawned
-	// lthreads incrementally, starting from one.
-	td->tid = INT_MAX - a_fetch_add(&spawned_ethreads, 1);
+    struct schedctx* td = __scheduler_self();
+    td->self = td;
+    // Prevent collisions with lthread TIDs which are assigned to newly spawned
+    // lthreads incrementally, starting from one.
+    td->tid = INT_MAX - a_fetch_add(&spawned_ethreads, 1);
 }
 
 static inline int _lthread_sleep_cmp(struct lthread* l1, struct lthread* l2);
@@ -350,7 +350,7 @@ void _lthread_free(struct lthread* lt)
 {
     if (lthread_self() != NULL)
         lthread_rundestructors(lt);
-    
+
     // lthread only manages tls region for lkl kernel threads
     if (lt->attr.thread_type == LKL_KERNEL_THREAD && lt->itls != 0)
     {
@@ -399,17 +399,17 @@ void _lthread_free(struct lthread* lt)
     lthread_dealloc(lt);
 }
 
-static void init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
+static void init_tp(struct lthread* lt, unsigned char* mem, size_t sz)
 {
-	mem += sz - sizeof(struct lthread_tcb_base);
-	mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
-	lt->tp = mem;
-	struct lthread_tcb_base *tcb = (struct lthread_tcb_base *)mem;
-	tcb->self = mem;
+    mem += sz - sizeof(struct lthread_tcb_base);
+    mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
+    lt->tp = mem;
+    struct lthread_tcb_base* tcb = (struct lthread_tcb_base*)mem;
+    tcb->self = mem;
 }
 
-static void set_fsbase(void* tp){
-
+static void set_fsbase(void* tp)
+{
     if (!sgxlkl_in_sw_debug_mode())
     {
         __asm__ volatile("wrfsbase %0" ::"r"(tp));
@@ -417,17 +417,15 @@ static void set_fsbase(void* tp){
     else
     {
         int res;
-        __asm__ volatile(
-            "mov %1, %%rsi\n\t"
-            "movl $0x1002, %%edi\n\t"       /* SET_FS register */
-            "movl $158, %%eax\n\t"          /* set fs segment to */
-            "syscall"                       /* arch_prctl(SET_FS, arg)*/
-            : "=a" (res)
-            : "r" (tp)
-        );
+        __asm__ volatile("mov %1, %%rsi\n\t"
+                         "movl $0x1002, %%edi\n\t" /* SET_FS register */
+                         "movl $158, %%eax\n\t"    /* set fs segment to */
+                         "syscall"                 /* arch_prctl(SET_FS, arg)*/
+                         : "=a"(res)
+                         : "r"(tp));
         if (res < 0)
         {
-            sgxlkl_fail( "Could not set thread area %p\n", tp);
+            sgxlkl_fail("Could not set thread area %p\n", tp);
         }
     }
 }
@@ -470,10 +468,12 @@ int _lthread_resume(struct lthread* lt)
     // tls region on context switches, check if the fs has changed and
     // update the lthread's thread pointer field accordingly.
     if (sched->current_lthread->tid == 1 &&
-        (sched->current_lthread)->attr.thread_type == LKL_KERNEL_THREAD){
+        (sched->current_lthread)->attr.thread_type == LKL_KERNEL_THREAD)
+    {
         void* fs_ptr;
         __asm__ __volatile__("mov %%fs:0,%0" : "=r"(fs_ptr));
-        if (fs_ptr != sched->current_lthread->tp){
+        if (fs_ptr != sched->current_lthread->tp)
+        {
             sched->current_lthread->tp = fs_ptr;
         }
     }
@@ -547,8 +547,7 @@ int _lthread_sched_init(size_t stack_size)
 
     sched->default_timeout = 3000000u;
 
-    oe_memset_s(
-        &sched->ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
+    oe_memset_s(&sched->ctx, sizeof(struct cpu_ctx), 0, sizeof(struct cpu_ctx));
 
     return (0);
 }
@@ -567,11 +566,11 @@ int lthread_create_primitive(
     }
 
     // For USERSPACE_THREADS created via clone(), lthread doesn't manage the
-    // tls region(stored in lt->itls, not be confused by lt->tls, which is similar
-    // to key based tsd in pthreads)
-    // Also for these threads, the tls pointer passed to this function is the
-    // pointer to the thread's control block. So we save it here in lt->tp for
-    // setting up fsbase on a context switch.
+    // tls region(stored in lt->itls, not be confused by lt->tls, which is
+    // similar to key based tsd in pthreads) Also for these threads, the tls
+    // pointer passed to this function is the pointer to the thread's control
+    // block. So we save it here in lt->tp for setting up fsbase on a context
+    // switch.
     size_t* tp = tls;
     SGXLKL_ASSERT(tp[0] == (size_t)tls); // check if tls self pointer is set
     lt->tp = tls;
@@ -657,11 +656,11 @@ int lthread_create(
     // closest multiple of TLS_ALIGN > sizeof(struct lthread_tcb_base)
     lt->itlssz = (sizeof(struct lthread_tcb_base) + TLS_ALIGN - 1) & -TLS_ALIGN;
     if ((lt->itls = (uint8_t*)enclave_mmap(
-                 0,
-                 lt->itlssz,
-                 0, /* map_fixed */
-                 PROT_READ | PROT_WRITE,
-                 1 /* zero_pages */)) == MAP_FAILED)
+             0,
+             lt->itlssz,
+             0, /* map_fixed */
+             PROT_READ | PROT_WRITE,
+             1 /* zero_pages */)) == MAP_FAILED)
     {
         oe_free(lt);
         return -1;

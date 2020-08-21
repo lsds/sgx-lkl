@@ -1,11 +1,11 @@
 #ifndef _VIC_RAISE_H
 #define _VIC_RAISE_H
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
-#include "vic.h"
 #include "trace.h"
+#include "vic.h"
 
 #define RAISE(RAISE)                                       \
     do                                                     \
@@ -14,8 +14,7 @@
         __raise(__FILE__, __LINE__, __FUNCTION__, result); \
         fflush(stdout);                                    \
         goto done;                                         \
-    }                                                      \
-    while (0)
+    } while (0)
 
 #define CHECK(RAISE)                                           \
     do                                                         \
@@ -27,8 +26,7 @@
             __raise(__FILE__, __LINE__, __FUNCTION__, result); \
             goto done;                                         \
         }                                                      \
-    }                                                          \
-    while (0)
+    } while (0)
 
 static __inline__ void __raise(
     const char* file,

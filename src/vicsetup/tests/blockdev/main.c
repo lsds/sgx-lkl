@@ -1,10 +1,10 @@
+#include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <vic.h>
-#include <stdint.h>
-#include <assert.h>
-#include <string.h>
 #include "../../libvicsetup/hexdump.h"
 
 static bool _check_block_size(vic_blockdev_t* bd, size_t n)

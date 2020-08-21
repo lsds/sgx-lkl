@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include "trace.h"
+#include <stdio.h>
 
 static uint32_t _level;
 

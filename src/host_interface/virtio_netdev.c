@@ -156,7 +156,6 @@ static int virtio_net_fd_net_poll(uint8_t netdev_id)
         },
     };
 
-
     do
     {
         ret = poll(pfds, 2, -1);
@@ -536,10 +535,15 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     char mac[6];
     // Generate a completely random MAC address
     size_t b = 0;
-    while (b < sizeof(mac)) {
+    while (b < sizeof(mac))
+    {
         ssize_t ret = getrandom(&mac[b], sizeof(mac) - b, GRND_RANDOM);
-        if (ret < 0) {
-            sgxlkl_host_fail("%s: get random MAC address failed: %s\n", __func__, strerror(errno));
+        if (ret < 0)
+        {
+            sgxlkl_host_fail(
+                "%s: get random MAC address failed: %s\n",
+                __func__,
+                strerror(errno));
             return -1;
         }
         b += ret;

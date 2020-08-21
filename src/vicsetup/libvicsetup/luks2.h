@@ -1,14 +1,14 @@
 #ifndef _VIC_LUKS2_H
 #define _VIC_LUKS2_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include "vic.h"
-#include "lukscommon.h"
 #include "defs.h"
 #include "hash.h"
+#include "lukscommon.h"
+#include "vic.h"
 
 #define LUKS2_LABEL_SIZE 48
 #define LUKS2_SALT_SIZE 64
@@ -18,22 +18,21 @@
 VIC_PACK_BEGIN
 typedef struct luks2_hdr
 {
-    char magic[LUKS_MAGIC_SIZE]; /* LUKS2_MAGIC_1ST or LUKS2_MAGIC_2ND */
-    uint16_t version; /* Version 2 */
-    uint64_t hdr_size; /* size including JSON area [ bytes ] */
-    uint64_t seqid; /* sequence ID , increased on update */
-    char label[LUKS2_LABEL_SIZE]; /* ASCII label or empty */
+    char magic[LUKS_MAGIC_SIZE];        /* LUKS2_MAGIC_1ST or LUKS2_MAGIC_2ND */
+    uint16_t version;                   /* Version 2 */
+    uint64_t hdr_size;                  /* size including JSON area [ bytes ] */
+    uint64_t seqid;                     /* sequence ID , increased on update */
+    char label[LUKS2_LABEL_SIZE];       /* ASCII label or empty */
     char csum_alg[LUKS2_CSUM_ALG_SIZE]; /* checksum algorithm , "sha256" */
-    uint8_t salt[LUKS2_SALT_SIZE]; /* salt , unique for every header */
-    char uuid[VIC_UUID_STRING_SIZE]; /* UUID of device */
-    char subsystem[LUKS2_LABEL_SIZE]; /* owner subsystem label or empty */
-    uint64_t hdr_offset; /* offset from device start [bytes] */
-    char _padding[184]; /* must be zeroed */
-    uint8_t csum[LUKS2_CSUM_SIZE]; /* header checksum */
-    char _padding4096[7*512]; /* Padding , must be zeroed */
+    uint8_t salt[LUKS2_SALT_SIZE];      /* salt , unique for every header */
+    char uuid[VIC_UUID_STRING_SIZE];    /* UUID of device */
+    char subsystem[LUKS2_LABEL_SIZE];   /* owner subsystem label or empty */
+    uint64_t hdr_offset;                /* offset from device start [bytes] */
+    char _padding[184];                 /* must be zeroed */
+    uint8_t csum[LUKS2_CSUM_SIZE];      /* header checksum */
+    char _padding4096[7 * 512];         /* Padding , must be zeroed */
     /* luks2_ext_hdr follows */
-}
-luks2_hdr_t;
+} luks2_hdr_t;
 VIC_PACK_END
 
 VIC_STATIC_ASSERT(sizeof(luks2_hdr_t) == 4096);
@@ -64,15 +63,13 @@ typedef struct luks2_keyslot
         uint64_t time;
         uint64_t memory;
         uint64_t cpus;
-    }
-    kdf;
+    } kdf;
     struct
     {
         char type[LUKS2_TYPE_SIZE];
         char hash[VIC_HASH_SPEC_SIZE];
         uint64_t stripes;
-    }
-    af;
+    } af;
     struct
     {
         char type[LUKS2_TYPE_SIZE];
@@ -80,10 +77,8 @@ typedef struct luks2_keyslot
         uint64_t key_size;
         uint64_t offset;
         uint64_t size;
-    }
-    area;
-}
-luks2_keyslot_t;
+    } area;
+} luks2_keyslot_t;
 
 typedef struct luks2_segment
 {
@@ -111,10 +106,8 @@ typedef struct luks2_segment
         char type[LUKS2_INTEGRITY_SIZE];
         char journal_encryption[LUKS2_ENCRYPTION_SIZE];
         char journal_integrity[LUKS2_INTEGRITY_SIZE];
-    }
-    integrity;
-}
-luks2_segment_t;
+    } integrity;
+} luks2_segment_t;
 
 typedef struct luks2_digest
 {
@@ -135,15 +128,13 @@ typedef struct luks2_digest
     uint8_t salt[LUKS_SALT_SIZE];
 
     uint8_t digest[LUKS2_DIGEST_SIZE];
-}
-luks2_digest_t;
+} luks2_digest_t;
 
 typedef struct luks2_config
 {
     uint64_t json_size;
     uint64_t keyslots_size;
-}
-luks2_config_t;
+} luks2_config_t;
 
 typedef struct _luks2_ext_hdr
 {
@@ -162,8 +153,7 @@ typedef struct _luks2_ext_hdr
     /* JSON script (associated with primary header) */
     size_t json_size;
     char json_data[];
-}
-luks2_ext_hdr_t;
+} luks2_ext_hdr_t;
 
 VIC_STATIC_ASSERT(sizeof(luks2_hdr_t) == 4096);
 

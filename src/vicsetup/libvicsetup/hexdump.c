@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "hexdump.h"
 #include "raise.h"
@@ -21,7 +21,7 @@ void vic_hexdump(
     const uint8_t* p = (const uint8_t*)data;
     static const uint8_t _zeros[16];
 
-    for (size_t i = 0; i < size; )
+    for (size_t i = 0; i < size;)
     {
         /* If starting a new row */
         if ((i % 16) == 0)
@@ -40,8 +40,7 @@ void vic_hexdump(
                 {
                     i += 16;
                     r = size - i;
-                }
-                while (r >= 16 && memcmp(&p[i], _zeros, sizeof(_zeros)) == 0);
+                } while (r >= 16 && memcmp(&p[i], _zeros, sizeof(_zeros)) == 0);
 
                 if (r != 0)
                 {

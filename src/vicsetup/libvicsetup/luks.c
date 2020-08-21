@@ -1,21 +1,21 @@
-#include <string.h>
-#include <stdlib.h>
 #include <assert.h>
-#include <sys/stat.h>
-#include <limits.h>
-#include <unistd.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "vic.h"
-#include "lukscommon.h"
 #include "byteorder.h"
-#include "luks2.h"
-#include "luks1.h"
-#include "raise.h"
+#include "dm.h"
 #include "hexdump.h"
 #include "integrity.h"
-#include "dm.h"
+#include "luks1.h"
+#include "luks2.h"
+#include "lukscommon.h"
+#include "raise.h"
 #include "strings.h"
+#include "vic.h"
 
 VIC_STATIC_ASSERT(VIC_OFFSETOF(vic_luks_hdr_t, magic) == 0);
 VIC_STATIC_ASSERT(VIC_OFFSETOF(vic_luks_hdr_t, version) == 6);
@@ -63,11 +63,13 @@ int vic_luks_read_hdr(vic_blockdev_t* device, vic_luks_hdr_t* hdr)
 
     /* Reject null parameters */
     if (!_is_valid_device(device) || !hdr)
-        goto done;;
+        goto done;
+    ;
 
     /* Read one blocks to obtain enough bytes for the header */
     if (vic_blockdev_get(device, 0, block, 1) != VIC_OK)
-        goto done;;
+        goto done;
+    ;
 
     VIC_STATIC_ASSERT(sizeof(vic_luks_hdr_t) <= sizeof(block));
     memcpy(hdr, &block, sizeof(vic_luks_hdr_t));
@@ -75,7 +77,8 @@ int vic_luks_read_hdr(vic_blockdev_t* device, vic_luks_hdr_t* hdr)
     if (memcmp(hdr->magic, _magic_1st, sizeof(_magic_1st)) != 0 &&
         memcmp(hdr->magic, _magic_2nd, sizeof(_magic_2nd)) != 0)
     {
-        goto done;;
+        goto done;
+        ;
     }
 
     /* Adjust byte order from big-endian to native */
@@ -166,20 +169,12 @@ vic_result_t vic_luks_recover_master_key(
     if (hdr.version == LUKS_VERSION_1)
     {
         CHECK(luks1_recover_master_key(
-            device,
-            pwd,
-            pwd_size,
-            master_key,
-            master_key_bytes));
+            device, pwd, pwd_size, master_key, master_key_bytes));
     }
     else if (hdr.version == LUKS_VERSION_2)
     {
         CHECK(luks2_recover_master_key(
-            device,
-            pwd,
-            pwd_size,
-            master_key,
-            master_key_bytes));
+            device, pwd, pwd_size, master_key, master_key_bytes));
     }
     else
     {
@@ -218,7 +213,7 @@ static vic_result_t _split_cipher(
     vic_strlcpy(cipher_name, cipher, LUKS_CIPHER_NAME_SIZE);
     cipher_name[offset] = '\0';
 
-    vic_strlcpy(cipher_mode, &cipher[offset+1], LUKS_CIPHER_MODE_SIZE);
+    vic_strlcpy(cipher_mode, &cipher[offset + 1], LUKS_CIPHER_MODE_SIZE);
 
 done:
     return result;
@@ -382,13 +377,13 @@ vic_result_t vic_luks_change_key(
 
     if (hdr.version == LUKS_VERSION_1)
     {
-        CHECK(luks1_change_key(device, old_pwd, old_pwd_size, new_pwd,
-            new_pwd_size));
+        CHECK(luks1_change_key(
+            device, old_pwd, old_pwd_size, new_pwd, new_pwd_size));
     }
     else if (hdr.version == LUKS_VERSION_2)
     {
-        CHECK(luks2_change_key(device, old_pwd, old_pwd_size, new_pwd,
-            new_pwd_size));
+        CHECK(luks2_change_key(
+            device, old_pwd, old_pwd_size, new_pwd, new_pwd_size));
     }
     else
     {
@@ -529,7 +524,6 @@ vic_result_t vic_luks_close(const char* name)
 done:
     return result;
 }
-
 
 vic_result_t vic_luks_add_key_by_master_key(
     vic_blockdev_t* device,

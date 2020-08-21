@@ -1,13 +1,13 @@
 #ifndef _VIC_LUKS1_H
 #define _VIC_LUKS1_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "defs.h"
-#include "vic.h"
 #include "lukscommon.h"
+#include "vic.h"
 
 #define LUKS_CIPHER_NAME_AES "aes"
 #define LUKS_CIPHER_NAME_TWOFISH "twofish"
@@ -36,8 +36,7 @@ typedef struct vic_luks_keyslot
     uint8_t salt[LUKS_SALT_SIZE];
     uint32_t key_material_offset;
     uint32_t stripes;
-}
-vic_luks_keyslot_t;
+} vic_luks_keyslot_t;
 
 VIC_STATIC_ASSERT(VIC_OFFSETOF(vic_luks_keyslot_t, active) == 0);
 VIC_STATIC_ASSERT(VIC_OFFSETOF(vic_luks_keyslot_t, iterations) == 4);
@@ -60,8 +59,7 @@ typedef struct luks1_hdr
     uint32_t mk_digest_iter;
     char uuid[VIC_UUID_STRING_SIZE];
     vic_luks_keyslot_t keyslots[LUKS_NUM_KEYS];
-}
-luks1_hdr_t;
+} luks1_hdr_t;
 
 VIC_STATIC_ASSERT(VIC_OFFSETOF(luks1_hdr_t, magic) == 0);
 VIC_STATIC_ASSERT(VIC_OFFSETOF(luks1_hdr_t, version) == 6);

@@ -1,20 +1,20 @@
+#include <fcntl.h>
 #include <libdevmapper.h>
 #include <limits.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <time.h>
 #include <sys/ioctl.h>
 #include <sys/sysmacros.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "dm.h"
-#include "vic.h"
+#include "hexdump.h"
+#include "integrity.h"
+#include "loop.h"
 #include "raise.h"
 #include "strings.h"
-#include "loop.h"
-#include "integrity.h"
-#include "hexdump.h"
 #include "trace.h"
 #include "uuid.h"
+#include "vic.h"
 
 #define DM_UUID_LEN 129
 
@@ -46,8 +46,17 @@ static vic_result_t _format_dev_uuid(
     if (n != 5)
         RAISE(VIC_BAD_UUID);
 
-    n = snprintf(dev_uuid, DM_UUID_LEN, "%s-%08x%04x%04x%04x%012lx-%s",
-        prefix, x1, x2, x3, x4, x5, dm_name);
+    n = snprintf(
+        dev_uuid,
+        DM_UUID_LEN,
+        "%s-%08x%04x%04x%04x%012lx-%s",
+        prefix,
+        x1,
+        x2,
+        x3,
+        x4,
+        x5,
+        dm_name);
     if (n >= DM_UUID_LEN)
         RAISE(VIC_BUFFER_TOO_SMALL);
 
@@ -127,10 +136,15 @@ vic_result_t vic_dm_create_crypt(
             if (strcmp(cipher, "aes-xts-plain64") != 0)
                 RAISE(VIC_UNSUPPORTED_CIPHER);
 
-            snprintf(capi, sizeof(capi),
-                "capi:authenc(%s,xts(aes))-plain64", integrity);
+            snprintf(
+                capi,
+                sizeof(capi),
+                "capi:authenc(%s,xts(aes))-plain64",
+                integrity);
 
-            n = snprintf(params, sizeof(params),
+            n = snprintf(
+                params,
+                sizeof(params),
                 "%s %s %lu %s %lu 1 integrity:%lu:aead",
                 capi,
                 hexkey,
@@ -141,7 +155,9 @@ vic_result_t vic_dm_create_crypt(
         }
         else
         {
-            n = snprintf(params, sizeof(params),
+            n = snprintf(
+                params,
+                sizeof(params),
                 "%s %s %lu %s %lu",
                 cipher,
                 hexkey,
@@ -174,8 +190,12 @@ vic_result_t vic_dm_create_crypt(
 
 #ifdef TRACE_TARGET
     printf("DM-NAME: %s\n", name);
-    printf("TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
-        start, size, "crypt", params);
+    printf(
+        "TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
+        start,
+        size,
+        "crypt",
+        params);
 #endif
 
     /* Set the target */
@@ -300,8 +320,12 @@ vic_result_t vic_dm_create_integrity(
 
 #ifdef TRACE_TARGET
     printf("DM-NAME: %s\n", name);
-    printf("TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
-        start, size, "integrity", params);
+    printf(
+        "TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
+        start,
+        size,
+        "integrity",
+        params);
 #endif
 
     /* Set the target */
@@ -448,8 +472,12 @@ vic_result_t vic_dm_create_verity(
 
 #ifdef TRACE_TARGET
     printf("DM-NAME: %s\n", dm_name);
-    printf("TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
-        start, size, target, params);
+    printf(
+        "TARGET: start{%lu} size{%lu} target{%s} params{%s}\n",
+        start,
+        size,
+        target,
+        params);
 #endif
 
     /* Set the target */

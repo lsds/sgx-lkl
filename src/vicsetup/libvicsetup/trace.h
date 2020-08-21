@@ -14,8 +14,7 @@ typedef enum vic_trace_level
     VIC_TRACE_ERROR = 2,
     VIC_TRACE_WARNING = 3,
     VIC_TRACE_DEBUG = 4,
-}
-vic_trace_level_t;
+} vic_trace_level_t;
 
 void vic_trace_set_level(uint32_t level);
 
@@ -43,12 +42,11 @@ VIC_INLINE void __vic_trace(
     va_end(ap);
 }
 
-#define TRACE \
-    do \
-    { \
+#define TRACE                                                              \
+    do                                                                     \
+    {                                                                      \
         printf("TRACE: %s(%u): %s()\n", __FILE__, __LINE__, __FUNCTION__); \
-        fflush(stdout); \
-    } \
-    while (0)
+        fflush(stdout);                                                    \
+    } while (0)
 
 #endif /* _VIC_TRACE_H */

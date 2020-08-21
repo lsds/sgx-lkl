@@ -2,8 +2,7 @@
 #define _LKL_SYSCALL_OVERRIDES_FSTAT_H
 
 typedef long (*syscall_fstat_handler)(int, void*);
-typedef long (*syscall_newfstatat_handler)(
-    int, const char*, void*, int);
+typedef long (*syscall_newfstatat_handler)(int, const char*, void*, int);
 
 /**
  * Register override functions that maintain compatibility

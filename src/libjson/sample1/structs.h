@@ -60,15 +60,13 @@ typedef struct luks2_keyslot
         uint64_t time;
         uint64_t memory;
         uint64_t cpus;
-    }
-    kdf;
+    } kdf;
     struct
     {
         char type[TYPE_SIZE];
         char hash[HASH_SIZE];
         uint64_t stripes;
-    }
-    af;
+    } af;
     struct
     {
         char type[TYPE_SIZE];
@@ -76,10 +74,8 @@ typedef struct luks2_keyslot
         uint64_t key_size;
         uint64_t offset;
         uint64_t size;
-    }
-    area;
-}
-luks2_keyslot_t;
+    } area;
+} luks2_keyslot_t;
 
 typedef struct luks2_segment
 {
@@ -107,10 +103,8 @@ typedef struct luks2_segment
         char type[TYPE_SIZE];
         char journal_encryption[ENCRYPTION_SIZE];
         char journal_integrity[TYPE_SIZE];
-    }
-    integrity;
-}
-luks2_segment_t;
+    } integrity;
+} luks2_segment_t;
 
 typedef struct luks2_digest
 {
@@ -131,15 +125,13 @@ typedef struct luks2_digest
     char salt[SALT_SIZE];
 
     uint8_t digest[DIGEST_SIZE];
-}
-luks2_digest_t;
+} luks2_digest_t;
 
 typedef struct luks2_config
 {
     uint64_t json_size;
     uint64_t keyslots_size;
-}
-luks2_config_t;
+} luks2_config_t;
 
 typedef struct _header
 {
@@ -147,7 +139,6 @@ typedef struct _header
     luks2_segment_t segments[NUM_SEGMENTS];
     luks2_digest_t digests[NUM_DIGESTS];
     luks2_config_t config;
-}
-header_t;
+} header_t;
 
 #endif /* _JSONSAMPLE_STRUCTS_H */

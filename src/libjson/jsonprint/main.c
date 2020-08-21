@@ -27,12 +27,12 @@
 **==============================================================================
 */
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <ctype.h>
 #include <json.h>
-#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include "../common/load_file.h"
 
 static void _write(void* stream, const void* buf, size_t count)
@@ -42,8 +42,7 @@ static void _write(void* stream, const void* buf, size_t count)
 
 int main(int argc, char** argv)
 {
-    static json_allocator_t allocator =
-    {
+    static json_allocator_t allocator = {
         malloc,
         free,
     };

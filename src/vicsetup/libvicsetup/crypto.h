@@ -1,8 +1,8 @@
 #ifndef _VIC_CRYPTO_H
 #define _VIC_CRYPTO_H
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "vic.h"
 

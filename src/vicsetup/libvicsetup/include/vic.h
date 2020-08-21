@@ -1,10 +1,10 @@
 #ifndef _VIC_H
 #define _VIC_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include <limits.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /*
 **==============================================================================
@@ -74,8 +74,7 @@ typedef enum _vic_result
     VIC_BAD_FLAGS,
     VIC_BAD_PBKDF_TYPE,
     VIC_BAD_INTEGRITY_TYPE,
-}
-vic_result_t;
+} vic_result_t;
 
 /*
 **==============================================================================
@@ -89,43 +88,27 @@ typedef struct _vic_blockdev vic_blockdev_t;
 
 typedef struct _vic_blockdev
 {
-    vic_result_t (*bd_partial_close)(
-        vic_blockdev_t* dev);
+    vic_result_t (*bd_partial_close)(vic_blockdev_t* dev);
 
-    vic_result_t (*bd_reopen)(
-        vic_blockdev_t* dev);
+    vic_result_t (*bd_reopen)(vic_blockdev_t* dev);
 
-    vic_result_t (*bd_set_size)(
-        vic_blockdev_t* dev,
-        size_t size);
+    vic_result_t (*bd_set_size)(vic_blockdev_t* dev, size_t size);
 
-    vic_result_t (*bd_set_offset)(
-        vic_blockdev_t* dev,
-        size_t offset);
+    vic_result_t (*bd_set_offset)(vic_blockdev_t* dev, size_t offset);
 
-    vic_result_t (*bd_get_offset)(
-        vic_blockdev_t* dev,
-        size_t* offset);
+    vic_result_t (*bd_get_offset)(vic_blockdev_t* dev, size_t* offset);
 
-    vic_result_t (*bd_get_path)(
-        const vic_blockdev_t* dev,
-        char path[PATH_MAX]);
+    vic_result_t (*bd_get_path)(const vic_blockdev_t* dev, char path[PATH_MAX]);
 
-    vic_result_t (*bd_get_block_size)(
-        const vic_blockdev_t* dev,
-        size_t* block_size);
+    vic_result_t (
+        *bd_get_block_size)(const vic_blockdev_t* dev, size_t* block_size);
 
-    vic_result_t (*bd_set_block_size)(
-        vic_blockdev_t* dev,
-        size_t block_size);
+    vic_result_t (*bd_set_block_size)(vic_blockdev_t* dev, size_t block_size);
 
-    vic_result_t (*bd_get_size)(
-        const vic_blockdev_t* dev,
-        size_t* size);
+    vic_result_t (*bd_get_size)(const vic_blockdev_t* dev, size_t* size);
 
-    vic_result_t (*bd_get_num_blocks)(
-        const vic_blockdev_t* dev,
-        size_t* num_blocks);
+    vic_result_t (
+        *bd_get_num_blocks)(const vic_blockdev_t* dev, size_t* num_blocks);
 
     vic_result_t (*bd_get)(
         vic_blockdev_t* dev,
@@ -139,20 +122,17 @@ typedef struct _vic_blockdev
         const void* blocks,
         size_t nblocks);
 
-    vic_result_t (*bd_same)(
-        vic_blockdev_t* bd1,
-        vic_blockdev_t* bd2,
-        bool* same);
+    vic_result_t (
+        *bd_same)(vic_blockdev_t* bd1, vic_blockdev_t* bd2, bool* same);
 
     vic_result_t (*bd_close)(vic_blockdev_t* dev);
-}
-vic_blockdev_t;
+} vic_blockdev_t;
 
 #define VIC_RDONLY 1
 #define VIC_WRONLY 2
-#define VIC_RDWR   4
+#define VIC_RDWR 4
 #define VIC_CREATE 8
-#define VIC_TRUNC  16
+#define VIC_TRUNC 16
 
 vic_result_t vic_blockdev_open(
     const char* path,
@@ -160,17 +140,11 @@ vic_result_t vic_blockdev_open(
     size_t block_size, /* defaults to 512 if zero */
     vic_blockdev_t** dev);
 
-vic_result_t vic_blockdev_set_size(
-    vic_blockdev_t* dev,
-    size_t size);
+vic_result_t vic_blockdev_set_size(vic_blockdev_t* dev, size_t size);
 
-vic_result_t vic_blockdev_set_offset(
-    vic_blockdev_t* dev,
-    size_t offset);
+vic_result_t vic_blockdev_set_offset(vic_blockdev_t* dev, size_t offset);
 
-vic_result_t vic_blockdev_get_offset(
-    vic_blockdev_t* dev,
-    size_t* offset);
+vic_result_t vic_blockdev_get_offset(vic_blockdev_t* dev, size_t* offset);
 
 vic_result_t vic_blockdev_get_path(
     const vic_blockdev_t* dev,
@@ -184,9 +158,7 @@ vic_result_t vic_blockdev_set_block_size(
     vic_blockdev_t* dev,
     size_t block_size);
 
-vic_result_t vic_blockdev_get_size(
-    const vic_blockdev_t* dev,
-    size_t* size);
+vic_result_t vic_blockdev_get_size(const vic_blockdev_t* dev, size_t* size);
 
 vic_result_t vic_blockdev_get_num_blocks(
     vic_blockdev_t* dev,
@@ -229,8 +201,7 @@ typedef struct vic_key
 {
     /* 1024 bits */
     uint8_t buf[128];
-}
-vic_key_t;
+} vic_key_t;
 
 /*
 **==============================================================================
@@ -244,16 +215,14 @@ typedef enum vic_luks_version
 {
     LUKS_VERSION_1 = 1,
     LUKS_VERSION_2 = 2,
-}
-vic_luks_version_t;
+} vic_luks_version_t;
 
 typedef struct _vic_luks_stat
 {
     vic_luks_version_t version;
     size_t payload_offset;
     size_t payload_size;
-}
-vic_luks_stat_t;
+} vic_luks_stat_t;
 
 const char* vic_result_string(vic_result_t result);
 
@@ -292,8 +261,7 @@ typedef struct vic_kdf
     uint64_t time;
     uint64_t memory;
     uint64_t cpus;
-}
-vic_kdf_t;
+} vic_kdf_t;
 
 vic_result_t vic_luks_add_key(
     vic_blockdev_t* device,

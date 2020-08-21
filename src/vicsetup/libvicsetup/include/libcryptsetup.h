@@ -54,7 +54,6 @@
 
 struct crypt_device;
 
-
 struct crypt_params_luks1
 {
     const char* hash;

@@ -1,8 +1,8 @@
 #ifndef _VIC_LOOP_H
 #define _VIC_LOOP_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "vic.h"
 

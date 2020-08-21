@@ -5,8 +5,8 @@
 
 #include <asm-generic/ucontext.h>
 
-#include <lkl_host.h>
 #include <lkl/setup.h>
+#include <lkl_host.h>
 #include <string.h>
 
 #include <openenclave/enclave.h>
