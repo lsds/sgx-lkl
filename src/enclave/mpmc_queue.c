@@ -41,7 +41,9 @@
 static void _mpmc_pause(void);
 static void _mpmc_pause()
 {
-    __asm__ __volatile__("pause" : : : "memory");
+#ifdef __x86__
+    __builtin_ia32_pause()
+#endif
 }
 
 /* user is responsible for freeing the queue buffer, but it's tied to the
