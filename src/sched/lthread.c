@@ -209,13 +209,6 @@ void lthread_terminate_this_scheduler(void)
     lt->attr.state |= BIT(LT_ST_TERMINATE);
 }
 
-void lthread_set_app_main(void)
-{
-    struct lthread* lt = lthread_self();
-    SGXLKL_ASSERT(lt);
-    lt->attr.state |= BIT(LT_ST_APP_MAIN);
-}
-
 int lthread_run(void)
 {
     const struct lthread_sched* const sched = lthread_get_sched();
@@ -361,6 +354,8 @@ void _lthread_yield(struct lthread* lt)
 
 void _lthread_free(struct lthread* lt)
 {
+    // Only run the destructors if this is not the main application thread,
+    // otherwise it would get deallocated twice
     if (lthread_self() != NULL && !(lt->attr.state & BIT(LT_ST_APP_MAIN)))
     {
         lthread_rundestructors(lt);
@@ -391,9 +386,9 @@ static void init_tp(struct lthread *lt, unsigned char *mem, size_t sz)
 {
 	mem += sz - sizeof(struct lthread_tcb_base);
 	mem -= (uintptr_t)mem & (TLS_ALIGN - 1);
-	lt->tp = mem;
-	struct lthread_tcb_base *tcb = (struct lthread_tcb_base *)mem;
-	tcb->self = mem;
+    lt->tp = (uintptr_t*)mem;
+    struct lthread_tcb_base* tcb = (struct lthread_tcb_base*)mem;
+    tcb->self = mem;
 }
 
 static void set_fsbase(void* tp){
@@ -522,16 +517,10 @@ static void _lthread_init(struct lthread* lt)
     lt->ctx.esp = (void*)((uintptr_t)stack - (4 * sizeof(void*)));
     lt->ctx.ebp = (void*)((uintptr_t)stack - (3 * sizeof(void*)));
     lt->ctx.eip = (void*)_exec;
-    /* this is equivalent to unlock */
-    a_barrier();
-    if (lt->attr.state & BIT(LT_ST_DETACH))
-    {
-        lt->attr.state = BIT(LT_ST_READY) | BIT(LT_ST_DETACH);
-    }
-    else
-    {
-        lt->attr.state = BIT(LT_ST_READY);
-    }
+
+    lt->attr.state &= CLEARBIT(LT_ST_NEW);
+
+    _lthread_unlock(lt);
 }
 
 int _lthread_sched_init(size_t stack_size)
@@ -582,7 +571,7 @@ int lthread_create_primitive(
 
     static unsigned long long n = 0;
     oe_snprintf(
-        lt->funcname,
+        lt->attr.funcname,
         64,
         "cloned host task %llu",
         __atomic_fetch_add(&n, 1, __ATOMIC_SEQ_CST));
@@ -659,16 +648,25 @@ int lthread_create(
 
     lt->attr.state = BIT(LT_ST_NEW) | (attrp ? attrp->state : 0);
     lt->attr.thread_type = LKL_KERNEL_THREAD;
+    lt->attr.funcname[0] = '\0';
     lt->tid = a_fetch_add(&spawned_lthreads, 1);
     lt->fun = fun;
     lt->arg = arg;
 
     LIST_INIT(&lt->tls);
 
-    // Inherit name from parent
-    if (lthread_self() && lthread_self()->funcname)
+    // Did we get a thread name?
+    if (attrp && attrp->funcname)
     {
-        lthread_set_funcname(lt, lthread_self()->funcname);
+        lthread_set_funcname(lt, attrp->funcname);
+    }
+    else
+    {
+        // Inherit the thread name from the parent
+        if (lthread_self() && lthread_self()->attr.funcname)
+        {
+            lthread_set_funcname(lt, lthread_self()->attr.funcname);
+        }
     }
 
     if (new_lt)
@@ -815,8 +813,12 @@ void lthread_detach2(struct lthread* lt)
 
 void lthread_set_funcname(struct lthread* lt, const char* f)
 {
-    oe_strncpy_s(lt->funcname, 64, f, 64);
-    lt->funcname[64 - 1] = 0;
+    oe_strncpy_s(
+        lt->attr.funcname,
+        sizeof(lt->attr.funcname),
+        f,
+        sizeof(lt->attr.funcname));
+    lt->attr.funcname[sizeof(lt->attr.funcname) - 1] = '\0';
 }
 
 uint64_t lthread_id(void)
@@ -1009,6 +1011,7 @@ static void lthread_state_to_string(
     STRINGIFY_LT_STATE(DETACH)
     STRINGIFY_LT_STATE(PINNED)
     STRINGIFY_LT_STATE(TERMINATE)
+    STRINGIFY_LT_STATE(APP_MAIN)
 
     lt_state_str[offset - 1] = '\0';
 }
@@ -1036,7 +1039,7 @@ void lthread_dump_all_threads(bool is_lthread)
         if (lt)
         {
             int tid = lt->tid;
-            char* funcname = lt->funcname;
+            char* funcname = lt->attr.funcname;
 
             lthread_state_to_string(lt, lt_state_str, 1024);
 

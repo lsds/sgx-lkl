@@ -110,6 +110,7 @@ struct lthread_attr
     _Atomic(int) state; /* current lthread state */
     void* stack;        /* ptr to lthread_stack */
     int thread_type;    /* type of thread: usermode or lkl kernel */
+    char funcname[64];  /* optional func name */
 };
 
 typedef void (*sig_handler)(int sig, siginfo_t* si, void* unused);
@@ -138,7 +139,6 @@ struct lthread
     void* arg;                    /* func args passed to func */
     struct lthread_attr attr;     /* various attributes */
     int tid;                      /* lthread id */
-    char funcname[64];            /* optional func name */
     struct lthread* lt_join;      /* lthread we want to join on */
     void** lt_exit_ptr;           /* exit ptr for lthread_join */
     uint32_t ops;                 /* num of ops since yield */
@@ -249,11 +249,9 @@ extern "C"
 
     /**
      * Make the current scheduler also terminate and exit the enclave after the
-     * calling lthread has returned.
+     * calling lthread next yields.
      */
     void lthread_terminate_this_scheduler(void);
-
-    void lthread_set_app_main(void);
 
     /**
      * Run the main scheduler loop.

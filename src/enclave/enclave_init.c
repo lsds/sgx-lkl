@@ -93,9 +93,6 @@ static int app_main_thread(void* args)
 {
     SGXLKL_VERBOSE("enter\n");
 
-    lthread_set_funcname(lthread_self(), "app-main");
-    lthread_set_app_main();
-
     /* Set locale for userspace components using it */
     SGXLKL_VERBOSE("Setting locale\n");
     pthread_t self = __pthread_self();
@@ -131,7 +128,17 @@ static int kernel_main_thread(void* args)
     lthread_set_funcname(lthread_self(), "sgx-lkl-init");
 
     struct lthread* lt;
-    if (lthread_create(&lt, NULL, app_main_thread, NULL) != 0)
+    struct lthread_attr lt_attr = {0};
+
+    // Denote this thread to be the main application thread
+    lt_attr.state = BIT(LT_ST_APP_MAIN);
+    oe_strncpy_s(
+        lt_attr.funcname,
+        sizeof(lt_attr.funcname),
+        "app_name_thread",
+        sizeof("app_name_thread"));
+
+    if (lthread_create(&lt, &lt_attr, app_main_thread, NULL) != 0)
     {
         sgxlkl_fail("Failed to create lthread for app_main_thread\n");
     }
