@@ -30,6 +30,45 @@ extern struct mpmcq __scheduler_queue;
 _Noreturn void __dls3(elf64_stack_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
+static void get_disk_keys()
+{
+    /* Here or earlier: get keys from remote key provider or auxv. */
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+    sgxlkl_enclave_disk_state_t* disk_states = sgxlkl_enclave_state.disk_state;
+    if (cfg->root.key)
+    {
+        uint8_t* key = cfg->root.key;
+        size_t len = cfg->root.key_len;
+        disk_states[0].key = oe_malloc(sizeof(uint8_t) * len);
+        memcpy(disk_states[0].key, key, len);
+    }
+    for (size_t i = 0; i < cfg->num_mounts; i++)
+    {
+        if (cfg->mounts[i].key)
+        {
+            uint8_t* key = cfg->mounts[i].key;
+            size_t len = cfg->mounts[i].key_len;
+            disk_states[i + 1].key = oe_malloc(sizeof(uint8_t) * len);
+            memcpy(disk_states[i + 1].key, key, len);
+        }
+    }
+}
+
+static void wipe_disk_keys()
+{
+    sgxlkl_enclave_disk_state_t* disk_state = sgxlkl_enclave_state.disk_state;
+    for (size_t i = 0; i < sgxlkl_enclave_state.num_disk_state; i++)
+    {
+        if (disk_state[i].key)
+        {
+            memset(disk_state[i].key, 0, disk_state[i].key_len);
+            oe_free(disk_state[i].key);
+        }
+        disk_state[i].key = NULL;
+        disk_state[i].key_len = 0;
+    }
+}
+
 static void find_and_mount_disks()
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
@@ -41,7 +80,7 @@ static void find_and_mount_disks()
     estate->disk_state = oe_calloc(n, sizeof(sgxlkl_enclave_disk_state_t));
     estate->num_disk_state = n;
 
-    // root disk index
+    // root disk index 0
     estate->disk_state[0].host_disk_index = 0;
 
     for (int i = 0; i < cfg->num_mounts; i++)
@@ -68,7 +107,9 @@ static void find_and_mount_disks()
                 cfg_disk->destination);
     }
 
+    get_disk_keys();
     lkl_mount_disks(&cfg->root, cfg->mounts, cfg->num_mounts, cfg->cwd);
+    wipe_disk_keys();
 }
 
 static void init_wireguard_peers()

@@ -408,13 +408,6 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     crypt_free(cd);
 
-    // The key is only needed during activation, so don't keep it around
-    // afterwards and free up space.
-    memset(lkl_cd->disk_config.key, 0, lkl_cd->disk_config.key_len);
-
-    lkl_cd->disk_config.key = NULL;
-    lkl_cd->disk_config.key_len = 0;
-
     return 0;
 }
 #endif
@@ -621,13 +614,11 @@ static void lkl_mount_disk(
     lkl_cd.readonly = disk->readonly;
     lkl_cd.disk_config = *disk;
 
-    (void)lkl_cd;
-
-    if (disk->create && disk->fresh_key)
+    if (disk->create && disk->fresh_key && !disk->key)
     {
         disk->key_len = CREATED_DISK_KEY_LENGTH / 8;
         SGXLKL_VERBOSE("Generating random disk encryption key\n");
-        disk->key = malloc(disk->key_len);
+        disk->key = oe_malloc(disk->key_len);
         if (disk->key == NULL)
             sgxlkl_fail("Could not allocate memory for disk encryption key\n");
         for (size_t i = 0; i < disk->key_len; i++)

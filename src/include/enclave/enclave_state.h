@@ -20,6 +20,8 @@ typedef struct sgxlkl_enclave_disk_state
     int fd;                 /* File descriptor of the disk */
     size_t capacity;        /* Capacity of the disk */
     bool mounted;           /* Tracks whether the disk has been mounted */
+    uint8_t* key;           /* Encryption key */
+    size_t key_len;         /* Length of encryption key */
 } sgxlkl_enclave_disk_state_t;
 
 typedef struct
