@@ -94,7 +94,7 @@ static inline int ticket_trylock(struct ticketlock* t)
 {
     // Get the expected next ticket value
     uint32_t me = t->s.users;
-    // Set our exected next-ticket value.
+    // Set our expected next-ticket value.
     uint32_t menew = me + 1;
     // If the ticket lock is not held, t->s.users will equal t->s.ticket.
     // Expect that to be the case.
