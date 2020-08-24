@@ -153,6 +153,7 @@ install-git-pre-commit-hook: scripts/pre-commit
 
 install:
 	mkdir -p ${PREFIX}/bin ${PREFIX}/lib ${PREFIX}/lib/gdb $(PREFIX)/lib/gdb/openenclave ${PREFIX}/share ${PREFIX}/share/schemas ${PREFIX}/tools
+	cp $(BUILD_DIR)/$(SGXLKL_USER_LIB_TARGET) $(PREFIX)/lib
 	cp $(BUILD_DIR)/$(SGXLKL_LIB_TARGET_SIGNED) $(PREFIX)/lib
 	cp $(BUILD_DIR)/$(SGXLKL_RUN_TARGET) $(PREFIX)/bin
 	cp $(TOOLS)/sgx-lkl-java $(PREFIX)/bin
