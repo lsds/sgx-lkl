@@ -78,6 +78,8 @@ enum lthread_st
     LT_ST_EXPIRED,         /* lthread has expired and needs to run */
     LT_ST_DETACH,          /* lthread frees when done, else it waits to join */
     LT_ST_PINNED,          /* lthread pinned to ethread */
+    LT_ST_APP_MAIN,        /* lthread that runs app main */
+    LT_ST_TERMINATE,       /* lthread that makes the ethread scheduler quit */
 };
 
 enum lthread_type
@@ -108,6 +110,7 @@ struct lthread_attr
     _Atomic(int) state; /* current lthread state */
     void* stack;        /* ptr to lthread_stack */
     int thread_type;    /* type of thread: usermode or lkl kernel */
+    char funcname[64];  /* optional func name */
 };
 
 typedef void (*sig_handler)(int sig, siginfo_t* si, void* unused);
@@ -136,7 +139,6 @@ struct lthread
     void* arg;                    /* func args passed to func */
     struct lthread_attr attr;     /* various attributes */
     int tid;                      /* lthread id */
-    char funcname[64];            /* optional func name */
     struct lthread* lt_join;      /* lthread we want to join on */
     void** lt_exit_ptr;           /* exit ptr for lthread_join */
     uint32_t ops;                 /* num of ops since yield */
@@ -152,6 +154,9 @@ struct lthread
     void (*yield_cb)(void*);
     void* yield_cbarg;
     struct futex_q fq;
+#ifdef DEBUG
+    LIST_ENTRY(lthread) entries;
+#endif
 };
 
 struct lthread_queue
@@ -235,11 +240,27 @@ extern "C"
         void* lthread_func,
         void* arg);
 
-    void lthread_notify_completion(void);
+    /**
+     * Makes all schedulers in all ethreads except the caller's scheduler
+     * terminate and exit the enclave. Afterwards, the enclave will be
+     * single-threaded, with only the current ethread's scheduler running.
+     */
+    void lthread_terminate_other_schedulers(void);
 
-    bool lthread_should_stop(void);
+    /**
+     * Make the current scheduler also terminate and exit the enclave after the
+     * calling lthread next yields.
+     */
+    void lthread_terminate_this_scheduler(void);
 
-    void lthread_run(void);
+    /**
+     * Run the main scheduler loop.
+     *
+     * Returns the exit status if this is the last ethread terminating (which
+     * should report the exit status from the enclave); all other ethreads
+     * return MAX_INT when exiting.
+     */
+    int lthread_run(void);
 
     int lthread_join(struct lthread* lt, void** ptr, uint64_t timeout);
 

@@ -443,7 +443,7 @@
         },
         "oe_heap_pagecount": {
           "$ref": "#/definitions/safe_size_t",
-          "description": "OE heap limit. Build OE LIBS with -DOE_HEAP_MEMORY_ALLOCATED_SIZE=<n>",
+          "description": "OE heap limit. Build OE with -DOE_HEAP_ALLOTTED_PAGE_COUNT=<n>",
           "default": 8192,
           "overridable": "SGXLKL_OE_HEAP_PAGE_COUNT"
         },

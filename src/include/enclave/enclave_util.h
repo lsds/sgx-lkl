@@ -138,10 +138,22 @@ extern int sgxlkl_trace_redirect_syscall;
         }                                                     \
     } while (0)
 
-#define SGXLKL_VERBOSE(x, ...)                                              \
-    if (sgxlkl_enclave_state.verbose)                                       \
-    {                                                                       \
-        oe_host_printf("[[  SGX-LKL ]] %s(): " x, __func__, ##__VA_ARGS__); \
+#define SGXLKL_VERBOSE(x, ...)                                               \
+    if (sgxlkl_enclave_state.verbose)                                        \
+    {                                                                        \
+        struct schedctx* _sgxlkl_verbose_self;                               \
+        __asm__ __volatile__("mov %%gs:48,%0" : "=r"(_sgxlkl_verbose_self)); \
+        struct lthread_sched* _sgxlkl_verbose_sched =                        \
+            _sgxlkl_verbose_self ? &_sgxlkl_verbose_self->sched : NULL;      \
+        struct lthread* _sgxlkl_verbose_lt =                                 \
+            _sgxlkl_verbose_sched ? _sgxlkl_verbose_sched->current_lthread   \
+                                  : NULL;                                    \
+        oe_host_printf(                                                      \
+            "[[  SGX-LKL ]] [%p] [%4d] %s(): " x,                            \
+            _sgxlkl_verbose_self,                                            \
+            _sgxlkl_verbose_lt ? _sgxlkl_verbose_lt->tid : -1,               \
+            __func__,                                                        \
+            ##__VA_ARGS__);                                                  \
     }
 #define SGXLKL_VERBOSE_RAW(x, ...)        \
     if (sgxlkl_enclave_state.verbose)     \

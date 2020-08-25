@@ -420,6 +420,7 @@ static void thread_destroy_host(lkl_thread_t tid, struct lkl_tls_key* task_key)
     // destructors.  This can be removed once there is a clean mechanism for
     // destroying a not-running lthread without scheduling it.
     struct lthread *thr = (struct lthread*)tid;
+    SGXLKL_VERBOSE("enter tid=%i\n", thr->tid);
     SGXLKL_ASSERT(thr->lt_join == NULL);
     // The thread is currently blocking on the LKL scheduler semaphore, remove
     // it from the sleeping list.
@@ -453,7 +454,10 @@ static void thread_exit(void)
 static int thread_join(lkl_thread_t tid)
 {
     LKL_TRACE("enter (tid=%li)\n", tid);
-    int ret = lthread_join((struct lthread*)tid, NULL, -1);
+
+    struct lthread* lt = (struct lthread*) tid;
+
+    int ret = lthread_join(lt, NULL, -1);
     if (ret)
     {
         sgxlkl_fail("lthread_join failed: %s\n", lkl_strerror(ret));

@@ -88,6 +88,16 @@ typedef struct ethread_args
     oe_enclave_t* oe_enclave;
 } ethread_args_t;
 
+// CV to wait for the terminating ethreads, which shuts down the enclave
+static pthread_cond_t terminating_ethread_exited_cv;
+static pthread_mutex_t terminating_ethread_exited_mtx;
+
+// Exit status returned from the enclave
+static int enclave_return_status = INT_MAX;
+
+// Counts the number of exited ethreads
+static _Atomic(int) exited_ethread_count = 0;
+
 /**************************************************************************************************************************/
 
 #ifdef DEBUG
@@ -1304,18 +1314,26 @@ void parse_cpu_affinity_params(char* config, int** cores, size_t* cores_len)
     }
 }
 
-static _Atomic(bool) first_thread = true;
+static void handle_ethread_exit(int exit_status)
+{
+    exited_ethread_count++;
+
+    // Check if this is the terminating ethread that returns the exit
+    // status
+    if (exit_status != INT_MAX)
+    {
+        // Signal that the terminating ethread has exited
+        pthread_mutex_lock(&terminating_ethread_exited_mtx);
+        enclave_return_status = exit_status;
+        pthread_cond_signal(&terminating_ethread_exited_cv);
+        pthread_mutex_unlock(&terminating_ethread_exited_mtx);
+    }
+}
 
 void* ethread_init(ethread_args_t* args)
 {
-    oe_result_t result = sgxlkl_ethread_init(args->oe_enclave);
-    bool current_value = true;
-    if (sgxlkl_config_bool(SGXLKL_VERBOSE) &&
-        atomic_compare_exchange_strong(&first_thread, &current_value, false))
-    {
-        sgxlkl_host_verbose("");
-    }
-    sgxlkl_host_verbose_raw("ethread (%i: %u) ", args->ethread_id, result);
+    int exit_status = 0;
+    oe_result_t result = sgxlkl_ethread_init(args->oe_enclave, &exit_status);
     if (result != OE_OK)
     {
         sgxlkl_host_fail(
@@ -1324,6 +1342,8 @@ void* ethread_init(ethread_args_t* args)
             result,
             oe_result_str(result));
     }
+
+    handle_ethread_exit(exit_status);
     return NULL;
 }
 
@@ -1331,18 +1351,10 @@ void* enclave_init(ethread_args_t* args)
 {
     sgxlkl_host_verbose(
         "sgxlkl_enclave_init(ethread_id=%i)\n", args->ethread_id);
-    int exit_status;
+
+    int exit_status = 0;
     oe_result_t result =
         sgxlkl_enclave_init(args->oe_enclave, &exit_status, args->shm);
-    bool current_value = true;
-    if (sgxlkl_config_bool(SGXLKL_VERBOSE) &&
-        atomic_compare_exchange_strong(&first_thread, &current_value, false))
-    {
-        sgxlkl_host_verbose("");
-    }
-    sgxlkl_host_verbose_raw(
-        "init (%i: %u exit=%i) ", args->ethread_id, result, exit_status);
-
     if (result != OE_OK)
     {
         sgxlkl_host_fail(
@@ -1352,7 +1364,8 @@ void* enclave_init(ethread_args_t* args)
             oe_result_str(result));
     }
 
-    return (void*)(long)exit_status;
+    handle_ethread_exit(exit_status);
+    return NULL;
 }
 
 /* Creates an SGX-LKL enclave with enclave configuration in the EEID. */
@@ -1694,7 +1707,6 @@ int main(int argc, char* argv[], char* envp[])
     size_t ethreads_cores_len;
     pthread_attr_t eattr;
     cpu_set_t set;
-    void* return_value;
     bool enclave_image_provided = false;
 
     oe_enclave_t* oe_enclave = NULL;
@@ -1994,6 +2006,9 @@ int main(int argc, char* argv[], char* envp[])
     __gdb_hook_starter_ready(base_addr, econf->mode, libsgxlkl);
 #endif
 
+    pthread_mutex_init(&terminating_ethread_exited_mtx, NULL);
+    pthread_cond_init(&terminating_ethread_exited_cv, NULL);
+
     ethread_args_t ethreads_args[econf->ethreads];
 
     for (int i = 0; i < econf->ethreads; i++)
@@ -2032,25 +2047,41 @@ int main(int argc, char* argv[], char* envp[])
         pthread_setname_np(sgxlkl_threads[i], "ENCLAVE");
     }
 
-    long exit_status = 0;
-
-    for (int i = 0; i < econf->ethreads; i++)
+    // Wait for the terminating ethread to exit the enclave
+    pthread_mutex_lock(&terminating_ethread_exited_mtx);
+    // Only wait if the enclave has not exited yet
+    if (enclave_return_status == INT_MAX)
     {
-        pthread_join(sgxlkl_threads[i], &return_value);
-        if (i == 0)
-        {
-            exit_status = (long)return_value;
-        }
+        ret = pthread_cond_wait(
+            &terminating_ethread_exited_cv, &terminating_ethread_exited_mtx);
+        if (ret != 0)
+            sgxlkl_host_fail(
+                "Failed to wait for enclave to finish: ret=%i\n", ret);
     }
-    sgxlkl_host_verbose_raw("\n");
+    int exit_status = enclave_return_status;
+    pthread_mutex_unlock(&terminating_ethread_exited_mtx);
 
-    if (oe_enclave)
+    // Only try to destroy enclave if all ethreads successfully exited. If we
+    // call oe_terminate_enclave otherwise, it may sefault.
+    if (oe_enclave && exited_ethread_count == econf->ethreads)
     {
         sgxlkl_host_verbose("oe_terminate_enclave... ");
         oe_terminate_enclave(oe_enclave);
         sgxlkl_host_verbose_raw("done\n");
     }
+    else
+    {
+        sgxlkl_host_verbose(
+            "Could not terminate enclave because not all ethreads (%i/%i) "
+            "exited. This may happen under cooperating scheduling, and the "
+            "enclave is still destroyed on process termination.\n",
+            exited_ethread_count,
+            econf->ethreads);
+    }
 
-    sgxlkl_host_verbose("SGX-LKL-OE exit: exit_status=%i\n", exit_status);
+    sgxlkl_host_verbose(
+        "SGX-LKL-OE exit: exited_ethread_count=%i exit_status=%i\n",
+        exited_ethread_count,
+        exit_status);
     return exit_status;
 }

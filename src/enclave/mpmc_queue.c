@@ -38,10 +38,12 @@
 #include "enclave/enclave_util.h"
 #include "enclave/mpmc_queue.h"
 
-static void pause(void);
-static void pause()
+static void _mpmc_pause(void);
+static void _mpmc_pause()
 {
-    __asm__ __volatile__("pause" : : : "memory");
+#ifdef __x86__
+    __builtin_ia32_pause()
+#endif
 }
 
 /* user is responsible for freeing the queue buffer, but it's tied to the
@@ -95,7 +97,7 @@ int mpmc_enqueue(volatile struct mpmcq* q, void* data)
         else
         {
             pos = __atomic_load_n(&q->enqueue_pos, __ATOMIC_RELAXED);
-            pause();
+            _mpmc_pause();
         }
     }
     cell->data = data;
@@ -135,7 +137,7 @@ int mpmc_dequeue(volatile struct mpmcq* q, void** data)
         else
         {
             pos = __atomic_load_n(&q->dequeue_pos, __ATOMIC_RELAXED);
-            pause();
+            _mpmc_pause();
         }
     }
     *data = cell->data;
