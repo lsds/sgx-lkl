@@ -13,7 +13,7 @@ sudo apt-get install -y \
     gdb \
     shellcheck clang-format
 
-sudo python3 -m pip install "jsonschema>=3" black
+sudo python3 -m pip install "jsonschema>=3" "black==19.10b0"
 
 if [[ ! -x "$(command -v docker)" ]]; then
     sudo apt-get install -y docker.io
