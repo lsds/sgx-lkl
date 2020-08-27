@@ -204,7 +204,7 @@ static int kernel_main_thread(void* args)
         "app_name_thread",
         sizeof("app_name_thread"));
 
-    if (lthread_create(&lt, &lt_attr, app_main_thread, &args) != 0)
+    if (lthread_create(&lt, &lt_attr, app_main_thread, args) != 0)
     {
         sgxlkl_fail("Failed to create lthread for app_main_thread\n");
     }
