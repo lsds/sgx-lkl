@@ -32,7 +32,7 @@ elif python3 -m black --help &>/dev/null; then
     cmd=(python3 -m black)
 else
     echo "black is not installed, run:"
-    echo "python3 -m pip install black"
+    echo "python3 -m pip install black==19.10b0"
     exit 1
 fi
 
