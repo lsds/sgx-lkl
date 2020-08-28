@@ -329,10 +329,21 @@ static int virtio_write(void* data, int offset, void* res, int size)
         case VIRTIO_MMIO_STATUS:
             set_status(dev, val);
             break;
-        /* Security Review: q->desc pointer and link list content should be
-         * host-read-only. As desc ring is shadowed, need a way to make sure the
-         * guest virtio driver use the shadowed desc ring inside guest memory.
-         * How?
+        /* Security Review: For Split Queue, q->desc link list
+         * content should be host-read-only. The Split Queue implementaiton
+         * in guest side virtio code can be affected by host side manipulation
+         * of q->desc[].addr and q->desc[].next. Shadowing the desc link list
+         * requires extensive changes in the Split Queue code.
+         * 
+         * For Packed Queue, q->desc link list content is host-read-write, but
+         * the Packed Queue implementation in guest side virtio code does not
+         * read q->desc[].addr in buffer management flow, instead, maintaining
+         * a local copy of the info. So the host side manipulation of
+         * q->desc[].addr would not be effective. The Packed Queue
+         * implementation still reads q->desc[].length as the size of the data
+         * writtern to the "used" buffer, by the host side. Sanity check that
+         * q->desc[].length should not exceed buffer size allocated might still
+         * be required.
          */
         case VIRTIO_MMIO_QUEUE_DESC_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->desc, val);
@@ -340,10 +351,17 @@ static int virtio_write(void* data, int offset, void* res, int size)
         case VIRTIO_MMIO_QUEUE_DESC_HIGH:
             set_ptr_high((_Atomic(uint64_t)*)&q->desc, val);
             break;
-        /* Security Review: q->avail pointer and link list content should be
-         * host-read-only. As avail ring is shadowed, need a way to make sure the
-         * guest virtio driver use the shadowed desc ring inside guest memory.
-         * How?
+        /* Security Review: For Split Queue, q->avail link list content should be
+         * host-read-only. The Split Queue implementaiton
+         * in guest side virtio code only write to the avail link list, and does
+         * not read from it.As long as the implementaiton does not change, host
+         * side manipulation of the avail link list won't be effective. Shadowing
+         * the avail linked list has the same challenge as shadowing the desc link
+         * list.
+         * 
+         * For Packed Queue, "avail"/"driver" points to a 32-bit driver-to-device
+         * notification. The Packed Queue implementaiton in guest side only writes
+         * to it.
          */
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->avail, val);
@@ -351,8 +369,17 @@ static int virtio_write(void* data, int offset, void* res, int size)
         case VIRTIO_MMIO_QUEUE_AVAIL_HIGH:
             set_ptr_high((_Atomic(uint64_t)*)&q->avail, val);
             break;
-        /* Security Review: q->used pointer should be host-read-only, the link
-         * list content should be guest-read-only
+        /* Security Review: For Split Queue, q->used link list content should be
+         * guest-read-only. The Split Queue implementaiton in guest side virtio
+         * code directly read from the link list and has sanity check for
+         * unexpected value of q->used.idx and q->used[].id. It reads
+         * q->used[].length as the size of the data writtern to the "used"
+         * buffer, by the host side. Sanity check that q->used[].length should
+         * not exceed buffer size allocated might still be required.
+         * 
+         * For Packed Queue, "used"/"device" points to a 32-bit device-to-driver
+         * notification. Host side manipulation of "device" flag can only affect
+         * functionality.
          */
         case VIRTIO_MMIO_QUEUE_USED_LOW:
             set_ptr_low((_Atomic(uint64_t)*)&q->used, val);
