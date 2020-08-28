@@ -1510,12 +1510,8 @@ extern inline int lkl_access_ok(unsigned long addr, unsigned long size)
     /* Set default state as access_ok */
     int ret = 1;
 
-    /**
-     * NULL access or size 0 should not be treated as an invalid kernel access.
-     * (We have Linux file system code that calls this with a NULL pointer and
-     * expects it to succeed.)
-     **/
-    if (!addr || !size)
+    /* size 0 access should not be treated as invalid access */
+    if (!size)
         return ret;
 
     ret = oe_is_within_enclave((void*)addr, size);
