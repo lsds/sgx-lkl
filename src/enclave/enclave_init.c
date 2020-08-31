@@ -91,13 +91,6 @@ static void init_wireguard_peers()
         wgu_list_devices();
 }
 
-static long _lkl_syscall_wrapper(long no, long* params)
-{
-    //sgxlkl_warn("syscall begin: no=%u\n", no);
-    long ret = lkl_syscall(no, params);
-    //sgxlkl_warn("syscall end: ret=%u\n", ret);
-    return ret;
-}
 
 static void _enter_user_space(
     int argc,
@@ -117,7 +110,7 @@ static void _enter_user_space(
     if (!(proc = __oe_get_isolated_image_entry_point()))
         sgxlkl_fail("failed to obtain user space entry point");
 
-    args.ua_lkl_syscall = _lkl_syscall_wrapper;
+    args.ua_lkl_syscall = lkl_syscall;
     args.ua_sgxlkl_warn = sgxlkl_warn;
     args.ua_sgxlkl_error = sgxlkl_error;
     args.ua_sgxlkl_fail = sgxlkl_fail;
