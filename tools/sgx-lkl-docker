@@ -76,6 +76,7 @@ WORKDIR \${HOME}
 
 ENTRYPOINT ["/opt/sgx-lkl/lib/external/ld-linux-x86-64", "/opt/sgx-lkl/bin/sgx-lkl-run-oe",\
     "--enclave-image=/opt/sgx-lkl/lib/libsgxlkl.so.signed",\
+    "--isolated-image=/opt/sgx-lkl/lib/libsgxlkl-user.so",\
     "--host-config=host-cfg.json",\
     "--enclave-config=enclave-cfg.json"]
 CMD ["--hw-release"]
