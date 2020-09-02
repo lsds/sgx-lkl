@@ -1783,7 +1783,7 @@ int main(int argc, char* argv[], char* envp[])
                 strcpy(libsgxlkl, optarg);
                 break;
             case 'i':
-                enclave_image_provided = true;
+                isolated_image_provided = true;
                 strcpy(libsgxlkl_user, optarg);
                 break;
             case 'v':
