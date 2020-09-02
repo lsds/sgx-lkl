@@ -1,5 +1,7 @@
-#include "userargs.h"
+#include <stdio.h>
+#include <stdarg.h>
 #include <sys/syscall.h>
+#include "userargs.h"
 
 sgxlkl_userargs_t* __sgxlkl_userargs;
 
@@ -44,20 +46,35 @@ long __sgxlkl_log_syscall(
 
 void sgxlkl_warn(const char* msg, ...)
 {
-    /* ATTN: ignore variadic arguments */
-    return __sgxlkl_userargs->ua_sgxlkl_warn(msg);
+    char buf[1024];
+    va_list ap;
+    va_start(ap, msg);
+    vsnprintf(buf, sizeof(buf), msg, ap);
+    va_end(ap);
+
+    return __sgxlkl_userargs->ua_sgxlkl_warn(buf);
 }
 
 void sgxlkl_error(const char* msg, ...)
 {
-    /* ATTN: ignore variadic arguments */
-    return __sgxlkl_userargs->ua_sgxlkl_error(msg);
+    char buf[1024];
+    va_list ap;
+    va_start(ap, msg);
+    vsnprintf(buf, sizeof(buf), msg, ap);
+    va_end(ap);
+
+    return __sgxlkl_userargs->ua_sgxlkl_error(buf);
 }
 
 void sgxlkl_fail(const char* msg, ...)
 {
-    /* ATTN: ignore variadic arguments */
-    return __sgxlkl_userargs->ua_sgxlkl_fail(msg);
+    char buf[1024];
+    va_list ap;
+    va_start(ap, msg);
+    vsnprintf(buf, sizeof(buf), msg, ap);
+    va_end(ap);
+
+    return __sgxlkl_userargs->ua_sgxlkl_fail(buf);
 }
 
 bool sgxlkl_in_sw_debug_mode()
@@ -76,13 +93,6 @@ void* enclave_mmap(
         prot, zero_pages);
 }
 
-typedef enum
-{
-    OE_OK,
-    OE_FAILURE,
-}
-oe_result_t;
-
 /*
 **==============================================================================
 **
@@ -93,11 +103,6 @@ oe_result_t;
 
 __attribute__((weak))
 void main()
-{
-}
-
-__attribute__((weak))
-void __sgx_init_enclave()
 {
 }
 

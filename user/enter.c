@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <malloc.h>
 #include <features.h>
 
 #ifndef hidden
@@ -55,6 +57,10 @@ __gdb_hook_load_debug_symbols_from_file_wrap(struct dso *dso, char *libpath)
 
 void sgxlkl_user_enter(sgxlkl_userargs_t* args, size_t args_size)
 {
+    void* stack;
+    const size_t stack_size = 512 * 1024;
+    const size_t stack_alignment = 16;
+
     __sgxlkl_userargs = args;
 
     if (sizeof(sgxlkl_userargs_t) != args_size)
@@ -72,12 +78,28 @@ void sgxlkl_user_enter(sgxlkl_userargs_t* args, size_t args_size)
     init_clock_res((struct timespec*)args->clock_res);
 
     __init_libc(args->argv + args->argc + 1, args->argv[0]);
-
     __libc_start_init();
     _barrier();
 
     pthread_t self = __pthread_self();
     self->locale = &libc.global_locale;
 
+    /* Allocate a stack for executing the application */
+    if (!(stack = memalign(stack_alignment, stack_size)))
+    {
+        sgxlkl_error("failed to allocate stack\n");
+        a_crash();
+    }
+
+    memset(stack, 0, stack_size);
+
+    __dls3(args->stack, stack + stack_size);
+
+#if 0
+    // The following results in an overwrite of args->stack when calling
+    // prepare_stack_and_jmp_to_exec(). The function arguments are overwritten,
+    // probably because the compiler only takes the the register keyword as a
+    // hint.
     __dls3(args->stack, __builtin_frame_address(0));
+#endif
 }
