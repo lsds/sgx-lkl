@@ -82,7 +82,7 @@ void sgxlkl_user_enter(sgxlkl_userargs_t* args, size_t args_size)
     self->locale = &libc.global_locale;
 
     // Add a 16 kilobyte safety buffer to prevent stack overwrites
-    // prepare_stack_and_jmp_to_exec();
+    // in prepare_stack_and_jmp_to_exec();
     const size_t safety_buffer = 16 * 1024;
     __dls3(args->stack, __builtin_frame_address(0) - safety_buffer);
 }
