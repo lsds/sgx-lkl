@@ -41,6 +41,8 @@ typedef struct sgxlkl_userargs
 
     /* where in debug mode or not */
     bool sw_debug_mode;
+
+    int* __gdb_load_debug_symbols_alive_ptr;
 }
 sgxlkl_userargs_t;
 

@@ -16,6 +16,15 @@
 
 #include "../../user/userargs.h"
 
+// This symbol is set by the gdb plugin and read by musl libc
+// (can't be static, we need to keep the symbol alive)
+int __gdb_load_debug_symbols_alive;
+
+int __gdb_get_load_debug_symbols_alive(void)
+{
+    return __gdb_load_debug_symbols_alive;
+}
+
 extern struct mpmcq __scheduler_queue;
 
 _Noreturn void __dls3(elf64_stack_t* conf, void* tos);
@@ -121,6 +130,7 @@ static void _enter_user_space(
     args.elf64_hdr = (const void*)__oe_get_isolated_image_base();
     args.num_ethreads = num_ethreads;
     args.sw_debug_mode = sgxlkl_in_sw_debug_mode();
+    args.__gdb_load_debug_symbols_alive_ptr = &__gdb_load_debug_symbols_alive;
     memcpy(args.clock_res, clock_res, sizeof(args.clock_res));
 
     (*proc)(&args, sizeof(args));
