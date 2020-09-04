@@ -14,6 +14,17 @@
 #include "enclave/wireguard_util.h"
 #include "shared/env.h"
 
+#include "../../user/userargs.h"
+
+// This symbol is set by the gdb plugin and read by musl libc
+// (can't be static, we need to keep the symbol alive)
+int __gdb_load_debug_symbols_alive;
+
+int __gdb_get_load_debug_symbols_alive(void)
+{
+    return __gdb_load_debug_symbols_alive;
+}
+
 extern struct mpmcq __scheduler_queue;
 
 _Noreturn void __dls3(elf64_stack_t* conf, void* tos);
@@ -89,9 +100,54 @@ static void init_wireguard_peers()
         wgu_list_devices();
 }
 
-static int app_main_thread(void* args)
+
+static void _enter_user_space(
+    int argc,
+    char** argv,
+    void* stack,
+    size_t num_ethreads,
+    struct timespec clock_res[4])
+{
+    extern void* __oe_get_isolated_image_entry_point(void);
+    extern const void* __oe_get_isolated_image_base();
+    typedef int (*sgxlkl_user_enter_proc_t)(void* args, size_t size);
+    sgxlkl_userargs_t args;
+    sgxlkl_user_enter_proc_t proc;
+
+    memset(&args, 0, sizeof(args));
+
+    if (!(proc = __oe_get_isolated_image_entry_point()))
+        sgxlkl_fail("failed to obtain user space entry point");
+
+    args.ua_lkl_syscall = lkl_syscall;
+    args.ua_sgxlkl_warn = sgxlkl_warn;
+    args.ua_sgxlkl_error = sgxlkl_error;
+    args.ua_sgxlkl_fail = sgxlkl_fail;
+    args.ua_enclave_mmap = enclave_mmap;
+    args.argc = argc;
+    args.argv = argv;
+    args.stack = stack;
+    args.elf64_hdr = (const void*)__oe_get_isolated_image_base();
+    args.num_ethreads = num_ethreads;
+    args.sw_debug_mode = sgxlkl_in_sw_debug_mode();
+    args.__gdb_load_debug_symbols_alive_ptr = &__gdb_load_debug_symbols_alive;
+    memcpy(args.clock_res, clock_res, sizeof(args.clock_res));
+
+    (*proc)(&args, sizeof(args));
+}
+
+typedef struct startmain_args
+{
+    int argc;
+    char** argv;
+    struct timespec clock_res[8];
+}
+startmain_args_t;
+
+static int app_main_thread(void* args_)
 {
     SGXLKL_VERBOSE("enter\n");
+    startmain_args_t* args = args_;
 
     /* Set locale for userspace components using it */
     SGXLKL_VERBOSE("Setting locale\n");
@@ -102,10 +158,23 @@ static int app_main_thread(void* args)
 
     find_and_mount_disks();
 
+/* Change to 0 to run application within the kernel image */
+#if 1
+    /* Enter the isolated image */
+    _enter_user_space(
+        args->argc,
+        args->argv,
+        &sgxlkl_enclave_state.elf64_stack,
+        sgxlkl_enclave_state.config->ethreads,
+        args->clock_res);
+#else
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
-    SGXLKL_VERBOSE("Invoking dynamic loader (stage 3)\n");
     __dls3(&sgxlkl_enclave_state.elf64_stack, __builtin_frame_address(0));
+    (void)_enter_user_space;
+    (void)args;
+#endif
+    return 0;
 }
 
 static int kernel_main_thread(void* args)
@@ -138,7 +207,7 @@ static int kernel_main_thread(void* args)
         "app_name_thread",
         sizeof("app_name_thread"));
 
-    if (lthread_create(&lt, &lt_attr, app_main_thread, NULL) != 0)
+    if (lthread_create(&lt, &lt_attr, app_main_thread, args) != 0)
     {
         sgxlkl_fail("Failed to create lthread for app_main_thread\n");
     }
@@ -193,9 +262,16 @@ int __libc_init_enclave(int argc, char** argv)
     SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
     _lthread_sched_init(cfg->stacksize);
 
-    if (lthread_create(&lt, NULL, kernel_main_thread, NULL) != 0)
+    
+    /* Run startmain() in a new lthread */
     {
-        sgxlkl_fail("Failed to create lthread for kernel_main_thread()\n");
+        static startmain_args_t args;
+        args.argc = argc;
+        args.argv = argv;
+        memcpy(args.clock_res, tmp, sizeof(args.clock_res));
+
+        if (lthread_create(&lt, NULL, kernel_main_thread, &args) != 0)
+            sgxlkl_fail("Failed to create lthread for kernel_main_thread()\n");
     }
 
     return lthread_run();
