@@ -12,6 +12,9 @@ src/include/shared/sgxlkl_args.h
 src/main-oe/sgxlkl_u.c
 src/enclave/sgxlkl_t.c
 
+user/enter.o
+user/stubs.o
+
 *.tar.gz
 *.class
 *.log

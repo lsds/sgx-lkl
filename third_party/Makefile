@@ -27,6 +27,7 @@ ${E2FSPROGS}:
 ${WIREGUARD}:
 	wget --retry-connrefused -O "${MAKE_ROOT}/wireguard.tar.gz" 'https://download.wireguard.com/monolithic-historical/WireGuard-0.0.20191219.tar.xz'
 	mkdir -p $@ && tar -C $@ --strip 1 -xf ${MAKE_ROOT}/wireguard.tar.gz
+	patch -p0 < wireguard-5.4.62.patch
 	rm ${MAKE_ROOT}/wireguard.tar.gz
 
 ${CURL}:

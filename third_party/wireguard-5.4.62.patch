@@ -1,0 +1,12 @@
+--- wireguard/src/queueing.h-orig	2020-09-04 22:06:22.035017800 +0000
++++ wireguard/src/queueing.h	2020-09-04 22:06:42.047326678 +0000
+@@ -97,8 +97,8 @@
+ 	skb->dev = NULL;
+ #ifdef CONFIG_NET_SCHED
+ 	skb->tc_index = 0;
+-	skb_reset_tc(skb);
+ #endif
++	skb_reset_redirect(skb);
+ 	skb->hdr_len = skb_headroom(skb);
+ 	skb_reset_mac_header(skb);
+ 	skb_reset_network_header(skb);

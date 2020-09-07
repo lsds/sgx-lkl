@@ -190,7 +190,7 @@ static void lkl_mount_devtmpfs(const char* mntpoint)
 
 static void lkl_mount_shmtmpfs()
 {
-    int err = lkl_sys_mount("tmpfs", "/dev/shm", "tmpfs", 0, "rw,nodev");
+    int err = lkl_sys_mount("tmpfs", "/dev/shm", "tmpfs", 0, "mode=1777,rw");
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_mount(tmpfs) (/dev/shm): %s\n", lkl_strerror(err));
@@ -199,7 +199,7 @@ static void lkl_mount_shmtmpfs()
 
 static void lkl_mount_tmpfs()
 {
-    int err = lkl_sys_mount("tmpfs", "/tmp", "tmpfs", 0, "mode=0777");
+    int err = lkl_sys_mount("tmpfs", "/tmp", "tmpfs", 0, "mode=1777");
     if (err != 0)
     {
         sgxlkl_fail("lkl_sys_mount(tmpfs): %s\n", lkl_strerror(err));

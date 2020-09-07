@@ -1010,8 +1010,8 @@ static void lthread_state_to_string(
     STRINGIFY_LT_STATE(EXPIRED)
     STRINGIFY_LT_STATE(DETACH)
     STRINGIFY_LT_STATE(PINNED)
-    STRINGIFY_LT_STATE(TERMINATE)
     STRINGIFY_LT_STATE(APP_MAIN)
+    STRINGIFY_LT_STATE(TERMINATE)
 
     lt_state_str[offset - 1] = '\0';
 }
@@ -1023,7 +1023,6 @@ void lthread_dump_all_threads(bool is_lthread)
     sgxlkl_info("Stack traces for all lthreads:\n");
 
     struct lthread* this_lthread = NULL;
-    char lt_state_str[1024] = "";
 
     // Is this called from an lthread?
     if (is_lthread)
@@ -1040,6 +1039,7 @@ void lthread_dump_all_threads(bool is_lthread)
         {
             int tid = lt->tid;
             char* funcname = lt->attr.funcname;
+            char lt_state_str[1024] = "";
 
             lthread_state_to_string(lt, lt_state_str, 1024);
 
