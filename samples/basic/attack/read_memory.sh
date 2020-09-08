@@ -21,7 +21,7 @@ sudo chown "$(id -u -n):$(id -g -n)" "$mem_file"
 
 echo "Searching memory for string \"${search_string}\" in \"${mem_file}\"..."
 
-if (strings "${mem_file}" | grep -i "${search_string}"); then
+if grep -Fxq "${search_string}" "${mem_file}"; then
         echo Match found.
 else
         echo No match found.

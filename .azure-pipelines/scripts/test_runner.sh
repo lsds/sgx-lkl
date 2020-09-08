@@ -181,6 +181,7 @@ disabled_tests_file="$SGXLKL_ROOT/.azure-pipelines/other/disabled_tests.txt"
 nightly_tests_file="$SGXLKL_ROOT/.azure-pipelines/other/nightly_run_only_tests.txt"
 # test which needs not to be executed as part of CI e.g (test_name1\|test_name2...)
 test_exception_list="ltp"
+sample_exception_list="openmp\|nodejs"
 
 failure_identifiers_file="$SGXLKL_ROOT/.azure-pipelines/other/failure_identifiers.txt"
 IFS=$'\n'
@@ -191,6 +192,12 @@ if [[ $1 == "ltp1" ]]; then
 elif [[ $1 == "ltp2" ]]; then
     file_list=("tests/ltp/ltp-batch2/Makefile")
     test_group_name="ltp-batch2"
+elif [[ $1 == "samples" ]]; then
+    test_folder_name="samples"
+    test_folder_identifier="test.sh"
+    test_runner_script="$SGXLKL_ROOT/.azure-pipelines/scripts/run_sample.sh"
+    file_list=( $(find $test_folder_name -name $test_folder_identifier | grep -v "$sample_exception_list") )
+    test_group_name="samples"
 elif [[ $1 == "core" ]]; then
     file_list=( $(find $test_folder_name -name $test_folder_identifier | grep -v "$test_exception_list") )
     test_group_name="core"

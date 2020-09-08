@@ -15,7 +15,7 @@ fi
 . "$SGXLKL_ROOT/.azure-pipelines/scripts/test_utils.sh"
 
 # Initialize the variables and test case [mandatory].
-test_mode=$1 # init or run
+test_mode=$1 # clean, init or run
 run_mode=$2 # run-hw or run-sw
 
 # make clean

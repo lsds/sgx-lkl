@@ -1,0 +1,13 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+
+spawn docker run --rm attackme /read_secret
+set dockerID $spawn_id
+expect -i $dockerID "Ready to be attacked..."
+
+spawn ./read_memory.sh read_secret Secret42!
+set readID $spawn_id
+expect -i $readID "Match found."
+
+send -i $dockerID -- "\r"

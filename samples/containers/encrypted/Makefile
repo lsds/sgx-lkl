@@ -1,5 +1,4 @@
-
-SGXLKL_ROOT=../../..
+include ../../../tests/common.mk
 
 CC_APP=/usr/bin/python3
 CC_APP_CMDLINE=${CC_APP} -c 'print("Hello SGX World from Encrypted Confidential Container!")'
@@ -38,10 +37,6 @@ ifeq ($(SGXLKL_VERBOSE),)
 	SGXLKL_ENV_INTEGRITY+=${VERBOSE_OPTS}
 	SGXLKL_ENV_APP_CONFIG+=${VERBOSE_OPTS}
 endif
-
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
-SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
 
 .DELETE_ON_ERROR:
 .PHONY: all clean run run-hw-verity run-sw-verity run-hw-integrity run-sw-integrity
