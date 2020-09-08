@@ -9,6 +9,7 @@ sudo apt-get install -y \
     autopoint pkgconf autoconf libtool libcurl4-openssl-dev libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler libssl-dev \
     ninja-build ansible "linux-headers-$(uname -r)" \
     python3 python3-setuptools python3-pip unzip dkms debhelper apt-utils pax-utils openjdk-8-jdk-headless \
+    redis-tools \
     expect \
     gdb \
     shellcheck clang-format

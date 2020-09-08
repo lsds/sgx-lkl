@@ -1,0 +1,21 @@
+#!/usr/bin/expect -f
+
+set SGXLKL_STARTER "$env(SGXLKL_STARTER)"
+set SGXLKL_DISK_TOOL "$env(SGXLKL_DISK_TOOL)"
+
+set timeout -1
+
+spawn "$SGXLKL_DISK_TOOL" create --force --docker=attackme --size 5M --encrypt --key-file rootfs.img
+expect "Succesfully created rootfs.img"
+expect eof
+
+set env(SGXLKL_HD_KEY) rootfs.img.key
+spawn "$SGXLKL_STARTER" --hw-debug rootfs.img /read_secret
+set oeID $spawn_id
+expect -i $oeID "Ready to be attacked..."
+
+spawn ./read_memory.sh sgx-lkl-run-oe Secret42!
+set readID $spawn_id
+expect -i $readID "No match found."
+
+send -i $oeID -- "\r"

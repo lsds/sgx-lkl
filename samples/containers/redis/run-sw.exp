@@ -1,0 +1,15 @@
+#!/usr/bin/expect -f
+
+set timeout -1
+
+spawn make run-sw
+set serverID $spawn_id
+expect -i $serverID "Ready to accept connections"
+
+spawn ./run-redis-client.sh
+set clientID $spawn_id
+expect -i $clientID "Test succeeded"
+
+send -i $serverID -- ""
+
+exit 0

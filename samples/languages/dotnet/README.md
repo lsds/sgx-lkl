@@ -1,6 +1,23 @@
 Running a DotNet application using SGX-LKL-OE
 =============================================
 
+It is possible to run this sample by typing:
+
+```
+make run-hw
+```
+
+or
+
+```
+make run-sw
+```
+
+Manual steps
+------------
+
+Alternatively, it is possible to run the sample by doing the following steps:
+
 1. Build the Docker container that contains the DotNet application:
 
 ```

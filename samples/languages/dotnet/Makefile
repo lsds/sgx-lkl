@@ -1,14 +1,11 @@
+include ../../../tests/common.mk
 
 PROG=/app/HelloWorld.dll
 
 DISK_IMAGE=sgxlkl-dotnet.img
 IMAGE_SIZE=250M
 
-SGXLKL_ROOT=../../..
-
 ENCLAVE_CMD=/usr/bin/dotnet ${PROG}
-
-SGXLKL_STARTER=$(SGXLKL_ROOT)/build/sgx-lkl-run-oe
 
 ifeq ($(SGXLKL_VERBOSE),)
 SGXLKL_ENV=\
@@ -17,8 +14,6 @@ SGXLKL_ENV=\
 else
 SGXLKL_ENV=
 endif
-
-SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 
 .DELETE_ON_ERROR:
 .PHONY: all clean
