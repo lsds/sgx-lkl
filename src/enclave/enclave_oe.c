@@ -1,11 +1,17 @@
 #include <stdatomic.h>
 #include <string.h>
 
+/* Some versions of the Open Enclave headers require this macro to know that
+ * they are used in in-enclave code */
+#define OE_BUILD_ENCLAVE
+
+#include <openenclave/attestation/attester.h>
+#include <openenclave/attestation/sgx/eeid_attester.h>
+#include <openenclave/attestation/sgx/eeid_plugin.h>
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestring.h>
 #include <openenclave/internal/globals.h>
-#include "openenclave/corelibc/oestring.h"
 
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
@@ -306,6 +312,44 @@ static void _read_eeid_config()
     sgxlkl_enclave_state.config = cfg;
 }
 
+#ifndef SGXLKL_RELEASE
+#define _sgxlkl_release_fail sgxlkl_fail
+#else
+#define _sgxlkl_release_fail sgxlkl_warn
+#endif
+
+static void _extract_evidence()
+{
+    const void *custom_claims = NULL, *optional_parameters = NULL;
+    const size_t custom_claims_size = 0, optional_parameters_size = 0;
+
+    if (oe_sgx_eeid_attester_initialize() != OE_OK)
+        _sgxlkl_release_fail("could not initialize EEID attester.\n");
+
+    oe_uuid_t format_id = {OE_FORMAT_UUID_SGX_EEID_ECDSA_P256};
+
+    if (oe_get_evidence(
+            &format_id,
+            OE_EVIDENCE_FLAGS_EMBED_FORMAT_ID,
+            custom_claims,
+            custom_claims_size,
+            optional_parameters,
+            optional_parameters_size,
+            &sgxlkl_enclave_state.evidence,
+            &sgxlkl_enclave_state.evidence_size,
+            &sgxlkl_enclave_state.endorsements,
+            &sgxlkl_enclave_state.endorsements_size) != OE_OK)
+        _sgxlkl_release_fail("could not extract attestation evidence.\n");
+
+    if (oe_sgx_eeid_attester_shutdown() != OE_OK)
+        _sgxlkl_release_fail("could not shut down EEID attester.\n");
+
+    SGXLKL_VERBOSE(
+        "obtained EEID evidence and endorsements (%lu/%lu bytes)\n",
+        sgxlkl_enclave_state.evidence_size,
+        sgxlkl_enclave_state.endorsements_size);
+}
+
 static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
@@ -401,6 +445,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #endif
 
     _read_eeid_config();
+    _extract_evidence();
     _copy_shared_memory(shared_memory);
 
 #ifdef DEBUG

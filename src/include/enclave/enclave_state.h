@@ -53,6 +53,10 @@ typedef struct sgxlkl_enclave_state
 
     /* This flag is used by the tracing macros */
     bool verbose;
+
+    /* Attestation evidence and endorsements */
+    uint8_t *evidence, *endorsements;
+    size_t evidence_size, endorsements_size;
 } sgxlkl_enclave_state_t;
 
 extern sgxlkl_enclave_state_t sgxlkl_enclave_state;
