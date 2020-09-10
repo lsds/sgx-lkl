@@ -1,7 +1,6 @@
 #include <stdatomic.h>
 #include <string.h>
 
-
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestring.h>
@@ -18,7 +17,7 @@
 
 #define AUXV_ENTRIES 13
 
-char *at_platform = "x86_64";
+char* at_platform = "x86_64";
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
 bool sgxlkl_in_sw_debug_mode()
@@ -55,28 +54,25 @@ static int _strncmp(const char* x, const char* y, size_t n)
     return *px == *py ? 0 : *px < *py ? -1 : +1;
 }
 
-static void
-init_auxv(size_t *auxv, char* buf_ptr, char *pn)
+static void init_auxv(size_t* auxv, char* buf_ptr, char* pn)
 {
     // By default auxv[AT_RANDOM] points to a buffer with 16 random bytes.
-    uint64_t *rbuf = (uint64_t*)buf_ptr;
+    uint64_t* rbuf = (uint64_t*)buf_ptr;
     buf_ptr += 16;
     // TODO Use intrinsics
     // if (!_rdrand64_step(&rbuf[0]))
     //    goto err;
     register uint64_t rd;
-    __asm__ volatile("rdrand %0;"
-                     : "=r"(rd));
+    __asm__ volatile("rdrand %0;" : "=r"(rd));
     rbuf[0] = rd;
-    __asm__ volatile("rdrand %0;"
-                     : "=r"(rd));
+    __asm__ volatile("rdrand %0;" : "=r"(rd));
     rbuf[1] = rd;
 
     memset(auxv, 0, 2 * sizeof(size_t) * AUXV_ENTRIES);
     auxv[0] = AT_CLKTCK;
     auxv[1] = 100;
     auxv[2] = AT_EXECFN;
-    auxv[3] = (size_t) pn;
+    auxv[3] = (size_t)pn;
     auxv[4] = AT_HWCAP;
     auxv[5] = 0;
     auxv[6] = AT_EGID;
@@ -89,7 +85,7 @@ init_auxv(size_t *auxv, char* buf_ptr, char *pn)
     auxv[13] = 0;
     auxv[14] = AT_PLATFORM;
     memcpy(buf_ptr, at_platform, oe_strlen(at_platform) + 1);
-    auxv[15] = (size_t) buf_ptr;
+    auxv[15] = (size_t)buf_ptr;
     buf_ptr += oe_strlen(at_platform) + 1;
     auxv[16] = AT_SECURE;
     auxv[17] = 0;
@@ -146,9 +142,9 @@ static void _prepare_elf_stack()
     for (size_t i = 0; i < num_imported_env; i++)
         num_bytes += oe_strlen(imported_env[i]) + 1;
     num_ptrs += num_imported_env + 1;
-    num_ptrs += 2 * AUXV_ENTRIES; // auxv vector entries
+    num_ptrs += 2 * AUXV_ENTRIES;            // auxv vector entries
     num_bytes += oe_strlen(at_platform) + 1; // AT_PLATFORM
-    num_bytes += 16; // AT_RANDOM
+    num_bytes += 16;                         // AT_RANDOM
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
     stack->data = oe_calloc_or_die(
@@ -461,4 +457,3 @@ void sgxlkl_debug_dump_stack_traces(void)
     lthread_dump_all_threads(false);
 #endif
 }
-
