@@ -11,7 +11,15 @@
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestring.h>
+#include <openenclave/corelibc/oetime.h>
 #include <openenclave/internal/globals.h>
+
+#define MBEDTLS_PLATFORM_MEMORY
+#define MBEDTLS_HAVE_TIME
+#define MBEDTLS_PLATFORM_TIME_ALT
+#define MBEDTLS_HAVE_TIME_DATE
+#define MBEDTLS_PLATFORM_GMTIME_R_ALT
+#include <openenclave/3rdparty/mbedtls/platform.h>
 
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
@@ -318,10 +326,40 @@ static void _read_eeid_config()
 #define _sgxlkl_release_fail sgxlkl_warn
 #endif
 
+/* https://github.com/openenclave/openenclave/issues/3516 */
+time_t oe_time(time_t* t)
+{
+    return oe_get_time() / 1000;
+}
+
+struct tm* mbedtls_platform_gmtime_r(const time_t* tt, struct tm* tm_buf)
+{
+    struct oe_tm oe_tm_buf;
+    /* https://github.com/openenclave/openenclave/pull/3517 */
+    oe_gmtime_r(tt, &oe_tm_buf);
+    tm_buf->tm_year = oe_tm_buf.tm_year;
+    tm_buf->tm_mon = oe_tm_buf.tm_mon;
+    tm_buf->tm_mday = oe_tm_buf.tm_mday;
+    tm_buf->tm_wday = oe_tm_buf.tm_wday;
+    tm_buf->tm_yday = oe_tm_buf.tm_yday;
+    tm_buf->tm_hour = oe_tm_buf.tm_hour;
+    tm_buf->tm_min = oe_tm_buf.tm_min;
+    tm_buf->tm_sec = oe_tm_buf.tm_sec;
+    tm_buf->tm_isdst = oe_tm_buf.tm_isdst;
+    return tm_buf;
+}
+
 static void _extract_evidence()
 {
     const void *custom_claims = NULL, *optional_parameters = NULL;
     const size_t custom_claims_size = 0, optional_parameters_size = 0;
+
+    if (mbedtls_platform_set_calloc_free(oe_calloc, oe_free) != 0)
+        _sgxlkl_release_fail(
+            "could not register mbedTLS memory allocation functions.\n");
+
+    if (mbedtls_platform_set_time(oe_time) != 0)
+        _sgxlkl_release_fail("could not register oe_time for mbedTLS.\n");
 
     if (oe_sgx_eeid_attester_initialize() != OE_OK)
         _sgxlkl_release_fail("could not initialize EEID attester.\n");
