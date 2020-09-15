@@ -32,7 +32,9 @@ extern void init_sysconf(long nproc_conf, long nproc_onln);
 
 static void get_disk_keys()
 {
-    /* Here or earlier: get keys from remote key provider or auxv. */
+    /* Here or earlier: get keys from remote key provider or auxv. For now we
+     * only support plaintext keys in sgxlkl_enclave_state.config, which we copy
+     * into the right places here. */
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
     sgxlkl_enclave_disk_state_t* disk_states = sgxlkl_enclave_state.disk_state;
     if (cfg->root.key)
