@@ -114,7 +114,6 @@ static void lkl_prepare_rootfs(const char* dirname, int perm)
     {
         lkl_sys_chmod(dirname, perm);
     }
-    
 }
 
 static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
@@ -630,17 +629,17 @@ static void lkl_mount_disk(
     }
 
     const sgxlkl_trace_config_t* tcfg = &sgxlkl_enclave_state.config->trace;
+    bool syscall_traces_enabled =
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall ||
+        sgxlkl_enclave_state.trace_enabled.internal_syscall;
 
-    const int lkl_trace_lkl_syscall_bak = tcfg->lkl_syscall;
-    const int lkl_trace_internal_syscall_bak = tcfg->internal_syscall;
-
-    if ((tcfg->lkl_syscall || tcfg->internal_syscall) &&
-        (disk->roothash || is_encrypted_cfg(disk)))
+    if (disk->roothash || is_encrypted_cfg(disk))
     {
+        if (syscall_traces_enabled)
+            SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily "
+                           "disabling tracing to reduce noise.\n");
         sgxlkl_enclave_state.trace_enabled.lkl_syscall = false;
         sgxlkl_enclave_state.trace_enabled.internal_syscall = false;
-        SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily "
-                       "disabling tracing to reduce noise.\n");
     }
 
     if (disk->roothash != NULL)
@@ -681,15 +680,14 @@ static void lkl_mount_disk(
         dev_str = dev_str_enc;
     }
 
-    if ((lkl_trace_lkl_syscall_bak && !tcfg->lkl_syscall) ||
-        (lkl_trace_internal_syscall_bak && !tcfg->internal_syscall))
+    if (disk->roothash || is_encrypted_cfg(disk))
     {
-        SGXLKL_VERBOSE(
-            "Disk encryption/integrity enabled: Re-enabling tracing.\n");
-        sgxlkl_enclave_state.trace_enabled.lkl_syscall =
-            lkl_trace_lkl_syscall_bak;
+        if (syscall_traces_enabled)
+            SGXLKL_VERBOSE(
+                "Disk encryption/integrity enabled: Re-enabling tracing.\n");
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall = tcfg->lkl_syscall;
         sgxlkl_enclave_state.trace_enabled.internal_syscall =
-            lkl_trace_internal_syscall_bak;
+            tcfg->internal_syscall;
     }
 
     if (disk->create)
