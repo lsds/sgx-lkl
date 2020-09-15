@@ -56,6 +56,8 @@ static void get_disk_keys()
     }
 }
 
+/* Wipe copies of (currently local, in future remote) keys after we don't need
+ * them anymore, i.e. after mounting the respective file systems. */
 static void wipe_disk_keys()
 {
     sgxlkl_enclave_disk_state_t* disk_state = sgxlkl_enclave_state.disk_state;
