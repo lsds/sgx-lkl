@@ -1053,6 +1053,7 @@ static void register_hds(char* root_hd)
     if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
         sgxlkl_host_fail("out of memory\n");
 
+    size_t names_length = 0;
     for (size_t i = 0; i < num_disks; i++)
     {
         sgxlkl_host_disk_state_t* disk = &sgxlkl_host_state.disks[i];
@@ -1076,9 +1077,21 @@ static void register_hds(char* root_hd)
                 disk->mount_config->destination,
                 disk->mount_config->readonly,
                 i);
-            strcpy(shm->virtio_blk_dev_names[i], dest);
         }
+        names_length += strlen(dest) + 1;
+        }
+
+    char* tmp = malloc(names_length);
+    if (!tmp)
+        sgxlkl_host_fail("out of memory\n");
+    char* p = tmp;
+    for (size_t i = 0; i < num_disks; i++)
+    {
+        sgxlkl_host_disk_state_t* disk = &sgxlkl_host_state.disks[i];
+        char* dest = disk->root_config ? "/" : disk->mount_config->destination;
+        p += sprintf(p, "%s", dest) + 1;
     }
+    shm->virtio_blk_dev_names = tmp;
 }
 
 static void register_net()
@@ -1139,7 +1152,7 @@ static void sgxlkl_cleanup(void)
         close(sgxlkl_host_state.disks[--sgxlkl_host_state.num_disks].fd);
     }
     free(sgxlkl_host_state.shared_memory.virtio_blk_dev_mem);
-    free(sgxlkl_host_state.shared_memory.virtio_blk_dev_names);
+    free((char*)sgxlkl_host_state.shared_memory.virtio_blk_dev_names);
 }
 
 static void serialize_ucontext(

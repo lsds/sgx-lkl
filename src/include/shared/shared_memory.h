@@ -25,7 +25,8 @@ typedef struct sgxlkl_shared_memory
     /* Shared memory for virtio block devices */
     size_t num_virtio_blk_dev;
     struct virtio_dev** virtio_blk_dev_mem;
-    char** virtio_blk_dev_names;
+    char const* virtio_blk_dev_names;
+    size_t virtio_blk_dev_names_length;
 
     /* Host environment variables for optional import */
     char const* env;

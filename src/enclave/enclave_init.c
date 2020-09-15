@@ -55,7 +55,8 @@ static void find_and_mount_disks()
         for (int j = 0; j < shm->num_virtio_blk_dev && !found; j++)
         {
             if (oe_strcmp(
-                    cfg_disk->destination, shm->virtio_blk_dev_names[j]) == 0)
+                    cfg_disk->destination, estate->virtio_blk_dev_names[j]) ==
+                0)
             {
                 estate->disk_state[i + 1].host_disk_index = j;
                 found = true;

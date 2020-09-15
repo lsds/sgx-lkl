@@ -66,6 +66,9 @@ typedef struct sgxlkl_enclave_state
     size_t num_event_channel_state;
     enc_dev_state_t* event_channel_state;
 
+    /* Block device names */
+    char* const* virtio_blk_dev_names;
+
     /* Environment variables imported from the host */
     size_t num_env_imported;
     char* const* env_imported;

@@ -366,25 +366,43 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
             enc->num_virtio_blk_dev,
             sizeof(struct virtio_dev*),
             "Could not allocate memory for virtio block devices\n");
-        enc->virtio_blk_dev_names = oe_calloc_or_die(
-            enc->num_virtio_blk_dev,
-            sizeof(char*),
-            "Could not allocate memory for virtio block devices\n");
         for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
         {
             enc->virtio_blk_dev_mem[i] = host->virtio_blk_dev_mem[i];
             sgxlkl_ensure_outside(
                 enc->virtio_blk_dev_mem[i], sizeof(struct virtio_dev));
-
-            const char* name = host->virtio_blk_dev_names[i];
-            size_t name_len = oe_strlen(name) + 1;
-            sgxlkl_ensure_outside(name, name_len);
-            enc->virtio_blk_dev_names[i] = oe_calloc_or_die(
-                name_len,
-                sizeof(char),
-                "Could not allocate memory for virtio block device name\n");
-            memcpy(enc->virtio_blk_dev_names[i], name, name_len);
         }
+
+        size_t names_length = host->virtio_blk_dev_names_length;
+        sgxlkl_ensure_outside(host->virtio_blk_dev_names, names_length);
+        char* names_tmp = oe_calloc_or_die(
+            names_length,
+            sizeof(char),
+            "Could not allocate temporary memory for block device names\n");
+        oe_memcpy_s(
+            names_tmp, names_length, host->virtio_blk_dev_names, names_length);
+
+        if (names_tmp[names_length - 1] != '\0')
+            sgxlkl_fail("unterminated virtio block device name\n");
+
+        char** name_array_tmp = oe_calloc_or_die(
+            enc->num_virtio_blk_dev,
+            sizeof(char*),
+            "Could not allocate temporary memory for block device name "
+            "array\n");
+
+        sgxlkl_enclave_state.virtio_blk_dev_names = oe_calloc_or_die(
+            enc->num_virtio_blk_dev,
+            sizeof(char*),
+            "Could not allocate memory for virtio block device names\n");
+        const char* name_p = names_tmp;
+        for (size_t i = 0; i < enc->num_virtio_blk_dev; i++)
+        {
+            name_array_tmp[i] = oe_strdup(name_p);
+            name_p += oe_strlen(name_p) + 1;
+        }
+        free(names_tmp);
+        sgxlkl_enclave_state.virtio_blk_dev_names = name_array_tmp;
     }
 
     /* Import environment variables from the host */
@@ -394,15 +412,16 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     {
         sgxlkl_ensure_outside(henv, sizeof(char) * henv_len);
 
-        henv = oe_calloc_or_die(
+        char* henv_copy = oe_calloc_or_die(
             henv_len,
             sizeof(char),
             "Could not allocate memory for host-imported environment variable "
             "copy.");
+        oe_memcpy_s(henv_copy, henv_len, henv, henv_len);
 
         size_t num_vars = 0;
         for (size_t i = 0; i < henv_len; i++)
-            if (henv[i] == '\0')
+            if (henv_copy[i] == '\0')
                 num_vars++;
 
         char** tmp = oe_calloc_or_die(
@@ -417,9 +436,9 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         sgxlkl_enclave_state.num_env_imported = 0;
         for (size_t i = 0; i < henv_len; i++)
         {
-            if (henv[i] == '\0')
+            if (henv_copy[i] == '\0')
             {
-                const char* henv_i = henv + begin;
+                const char* henv_i = henv_copy + begin;
                 size_t henv_i_len = i - begin;
 
                 /* Find setting in cfg->host_import_env */
@@ -448,7 +467,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         /* Shared memory not needed anymore. */
         sgxlkl_enclave_state.shared_memory.env = NULL;
         sgxlkl_enclave_state.shared_memory.env_length = 0;
-        oe_free((char*)henv);
+        oe_free((char*)henv_copy);
     }
 
     /* Commit to the temporary copy */
@@ -490,11 +509,7 @@ static void _free_shared_memory()
     }
     oe_free(shm->enc_dev_config);
 
-    for (size_t i = 0; i < shm->num_virtio_blk_dev; i++)
-        oe_free(shm->virtio_blk_dev_names[i]);
-
     oe_free(shm->virtio_blk_dev_mem);
-    oe_free(shm->virtio_blk_dev_names);
 }
 
 int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
@@ -550,6 +565,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 void sgxlkl_free_enclave_state()
 {
     sgxlkl_enclave_state_t* state = &sgxlkl_enclave_state;
+    size_t num_blk_devs = state->shared_memory.num_virtio_blk_dev;
 
     state->elf64_stack.argc = 0;
     oe_free(state->elf64_stack.argv); /* includes envp/auxv */
@@ -563,6 +579,10 @@ void sgxlkl_free_enclave_state()
 
     state->num_event_channel_state = 0;
     oe_free(state->event_channel_state);
+
+    for (size_t i = 0; i < num_blk_devs; i++)
+        oe_free(state->virtio_blk_dev_names[i]);
+    oe_free((char**)state->virtio_blk_dev_names);
 
     for (size_t i = 0; i < state->num_env_imported; i++)
         oe_free(state->env_imported[i]);
