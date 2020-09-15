@@ -61,7 +61,11 @@ static void wipe_disk_keys()
     {
         if (disk_state[i].key)
         {
-            memset(disk_state[i].key, 0, disk_state[i].key_len);
+            oe_memset_s(
+                disk_state[i].key,
+                disk_state[i].key_len,
+                0,
+                disk_state[i].key_len);
             oe_free(disk_state[i].key);
         }
         disk_state[i].key = NULL;
