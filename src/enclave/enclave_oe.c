@@ -411,6 +411,8 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
             "Could not allocate memory for host-imported environment "
             "variables\n");
 
+        /* Import only those variable settings that are specified to be imported
+         * in cfg->host_import_env and ignore the others. */
         size_t begin = 0;
         sgxlkl_enclave_state.num_env_imported = 0;
         for (size_t i = 0; i < henv_len; i++)
@@ -420,6 +422,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
                 const char* henv_i = henv + begin;
                 size_t henv_i_len = i - begin;
 
+                /* Find setting in cfg->host_import_env */
                 for (size_t j = 0; j < cfg->num_host_import_env; j++)
                 {
                     const char* name = cfg->host_import_env[j];
