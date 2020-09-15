@@ -30,8 +30,6 @@ uint64_t enclave_nanos()
 {
     struct timer_dev* t = sgxlkl_enclave_state.shared_memory.timer_dev_mem;
 
-    sgxlkl_ensure_outside(t, sizeof(struct timer_dev));
-
     uint64_t e = t->nanos;
     uint64_t i = internal_counter;
     if (e > i)

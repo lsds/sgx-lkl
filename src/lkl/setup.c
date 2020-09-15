@@ -1316,13 +1316,6 @@ static void init_enclave_clock()
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
     struct timer_dev* t = shm->timer_dev_mem;
-
-    if (!oe_is_outside_enclave(t, sizeof(struct timer_dev)))
-    {
-        sgxlkl_fail(
-            "timer_dev memory isn't outside of the enclave. Aborting.\n");
-    }
-
     struct lkl_timespec start_time;
     start_time.tv_sec = t->init_walltime_sec;
     start_time.tv_nsec = t->init_walltime_nsec;
