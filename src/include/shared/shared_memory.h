@@ -1,8 +1,6 @@
 #ifndef SGXLKL_SHARED_MEMORY_H
 #define SGXLKL_SHARED_MEMORY_H
 
-#include "shared/oe_compat.h"
-
 #include <shared/vio_event_channel.h>
 
 typedef struct sgxlkl_shared_memory

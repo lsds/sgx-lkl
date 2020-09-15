@@ -1,7 +1,7 @@
 #ifndef _ENV_H
 #define _ENV_H
 
-#include "shared/oe_compat.h"
+#include <inttypes.h>
 
 uint64_t size_str_to_uint64(const char* str, uint64_t def, uint64_t max);
 

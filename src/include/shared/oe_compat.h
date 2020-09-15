@@ -28,7 +28,6 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>

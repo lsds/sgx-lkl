@@ -539,8 +539,18 @@ const sgxlkl_enclave_config_page_t* sgxlkl_read_enclave_config(
 
     size_t num_pages = (strlen(from) / OE_PAGE_SIZE) + 1;
     sgxlkl_enclave_config_page_t* config_page =
+#ifdef SGXLKL_ENCLAVE
         memalign(OE_PAGE_SIZE, num_pages * OE_PAGE_SIZE);
+#else
+        malloc(num_pages * OE_PAGE_SIZE);
+#endif
+
+#ifdef SGXLKL_ENCLAVE
+    oe_memset_s(config_page, OE_PAGE_SIZE, 0, OE_PAGE_SIZE);
+#else
     memset(config_page, 0, OE_PAGE_SIZE);
+#endif
+
     if (!config_page)
         FAIL("out of memory\n");
     config_page->config = sgxlkl_enclave_config_default;
