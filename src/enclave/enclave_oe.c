@@ -394,6 +394,12 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
     {
         sgxlkl_ensure_outside(henv, sizeof(char) * henv_len);
 
+        henv = oe_calloc_or_die(
+            henv_len,
+            sizeof(char),
+            "Could not allocate memory for host-imported environment variable "
+            "copy.");
+
         size_t num_vars = 0;
         for (size_t i = 0; i < henv_len; i++)
             if (henv[i] == '\0')
@@ -439,6 +445,7 @@ static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
         /* Shared memory not needed anymore. */
         sgxlkl_enclave_state.shared_memory.env = NULL;
         sgxlkl_enclave_state.shared_memory.env_length = 0;
+        oe_free((char*)henv);
     }
 
     /* Commit to the temporary copy */
