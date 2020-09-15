@@ -53,7 +53,9 @@ typedef struct sgxlkl_enclave_state
     /* Memory shared with the host */
     sgxlkl_shared_memory_t shared_memory;
 
-    /* Flags to track whether tracing macros are currently enabled */
+    /* Flags to track whether tracing macros are currently enabled (initialized
+     * according to the settings in `config`; the respective traces may be
+     * disabled temporarily and this flags track the current state) */
     struct
     {
         bool verbose;
