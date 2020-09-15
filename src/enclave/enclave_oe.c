@@ -4,6 +4,7 @@
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestring.h>
+#include <openenclave/edger8r/enclave.h>
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oestring.h"
 
@@ -283,12 +284,14 @@ static void _read_eeid_config()
 
 void sgxlkl_ensure_inside(const void* ptr, size_t sz)
 {
+    oe_lfence();
     if (ptr != NULL && !oe_is_within_enclave(ptr, sz))
         sgxlkl_fail("Unexpected: buffer is not in enclave memory.\n");
 }
 
 void sgxlkl_ensure_outside(const void* ptr, size_t sz)
 {
+    oe_lfence();
     if (ptr != NULL && !oe_is_outside_enclave(ptr, sz))
         sgxlkl_fail("Unexpected: buffer is in enclave memory.\n");
 }
