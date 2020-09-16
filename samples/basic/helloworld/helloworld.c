@@ -13,6 +13,7 @@ int main(int argc, char** argv)
     {
         fprintf(
             stderr, "Could not open file %s: %s\n", HW_FILE, strerror(errno));
+        fprintf(stderr, "TEST_FAILED");
         exit(1);
     }
 
@@ -28,8 +29,8 @@ int main(int argc, char** argv)
             "Could not read first line of file %s: %s\n",
             HW_FILE,
             strerror(errno));
+        fprintf(stderr, "TEST_FAILED");
         exit(1);
     }
-
     return 0;
 }
