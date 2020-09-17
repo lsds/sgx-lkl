@@ -898,7 +898,7 @@
 #/ltp/testcases/kernel/syscalls/sigprocmask/sigprocmask01
 /ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
 /ltp/testcases/kernel/syscalls/sigsuspend/sigsuspend01
-ltp/testcases/kernel/syscalls/sigwaitinfo/sigwaitinfo01
+/ltp/testcases/kernel/syscalls/sigwaitinfo/sigwaitinfo01
 #/ltp/testcases/kernel/syscalls/socket/socket01
 #/ltp/testcases/kernel/syscalls/socket/socket02
 /ltp/testcases/kernel/syscalls/socketcall/socketcall01
