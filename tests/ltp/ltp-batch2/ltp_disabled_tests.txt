@@ -751,11 +751,11 @@
 #/ltp/testcases/kernel/syscalls/rmdir/rmdir02
 #/ltp/testcases/kernel/syscalls/rmdir/rmdir03
 #/ltp/testcases/kernel/syscalls/rt_sigaction/rt_sigaction01
-/ltp/testcases/kernel/syscalls/rt_sigaction/rt_sigaction02
+#/ltp/testcases/kernel/syscalls/rt_sigaction/rt_sigaction02
 #/ltp/testcases/kernel/syscalls/rt_sigaction/rt_sigaction03
 #/ltp/testcases/kernel/syscalls/rt_sigprocmask/rt_sigprocmask01
 #/ltp/testcases/kernel/syscalls/rt_sigprocmask/rt_sigprocmask02
-/ltp/testcases/kernel/syscalls/rt_sigqueueinfo/rt_sigqueueinfo01
+#/ltp/testcases/kernel/syscalls/rt_sigqueueinfo/rt_sigqueueinfo01
 /ltp/testcases/kernel/syscalls/rt_sigsuspend/rt_sigsuspend01
 /ltp/testcases/kernel/syscalls/sbrk/sbrk01
 #/ltp/testcases/kernel/syscalls/sbrk/sbrk02
@@ -898,7 +898,7 @@
 #/ltp/testcases/kernel/syscalls/sigprocmask/sigprocmask01
 /ltp/testcases/kernel/syscalls/sigrelse/sigrelse01
 /ltp/testcases/kernel/syscalls/sigsuspend/sigsuspend01
-/ltp/testcases/kernel/syscalls/sigwaitinfo/sigwaitinfo01
+ltp/testcases/kernel/syscalls/sigwaitinfo/sigwaitinfo01
 #/ltp/testcases/kernel/syscalls/socket/socket01
 #/ltp/testcases/kernel/syscalls/socket/socket02
 /ltp/testcases/kernel/syscalls/socketcall/socketcall01
