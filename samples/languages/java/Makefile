@@ -18,6 +18,8 @@ else
 SGXLKL_ENV=
 endif
 
+SGXLKL_ENV += SGXLKL_ETHREADS=4
+
 .DELETE_ON_ERROR:
 .PHONY: all run run-hw run-sw clean
 
