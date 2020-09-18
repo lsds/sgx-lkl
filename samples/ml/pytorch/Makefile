@@ -15,6 +15,8 @@ else
 SGXLKL_ENV=
 endif
 
+SGXLKL_ENV += SGXLKL_ETHREADS=4
+
 APP=/usr/bin/python3
 APP_PARAMS=/app/sample.py
 
