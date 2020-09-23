@@ -27,7 +27,7 @@
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 
-#define AUXV_ENTRIES 13
+#define AUXV_ENTRIES 17
 
 char* at_platform = "x86_64";
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
@@ -107,8 +107,29 @@ static void init_auxv(size_t* auxv, char* buf_ptr, char* pn)
     auxv[21] = (size_t)rbuf;
     auxv[22] = AT_HW_MODE;
     auxv[23] = !sgxlkl_in_sw_debug_mode();
-    auxv[24] = AT_NULL;
-    auxv[25] = 0;
+
+    auxv[24] = AT_ATT_EVIDENCE;
+    memcpy(
+        buf_ptr,
+        sgxlkl_enclave_state.evidence,
+        sgxlkl_enclave_state.evidence_size);
+    auxv[25] = (size_t)buf_ptr;
+    buf_ptr += sgxlkl_enclave_state.evidence_size;
+    auxv[26] = AT_ATT_EVIDENCE_SIZE;
+    auxv[27] = sgxlkl_enclave_state.evidence_size;
+
+    auxv[28] = AT_ATT_ENDORSEMENTS;
+    memcpy(
+        buf_ptr,
+        sgxlkl_enclave_state.endorsements,
+        sgxlkl_enclave_state.endorsements_size);
+    auxv[29] = (size_t)buf_ptr;
+    buf_ptr += sgxlkl_enclave_state.endorsements_size;
+    auxv[30] = AT_ATT_ENDORSEMENTS_SIZE;
+    auxv[31] = sgxlkl_enclave_state.endorsements_size;
+
+    auxv[32] = AT_NULL;
+    auxv[33] = 0;
 }
 
 static void _prepare_elf_stack()
@@ -157,6 +178,8 @@ static void _prepare_elf_stack()
     num_ptrs += 2 * AUXV_ENTRIES;            // auxv vector entries
     num_bytes += oe_strlen(at_platform) + 1; // AT_PLATFORM
     num_bytes += 16;                         // AT_RANDOM
+    num_bytes += state->evidence_size;
+    num_bytes += state->endorsements_size;
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
     stack->data = oe_calloc_or_die(
@@ -202,7 +225,7 @@ static void _prepare_elf_stack()
     // Check that the allocated memory was correct.
     SGXLKL_ASSERT(j + 1 == num_ptrs);
     SGXLKL_ASSERT(out[j] == NULL);
-    SGXLKL_ASSERT(out[j - 4] == (char*)AT_HW_MODE);
+    SGXLKL_ASSERT(out[j - 4] == (char*)AT_ATT_ENDORSEMENTS_SIZE);
 
     oe_free(imported_env);
 }

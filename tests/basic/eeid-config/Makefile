@@ -34,5 +34,11 @@ run-hw-gdb: ${SGXLKL_ROOTFS}
 run-sw: ${SGXLKL_ROOTFS}
 	  $(SGXLKL_ENV) $(SGXLKL_STARTER) $(SGXLKL_SW_PARAMS) --enclave-config enclave_config.json $(SGXLKL_ROOTFS)
 
+verify-evidence: ${SGXLKL_ROOTFS}
+	${SGXLKL_DISK_TOOL} mount --mnt-point=tmp ${SGXLKL_ROOTFS}
+	# Depends on https://github.com/openenclave/openenclave/pull/3464
+	${SGXLKL_ROOT}/build/openenclave/bin/host_verify -v tmp/evidence.bin -e tmp/endorsements.bin
+	${SGXLKL_DISK_TOOL} unmount tmp
+
 clean:
 	rm -f $(SGXLKL_ROOTFS) $(PROG)
