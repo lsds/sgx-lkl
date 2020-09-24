@@ -72,9 +72,11 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev)
         return -1;
 
     ret = dev_register(netdev);
-
     if (ret < 0)
-        sgxlkl_info("Failed to register netdev \n");
+    {
+        sgxlkl_fail("Failed to register netdev\n");
+        return -1;
+    }
 
     return registered_dev_idx++;
 }
