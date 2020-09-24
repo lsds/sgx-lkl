@@ -19,6 +19,8 @@ else
 SGXLKL_ENV=
 endif
 
+SGXLKL_ENV += SGXLKL_ETHREADS=4
+
 SGXLKL_DISK_TOOL=${SGXLKL_ROOT}/tools/sgx-lkl-disk
 SGXLKL_GDB=${SGXLKL_ROOT}/tools/gdb/sgx-lkl-gdb
 
