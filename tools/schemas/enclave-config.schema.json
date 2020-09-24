@@ -81,18 +81,6 @@
         "EXIT_STATUS_NONE"
       ]
     },
-    "sgxlkl_clock_res_config_t": {
-      "type": "object",
-      "properties": {
-        "resolution": {
-          "type": "string",
-          "minLength": 16,
-          "maxLength": 16,
-          "pattern": "^[0-9A-Fa-f]+$",
-          "default": "0000000000000000"
-        }
-      }
-    },
     "sgxlkl_enclave_mount_config_t": {
       "type": "object",
       "description": "Disk configuration",
@@ -393,41 +381,6 @@
           "description": "Sleep timeout in the scheduler (in ns).",
           "default": 16000,
           "overridable": "SGXLKL_ESLEEP"
-        },
-        "clock_res": {
-          "type": "array",
-          "description": "",
-          "minLength": 8,
-          "maxLength": 8,
-          "items": {
-            "$ref": "#/definitions/sgxlkl_clock_res_config_t"
-          },
-          "default": [
-            {
-              "resolution": "0000000000000001"
-            },
-            {
-              "resolution": "0000000000000001"
-            },
-            {
-              "resolution": "0000000000000000"
-            },
-            {
-              "resolution": "0000000000000000"
-            },
-            {
-              "resolution": "0000000000000001"
-            },
-            {
-              "resolution": "00000000003d0900"
-            },
-            {
-              "resolution": "00000000003d0900"
-            },
-            {
-              "resolution": "0000000000000001"
-            }
-          ]
         },
         "stacksize": {
           "$ref": "#/definitions/safe_size_t",

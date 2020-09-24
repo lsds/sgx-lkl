@@ -792,34 +792,6 @@ void get_libsgxlkl_user_path(char* path_buf, size_t len)
     find_lib("libsgxlkl-user.so", path_buf, len);
 }
 
-void mk_clock_res_string(int clock)
-{
-    sgxlkl_enclave_config_t* econf = &sgxlkl_host_state.enclave_config;
-    size_t sz = sizeof(sgxlkl_clock_res_config_t);
-    struct timespec tmpt;
-    char tmps[8 * 2 * 2 + 1];
-    clock_getres(clock, &tmpt);
-    snprintf(tmps, sizeof(tmps), "%08lx%08lx", tmpt.tv_sec, tmpt.tv_nsec);
-    memcpy(econf->clock_res[clock].resolution, tmps, sz);
-}
-
-void set_clock_res(bool have_enclave_config)
-{
-    /* The enclave config file has a specified default for these settings,
-     * so we auto-detect them only if we don't have an enclave config file.
-     */
-
-    if (!have_enclave_config)
-    {
-        mk_clock_res_string(CLOCK_REALTIME);
-        mk_clock_res_string(CLOCK_MONOTONIC);
-        mk_clock_res_string(CLOCK_MONOTONIC_RAW);
-        mk_clock_res_string(CLOCK_REALTIME_COARSE);
-        mk_clock_res_string(CLOCK_MONOTONIC_COARSE);
-        mk_clock_res_string(CLOCK_BOOTTIME);
-    }
-}
-
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
 {
     rdfsbase_caused_sigill = 1;
@@ -1883,7 +1855,6 @@ int main(int argc, char* argv[], char* envp[])
         econf->kernel_cmd);
 
     bool have_enclave_config_file = enclave_config_path != NULL;
-    set_clock_res(have_enclave_config_file);
     sgxlkl_host_state.shared_memory.env = envp;
     set_tls(have_enclave_config_file);
     register_hds(root_hd);

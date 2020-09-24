@@ -301,7 +301,7 @@ static json_result_t json_read_callback(
             else if (MATCH("wg.peers"))
                 ALLOC_ARRAY(
                     wg.num_peers, wg.peers, sgxlkl_enclave_wg_peer_config_t);
-            else if (!(MATCH("clock_res")))
+            else
                 FAIL("unknown json array '%s'\n", make_path(parser));
             break;
         case JSON_REASON_END_ARRAY:
@@ -358,17 +358,6 @@ static json_result_t json_read_callback(
             JU64("ethreads", cfg->ethreads);
             JU64("espins", cfg->espins);
             JU64("esleep", cfg->esleep);
-
-            JPATHT("clock_res.resolution", JSON_TYPE_STRING, {
-                if (strlen(un->string) != 16)
-                    FAIL("invalid length of value for clock_res item");
-                i = json_get_array_index(parser);
-                if (i == -1)
-                    FAIL("invalid array index\n");
-                if (i >= 8)
-                    FAIL("too many values for clock_res");
-                memcpy(&cfg->clock_res[i].resolution, un->string, 17);
-            });
 
             JPATHT("mode", JSON_TYPE_STRING, {
                 cfg->mode = string_to_sgxlkl_enclave_mode_t(un->string);
@@ -481,7 +470,7 @@ void sgxlkl_read_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 328,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from)

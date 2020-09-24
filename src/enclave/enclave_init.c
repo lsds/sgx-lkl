@@ -105,8 +105,7 @@ static void _enter_user_space(
     int argc,
     char** argv,
     void* stack,
-    size_t num_ethreads,
-    struct timespec clock_res[4])
+    size_t num_ethreads)
 {
     extern void* __oe_get_isolated_image_entry_point(void);
     extern const void* __oe_get_isolated_image_base();
@@ -139,7 +138,6 @@ typedef struct startmain_args
 {
     int argc;
     char** argv;
-    struct timespec clock_res[8];
 }
 startmain_args_t;
 
@@ -164,8 +162,7 @@ static int app_main_thread(void* args_)
         args->argc,
         args->argv,
         &sgxlkl_enclave_state.elf64_stack,
-        sgxlkl_enclave_state.config->ethreads,
-        args->clock_res);
+        sgxlkl_enclave_state.config->ethreads);
 #else
     /* Launch stage 3 dynamic linker, passing in top of stack to overwrite.
      * The dynamic linker will then load the application proper; here goes! */
@@ -238,13 +235,6 @@ int __libc_init_enclave(int argc, char** argv)
 
     init_sysconf(cfg->ethreads, cfg->ethreads);
 
-    struct timespec tmp[8] = {0};
-    for (size_t i = 0; i < 8; i++)
-    {
-        tmp[i].tv_sec = hex_to_int(cfg->clock_res[i].resolution, 8);
-        tmp[i].tv_nsec = hex_to_int(cfg->clock_res[i].resolution + 8, 8);
-    }
-
     size_t max_lthreads =
         cfg->max_user_threads * sizeof(*__scheduler_queue.buffer);
     max_lthreads = next_power_of_2(max_lthreads);
@@ -266,7 +256,6 @@ int __libc_init_enclave(int argc, char** argv)
         static startmain_args_t args;
         args.argc = argc;
         args.argv = argv;
-        memcpy(args.clock_res, tmp, sizeof(args.clock_res));
 
         if (lthread_create(&lt, NULL, kernel_main_thread, &args) != 0)
             sgxlkl_fail("Failed to create lthread for kernel_main_thread()\n");

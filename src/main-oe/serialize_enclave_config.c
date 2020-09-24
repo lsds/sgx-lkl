@@ -136,20 +136,6 @@ static json_obj_t* encode_string_array(
     return res;
 }
 
-static json_obj_t* encode_clock_res(
-    const char* key,
-    const sgxlkl_clock_res_config_t* clock_res)
-{
-    json_obj_t* res = create_json_array(key, 8);
-    for (size_t i = 0; i < 8; i++)
-    {
-        res->array[i] = create_json_objects(NULL, 1);
-        res->array[i]->objects[0] =
-            create_json_string("resolution", clock_res[i].resolution);
-    }
-    return res;
-}
-
 static json_obj_t* encode_root(
     const char* key,
     const sgxlkl_enclave_root_config_t* root)
@@ -449,7 +435,7 @@ void serialize_enclave_config(
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 328,
         "sgxlkl_enclave_config_t size has changed");
 
 #define FPFBOOL(N) root->objects[cnt++] = encode_boolean(#N, config->N)
@@ -484,7 +470,6 @@ void serialize_enclave_config(
     FPFU64(espins);
     FPFU64(esleep);
     FPFU64(ethreads);
-    root->objects[cnt++] = encode_clock_res("clock_res", config->clock_res);
 
     FPFBOOL(fsgsbase);
     FPFBOOL(verbose);
