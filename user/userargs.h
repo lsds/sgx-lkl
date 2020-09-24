@@ -36,9 +36,6 @@ typedef struct sgxlkl_userargs
     const void* elf64_hdr;
     size_t num_ethreads;
 
-    /* to be passed to init_clock_res() */
-    struct sgxlkl_user_timespec clock_res[8];
-
     /* where in debug mode or not */
     bool sw_debug_mode;
 

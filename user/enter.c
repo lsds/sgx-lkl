@@ -72,8 +72,6 @@ void sgxlkl_user_enter(sgxlkl_userargs_t* args, size_t args_size)
 
     init_sysconf(args->num_ethreads, args->num_ethreads);
 
-    init_clock_res((struct timespec*)args->clock_res);
-
     __init_libc(args->argv + args->argc + 1, args->argv[0]);
     __libc_start_init();
     _barrier();

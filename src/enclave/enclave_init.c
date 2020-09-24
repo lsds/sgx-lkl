@@ -131,7 +131,6 @@ static void _enter_user_space(
     args.num_ethreads = num_ethreads;
     args.sw_debug_mode = sgxlkl_in_sw_debug_mode();
     args.__gdb_load_debug_symbols_alive_ptr = &__gdb_load_debug_symbols_alive;
-    memcpy(args.clock_res, clock_res, sizeof(args.clock_res));
 
     (*proc)(&args, sizeof(args));
 }
@@ -245,14 +244,13 @@ int __libc_init_enclave(int argc, char** argv)
         tmp[i].tv_sec = hex_to_int(cfg->clock_res[i].resolution, 8);
         tmp[i].tv_nsec = hex_to_int(cfg->clock_res[i].resolution + 8, 8);
     }
-    init_clock_res(tmp);
 
     size_t max_lthreads =
         cfg->max_user_threads * sizeof(*__scheduler_queue.buffer);
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-    
+
     init_ethread_tp();
 
     size_t espins = cfg->espins;
@@ -262,7 +260,7 @@ int __libc_init_enclave(int argc, char** argv)
     SGXLKL_VERBOSE("calling _lthread_sched_init()\n");
     _lthread_sched_init(cfg->stacksize);
 
-    
+
     /* Run startmain() in a new lthread */
     {
         static startmain_args_t args;
