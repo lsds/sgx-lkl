@@ -1079,7 +1079,7 @@ static void register_hds(char* root_hd)
                 i);
         }
         names_length += strlen(dest) + 1;
-        }
+    }
 
     char* tmp = malloc(names_length);
     if (!tmp)
@@ -1092,6 +1092,7 @@ static void register_hds(char* root_hd)
         p += sprintf(p, "%s", dest) + 1;
     }
     shm->virtio_blk_dev_names = tmp;
+    shm->virtio_blk_dev_names_length = names_length;
 }
 
 static void register_net()
