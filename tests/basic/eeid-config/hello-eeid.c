@@ -7,6 +7,11 @@
 
 #define HW_FILE "/app/helloworld.txt"
 
+#define AT_ATT_EVIDENCE 101
+#define AT_ATT_EVIDENCE_SIZE 102
+#define AT_ATT_ENDORSEMENTS 103
+#define AT_ATT_ENDORSEMENTS_SIZE 104
+
 int main(int argc, char** argv)
 {
     char buf[100];
@@ -34,8 +39,8 @@ int main(int argc, char** argv)
     }
 
     // Get attestation evidence and endorsements and write them to files.
-    uint8_t* evidence = (uint8_t*)getauxval(101);
-    unsigned long evidence_size = getauxval(102);
+    uint8_t* evidence = (uint8_t*)getauxval(AT_ATT_EVIDENCE);
+    unsigned long evidence_size = getauxval(AT_ATT_EVIDENCE_SIZE);
     if (evidence_size > 0)
     {
         const char* filename = "evidence.bin";
@@ -45,8 +50,8 @@ int main(int argc, char** argv)
         printf("Wrote %lu bytes to %s\n", written, filename);
     }
 
-    uint8_t* endorsements = (uint8_t*)getauxval(103);
-    unsigned long endorsements_size = getauxval(104);
+    uint8_t* endorsements = (uint8_t*)getauxval(AT_ATT_ENDORSEMENTS);
+    unsigned long endorsements_size = getauxval(AT_ATT_ENDORSEMENTS_SIZE);
     if (endorsements_size > 0)
     {
         const char* filename = "endorsements.bin";

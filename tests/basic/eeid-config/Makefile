@@ -37,7 +37,7 @@ run-sw: ${SGXLKL_ROOTFS}
 verify-evidence: ${SGXLKL_ROOTFS}
 	${SGXLKL_DISK_TOOL} mount --mnt-point=tmp ${SGXLKL_ROOTFS}
 	# Depends on https://github.com/openenclave/openenclave/pull/3464
-	${SGXLKL_ROOT}/build/openenclave/bin/host_verify -v tmp/evidence.bin -e tmp/endorsements.bin
+	-${SGXLKL_ROOT}/build/openenclave/bin/host_verify -v tmp/evidence.bin -e tmp/endorsements.bin
 	${SGXLKL_DISK_TOOL} unmount tmp
 
 clean:

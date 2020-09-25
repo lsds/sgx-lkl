@@ -29,6 +29,11 @@
 
 #define AUXV_ENTRIES 17
 
+#define AT_ATT_EVIDENCE 101
+#define AT_ATT_EVIDENCE_SIZE 102
+#define AT_ATT_ENDORSEMENTS 103
+#define AT_ATT_ENDORSEMENTS_SIZE 104
+
 char* at_platform = "x86_64";
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
 
