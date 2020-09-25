@@ -229,6 +229,8 @@ static uint64_t sgxlkl_enclave_signal_handler(
 static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context)
 {
     uint32_t rax, rbx, rcx, rdx;
+    char* instruction_name = "";
+
     switch (opcode)
     {
         case OE_CPUID_OPCODE:
@@ -257,10 +259,18 @@ static void _sgxlkl_illegal_instr_hook(uint16_t opcode, oe_context_t* context)
             context->rdx = rdx;
             break;
         default:
+            switch (opcode)
+            {
+                case (0x50f):
+                    instruction_name = "syscall";
+                    break;
+            }
+
             sgxlkl_fail(
                 "Encountered an illegal instruction inside enclave "
-                "(opcode=0x%x)\n",
-                opcode);
+                "(opcode=0x%x [%s])\n",
+                opcode,
+                instruction_name);
     }
 
     /* Skip over the illegal instruction. */
