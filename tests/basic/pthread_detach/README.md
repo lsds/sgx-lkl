@@ -1,3 +1,5 @@
+# Important LKL functions related to process scheduling
+
 ## switch_to_host_task to __switch call graph
 ```
 switch_to_host_task(task: task_struct)
@@ -29,11 +31,16 @@ __switch_to(prev, next)
     - set abs_prev
     - change cpu ownership to next
     - Wake lthread backing _next
-    - If prev has TIF_SCHED_JB flag set, long jump back.
-    Else, go to sleep
-    - Handle if task has exited and yielded to the scheduler.
-        - Calls LKL host op for thread_exit. 
-    - return abs_prev
+    - As prev has TIF_SCHED_JB flag set, long jump back.
+|
+V
+(back in threads_sched_jb)
+|
+V
+back in switch_to_host_task(task)
+    - sem down on task's scheduler semaphore
+    (This will be woken up when this task is picked up by the LKL scheduler)
+    - schedule_tail(abs_prev)
 ```
 
 ## thread_sched_jb
@@ -42,3 +49,7 @@ __switch_to(prev, next)
 1. `lkl_cpu_put`: If the Linux scheduler run queue has >= 1 tasks.
 2. `switch_to_host_task(task)`: If `current` process context != task.
 3. `lkl_syscall`: If syscall is NR_REBOOT, yields to scheduler after running the syscall.
+
+# Pthreads support
+
+## pthread_create
