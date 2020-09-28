@@ -76,9 +76,15 @@ stages:
         - checkout: self
           submodules: recursive
           fetchDepth: 50
-      
+
         - bash: .azure-pipelines/scripts/install_prerequisites.sh
           displayName: Install prerequisites
+
+        - bash: .azure-pipelines/scripts/build_docker_images.sh
+          displayName: Build test docker images
+          env:
+            ${{ if parameters.nightly_build }}:
+              SGXLKL_NIGHTLY_BUILD: 1
 
         - bash: .azure-pipelines/scripts/dump_system_info.sh
           displayName: Dump system info
@@ -139,7 +145,7 @@ stages:
               env:
                 SGXLKL_DEB_DIR: $(Build.SourcesDirectory)/deb
                 SGXLKL_BUILD_MODE: "${{ build_mode }}"
-            
+
             - bash: .azure-pipelines/scripts/run_setup.sh
               displayName: Run sgx-lkl-setup
 
