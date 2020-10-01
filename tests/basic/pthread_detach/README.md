@@ -3,7 +3,7 @@
 A thread has 3 identities:
 - Linux process context - `task_struct`
 - LKL arch specific process context - `thread_info`
-- LKL host thread context - `lthread`
+- LKL host thread context, implemented in SGX-LKL by `lthread`s.
 
 For most of a thread's lifetime these 3 identities should have a 1:1 mapping between them.
 One instance where this doesn't hold is on the return path of the clone() system call. (This is covered in more detail later in the `pthread_create` section.)
