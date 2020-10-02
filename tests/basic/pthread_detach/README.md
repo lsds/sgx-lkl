@@ -90,9 +90,9 @@ switch_to_host_task(task: task_struct)
 The libc code calls `clone()` to create a new thread.
 There are two different types of integration points for LKL during process creation. (All of the following functions are defined in arch/lkl/kernel/threads.c):
 i) Setting up the arch specific thread_info struct.
-    - alloc_thread_stack_node()
-    - init_ti()
-    - setup_thread_stack()
+    - `alloc_thread_stack_node()`
+    - `init_ti()`
+    - `setup_thread_stack()`
 ii) Creating the host thread(lthread) backing the Linux task.
     - copy_thread_tls()
 
