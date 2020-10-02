@@ -94,7 +94,7 @@ i) Setting up the arch specific thread_info struct.
     - `init_ti()`
     - `setup_thread_stack()`
 ii) Creating the host thread(lthread) backing the Linux task.
-    - copy_thread_tls()
+    - `copy_thread_tls()`
 
 Call graph within LKL caused by pthread_create()->clone():
 ```
