@@ -32,29 +32,19 @@ O. Purdila, L. A. Grijincu and N. Tapus, "LKL: The Linux kernel library," 9th Ro
 
 The environment-provided semaphore is the `sched_sem` field in thread_info.
 
-## thread_sched_jb()
-`thread_sched_jb` is LKL's way of doing co-operative multitasking, by yielding to the scheduler. Its invoked from - 
+## thread_sched_jb(): setjmp/longjmp with LKL scheduler
+`thread_sched_jb` provides a mechanism to do non-local jumps between the current thread context and the scheduler. LKL uses a [host provided implementation]() for the setjmp and longjmp operations.
 
-1. `lkl_cpu_put`: If the Linux scheduler run queue has >= 1 tasks.
-2. `switch_to_host_task(task)`: If `current` process context != task.
-3. `lkl_syscall`: If syscall is NR_REBOOT, yields to scheduler after running the syscall.
+Before calling the scheduler, a flag(TIF_SCHED_JB) is added to the task's flags. This helps identify this task later, in the architecture dependent task switching routine `__switch_to`.
+Once the thread is in `__switch_to(prev, next)`, the cpu ownership is transferred to the next task(It is implied that `thread_sched_jb` was called with the CPU lock held). And then if the `TIF_SCHED_JB` flag is set, the thread long jumps back to `threads_sched_jb`. 
+There are no instructions on the return path in `thread_sched_jb`, and the function ends.
 
-
-## switch_to_host_task(task)
-`switch_to_host_task` function ensures that task being passed as input parameter is the `current` process context. If this is already the case the function returns early. Else, this causes transfer of control to the LKL scheduler so that it can schedule `task`. 
-A flag(TIF_SCHED_JB) is added to the task's flags before yielding to the LKL scheduler. This helps identify this task from the other tasks in the architecture dependent switching routine `__switch_to`. Once the thread is in `__switch_to`, control is switched back to `switch_to_host_task` via `threads_sched_jb`. After that the thread sleeps on its scheduler semaphore and waits for the LKL scheduler to wake it.
-
-Call graph for switch_to_host_task to __switch_to interactions:
+Call graph covering invocation of `thread_sched_jb`, setting the jump buffer and the long jump back from the scheduler:
 ```
-switch_to_host_task(task: task_struct)
-    - task.ti.tid = lthread_self()
-    - wake_up_process(task)
-    |
-    V
-    - thread_sched_jb()
-        - current.ti.flags = TIF_SCHED_JB
-        - current.state = TASK_UNINTERRUPTIBLE
-    (long jump to scheduler)
+thread_sched_jb()
+    - current.ti.flags = TIF_SCHED_JB
+    - current.state = TASK_UNINTERRUPTIBLE
+    - setup jump buffer and call schedule()
     |
     V
     schedule
@@ -76,6 +66,42 @@ switch_to_host_task(task: task_struct)
     |
     V
     (back in threads_sched_jb())
+```
+
+The known usages of `thread_sched_jb` are - 
+
+1. `switch_to_host_task(task)`: If `current` process context != task.
+2. `lkl_cpu_put`: If the Linux scheduler run queue has >= 1 tasks.
+3. `lkl_syscall`: If syscall is NR_REBOOT, yields to scheduler after running the syscall.
+
+Usages 2. and 3. use `thread_sched_jb` are in the epilogue of `lkl_syscall`, and effectively allow the thread to invoke the schedule and relinquish the CPU lock.  
+
+The `switch_to_host_task` usage is more involved and discussed next.
+
+## switch_to_host_task(task)
+`switch_to_host_task` function ensures that task being passed as input parameter is the `current` process context.
+If this is already the case the function returns early. Else, this causes transfer of control to the LKL scheduler so that it can schedule `task`. It does so using `thread_sched_jb`. 
+Once the scheduler long jumps back, the thread sleeps on its scheduler semaphore and waits for the LKL scheduler to wake it.
+
+Call graph for switch_to_host_task to __switch_to interactions:
+```
+switch_to_host_task(task: task_struct)
+    - task.ti.tid = lthread_self()
+    - wake_up_process(task)
+    |
+    V
+    - thread_sched_jb()
+        - current.ti.flags = TIF_SCHED_JB
+        - setup jump buffer and call schedule()
+        |
+        V
+        ...
+            - __switch_to(prev, next)
+                - ...
+                - As prev has TIF_SCHED_JB flag set, long jump back.
+        |
+        V
+        (back in threads_sched_jb())
     |
     V
     (back in switch_to_host_task(task))
@@ -173,7 +199,7 @@ Thread 7 "ENCLAVE" hit Breakpoint 2, free_thread_stack (tsk=0x7fe03fdb8b80)
 #11 0x00007fe0000a9304 in kthread (_create=0x4) at kernel/kthread.c:268
 ```
 
-`free_thread_stack` in turn calls `kill_thread(ti: thread_info)`. As pthreads are cloned host threads, `kill_thread` marks `ti->dead` as true and wakes the threads scheduler semaphore. After this, it joins on that thread.
+`free_thread_stack` in turn calls `kill_thread(ti: thread_info)`. For cloned host threads(pthreads are created via `clone()`), `kill_thread` marks `ti->dead` as true and wakes the threads scheduler semaphore. After this, it joins on that thread.
 
 Meanwhile, the exiting thread wakes up inside `__switch_to`. It clears its TLS key storing its `task_struct` and calls the host op for thread_exit. This internally results in a yield to the lthread scheduler. 
 
