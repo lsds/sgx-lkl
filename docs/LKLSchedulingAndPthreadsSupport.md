@@ -1,12 +1,12 @@
 # LKL Scheduling and Pthreads Support
 
 ## Pre-requisites
-/doc/Threading.md
+Please read the [threading docs](Threading.md) for a good overview of LKL threading concepts.
 
 ## Thread identities
 A thread has 3 identities:
 - Linux process context - `task_struct`
-- LKL arch specific process context - `thread_info`
+- LKL arch specific process context - `[thread_info](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/include/asm/thread_info.h#L29)`
 - LKL host thread context, implemented in SGX-LKL by `lthread`s.
 
 Not every lthread corresponds to a LKL thread. In conventional LKL usage, the Linux process contexts are allocated lazily on the first system call. In cloned threads, the Linux process context is allocated eagerly during thread creation.
@@ -44,10 +44,10 @@ From the LKL paper -
 
 O. Purdila, L. A. Grijincu and N. Tapus, "LKL: The Linux kernel library," 9th RoEduNet IEEE International Conference, Sibiu, 2010, pp. 328-333.
 
-The environment-provided semaphore is the `sched_sem` field in thread_info.
+The environment-provided semaphore is the [`sched_sem`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/include/asm/thread_info.h#L34) field in `thread_info`.
 
 ## thread_sched_jb(): setjmp/longjmp with LKL scheduler
-`thread_sched_jb` provides a mechanism to do non-local jumps between the current thread context and the scheduler. LKL uses a [host provided implementation](https://github.com/lsds/sgx-lkl/blob/0c95637ca94ca9a92680169fb8941ffc12e33c3f/src/lkl/jmp_buf.c) for the setjmp and longjmp operations.
+[`thread_sched_jb`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/include/asm/sched.h#L7) provides a mechanism to do non-local jumps between the current thread context and the scheduler. LKL uses a [host provided implementation](https://github.com/lsds/sgx-lkl/blob/0c95637ca94ca9a92680169fb8941ffc12e33c3f/src/lkl/jmp_buf.c) for the setjmp and longjmp operations.
 
 Before calling the scheduler, a flag(TIF_SCHED_JB) is added to the task's flags. This helps identify this task later, in the architecture dependent task switching routine `__switch_to`.
 Once the thread is in `__switch_to(prev, next)`, the cpu ownership is transferred to the next task(It is implied that `thread_sched_jb` was called with the CPU lock held). And then if the `TIF_SCHED_JB` flag is set, the thread long jumps back to `threads_sched_jb`. 
@@ -131,7 +131,7 @@ switch_to_host_task(task: task_struct)
 
 ## pthread_create
 The libc code calls `clone()` to create a new thread.
-There are two different types of integration points for LKL during process creation. (All of the following functions are defined in arch/lkl/kernel/threads.c):
+There are two different types of integration points for LKL during process creation. (All of the following functions are defined in [`arch/lkl/kernel/threads.c`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/threads.c)):
 i) Setting up the arch specific thread_info struct.
     - `alloc_thread_stack_node()`
     - `init_ti()`
@@ -148,7 +148,7 @@ _do_fork(*args: kernel_clone_args)
     V
     - copy_process(...,args)
         - ...
-        | // where is current picked from?
+        |
         V
         - dup_task_struct(current, node)
             - ...
@@ -194,7 +194,7 @@ A pthread issues a `SYS_exit` [here](https://github.com/lsds/sgx-lkl-musl/blob/c
 
 As part of the exit system call, the thread eventually yields to the LKL scheduler and sleeps on its scheduler semaphore [here](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/threads.c#L194).
 
-At some later point, the LKL architecture specific integration point for thread cleanup - `free_thread_stack`, is called from the `ksoftirqd` kthread. 
+At some later point, the LKL architecture specific integration point for thread cleanup - [`free_thread_stack`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/threads.c#L126), is called from the `ksoftirqd` kthread. 
 
 Stacktrace at the entry of `free_thread_stack`:
 ```
