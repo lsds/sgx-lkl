@@ -1,15 +1,29 @@
-# Preliminaries
+# LKL Scheduling and Pthreads Support
+
+## Pre-requisites
+/doc/Threading.md
+
 ## Thread identities
 A thread has 3 identities:
 - Linux process context - `task_struct`
 - LKL arch specific process context - `thread_info`
 - LKL host thread context, implemented in SGX-LKL by `lthread`s.
 
-For most of a thread's lifetime these 3 identities should have a 1:1 mapping between them.
-One instance where this doesn't hold is on the return path of the clone() system call. (This is covered in more detail later in the `pthread_create` section.)
+Not every lthread corresponds to a LKL thread. In conventional LKL usage, the Linux process contexts are allocated lazily on the first system call. In cloned threads, the Linux process context is allocated eagerly during thread creation.
 
-## LKL's CPU Lock: lkl_cpu_get/lkl_cpu_put
-The owner of the lock is assigned and checked based on the lthread identity.
+In general once LKL knows about a lthread, there is a 1:1 mapping between these identities. We'll detail some exceptions later in the `pthread_create` section.
+
+## LKL's CPU Lock: 
+The LKL CPU lock allows a single thread to be running inside LKL.
+The `lkl_cpu` structure defined in [`arch/lkl/kernel/cpu.c`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/cpu.c) consists of a `lkl_mutex`, a `lkl_sem` and some status data like `owner`, `count` and `sleepers`.
+
+The `lkl_mutex *lock` is used to ensure mutual exclusion while accessing/modifying the status data fields.
+The CPU semaphore `lkl_sem *sem` allows threads to sleep if there is an `owner` already.
+The `owner` of the lock is assigned and checked based on the lthread identity.
+
+Threads entering LKL via `lkl_syscall` [try to acquire the lock](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/syscalls.c#L187) by calling `lkl_cpu_get`. Once the syscall is processed, the [lock is released](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/syscalls.c#L310) on the return path by a `lkl_cpu_put`.
+
+The LKL scheduler [also transfers lock ownership during task switching](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/threads.c#L182) via `lkl_cpu_change_owner`.
 
 ## sched_sem: thread level semaphore LKL uses to control scheduling
 From the LKL paper -
@@ -33,7 +47,7 @@ O. Purdila, L. A. Grijincu and N. Tapus, "LKL: The Linux kernel library," 9th Ro
 The environment-provided semaphore is the `sched_sem` field in thread_info.
 
 ## thread_sched_jb(): setjmp/longjmp with LKL scheduler
-`thread_sched_jb` provides a mechanism to do non-local jumps between the current thread context and the scheduler. LKL uses a [host provided implementation]() for the setjmp and longjmp operations.
+`thread_sched_jb` provides a mechanism to do non-local jumps between the current thread context and the scheduler. LKL uses a [host provided implementation](https://github.com/lsds/sgx-lkl/blob/0c95637ca94ca9a92680169fb8941ffc12e33c3f/src/lkl/jmp_buf.c) for the setjmp and longjmp operations.
 
 Before calling the scheduler, a flag(TIF_SCHED_JB) is added to the task's flags. This helps identify this task later, in the architecture dependent task switching routine `__switch_to`.
 Once the thread is in `__switch_to(prev, next)`, the cpu ownership is transferred to the next task(It is implied that `thread_sched_jb` was called with the CPU lock held). And then if the `TIF_SCHED_JB` flag is set, the thread long jumps back to `threads_sched_jb`. 
@@ -86,6 +100,9 @@ Once the scheduler long jumps back, the thread sleeps on its scheduler semaphore
 Call graph for switch_to_host_task to __switch_to interactions:
 ```
 switch_to_host_task(task: task_struct)
+    // LKL CPU ownership and sched_sem wait/wake operations both work on the
+    // lthread identity. As we want the current lthread to assume `task` 
+    // identity, link them together.
     - task.ti.tid = lthread_self()
     - wake_up_process(task)
     |
@@ -173,12 +190,13 @@ After setting the state as `TASK_UNINTERRUPTIBLE`, the lthread id for the child 
 
 ## pthread_exit
 
-A pthread issues a `SYS_exit` [here](https://github.com/lsds/sgx-lkl-musl/blob/oe_port/src/thread/pthread_create.c#L123), or if its detach attribute is set it exits [here](https://github.com/lsds/sgx-lkl-musl/blob/oe_port/src/thread/x86_64/__unmapself.s#L18).
+A pthread issues a `SYS_exit` [here](https://github.com/lsds/sgx-lkl-musl/blob/c690dad8beb1a806b74aeb6db14420665cf90704/src/thread/pthread_create.c#L123), or if its detach attribute is set it exits [here](https://github.com/lsds/sgx-lkl-musl/blob/c690dad8beb1a806b74aeb6db14420665cf90704/src/thread/x86_64/__unmapself.s).
 
-As part of the exit system call, the thread eventually yields to the LKL scheduler and sleeps on its scheduler semaphore [here](https://github.com/lsds/lkl/blob/upstream-refactor/arch/lkl/kernel/threads.c#L194).
+As part of the exit system call, the thread eventually yields to the LKL scheduler and sleeps on its scheduler semaphore [here](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/kernel/threads.c#L194).
 
 At some later point, the LKL architecture specific integration point for thread cleanup - `free_thread_stack`, is called from the `ksoftirqd` kthread. 
 
+Stacktrace at the entry of `free_thread_stack`:
 ```
 Thread 7 "ENCLAVE" hit Breakpoint 2, free_thread_stack (tsk=0x7fe03fdb8b80)
     at arch/lkl/kernel/threads.c:124
@@ -202,6 +220,7 @@ Thread 7 "ENCLAVE" hit Breakpoint 2, free_thread_stack (tsk=0x7fe03fdb8b80)
 `free_thread_stack` in turn calls `kill_thread(ti: thread_info)`. For cloned host threads(pthreads are created via `clone()`), `kill_thread` marks `ti->dead` as true and wakes the threads scheduler semaphore. After this, it joins on that thread.
 
 Meanwhile, the exiting thread wakes up inside `__switch_to`. It clears its TLS key storing its `task_struct` and calls the host op for thread_exit. This internally results in a yield to the lthread scheduler. 
+Once back in the lthread scheduler, it wakes up the thread joined on it - the `ksoftirqd` kthread.
 
-Once back in the lthread scheduler, it wakes up the thread joined on the thread which exited. This causes the `ksoftirqd` kthread to resume in `kill_thread`. It clears the `tid` and `sched_sem` fields in the `thread_info` structure and returns to `free_thread_stack`.
+`ksoftirqd` kthread resumes in `kill_thread`. It clears the `tid` and `sched_sem` fields in the `thread_info` structure and returns to `free_thread_stack`.
 The last thing `free_thread_stack` does is to free the `thread_info` structure corresponding to the exited thread. This marks the end of the threads journey within LKL.
