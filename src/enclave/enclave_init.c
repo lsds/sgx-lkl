@@ -1,5 +1,6 @@
 #include "lkl/asm/host_ops.h"
 #include "lkl/setup.h"
+#include "sys/auxv.h"
 
 #include <openenclave/internal/globals.h>
 #include "openenclave/corelibc/oemalloc.h"
@@ -100,6 +101,32 @@ static void init_wireguard_peers()
         wgu_list_devices();
 }
 
+static void add_attestation_evidence()
+{
+    uint8_t* evidence = (uint8_t*)getauxval(AT_ATT_EVIDENCE);
+    unsigned long evidence_size = getauxval(AT_ATT_EVIDENCE_SIZE);
+    if (evidence_size > 0)
+    {
+        const char* filename = "/run/sgxlkl-evidence";
+        FILE* f = fopen(filename, "wb");
+        size_t written = fwrite(evidence, 1, evidence_size, f);
+        fclose(f);
+        SGXLKL_VERBOSE(
+            "%lu bytes of attestation evidence in %s\n", written, filename);
+    }
+
+    uint8_t* endorsements = (uint8_t*)getauxval(AT_ATT_ENDORSEMENTS);
+    unsigned long endorsements_size = getauxval(AT_ATT_ENDORSEMENTS_SIZE);
+    if (endorsements_size > 0)
+    {
+        const char* filename = "/run/sgxlkl-endorsements";
+        FILE* f = fopen(filename, "wb");
+        size_t written = fwrite(endorsements, 1, endorsements_size, f);
+        fclose(f);
+        SGXLKL_VERBOSE(
+            "%lu bytes of attestation endorsements in %s\n", written, filename);
+    }
+}
 
 static void _enter_user_space(
     int argc,
@@ -132,6 +159,8 @@ static void _enter_user_space(
     args.sw_debug_mode = sgxlkl_in_sw_debug_mode();
     args.__gdb_load_debug_symbols_alive_ptr = &__gdb_load_debug_symbols_alive;
     memcpy(args.clock_res, clock_res, sizeof(args.clock_res));
+
+    add_attestation_evidence();
 
     (*proc)(&args, sizeof(args));
 }

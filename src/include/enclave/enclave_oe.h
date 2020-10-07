@@ -18,4 +18,10 @@ bool sgxlkl_in_sw_debug_mode();
 bool sgxlkl_in_hw_debug_mode();
 bool sgxlkl_in_hw_release_mode();
 
+/* Indices to find attestation evidence in auxv */
+#define AT_ATT_EVIDENCE 101
+#define AT_ATT_EVIDENCE_SIZE 102
+#define AT_ATT_ENDORSEMENTS 103
+#define AT_ATT_ENDORSEMENTS_SIZE 104
+
 #endif /* ENCLAVE_OE_H */
