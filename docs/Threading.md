@@ -53,7 +53,7 @@ Note that `_switch` does *not* switch between two arbitrary lthreads.
 One of the threads involved in a `_switch` call is always the scheduler.
 The `_switch` call in `_lthread_resume` switches to another thread, the call [in `_lthread_yield_cb`](https://github.com/lsds/sgx-lkl/blob/47a5f0e718badfa85694a9de6222af41d9bfbb84/src/sched/lthread.c#L340) and [in `_lthread_yield`](https://github.com/lsds/sgx-lkl/blob/47a5f0e718badfa85694a9de6222af41d9bfbb84/src/sched/lthread.c#L346) switch back to the scheduler.
 
-After the running lthread yeidds, `lthread_run` checks whether any sleeping threads (those blocked waiting for event channels or futexes) are runnable and, if so, adds them to the queue.
+After the running lthread yields, `lthread_run` checks whether any sleeping threads (those blocked waiting for event channels or futexes) are runnable and, if so, adds them to the queue.
 
 `lthread_run` maintains a count of consecutive loop iterations in which there were not runnable lthreads.
 Once this reaches a threshold, the scheduler issues an ocall that suspends execution of the ethread until either an event channel is signaled or a timeout expires.
