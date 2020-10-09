@@ -50,7 +50,7 @@ The environment-provided semaphore is the [`sched_sem`](https://github.com/lsds/
 [`thread_sched_jb`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/include/asm/sched.h#L7) provides a mechanism to do non-local jumps between the current thread context and the scheduler. LKL uses a [host provided implementation](https://github.com/lsds/sgx-lkl/blob/0c95637ca94ca9a92680169fb8941ffc12e33c3f/src/lkl/jmp_buf.c) for the setjmp and longjmp operations.
 
 Before calling the scheduler, a flag(TIF_SCHED_JB) is added to the task's flags. This helps identify this task later, in the architecture dependent task switching routine `__switch_to`.
-Once the thread is in `__switch_to(prev, next)`, the cpu ownership is transferred to the next task(It is implied that `thread_sched_jb` was called with the CPU lock held). And then if the `TIF_SCHED_JB` flag is set, the thread long jumps back to `threads_sched_jb`. 
+Once the thread is in `__switch_to(prev, next)`, the CPU ownership is transferred to the next task (It is implied that `thread_sched_jb` was called with the CPU lock held). And then if the `TIF_SCHED_JB` flag is set, the thread long jumps back to `threads_sched_jb`. 
 There are no instructions on the return path in `thread_sched_jb`, and the function ends.
 
 Call graph covering invocation of `thread_sched_jb`, setting the jump buffer and the long jump back from the scheduler:
@@ -93,7 +93,7 @@ Usages 2. and 3. use `thread_sched_jb` are in the epilogue of `lkl_syscall`, and
 The `switch_to_host_task` usage is more involved and discussed next.
 
 ## switch_to_host_task(task)
-`switch_to_host_task` function ensures that task being passed as input parameter is the `current` process context.
+`switch_to_host_task` function ensures that a task being passed as input parameter is the `current` process context.
 If this is already the case the function returns early. Else, this causes transfer of control to the LKL scheduler so that it can schedule `task`. It does so using `thread_sched_jb`. 
 Once the scheduler long jumps back, the thread sleeps on its scheduler semaphore and waits for the LKL scheduler to wake it.
 
@@ -183,7 +183,7 @@ _do_fork(*args: kernel_clone_args)
 
 ```
 
-After the clone() syscall is run, the state of newly created child process must be set as non-runnable in LKL. This in turn requires the child process be the `current` process context. If this wasn't enough there is one more complication here. For LKL to schedule the thread, it needs to transfer the CPU lock ownership to it. As mentioned earlier, CPU lock is assigned by lthread id. So briefly the lthread identity of the parent is shared with the child thread. 
+After the clone() syscall is run, the state of newly created child process must be set as non-runnable in LKL. This in turn requires the child process be the `current` process context. If this wasn't enough there is one more complication here. For LKL to schedule the thread, it needs to transfer the CPU lock ownership to it. As mentioned earlier, the CPU lock is assigned by lthread id. So briefly the lthread identity of the parent is shared with the child thread. 
 
 After setting the state as `TASK_UNINTERRUPTIBLE`, the lthread id for the child thread is restored.
 
