@@ -1,17 +1,17 @@
 # LKL Scheduling and Pthreads Support
 
 ## Pre-requisites
-Please read the [threading docs](Threading.md) for a good overview of LKL threading concepts.
+Please read [Threading.md](Threading.md) for a good overview of SGX-LKL threading concepts.
 
 ## Thread identities
 A thread has 3 identities:
 - Linux process context - `task_struct`
-- LKL arch specific process context - `[thread_info](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/include/asm/thread_info.h#L29)`
+- LKL arch specific process context - [`thread_info`](https://github.com/lsds/lkl/blob/e041aa71e03a142ecef542c005b07d13e2a3b722/arch/lkl/include/asm/thread_info.h#L29)
 - LKL host thread context, implemented in SGX-LKL by `lthread`s.
 
 Not every lthread corresponds to a LKL thread. In conventional LKL usage, the Linux process contexts are allocated lazily on the first system call. In cloned threads, the Linux process context is allocated eagerly during thread creation.
 
-In general once LKL knows about a lthread, there is a 1:1 mapping between these identities. We'll detail some exceptions later in the `pthread_create` section.
+In general once LKL knows about a lthread, there is a 1:1 mapping between these identities. Later we'll detail an exception to this in the [pthread_create](#pthread_create) section.
 
 ## LKL's CPU Lock: 
 The LKL CPU lock allows a single thread to be running inside LKL.
@@ -74,7 +74,7 @@ thread_sched_jb()
                 V
                 - __switch_to(prev, next)
                     - set abs_prev
-                    - change cpu ownership to next
+                    - change CPU ownership to next
                     - Wake lthread backing _next
                     - As prev has TIF_SCHED_JB flag set, long jump back.
     |
@@ -97,7 +97,7 @@ The `switch_to_host_task` usage is more involved and discussed next.
 If this is already the case the function returns early. Else, this causes transfer of control to the LKL scheduler so that it can schedule `task`. It does so using `thread_sched_jb`. 
 Once the scheduler long jumps back, the thread sleeps on its scheduler semaphore and waits for the LKL scheduler to wake it.
 
-Call graph for switch_to_host_task to __switch_to interactions:
+Call graph for `switch_to_host_task` to `__switch_to` interactions:
 ```
 switch_to_host_task(task: task_struct)
     // LKL CPU ownership and sched_sem wait/wake operations both work on the
