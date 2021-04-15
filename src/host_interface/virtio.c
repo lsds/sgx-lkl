@@ -10,6 +10,12 @@
 
 #define min_len(a, b) (a < b ? a : b)
 
+#ifdef PACKED_RING
+bool packed_ring = true;
+#else
+bool packed_ring = false;
+#endif
+
 struct _virtio_req
 {
     struct virtio_req req;
@@ -148,6 +154,9 @@ static inline void virtio_deliver_irq(struct virtio_dev* dev)
  * req: local virtio request buffer
  * len: length of the data processed
  */
+/**PACKED implementation
+ * Will need to update this for packed implementation
+ */
 void virtio_req_complete(struct virtio_req* req, uint32_t len)
 {
     int send_irq = 0;
@@ -230,7 +239,7 @@ void virtio_req_complete(struct virtio_req* req, uint32_t len)
  * dev: device structure pointer
  * qidx: queue index to be processed
  */
-static int virtio_process_one(struct virtio_dev* dev, int qidx)
+static int virtio_process_one_split(struct virtio_dev* dev, int qidx)
 {
     struct virtq* q = &dev->queue[qidx];
     uint16_t idx = q->last_avail_idx;
@@ -243,6 +252,38 @@ static int virtio_process_one(struct virtio_dev* dev, int qidx)
 
     struct virtio_req* req = &_req.req;
     memset(req, 0, sizeof(struct virtio_req));
+    struct virtq_desc* desc = vring_desc_at_avail_idx(q, idx);
+    do
+    {
+        add_dev_buf_from_vring_desc(req, desc);
+        if (q->max_merge_len && req->total_len > q->max_merge_len)
+            break;
+        desc = get_next_desc(q, desc, &idx);
+    } while (desc && req->buf_count < VIRTIO_REQ_MAX_BUFS);
+
+    // Return result of enqueue operation
+    return dev->ops->enqueue(dev, qidx, req);
+}
+
+static int virtio_process_one_packed(struct virtio_dev* dev, int qidx)
+{
+    struct virtq_packed* q = &dev->queue[qidx];
+
+    /**Continue from here*/
+
+    uint16_t idx = q->last_avail_idx;
+
+    struct _virtio_req _req = {
+        .dev = dev,
+        .q = q,
+        .idx = idx,
+    };
+
+    struct virtio_req* req = &_req.req;
+    memset(req, 0, sizeof(struct virtio_req));
+    /**MODIFY HERE:
+     * struct virtq_packed_desc desc
+     */
     struct virtq_desc* desc = vring_desc_at_avail_idx(q, idx);
     do
     {
@@ -274,7 +315,14 @@ void virtio_set_queue_max_merge_len(struct virtio_dev* dev, int q, int len)
  */
 void virtio_process_queue(struct virtio_dev* dev, uint32_t qidx)
 {
-    struct virtq* q = &dev->queue[qidx];
+    packed_ring ? virtio_process_queue_packed(dev, qidx) :
+                  virtio_process_queue_split(dev, qidx);
+}
+
+
+void virtio_process_queue_split(struct virtio_dev* dev, uint32_t qidx)
+{
+    struct virtq* q = &dev->split.queue[qidx];
 
     if (!q->ready)
         return;
@@ -285,7 +333,7 @@ void virtio_process_queue(struct virtio_dev* dev, uint32_t qidx)
     while (q->last_avail_idx != q->avail->idx)
     {
         /* Make sure following loads happens after loading q->avail->idx */
-        if (virtio_process_one(dev, qidx) < 0)
+        if (virtio_process_one_split(dev, qidx) < 0)
             break;
         if (q->last_avail_idx == le16toh(q->avail->idx))
             virtio_set_avail_event(q, q->avail->idx);
@@ -293,4 +341,36 @@ void virtio_process_queue(struct virtio_dev* dev, uint32_t qidx)
 
     if (dev->ops->release_queue)
         dev->ops->release_queue(dev, qidx);
+}
+
+void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
+{
+    struct virtq_packed* q = &dev->packed.queue[qidx];
+
+    if (!q->ready)
+        return;
+
+    if (dev->ops->acquire_queue)
+        dev->ops->acquire_queue(dev, qidx);
+
+    // Have some loop that keeps going until we hit a desc that's not available
+    while (packed_desc_is_avail(q))
+    {
+        // Need to process desc here
+        // Possible make some process_one_packed
+        // Question is what else do I include in this statement
+        if (virtio_process_one_packed(dev, qidx) < 0)
+            break;
+    }
+
+    if (dev->ops->release_queue)
+        dev->ops->release_queue(dev, qidx);
+}
+
+int packed_desc_is_avail(struct virtq_packed* q)
+{
+    struct virtq_packed_desc* desc = q->desc[q->avail_desc_idx & (q->num -1)];
+    uint16_t avail = desc->flags & KL_VRING_PACKED_DESC_F_AVAIL;
+    uint16_t used = desc->flags & KL_VRING_PACKED_DESC_F_USED;
+    return avail != used && avail == q->driver_wrap_counter;
 }

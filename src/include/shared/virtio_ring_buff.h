@@ -10,6 +10,9 @@
 /* This means the buffer contains a list of buffer descriptors. */
 #define LKL_VRING_DESC_F_INDIRECT 4
 
+#define LKL_VRING_PACKED_DESC_F_AVAIL	7
+#define LKL_VRING_PACKED_DESC_F_USED	15
+
 struct virtq_desc
 {
     /* Address (guest-physical). */
@@ -58,4 +61,24 @@ struct virtq
     uint16_t last_used_idx_signaled;
 };
 
+struct virtq_packed_desc
+{
+    uint64_t addr;
+    uint32_t len;
+    uint16_t id;
+    uint16_t flags;
+};
+
+struct virtq_packed
+{
+    uint32_t num_max;
+    _Atomic(uint32_t) ready;
+    _Atomic(uint32_t) num;
+    //Add supression flags where necessary
+    _Atomic(struct virtq_packed_desc*) desc;
+    bool device_wrap_counter; //Initialise to 1, flip when we change last descriptor as used
+    bool driver_wrap_counter; //Initialise to 1 and flip when when avail_desc_idx becomes greater than queue and we need to wrap around it
+    uint16_t avail_desc_idx; //We increment this for each avail event we process
+    uint16_t used_desc_idx;
+};
 #endif

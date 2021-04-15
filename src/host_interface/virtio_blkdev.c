@@ -36,6 +36,9 @@ static inline sgxlkl_host_disk_state_t* get_disk_config(uint8_t blkdev_id)
 /*
  * Virtio callback functions for processing virtio requests
  */
+/**
+ * Packed implementation: double check if I need to change this later
+ */
 static int blk_enqueue(struct virtio_dev* dev, int q, struct virtio_req* req)
 {
     struct virtio_blk_outhdr* h;
@@ -112,7 +115,12 @@ int blk_device_init(
     void* vq_mem = NULL;
     struct virtio_blk_dev* host_blk_device = NULL;
     size_t bdev_size = sizeof(struct virtio_blk_dev);
-    size_t vq_size = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq);
+    size_t vq_size;
+
+    if (!packed_ring)
+        vq_size = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq);
+    else
+        vq_sze = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq_packed);
 
     /*Allocate memory for block device*/
     bdev_size = next_pow2(bdev_size);
@@ -140,10 +148,29 @@ int blk_device_init(
     }
 
     /* Initialize block device */
-    host_blk_device->dev.queue = vq_mem;
-    memset(host_blk_device->dev.queue, 0, vq_size);
+    if (!packed_ring)
+    {
+        host_blk_device->dev.split.queue = vq_mem;
+        memset(host_blk_device->dev.split.queue, 0, vq_size);
+    }
+    else
+    {
+        host_blk_device->dev.packed.queue = vq_mem;
+        memset(host_blk_device->dev.packed.queue, 0, vq_size);
+    }
     for (int i = 0; i < HOST_BLK_DEV_NUM_QUEUES; i++)
-        host_blk_device->dev.queue[i].num_max = HOST_BLK_DEV_QUEUE_DEPTH;
+    {
+        if (!packed_ring)
+        {
+            host_blk_device->dev.split.queue[i].num_max = HOST_BLK_DEV_QUEUE_DEPTH;
+        }
+        else
+        {
+            host_blk_device->dev.packed.queue[i].num_max = HOST_BLK_DEV_QUEUE_DEPTH;
+            host_blk_device->dev.packed.queue[i].device_wrap_counter = true;
+            host_blk_device->dev.packed.queue[i].driver_wrap_counter = true;
+        }
+    }
 
     host_blk_device->config.capacity = disk->size / 512;
 
@@ -157,6 +184,10 @@ int blk_device_init(
     host_blk_device->dev.int_status = 0;
     host_blk_device->dev.device_features |=
         BIT(VIRTIO_F_VERSION_1) | BIT(VIRTIO_RING_F_EVENT_IDX);
+
+    if (packed_ring)
+        host_blk_device->dev.device_features |= BIT(VIRTIO_F_RING_PACKED);
+
 
     if (enable_swiotlb)
         host_blk_device->dev.device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);

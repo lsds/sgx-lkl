@@ -228,7 +228,13 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
     void* console_vq_mem = NULL;
 
     size_t host_console_size = next_pow2(sizeof(struct virtio_console_dev));
-    size_t console_vq_size = NUM_QUEUES * sizeof(struct virtq);
+    size_t console_vq_size;
+
+    if (!packed_ring)
+        console_vq_size = NUM_QUEUES * sizeof(struct virtq);
+    else
+        console_vq_size = NUM_QUEUES * sizeof(struct virtq_packed);
+
     console_vq_size = next_pow2(console_vq_size);
 
     /* Console host device configuration */
@@ -268,12 +274,31 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
     _console_dev->out_console_fd = STDOUT_FILENO;
     struct virtio_dev* dev = &_console_dev->dev;
 
-    dev->queue = console_vq_mem;
-    memset(dev->queue, 0, console_vq_size);
+    if (!packed_ring)
+    {
+        dev->split.queue = console_vq_mem;
+        memset(dev->split.queue, 0, console_vq_size);
+    }
+    else
+    {
+        dev->packed.queue = console_vq_mem;
+        memset(dev->packed.queue, 0, console_vq_size);
+    }
 
     /* assign the queue depth to each virt queue */
     for (int i = 0; i < NUM_QUEUES; i++)
-        dev->queue[i].num_max = QUEUE_DEPTH;
+    {
+        if (!packed_ring)
+        {
+            dev->split.queue[i].num_max = QUEUE_DEPTH;
+        }
+        else
+        {
+            dev->packed.queue[i].num_max = QUEUE_DEPTH;
+            dev->packed.queue[i].device_wrap_counter = true;
+            dev->packed.queue[i].driver_wrap_counter = true;
+        }
+    }
 
     /* set console device feature */
     dev->device_id = VIRTIO_ID_CONSOLE;
@@ -285,6 +310,9 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
 
     if (host_state->enclave_config.mode != SW_DEBUG_MODE)
         dev->device_features |= BIT(VIRTIO_F_IOMMU_PLATFORM);
+
+    if (packed_ring)
+        dev->device_features |= BIT(VIRTIO_F_RING_PACKED);
 
     dev->ops = &host_console_ops;
 
