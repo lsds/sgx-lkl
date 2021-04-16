@@ -52,6 +52,7 @@ static int blk_enqueue(struct virtio_dev* dev, int q, struct virtio_req* req)
     if (req->buf_count < 3)
         goto out;
 
+
     h = req->buf[0].iov_base;
     t = req->buf[req->buf_count - 1].iov_base;
 

@@ -82,7 +82,7 @@ struct virtio_dev
     uint32_t virtio_mmio_id;
 };
 
-void virtio_req_complete(struct virtio_req* req, uint32_t len);
+void virtio_req_complete_split(struct virtio_req* req, uint32_t len);
 void virtio_process_queue(struct virtio_dev* dev, uint32_t qidx);
 void virtio_set_queue_max_merge_len(struct virtio_dev* dev, int q, int len);
 

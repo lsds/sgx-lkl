@@ -74,6 +74,8 @@ struct virtq_packed
     uint32_t num_max;
     _Atomic(uint32_t) ready;
     _Atomic(uint32_t) num;
+    uint32_t max_merge_len;
+
     //Add supression flags where necessary
     _Atomic(struct virtq_packed_desc*) desc;
     bool device_wrap_counter; //Initialise to 1, flip when we change last descriptor as used
