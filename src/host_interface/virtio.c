@@ -319,111 +319,59 @@ void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
 {
     /**
      * Requirements for this:
-     *  Marking an available desc as unavailable
      *  Setting a single used desc for a descriptor chain
      *  Ensuring the id of a used desc for a desc chain is the id of the last buffer in the chain
      *  avail_desc_idx and used_desc_idx to be incremented and wrapped around as appropriate
      *  changing the wrap counters when the above are wrapped around
      *
-     *  Question:
-     *      The below assumes non chained descriptors?
-     *      But if we have chained descriptors
+
+        This function only gets called either with chained descriptors,
+        or max_merge_len (which I assume would also be chained descriptors).
+
+        I know this as for example it gets called from blk_enqueue,
+        whose request is chained, and the same with network device
+        (and I assume the same for console)
      */
     int send_irq = 0;
     struct _virtio_req* _req = container_of(req, struct _virtio_req, req);
     struct virtq_packed* q = _req->packed.q;
     uint16_t avail_desc_idx = _req->idx;
     uint16_t used_desc_idx = q->used_desc_idx;
-
-    /*
-     * We've potentially used up multiple (non-chained) descriptors and have
-     * to create one "used" entry for each descriptor we've consumed.
-     */
-
-    //Since this is all chained, just go to the last one, mark it as used,
-    //place it at the beginning
-    //I think the point is that it's not necessary to mark them all as used
+    uint16_t last_buffer_idx = avail_desc_idx+(req->buff_count-1);
     uint16_t used_len;
     if (!q->max_merge_len)
         used_len = len;
     else
         used_len = min_len(len, req->buf[req->buff_count-1].iov_len);
 
-    struct virtq_packed_desc* desc = q->desc[(avail_desc_idx+(req->buff_count-1)) & (q->num -1)];
-    virtio_add_used_packed(q, q->used_desc_idx, used_len, desc->id);
+    struct virtq_packed_desc* desc = q->desc[last_buffer_idx & (q->num -1)];
+    virtio_add_used_packed(q, used_desc_idx, used_len, desc->id);
 
-    //Need to increment used and avail index, then see if I need the rest
-    //of this code
-    /*
-    for (int i = 0; i < req->buf_count; i++)
+    used_desc_idx += req->buff_count;
+    avail_desc_idx += req->buff_count;
+
+    if (used_desc_idx >= q->num)
     {
+        used_desc_idx -= q->num;
+        q->device_wrap_counter = !q->device_wrap_counter;
+    }
 
-
-        //Need to make available index unavailable and specify used index as now used
-
-        // Do I need to set avail_desc_idx and used_desc_idx back to 0 when necessary?
-        // Maybe not, because the driver handles it?
-
-        //Should these be getting incremented?
-        //What about the thing where we move them forward by the number of descriptors?
-        //Based on how this will get called, unless max_merge_len is set,
-        //this will only be called for a chained descriptor not individual
-        //so this would mean we only need one used? And we get the id from buf_count-1?
-        //Maybe my assumption is wrong that we only have one used per chain?
-            //the spec says that but that doesn't sound reasonable - e.g. vrtio_blkdev.c
-
-
-        len -= used_len;
-        if (!len)
-            break;
-    }*/
-
-    virtio_sync_used_idx(q, used_desc_idx);
-    q->last_avail_idx = avail_desc_idx;
-
-    /*
-     * Triggers the irq whenever there is no available buffer.
-     */
-    if (q->last_avail_idx == le16toh(q->avail->idx))
+    if (avail_desc_idx >= q->num)
+    {
+        avail_desc_idx -= q->num;
+        q->driver_wrap_counter = !q->driver_wrap_counter;
         send_irq = 1;
+    }
 
-    /*
-     * There are two rings: q->avail and q->used for each of the rx and tx
-     * queues that are used to pass buffers between kernel driver and the
-     * virtio device implementation.
-     *
-     * Kernel maitains the first one and appends buffers to it. In rx queue,
-     * it's empty buffers kernel offers to store received packets. In tx
-     * queue, it's buffers containing packets to transmit. Kernel notifies
-     * the device by mmio write (see VIRTIO_MMIO_QUEUE_NOTIFY below).
-     *
-     * The virtio device (here in this file) maintains the
-     * q->used and appends buffer to it after consuming it from q->avail.
-     *
-     * The device needs to notify the driver by triggering irq here. The
-     * LKL_VIRTIO_RING_F_EVENT_IDX is enabled in this implementation so
-     * kernel can set virtio_get_used_event(q) to tell the device to "only
-     * trigger the irq when this item in q->used ring is populated."
-     *
-     * Because driver and device are run in two different threads. When
-     * driver sets virtio_get_used_event(q), q->used->idx may already be
-     * increased to a larger one. So we need to trigger the irq when
-     * virtio_get_used_event(q) < q->used->idx.
-     *
-     * To avoid unnessary irqs for each packet after
-     * virtio_get_used_event(q) < q->used->idx, last_used_idx_signaled is
-     * stored and irq is only triggered if
-     * last_used_idx_signaled <= virtio_get_used_event(q) < q->used->idx
-     *
-     * This is what lkl_vring_need_event() checks and it evens covers the
-     * case when those numbers wrap up.
-     */
-    if (send_irq || lkl_vring_need_event(
-        le16toh(virtio_get_used_event(q)),
-        virtio_get_used_idx(q),
-        q->last_used_idx_signaled))
+    // Don't think we need to synchronise used
+    q->used_desc_idx = used_desc_idx;
+    q->avail_desc_idx = avail_desc_idx;
+
+
+    /**TODO*/
+    // Need to use event supression here - but in theory this should work
+    if (send_irq)
     {
-        q->last_used_idx_signaled = virtio_get_used_idx(q);
         virtio_deliver_irq(_req->dev);
     }
 }
@@ -506,10 +454,14 @@ static inline void virtio_set_avail_event(struct virtq* q, uint16_t val)
     *((uint16_t*)&q->used->ring[q->num]) = val;
 }
 
-/**Packed implementaiton: change this*/
-void virtio_set_queue_max_merge_len(struct virtio_dev* dev, int q, int len)
+void virtio_set_queue_max_merge_len_split(struct virtio_dev* dev, int q, int len)
 {
-    dev->queue[q].max_merge_len = len;
+    dev->split.queue[q].max_merge_len = len;
+}
+
+void virtio_set_queue_max_merge_len_packed(struct virtio_dev* dev, int q, int len)
+{
+    dev->packed.queue[q].max_merge_len = len;
 }
 
 /*

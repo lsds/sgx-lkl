@@ -36,9 +36,6 @@ static inline sgxlkl_host_disk_state_t* get_disk_config(uint8_t blkdev_id)
 /*
  * Virtio callback functions for processing virtio requests
  */
-/**
- * Packed implementation: double check if I need to change this later
- */
 static int blk_enqueue(struct virtio_dev* dev, int q, struct virtio_req* req)
 {
     struct virtio_blk_outhdr* h;

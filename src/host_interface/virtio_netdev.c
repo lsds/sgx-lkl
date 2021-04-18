@@ -656,7 +656,12 @@ int netdev_init(sgxlkl_host_state_t* host_state)
      * there are available up to 64KB in total len.
      */
     if (net_dev->dev.device_features & BIT(VIRTIO_NET_F_MRG_RXBUF))
-        virtio_set_queue_max_merge_len(&net_dev->dev, RX_QUEUE_IDX, 65536);
+    {
+        if (!packed_ring)
+            virtio_set_queue_max_merge_len_split(&net_dev->dev, RX_QUEUE_IDX, 65536);
+        else
+            virtio_set_queue_max_merge_len_packed(&net_dev->dev, RX_QUEUE_IDX, 65536);
+    }
 
     /* Register the netdev fd */
     register_net_device(net_dev, host_state->net_fd);
