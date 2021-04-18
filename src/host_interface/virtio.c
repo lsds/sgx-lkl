@@ -20,10 +20,10 @@ struct _virtio_req
 {
     union {
         struct {
-            virtq* q;
+            struct virtq* q;
         }split;
         struct {
-            virtq* q;
+            struct virtq_packed* q;
         }packed;
     };
     struct virtio_req req;
@@ -36,12 +36,12 @@ struct _virtio_req
  * packed_desc_is_avail: Check if the current descriptor
  *                       the driver is expected to fill in is available
  * q: pointer to a packed virtio queue
+ * desc: pointer to the vring descriptor
  */
-static int packed_desc_is_avail(struct virtq_packed* q)
+static int packed_desc_is_avail(struct virtq_packed *q, struct virtq_packed_desc* desc)
 {
-    struct virtq_packed_desc* desc = q->desc[q->avail_desc_idx & (q->num -1)];
-    uint16_t avail = desc->flags & KL_VRING_PACKED_DESC_F_AVAIL;
-    uint16_t used = desc->flags & KL_VRING_PACKED_DESC_F_USED;
+    uint16_t avail = desc->flags & LKL_VRING_PACKED_DESC_F_AVAIL;
+    uint16_t used = desc->flags & LKL_VRING_PACKED_DESC_F_USED;
     return avail != used && avail == q->driver_wrap_counter;
 }
 
@@ -136,8 +136,8 @@ static struct virtq_packed_desc* get_next_desc_packed(
     {
         if (++(*idx) == q->num_max)
             return NULL;
-        struct virtq_packed_desc* next_desc = q->desc[*idx & (q->num-1)];
-        packed_desc_is_avail(next_desc) ? next_desc : NULL;
+        struct virtq_packed_desc* next_desc = &q->desc[*idx & (q->num-1)];
+        packed_desc_is_avail(q,next_desc) ? next_desc : NULL;
     }
 
     if (!(desc->flags & LKL_VRING_DESC_F_NEXT))
@@ -172,7 +172,7 @@ static inline void virtio_add_used_packed(
     uint32_t len,
     uint16_t id)
 {
-    struct virtq_packed_desc* desc = q->desc[used_idx & (q->num -1)];
+    struct virtq_packed_desc* desc = &q->desc[used_idx & (q->num -1)];
     desc->id = id;
     desc->len = htole32(len);
     desc->flags |=
@@ -233,13 +233,13 @@ static inline void virtio_deliver_irq(struct virtio_dev* dev)
  * req: local virtio request buffer
  * len: length of the data processed
  */
-void virtio_req_complete_split(struct virtio_req* req, uint32_t len)
+static void virtio_req_complete_split(struct virtio_req* req, uint32_t len)
 {
     int send_irq = 0;
     struct _virtio_req* _req = container_of(req, struct _virtio_req, req);
     struct virtq* q = _req->split.q;
     uint16_t avail_idx = _req->idx;
-    uint16_t used_idx = virtio_get_used_idx(_req->split.q);
+    uint16_t used_idx = virtio_get_used_idx(q);
 
     /*
      * We've potentially used up multiple (non-chained) descriptors and have
@@ -315,7 +315,7 @@ void virtio_req_complete_split(struct virtio_req* req, uint32_t len)
  * req: local virtio request buffer
  * len: length of the data processed
  */
-void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
+static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
 {
     /**
      * Requirements for this:
@@ -337,18 +337,19 @@ void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     struct virtq_packed* q = _req->packed.q;
     uint16_t avail_desc_idx = _req->idx;
     uint16_t used_desc_idx = q->used_desc_idx;
-    uint16_t last_buffer_idx = avail_desc_idx+(req->buff_count-1);
+    uint16_t last_buffer_idx = avail_desc_idx+(req->buf_count-1);
     uint16_t used_len;
+
     if (!q->max_merge_len)
         used_len = len;
     else
-        used_len = min_len(len, req->buf[req->buff_count-1].iov_len);
+        used_len = min_len(len, req->buf[req->buf_count-1].iov_len);
 
-    struct virtq_packed_desc* desc = q->desc[last_buffer_idx & (q->num -1)];
+    struct virtq_packed_desc* desc = &q->desc[last_buffer_idx & (q->num -1)];
     virtio_add_used_packed(q, used_desc_idx, used_len, desc->id);
 
-    used_desc_idx += req->buff_count;
-    avail_desc_idx += req->buff_count;
+    used_desc_idx += req->buf_count;
+    avail_desc_idx += req->buf_count;
 
     if (used_desc_idx >= q->num)
     {
@@ -394,7 +395,7 @@ void virtio_req_complete(struct virtio_req* req, uint32_t len)
  */
 static int virtio_process_one_split(struct virtio_dev* dev, int qidx)
 {
-    struct virtq* q = &dev->queue[qidx];
+    struct virtq* q = &dev->split.queue[qidx];
     uint16_t idx = q->last_avail_idx;
 
     struct _virtio_req _req = {
@@ -425,7 +426,7 @@ static int virtio_process_one_split(struct virtio_dev* dev, int qidx)
  */
 static int virtio_process_one_packed(struct virtio_dev* dev, int qidx)
 {
-    struct virtq_packed* q = &dev->queue[qidx];
+    struct virtq_packed* q = &dev->packed.queue[qidx];
     uint16_t idx = q->avail_desc_idx;
 
     struct _virtio_req _req = {
@@ -435,7 +436,7 @@ static int virtio_process_one_packed(struct virtio_dev* dev, int qidx)
     };
 
     struct virtio_req* req = &_req.req;
-    struct virtq_packed_desc* desc = q->desc[idx & (q->num - 1)];
+    struct virtq_packed_desc* desc = &q->desc[idx & (q->num - 1)];
     do
     {
         add_dev_buf_from_vring_desc_packed(req, desc);
@@ -454,14 +455,20 @@ static inline void virtio_set_avail_event(struct virtq* q, uint16_t val)
     *((uint16_t*)&q->used->ring[q->num]) = val;
 }
 
-void virtio_set_queue_max_merge_len_split(struct virtio_dev* dev, int q, int len)
+static void virtio_set_queue_max_merge_len_split(struct virtio_dev* dev, int q, int len)
 {
     dev->split.queue[q].max_merge_len = len;
 }
 
-void virtio_set_queue_max_merge_len_packed(struct virtio_dev* dev, int q, int len)
+static void virtio_set_queue_max_merge_len_packed(struct virtio_dev* dev, int q, int len)
 {
     dev->packed.queue[q].max_merge_len = len;
+}
+
+void virtio_set_queue_max_merge_len(struct virtio_dev* dev, int q, int len)
+{
+    packed_ring ? virtio_set_queue_max_merge_len_packed(dev, q, len) :
+                  virtio_set_queue_max_merge_len_split(dev, q, len);
 }
 
 /*
@@ -470,7 +477,7 @@ void virtio_set_queue_max_merge_len_packed(struct virtio_dev* dev, int q, int le
  * qidx: queue index to be processed
  * fd: disk file descriptor
  */
-void virtio_process_queue_split(struct virtio_dev* dev, uint32_t qidx)
+static void virtio_process_queue_split(struct virtio_dev* dev, uint32_t qidx)
 {
     struct virtq* q = &dev->split.queue[qidx];
 
@@ -499,7 +506,7 @@ void virtio_process_queue_split(struct virtio_dev* dev, uint32_t qidx)
  * qidx: queue index to be processed
  * fd: disk file descriptor
  */
-void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
+static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
 {
     struct virtq_packed* q = &dev->packed.queue[qidx];
 
@@ -510,7 +517,7 @@ void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
         dev->ops->acquire_queue(dev, qidx);
 
     // Have some loop that keeps going until we hit a desc that's not available
-    while (packed_desc_is_avail(q))
+    while (packed_desc_is_avail(q,&q->desc[q->avail_desc_idx & (q->num-1)]))
     {
         // Need to process desc here
         // Possible make some process_one_packed

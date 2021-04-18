@@ -32,6 +32,10 @@ bool packed_ring = true;
 bool packed_ring = false;
 #endif
 
+#ifdef DEBUG
+#include <openenclave/internal/print.h>
+#endif
+
 /* Used for notifying LKL for the list of virtio devices at bootup.
  * Currently block, network and console devices are passed */
 char lkl_virtio_devs[4096];
@@ -92,6 +96,11 @@ static int virtio_read(void* data, int offset, void* res, int size)
      */
     uint32_t val = 0;
     struct virtio_dev* dev = (struct virtio_dev*)data;
+
+    if (packed_ring)
+    {
+       oe_host_printf("This is a packed ring\n");
+    }
 
     if (offset >= VIRTIO_MMIO_CONFIG)
     {

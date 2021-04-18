@@ -657,10 +657,7 @@ int netdev_init(sgxlkl_host_state_t* host_state)
      */
     if (net_dev->dev.device_features & BIT(VIRTIO_NET_F_MRG_RXBUF))
     {
-        if (!packed_ring)
-            virtio_set_queue_max_merge_len_split(&net_dev->dev, RX_QUEUE_IDX, 65536);
-        else
-            virtio_set_queue_max_merge_len_packed(&net_dev->dev, RX_QUEUE_IDX, 65536);
+        virtio_set_queue_max_merge_len(&net_dev->dev, RX_QUEUE_IDX, 65536);
     }
 
     /* Register the netdev fd */

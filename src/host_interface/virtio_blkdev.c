@@ -118,7 +118,7 @@ int blk_device_init(
     if (!packed_ring)
         vq_size = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq);
     else
-        vq_sze = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq_packed);
+        vq_size = HOST_BLK_DEV_NUM_QUEUES * sizeof(struct virtq_packed);
 
     /*Allocate memory for block device*/
     bdev_size = next_pow2(bdev_size);
