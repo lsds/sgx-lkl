@@ -26,6 +26,12 @@
 #undef BIT
 #define BIT(x) (1ULL << x)
 
+#ifdef PACKED_RING
+bool packed_ring = true;
+#else
+bool packed_ring = false;
+#endif
+
 /* Used for notifying LKL for the list of virtio devices at bootup.
  * Currently block, network and console devices are passed */
 char lkl_virtio_devs[4096];
@@ -123,10 +129,12 @@ static int virtio_read(void* data, int offset, void* res, int size)
          * host-write-once
          */
         case VIRTIO_MMIO_QUEUE_NUM_MAX:
-            val = dev->queue[dev->queue_sel].num_max;
+            val = packed_ring ? dev->packed.queue[dev->queue_sel].num_max :
+                                dev->split.queue[dev->queue_sel].num_max;
             break;
         case VIRTIO_MMIO_QUEUE_READY:
-            val = dev->queue[dev->queue_sel].ready;
+            val = packed_ring ? dev->packed.queue[dev->queue_sel].ready :
+                                dev->split.queue[dev->queue_sel].ready;
             break;
         /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_STATUS:
@@ -258,8 +266,8 @@ static int virtio_write(void* data, int offset, void* res, int size)
      * structure). virtq desc and avail ring address handling is a special case.
      */
     struct virtio_dev* dev = (struct virtio_dev*)data;
-    /* Security Review: dev->queue_sel should be host-read-only */
-    struct virtq* q = &dev->queue[dev->queue_sel];
+    struct virtq* split_q = packed_ring ? NULL : &dev->split.queue[dev->queue_sel];
+    struct virtq_packed* packed_q = packed_ring ? &dev->packed.queue[dev->queue_sel] : NULL;
     uint32_t val;
     int ret = 0;
 
@@ -307,12 +315,18 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * host-read-only
          */
         case VIRTIO_MMIO_QUEUE_NUM:
-            dev->queue[dev->queue_sel].num = val;
+            if (packed_ring)
+                dev->packed.queue[dev->queue_sel].num = val;
+            else
+                dev->split.queue[dev->queue_sel].num = val;
             break;
         /* Security Review: is dev->queue[dev->queue_sel].ready host-read-only?
          */
         case VIRTIO_MMIO_QUEUE_READY:
-            dev->queue[dev->queue_sel].ready = val;
+            if (packed_ring)
+                dev->packed.queue[dev->queue_sel].ready = val;
+            else
+                dev->split.queue[dev->queue_sel].ready = val;
             break;
         /* Security Review: guest virtio driver(s) writes to virtq desc ring and
          * avail ring in guest memory. In queue notify flow, we need to copy the
@@ -346,10 +360,16 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * be required.
          */
         case VIRTIO_MMIO_QUEUE_DESC_LOW:
-            set_ptr_low((_Atomic(uint64_t)*)&q->desc, val);
+            if (packed_ring)
+                set_ptr_low((_Atomic(uint64_t)*)&packed_q->desc, val);
+            else
+                set_ptr_low((_Atomic(uint64_t)*)&split_q->desc, val);
             break;
         case VIRTIO_MMIO_QUEUE_DESC_HIGH:
-            set_ptr_high((_Atomic(uint64_t)*)&q->desc, val);
+            if (packed_ring)
+                set_ptr_high((_Atomic(uint64_t)*)&packed_q->desc, val);
+            else
+                set_ptr_high((_Atomic(uint64_t)*)&split_q->desc, val);
             break;
         /* Security Review: For Split Queue, q->avail link list content should be
          * host-read-only. The Split Queue implementaiton
@@ -364,10 +384,12 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * to it.
          */
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
-            set_ptr_low((_Atomic(uint64_t)*)&q->avail, val);
+            if (!packed_ring)
+                set_ptr_low((_Atomic(uint64_t)*)&split_q->avail, val);
             break;
         case VIRTIO_MMIO_QUEUE_AVAIL_HIGH:
-            set_ptr_high((_Atomic(uint64_t)*)&q->avail, val);
+            if (!packed_ring)
+                set_ptr_high((_Atomic(uint64_t)*)&split_q->avail, val);
             break;
         /* Security Review: For Split Queue, q->used link list content should be
          * guest-read-only. The Split Queue implementaiton in guest side virtio
@@ -382,10 +404,12 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * functionality.
          */
         case VIRTIO_MMIO_QUEUE_USED_LOW:
-            set_ptr_low((_Atomic(uint64_t)*)&q->used, val);
+            if (!packed_ring)
+                set_ptr_low((_Atomic(uint64_t)*)&split_q->used, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_HIGH:
-            set_ptr_high((_Atomic(uint64_t)*)&q->used, val);
+            if (!packed_ring)
+                set_ptr_high((_Atomic(uint64_t)*)&split_q->used, val);
             break;
         default:
             ret = -1;
