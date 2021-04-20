@@ -616,6 +616,33 @@ int netdev_init(sgxlkl_host_state_t* host_state)
             net_dev->dev.packed.queue[i].num_max = QUEUE_DEPTH;
             net_dev->dev.packed.queue[i].device_wrap_counter = 1;
             net_dev->dev.packed.queue[i].driver_wrap_counter = 1;
+            net_dev->dev.packed.queue[i].driver = mmap(
+                0,
+                event_size,
+                PROT_READ,
+                MAP_SHARED | MAP_ANONYMOUS,
+                -1,
+                0
+            );
+            if (!net_dev->dev.packed.queue[i].driver)
+            {
+                sgxlkl_host_fail("%s: block device queue descriptor event allocation failed\n", __func__);
+                return -1;
+            }
+            net_dev->dev.packed.queue[i].device = mmap(
+                0,
+                event_size,
+                PROT_WRITE,
+                MAP_SHARED | MAP_ANONYMOUS,
+                -1,
+                0
+            );
+            if (!net_dev->dev.packed.queue[i].device)
+            {
+                sgxlkl_host_fail("%s: block device queue descriptor event allocation failed\n", __func__);
+                return -1;
+            }
+            net_dev->dev.packed.queue[i].device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;
         }
     }
 

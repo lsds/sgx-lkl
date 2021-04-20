@@ -113,6 +113,7 @@ int blk_device_init(
     void* vq_mem = NULL;
     struct virtio_blk_dev* host_blk_device = NULL;
     size_t bdev_size = sizeof(struct virtio_blk_dev);
+    size_t event_size = sizeof(struct virtq_packed_desc_event);
     size_t vq_size;
 
     if (!packed_ring)
@@ -167,6 +168,33 @@ int blk_device_init(
             host_blk_device->dev.packed.queue[i].num_max = HOST_BLK_DEV_QUEUE_DEPTH;
             host_blk_device->dev.packed.queue[i].device_wrap_counter = true;
             host_blk_device->dev.packed.queue[i].driver_wrap_counter = true;
+            host_blk_device->dev.packed.queue[i].driver = mmap(
+                0,
+                event_size,
+                PROT_READ,
+                MAP_SHARED | MAP_ANONYMOUS,
+                -1,
+                0
+            );
+            if (!host_blk_device->dev.packed.queue[i].driver)
+            {
+                sgxlkl_host_fail("%s: block device queue descriptor event allocation failed\n", __func__);
+                return -1;
+            }
+            host_blk_device->dev.packed.queue[i].device = mmap(
+                0,
+                event_size,
+                PROT_WRITE,
+                MAP_SHARED | MAP_ANONYMOUS,
+                -1,
+                0
+            );
+            if (!host_blk_device->dev.packed.queue[i].device)
+            {
+                sgxlkl_host_fail("%s: block device queue descriptor event allocation failed\n", __func__);
+                return -1;
+            }
+            host_blk_device->dev.packed.queue[i].device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;
         }
     }
 

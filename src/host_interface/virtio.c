@@ -371,6 +371,7 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
 
     /**TODO*/
     // Need to use event supression here - but in theory this should work
+    // Read from driver event
     if (send_irq)
     {
         virtio_deliver_irq(_req->dev);
@@ -516,6 +517,7 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
     if (dev->ops->acquire_queue)
         dev->ops->acquire_queue(dev, qidx);
 
+    // TODO - might need to check driver and see if we need to process a specific descriptor
     // Have some loop that keeps going until we hit a desc that's not available
     while (packed_desc_is_avail(q,&q->desc[q->avail_desc_idx & (q->num-1)]))
     {
