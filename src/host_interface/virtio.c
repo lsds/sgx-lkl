@@ -7,6 +7,7 @@
 #include <host/virtio_blkdev.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <stdio.h>
 
 #define min_len(a, b) (a < b ? a : b)
 
@@ -40,8 +41,9 @@ struct _virtio_req
  */
 static int packed_desc_is_avail(struct virtq_packed *q, struct virtq_packed_desc* desc)
 {
-    uint16_t avail = desc->flags & (1 << LKL_VRING_PACKED_DESC_F_AVAIL);
-    uint16_t used = desc->flags & (1 << LKL_VRING_PACKED_DESC_F_USED);
+    bool avail = !!(desc->flags & (1 << LKL_VRING_PACKED_DESC_F_AVAIL));
+    bool used = !!(desc->flags & (1 << LKL_VRING_PACKED_DESC_F_USED));
+    printf("Flags is %d %d %d %d\n", desc->flags, avail, used, q->driver_wrap_counter);
     return avail != used && avail == q->driver_wrap_counter;
 }
 
@@ -340,6 +342,8 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     uint16_t last_buffer_idx = avail_desc_idx+(req->buf_count-1);
     uint16_t used_len;
 
+    printf("Request complete. %d\n", q->num);
+
     if (!q->max_merge_len)
         used_len = len;
     else
@@ -361,6 +365,7 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     {
         avail_desc_idx -= q->num;
         q->driver_wrap_counter = !q->driver_wrap_counter;
+        //printf("Changing wrapper\n");
         send_irq = 1;
     }
 
@@ -372,8 +377,10 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     /**TODO*/
     // Need to use event supression here - but in theory this should work
     // Read from driver event
-    if (send_irq)
+    if (send_irq && (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_ENABLE ||
+        q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_DESC))
     {
+        //printf("Delivering irq\n");
         virtio_deliver_irq(_req->dev);
     }
 }
@@ -517,10 +524,15 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
     if (dev->ops->acquire_queue)
         dev->ops->acquire_queue(dev, qidx);
 
+    printf("Processing queue %d %d %d %d\n", q->avail_desc_idx, q->num, q->desc[q->avail_desc_idx].flags, q->driver->flags);
+
+    q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_DISABLE;
+
     // TODO - might need to check driver and see if we need to process a specific descriptor
     // Have some loop that keeps going until we hit a desc that's not available
     while (packed_desc_is_avail(q,&q->desc[q->avail_desc_idx & (q->num-1)]))
     {
+        printf("Processing now\n");
         // Need to process desc here
         // Possible make some process_one_packed
         // Question is what else do I include in this statement
@@ -528,6 +540,7 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
             break;
     }
 
+    q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;
     if (dev->ops->release_queue)
         dev->ops->release_queue(dev, qidx);
 }

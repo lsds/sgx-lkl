@@ -89,8 +89,8 @@ struct virtq_packed
 
     //Add supression flags where necessary
     _Atomic(struct virtq_packed_desc*) desc;
-    struct virtq_packed_desc_event* driver;
-    struct virtq_packed_desc_event* device;
+    _Atomic(struct virtq_packed_desc_event*) driver;
+    _Atomic(struct virtq_packed_desc_event*) device;
     bool device_wrap_counter; //Initialise to 1, flip when we change last descriptor as used
     bool driver_wrap_counter; //Initialise to 1 and flip when when avail_desc_idx becomes greater than queue and we need to wrap around it
     uint16_t avail_desc_idx; //We increment this for each avail event we process
