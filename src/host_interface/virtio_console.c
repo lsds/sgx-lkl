@@ -228,6 +228,7 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
     void* console_vq_mem = NULL;
 
     size_t host_console_size = next_pow2(sizeof(struct virtio_console_dev));
+    size_t event_size = next_pow2(sizeof(struct virtq_packed_desc_event));
     size_t console_vq_size;
 
     if (!packed_ring)

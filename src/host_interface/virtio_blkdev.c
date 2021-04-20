@@ -113,7 +113,7 @@ int blk_device_init(
     void* vq_mem = NULL;
     struct virtio_blk_dev* host_blk_device = NULL;
     size_t bdev_size = sizeof(struct virtio_blk_dev);
-    size_t event_size = sizeof(struct virtq_packed_desc_event);
+    size_t event_size = next_pow2(sizeof(struct virtq_packed_desc_event));
     size_t vq_size;
 
     if (!packed_ring)

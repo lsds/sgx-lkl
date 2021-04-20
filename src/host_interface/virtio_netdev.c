@@ -551,6 +551,7 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     mac[0] &= 0xfe;
 
     size_t host_netdev_size = next_pow2(sizeof(struct virtio_net_dev));
+    size_t event_size = next_pow2(sizeof(struct virtq_packed_desc_event));
 
     if (!packed_ring)
         netdev_vq_size = NUM_QUEUES * sizeof(struct virtq);
