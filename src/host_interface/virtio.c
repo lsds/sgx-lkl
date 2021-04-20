@@ -40,8 +40,8 @@ struct _virtio_req
  */
 static int packed_desc_is_avail(struct virtq_packed *q, struct virtq_packed_desc* desc)
 {
-    uint16_t avail = desc->flags & LKL_VRING_PACKED_DESC_F_AVAIL;
-    uint16_t used = desc->flags & LKL_VRING_PACKED_DESC_F_USED;
+    uint16_t avail = desc->flags & (1 << LKL_VRING_PACKED_DESC_F_AVAIL);
+    uint16_t used = desc->flags & (1 << LKL_VRING_PACKED_DESC_F_USED);
     return avail != used && avail == q->driver_wrap_counter;
 }
 
