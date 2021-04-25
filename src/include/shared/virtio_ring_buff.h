@@ -95,6 +95,5 @@ struct virtq_packed
     bool driver_wrap_counter; //Initialise to 1 and flip when when avail_desc_idx becomes greater than queue and we need to wrap around it
     uint16_t avail_desc_idx; //We increment this for each avail event we process
     uint16_t used_desc_idx;
-    bool unprocessed_used_desc;
 };
 #endif

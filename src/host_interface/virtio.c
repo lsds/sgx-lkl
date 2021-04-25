@@ -184,9 +184,18 @@ static inline void virtio_add_used_packed(
     struct virtq_packed_desc* desc = &q->desc[used_idx & (q->num -1)];
     desc->id = id;
     desc->len = htole32(len);
-    desc->flags |=
-        q->device_wrap_counter << LKL_VRING_PACKED_DESC_F_AVAIL |
-        q->device_wrap_counter << LKL_VRING_PACKED_DESC_F_USED;
+    if (q->device_wrap_counter == 1)
+    {
+        desc->flags |= 1 << LKL_VRING_PACKED_DESC_F_AVAIL |
+                       1 << LKL_VRING_PACKED_DESC_F_USED;
+    }
+    else
+    {
+        uint16_t avail_set_zero = 1 << LKL_VRING_PACKED_DESC_F_AVAIL;
+        uint16_t used_set_zero = 1 << LKL_VRING_PACKED_DESC_F_USED;
+        desc->flags &=
+            ~avail_set_zero & ~used_set_zero;
+    }
     desc->flags = htole16(desc->flags);
 }
 
@@ -341,7 +350,6 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
         whose request is chained, and the same with network device
         (and I assume the same for console)
      */
-    int send_irq = 0;
     struct _virtio_req* _req = container_of(req, struct _virtio_req, req);
     struct virtq_packed* q = _req->packed.q;
     uint16_t avail_desc_idx = _req->idx;
@@ -350,7 +358,7 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     uint16_t used_len;
 
 #ifdef DEBUG
-    printf("\nRequest complete. queue num: %d, flags: %d, driver flag: %d, req avail index: %d, ring avail index: %d, ring used index: %d, counter: %d\n", q->num, q->desc[avail_desc_idx].flags, q->driver->flags, avail_desc_idx, q->avail_desc_idx, used_desc_idx, counter);
+    printf("\nRequest complete. queue num: %d, flags: %d, driver flag: %d, req avail index: %d, ring avail index: %d, ring used index: %d, device wrap counter: %d, counter: %d\n", q->num, q->desc[avail_desc_idx].flags, q->driver->flags, avail_desc_idx, q->avail_desc_idx, used_desc_idx, q->device_wrap_counter, counter);
 #endif
 
     if (!q->max_merge_len)
@@ -377,7 +385,6 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
 #ifdef DEBUG
         printf("Changing wrapper\n");
 #endif
-        send_irq = 1;
     }
 
     // Don't think we need to synchronise used
@@ -388,17 +395,14 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     /**TODO*/
     // Need to use event supression here - but in theory this should work
     // Read from driver event
-    if (send_irq && (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_ENABLE ||
-        q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_DESC))
+    if (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_ENABLE ||
+        q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_DESC)
     {
 #ifdef DEBUG
         printf("Delivering irq\n");
 #endif
         virtio_deliver_irq(_req->dev);
-        q->unprocessed_used_desc = false;
     }
-    else
-        q->unprocessed_used_desc = true;
 }
 
 /*
@@ -536,7 +540,6 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
     counter++;
 #endif
     struct virtq_packed* q = &dev->packed.queue[qidx];
-    bool looped_once = false;
 
     if (!q->ready)
         return;
@@ -544,7 +547,7 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
     if (dev->ops->acquire_queue)
         dev->ops->acquire_queue(dev, qidx);
 #ifdef DEBUG
-    if (counter)
+    if (counter < 5)
     {
         printf("The qidx: \n");
         printf(
@@ -567,22 +570,11 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
     // Have some loop that keeps going until we hit a desc that's not available
     while (packed_desc_is_avail(q,&q->desc[q->avail_desc_idx & (q->num-1)]))
     {
-        looped_once = true;
         // Need to process desc here
         // Possible make some process_one_packed
         // Question is what else do I include in this statement
         if (virtio_process_one_packed(dev, qidx) < 0)
             break;
-    }
-
-    // Driver must be awaiting some used desc responses we've not yet sent
-    if (looped_once && q->unprocessed_used_desc)
-    {
-#ifdef DEBUG
-        printf("Delivering irq  special\n");
-#endif
-        virtio_deliver_irq(dev);
-        q->unprocessed_used_desc = true;
     }
 
     q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;
