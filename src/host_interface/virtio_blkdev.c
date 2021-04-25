@@ -168,6 +168,7 @@ int blk_device_init(
             host_blk_device->dev.packed.queue[i].num_max = HOST_BLK_DEV_QUEUE_DEPTH;
             host_blk_device->dev.packed.queue[i].device_wrap_counter = 1;
             host_blk_device->dev.packed.queue[i].driver_wrap_counter = 1;
+            host_blk_device->dev.packed.queue[i].unprocessed_used_desc = false;
             host_blk_device->dev.packed.queue[i].driver = mmap(
                 0,
                 event_size,

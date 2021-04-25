@@ -17,6 +17,10 @@ bool packed_ring = true;
 bool packed_ring = false;
 #endif
 
+#ifdef DEBUG
+static int counter = 0;
+#endif
+
 struct _virtio_req
 {
     union {
@@ -43,7 +47,10 @@ static int packed_desc_is_avail(struct virtq_packed *q, struct virtq_packed_desc
 {
     bool avail = !!(desc->flags & (1 << LKL_VRING_PACKED_DESC_F_AVAIL));
     bool used = !!(desc->flags & (1 << LKL_VRING_PACKED_DESC_F_USED));
-    printf("Flags is %d %d %d %d\n", desc->flags, avail, used, q->driver_wrap_counter);
+#ifdef DEBUG
+    if (counter < 5)
+        printf("Flags is %d %d %d %d\n", desc->flags, avail, used, q->driver_wrap_counter);
+#endif
     return avail != used && avail == q->driver_wrap_counter;
 }
 
@@ -342,7 +349,9 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     uint16_t last_buffer_idx = avail_desc_idx+(req->buf_count-1);
     uint16_t used_len;
 
-    printf("Request complete. %d\n", q->num);
+#ifdef DEBUG
+    printf("\nRequest complete. queue num: %d, flags: %d, driver flag: %d, req avail index: %d, ring avail index: %d, ring used index: %d, counter: %d\n", q->num, q->desc[avail_desc_idx].flags, q->driver->flags, avail_desc_idx, q->avail_desc_idx, used_desc_idx, counter);
+#endif
 
     if (!q->max_merge_len)
         used_len = len;
@@ -365,7 +374,9 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     {
         avail_desc_idx -= q->num;
         q->driver_wrap_counter = !q->driver_wrap_counter;
-        //printf("Changing wrapper\n");
+#ifdef DEBUG
+        printf("Changing wrapper\n");
+#endif
         send_irq = 1;
     }
 
@@ -380,9 +391,14 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     if (send_irq && (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_ENABLE ||
         q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_DESC))
     {
-        //printf("Delivering irq\n");
+#ifdef DEBUG
+        printf("Delivering irq\n");
+#endif
         virtio_deliver_irq(_req->dev);
+        q->unprocessed_used_desc = false;
     }
+    else
+        q->unprocessed_used_desc = true;
 }
 
 /*
@@ -516,28 +532,57 @@ static void virtio_process_queue_split(struct virtio_dev* dev, uint32_t qidx)
  */
 static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
 {
+#ifdef DEBUG
+    counter++;
+#endif
     struct virtq_packed* q = &dev->packed.queue[qidx];
+    bool looped_once = false;
 
     if (!q->ready)
         return;
 
     if (dev->ops->acquire_queue)
         dev->ops->acquire_queue(dev, qidx);
+#ifdef DEBUG
+    if (counter)
+    {
+        printf("The qidx: \n");
+        printf(
+            "Processing queue %d %d %d %d\n",
+            q->avail_desc_idx,
+            q->num,
+            q->desc[q->avail_desc_idx].flags,
+            q->driver->flags);
+        printf("Rest: \n");
 
-    printf("Processing queue %d %d %d %d\n", q->avail_desc_idx, q->num, q->desc[q->avail_desc_idx].flags, q->driver->flags);
-
+        for (int i = 0; i < q->num; i++)
+        {
+            printf("desc num: %d Flag: %d\n",i, q->desc[i].flags);
+        }
+    }
+#endif
     q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_DISABLE;
 
     // TODO - might need to check driver and see if we need to process a specific descriptor
     // Have some loop that keeps going until we hit a desc that's not available
     while (packed_desc_is_avail(q,&q->desc[q->avail_desc_idx & (q->num-1)]))
     {
-        printf("Processing now\n");
+        looped_once = true;
         // Need to process desc here
         // Possible make some process_one_packed
         // Question is what else do I include in this statement
         if (virtio_process_one_packed(dev, qidx) < 0)
             break;
+    }
+
+    // Driver must be awaiting some used desc responses we've not yet sent
+    if (looped_once && q->unprocessed_used_desc)
+    {
+#ifdef DEBUG
+        printf("Delivering irq  special\n");
+#endif
+        virtio_deliver_irq(dev);
+        q->unprocessed_used_desc = true;
     }
 
     q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;

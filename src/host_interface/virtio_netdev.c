@@ -617,6 +617,7 @@ int netdev_init(sgxlkl_host_state_t* host_state)
             net_dev->dev.packed.queue[i].num_max = QUEUE_DEPTH;
             net_dev->dev.packed.queue[i].device_wrap_counter = 1;
             net_dev->dev.packed.queue[i].driver_wrap_counter = 1;
+            net_dev->dev.packed.queue[i].unprocessed_used_desc = false;
             net_dev->dev.packed.queue[i].driver = mmap(
                 0,
                 event_size,

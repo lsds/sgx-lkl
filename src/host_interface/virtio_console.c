@@ -298,6 +298,7 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
             dev->packed.queue[i].num_max = QUEUE_DEPTH;
             dev->packed.queue[i].device_wrap_counter = 1;
             dev->packed.queue[i].driver_wrap_counter = 1;
+            dev->packed.queue[i].unprocessed_used_desc = false;
             dev->packed.queue[i].driver = mmap(
                 0,
                 event_size,
