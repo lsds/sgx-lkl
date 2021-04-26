@@ -17,10 +17,6 @@ bool packed_ring = true;
 bool packed_ring = false;
 #endif
 
-#ifdef DEBUG
-static int counter = 0;
-#endif
-
 struct _virtio_req
 {
     union {
@@ -47,10 +43,6 @@ static int packed_desc_is_avail(struct virtq_packed *q, struct virtq_packed_desc
 {
     bool avail = !!(desc->flags & (1 << LKL_VRING_PACKED_DESC_F_AVAIL));
     bool used = !!(desc->flags & (1 << LKL_VRING_PACKED_DESC_F_USED));
-#ifdef DEBUG
-    if (counter < 5)
-        printf("Flags is %d %d %d %d\n", desc->flags, avail, used, q->driver_wrap_counter);
-#endif
     return avail != used && avail == q->driver_wrap_counter;
 }
 
@@ -154,15 +146,14 @@ static struct virtq_packed_desc* get_next_desc_packed(
     return &q->desc[++(*idx) & (q->num - 1)];
 }
 
-
 /*
- * virtio_add_used: update used ring at used index with used discriptor index
+ * virtio_add_used_split: update used ring at used index with used discriptor index
  * q : input parameter
  * used_idx : input parameter
  * avail_idx: input parameter
  * len : input parameter
  */
-static inline void virtio_add_used(
+static inline void virtio_add_used_split(
     struct virtq* q,
     uint16_t used_idx,
     uint16_t avail_idx,
@@ -181,6 +172,7 @@ static inline void virtio_add_used_packed(
     uint32_t len,
     uint16_t id)
 {
+    __sync_synchronize();
     struct virtq_packed_desc* desc = &q->desc[used_idx & (q->num -1)];
     desc->id = id;
     desc->len = htole32(len);
@@ -272,7 +264,7 @@ static void virtio_req_complete_split(struct virtio_req* req, uint32_t len)
         else
             used_len = min_len(len, req->buf[i].iov_len);
 
-        virtio_add_used(q, used_idx++, avail_idx++, used_len);
+        virtio_add_used_split(q, used_idx++, avail_idx++, used_len);
 
         len -= used_len;
         if (!len)
@@ -342,24 +334,17 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
      *  avail_desc_idx and used_desc_idx to be incremented and wrapped around as appropriate
      *  changing the wrap counters when the above are wrapped around
      *
-
-        This function only gets called either with chained descriptors,
-        or max_merge_len (which I assume would also be chained descriptors).
-
-        I know this as for example it gets called from blk_enqueue,
-        whose request is chained, and the same with network device
-        (and I assume the same for console)
+     *  This function only gets called either with chained descriptors,
+     *  or max_merge_len (which I assume would also be chained descriptors).
      */
+    int send_irq = 0;
     struct _virtio_req* _req = container_of(req, struct _virtio_req, req);
     struct virtq_packed* q = _req->packed.q;
     uint16_t avail_desc_idx = _req->idx;
     uint16_t used_desc_idx = q->used_desc_idx;
+    uint16_t prev_used_desc_idx = used_desc_idx;
     uint16_t last_buffer_idx = avail_desc_idx+(req->buf_count-1);
-    uint16_t used_len;
-
-#ifdef DEBUG
-    printf("\nRequest complete. queue num: %d, flags: %d, driver flag: %d, req avail index: %d, ring avail index: %d, ring used index: %d, device wrap counter: %d, counter: %d\n", q->num, q->desc[avail_desc_idx].flags, q->driver->flags, avail_desc_idx, q->avail_desc_idx, used_desc_idx, q->device_wrap_counter, counter);
-#endif
+    uint16_t used_len, event_idx;
 
     if (!q->max_merge_len)
         used_len = len;
@@ -382,27 +367,29 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
     {
         avail_desc_idx -= q->num;
         q->driver_wrap_counter = !q->driver_wrap_counter;
-#ifdef DEBUG
-        printf("Changing wrapper\n");
-#endif
     }
 
-    // Don't think we need to synchronise used
     q->used_desc_idx = used_desc_idx;
     q->avail_desc_idx = avail_desc_idx;
 
+    if (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_ENABLE)
+        send_irq = 1;
 
-    /**TODO*/
-    // Need to use event supression here - but in theory this should work
-    // Read from driver event
-    if (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_ENABLE ||
-        q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_DESC)
+    else if (q->driver->flags == LKL_VRING_PACKED_EVENT_FLAG_DESC)
     {
-#ifdef DEBUG
-        printf("Delivering irq\n");
-#endif
-        virtio_deliver_irq(_req->dev);
+        event_idx = q->driver->off_wrap & ~(1 << LKL_VRING_PACKED_EVENT_F_WRAP_CTR);
+        //Check if event_idx has been set as used used
+        // old_used event new_used
+        // new_used old_used event
+        // new_used event old_used (X)
+        // event old_used new_used (X)
+        if ((used_desc_idx > event_idx && event_idx >= prev_used_desc_idx) ||
+            (used_desc_idx < prev_used_desc_idx && prev_used_desc_idx <= event_idx))
+            send_irq = 1;
     }
+
+    if (send_irq)
+        virtio_deliver_irq(_req->dev);
 }
 
 /*
@@ -536,9 +523,6 @@ static void virtio_process_queue_split(struct virtio_dev* dev, uint32_t qidx)
  */
 static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
 {
-#ifdef DEBUG
-    counter++;
-#endif
     struct virtq_packed* q = &dev->packed.queue[qidx];
 
     if (!q->ready)
@@ -546,28 +530,10 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
 
     if (dev->ops->acquire_queue)
         dev->ops->acquire_queue(dev, qidx);
-#ifdef DEBUG
-    if (counter < 5)
-    {
-        printf("The qidx: \n");
-        printf(
-            "Processing queue %d %d %d %d\n",
-            q->avail_desc_idx,
-            q->num,
-            q->desc[q->avail_desc_idx].flags,
-            q->driver->flags);
-        printf("Rest: \n");
 
-        for (int i = 0; i < q->num; i++)
-        {
-            printf("desc num: %d Flag: %d\n",i, q->desc[i].flags);
-        }
-    }
-#endif
+    __sync_synchronize();
     q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_DISABLE;
 
-    // TODO - might need to check driver and see if we need to process a specific descriptor
-    // Have some loop that keeps going until we hit a desc that's not available
     while (packed_desc_is_avail(q,&q->desc[q->avail_desc_idx & (q->num-1)]))
     {
         // Need to process desc here
@@ -577,7 +543,9 @@ static void virtio_process_queue_packed(struct virtio_dev* dev, uint32_t qidx)
             break;
     }
 
+    __sync_synchronize();
     q->device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;
+
     if (dev->ops->release_queue)
         dev->ops->release_queue(dev, qidx);
 }

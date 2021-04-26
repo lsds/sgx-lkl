@@ -97,11 +97,6 @@ static int virtio_read(void* data, int offset, void* res, int size)
     uint32_t val = 0;
     struct virtio_dev* dev = (struct virtio_dev*)data;
 
-    if (packed_ring)
-    {
-       oe_host_printf("This is a packed ring\n");
-    }
-
     if (offset >= VIRTIO_MMIO_CONFIG)
     {
         offset -= VIRTIO_MMIO_CONFIG;
@@ -393,11 +388,15 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * to it.
          */
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
-            if (!packed_ring)
+            if (packed_ring)
+                set_ptr_low((_Atomic(uint64_t)*)&packed_q->driver, val);
+            else
                 set_ptr_low((_Atomic(uint64_t)*)&split_q->avail, val);
             break;
         case VIRTIO_MMIO_QUEUE_AVAIL_HIGH:
-            if (!packed_ring)
+            if (packed_ring)
+               set_ptr_high((_Atomic(uint64_t)*)&packed_q->driver, val);
+            else
                 set_ptr_high((_Atomic(uint64_t)*)&split_q->avail, val);
             break;
         /* Security Review: For Split Queue, q->used link list content should be
@@ -413,11 +412,15 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * functionality.
          */
         case VIRTIO_MMIO_QUEUE_USED_LOW:
-            if (!packed_ring)
+            if (packed_ring)
+               set_ptr_low((_Atomic(uint64_t)*)&packed_q->device, val);
+            else
                 set_ptr_low((_Atomic(uint64_t)*)&split_q->used, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_HIGH:
-            if (!packed_ring)
+             if (packed_ring)
+               set_ptr_high((_Atomic(uint64_t)*)&packed_q->device, val);
+            else
                 set_ptr_high((_Atomic(uint64_t)*)&split_q->used, val);
             break;
         default:

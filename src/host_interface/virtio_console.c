@@ -105,7 +105,9 @@ void* monitor_console_input(void* cons_dev)
             break;
 
         if (ret & DEV_CONSOLE_WRITE)
+        {
             virtio_process_queue(dev, RX_QUEUE_ID);
+        }
     } while (1);
     return NULL;
 }
@@ -228,7 +230,6 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
     void* console_vq_mem = NULL;
 
     size_t host_console_size = next_pow2(sizeof(struct virtio_console_dev));
-    size_t event_size = next_pow2(sizeof(struct virtq_packed_desc_event));
     size_t console_vq_size;
 
     if (!packed_ring)
@@ -298,33 +299,6 @@ int virtio_console_init(sgxlkl_host_state_t* host_state, host_dev_config_t* cfg)
             dev->packed.queue[i].num_max = QUEUE_DEPTH;
             dev->packed.queue[i].device_wrap_counter = 1;
             dev->packed.queue[i].driver_wrap_counter = 1;
-            dev->packed.queue[i].driver = mmap(
-                0,
-                event_size,
-                PROT_READ,
-                MAP_SHARED | MAP_ANONYMOUS,
-                -1,
-                0
-            );
-            if (!dev->packed.queue[i].driver)
-            {
-                sgxlkl_host_fail("%s: block device queue descriptor event allocation failed\n", __func__);
-                return -1;
-            }
-            dev->packed.queue[i].device = mmap(
-                0,
-                event_size,
-                PROT_WRITE,
-                MAP_SHARED | MAP_ANONYMOUS,
-                -1,
-                0
-            );
-            if (!dev->packed.queue[i].device)
-            {
-                sgxlkl_host_fail("%s: block device queue descriptor event allocation failed\n", __func__);
-                return -1;
-            }
-            dev->packed.queue[i].device->flags = LKL_VRING_PACKED_EVENT_FLAG_ENABLE;
         }
     }
 
