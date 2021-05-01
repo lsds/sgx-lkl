@@ -28,7 +28,9 @@ _Atomic(uint64_t) internal_counter = 0;
  */
 uint64_t enclave_nanos()
 {
-    uint64_t e = sgxlkl_enclave_state.shared_memory.timer_dev_mem->nanos;
+    struct timer_dev* t = sgxlkl_enclave_state.shared_memory.timer_dev_mem;
+
+    uint64_t e = t->nanos;
     uint64_t i = internal_counter;
     if (e > i)
     {

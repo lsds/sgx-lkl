@@ -92,6 +92,12 @@ void* oe_malloc_or_die(size_t size, const char* fail_msg, ...);
 void* oe_calloc_or_die(size_t nmemb, size_t size, const char* fail_msg, ...);
 
 /**
+ * Ensure buffers are held entirely inside or outside the enclave memory.
+ */
+void sgxlkl_ensure_inside(const void* ptr, size_t sz);
+void sgxlkl_ensure_outside(const void* ptr, size_t sz);
+
+/**
  *
  * Note that generating a stack trace by unwinding stack frames could be exploited
  * by an attacker and therefore should only be possible in a DEBUG build.

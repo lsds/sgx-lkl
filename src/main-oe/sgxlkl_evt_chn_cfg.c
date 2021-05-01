@@ -119,7 +119,6 @@ static void host_dev_cfg_init(
         enc_dev_config_t* edev_cfg = &enc_dev_cfg[index];
         edev_cfg->dev_id = (uint8_t)index;
         edev_cfg->enc_evt_chn = &enc_evt_channel[index];
-        edev_cfg->evt_processed = 0;
     }
     *h_dev_config = host_dev_cfg;
     *e_dev_config = enc_dev_cfg;

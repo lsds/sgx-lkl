@@ -18,7 +18,6 @@ typedef struct enc_dev_config
 {
     uint8_t dev_id;
     enc_evt_channel_t* enc_evt_chn;
-    evt_t evt_processed;
 } enc_dev_config_t;
 
 #endif //_VIO_EVENT_CHANNEL_H

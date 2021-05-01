@@ -31,5 +31,16 @@ int main(int argc, char** argv)
         exit(1);
     }
 
+    // Application environment variable
+    const char* abc = getenv("ABC");
+    if (strcmp(abc, "DEF") != 0)
+        exit(1);
+
+    // Environment variable imported from host
+    const char* hostname = getenv("HOSTNAME");
+    printf("HOSTNAME=%s\n", hostname);
+    if (!hostname || strcmp(hostname, "EEIDHOST") != 0)
+        exit(1);
+
     return 0;
 }

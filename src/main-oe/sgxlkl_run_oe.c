@@ -820,6 +820,18 @@ void set_clock_res(bool have_enclave_config)
     }
 }
 
+static void set_host_env(char* const* envp)
+{
+    sgxlkl_host_state.shared_memory.env_length = 0;
+    for (char* const* env = envp; *env != 0; env++)
+        sgxlkl_host_state.shared_memory.env_length += strlen(*env) + 1;
+
+    char* tmp = malloc(sgxlkl_host_state.shared_memory.env_length);
+    sgxlkl_host_state.shared_memory.env = tmp;
+    for (char* const* env = envp; *env != 0; env++)
+        tmp += sprintf(tmp, "%s", *env) + 1;
+}
+
 static void rdfsbase_sigill_handler(int sig, siginfo_t* si, void* data)
 {
     rdfsbase_caused_sigill = 1;
@@ -1041,6 +1053,7 @@ static void register_hds(char* root_hd)
     if (!shm->virtio_blk_dev_mem || !shm->virtio_blk_dev_names)
         sgxlkl_host_fail("out of memory\n");
 
+    size_t names_length = 0;
     for (size_t i = 0; i < num_disks; i++)
     {
         sgxlkl_host_disk_state_t* disk = &sgxlkl_host_state.disks[i];
@@ -1064,9 +1077,22 @@ static void register_hds(char* root_hd)
                 disk->mount_config->destination,
                 disk->mount_config->readonly,
                 i);
-            strcpy(shm->virtio_blk_dev_names[i], dest);
         }
+        names_length += strlen(dest) + 1;
     }
+
+    char* tmp = malloc(names_length);
+    if (!tmp)
+        sgxlkl_host_fail("out of memory\n");
+    char* p = tmp;
+    for (size_t i = 0; i < num_disks; i++)
+    {
+        sgxlkl_host_disk_state_t* disk = &sgxlkl_host_state.disks[i];
+        char* dest = disk->root_config ? "/" : disk->mount_config->destination;
+        p += sprintf(p, "%s", dest) + 1;
+    }
+    shm->virtio_blk_dev_names = tmp;
+    shm->virtio_blk_dev_names_length = names_length;
 }
 
 static void register_net()
@@ -1127,7 +1153,7 @@ static void sgxlkl_cleanup(void)
         close(sgxlkl_host_state.disks[--sgxlkl_host_state.num_disks].fd);
     }
     free(sgxlkl_host_state.shared_memory.virtio_blk_dev_mem);
-    free(sgxlkl_host_state.shared_memory.virtio_blk_dev_names);
+    free((char*)sgxlkl_host_state.shared_memory.virtio_blk_dev_names);
 }
 
 static void serialize_ucontext(
@@ -1884,7 +1910,7 @@ int main(int argc, char* argv[], char* envp[])
 
     bool have_enclave_config_file = enclave_config_path != NULL;
     set_clock_res(have_enclave_config_file);
-    sgxlkl_host_state.shared_memory.env = envp;
+    set_host_env(envp);
     set_tls(have_enclave_config_file);
     register_hds(root_hd);
     register_net();
@@ -1960,7 +1986,7 @@ int main(int argc, char* argv[], char* envp[])
      * console device. Each block disk is treated as a seperate block
      * device and have an event channel associated with it.
      */
-    sgxlkl_host_state.shared_memory.evt_channel_num =
+    sgxlkl_host_state.shared_memory.num_evt_channel =
         sgxlkl_host_state.num_disks + HOST_NETWORK_DEV_COUNT +
         HOST_CONSOLE_DEV_COUNT;
 
@@ -1973,11 +1999,11 @@ int main(int argc, char* argv[], char* envp[])
         &sgxlkl_host_state.shared_memory,
         &host_dev_cfg,
         &enc_dev_config,
-        sgxlkl_host_state.shared_memory.evt_channel_num);
+        sgxlkl_host_state.shared_memory.num_evt_channel);
 
     /* Initialize the host dev configuration in host event handler */
     vio_host_initialize_device_cfg(
-        host_dev_cfg, sgxlkl_host_state.shared_memory.evt_channel_num);
+        host_dev_cfg, sgxlkl_host_state.shared_memory.num_evt_channel);
 
     int dev_index = 0;
 

@@ -65,6 +65,12 @@ static void lkl_deliver_irq(uint64_t dev_id)
 int lkl_virtio_netdev_add(struct virtio_dev* netdev)
 {
     int ret = -1;
+
+    if (!netdev)
+        return -1;
+
+    sgxlkl_ensure_outside(netdev, sizeof(struct virtio_dev));
+
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
 
     registered_devs[registered_dev_idx] = netdev;

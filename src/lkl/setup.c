@@ -1,3 +1,5 @@
+/* clang-format off */
+
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <errno.h>
@@ -94,9 +96,7 @@ int sgxlkl_mtu = 0;
 extern struct timespec sgxlkl_app_starttime;
 
 /* Function to setup bounce buffer in LKL */
-extern void initialize_enclave_event_channel(
-    enc_dev_config_t* enc_dev_config,
-    size_t evt_channel_num);
+extern void initialize_enclave_event_channels(void);
 
 extern void lkl_virtio_netdev_remove(void);
 extern void vio_terminate(void);
@@ -1315,12 +1315,6 @@ static void init_enclave_clock()
 
     SGXLKL_VERBOSE("Setting enclave realtime clock\n");
 
-    if (oe_is_within_enclave(shm->timer_dev_mem, sizeof(struct timer_dev)))
-    {
-        sgxlkl_fail(
-            "timer_dev memory isn't outside of the enclave. Aborting.\n");
-    }
-
     struct timer_dev* t = shm->timer_dev_mem;
     struct lkl_timespec start_time;
     start_time.tv_sec = t->init_walltime_sec;
@@ -1390,15 +1384,13 @@ void lkl_start_init()
     sgxlkl_mtu = cfg->tap_mtu;
 
     SGXLKL_VERBOSE("calling initialize_enclave_event_channel()\n");
-    initialize_enclave_event_channel(shm->enc_dev_config, shm->evt_channel_num);
+    initialize_enclave_event_channels();
 
     // Register console device
     lkl_virtio_console_add(shm->virtio_console_mem);
 
     // Register network tap if given one
-    int net_dev_id = -1;
-    if (shm->virtio_net_dev_mem)
-        net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
+    int net_dev_id = lkl_virtio_netdev_add(shm->virtio_net_dev_mem);
 
     /* Prepare bootargs to boot lkl kernel */
     char bootargs[BOOTARGS_LEN] = {0};
@@ -1462,7 +1454,7 @@ void lkl_start_init()
     if (sgxlkl_enclave_state.config->swiotlb)
     {
         /* validate bounce buffer memory before setting it up */
-        if (!oe_is_within_enclave(
+        if (oe_is_outside_enclave(
                 shm->virtio_swiotlb, shm->virtio_swiotlb_size))
         {
             lkl_initialize_swiotlb(

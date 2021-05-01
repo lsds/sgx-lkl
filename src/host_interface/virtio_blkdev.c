@@ -163,8 +163,6 @@ int blk_device_init(
 
     sgxlkl_host_state.shared_memory.virtio_blk_dev_mem[disk_index] =
         &host_blk_device->dev;
-    sgxlkl_host_state.shared_memory.virtio_blk_dev_names[disk_index] =
-        strdup(disk->root_config ? "/" : disk->mount_config->destination);
 
     return 0;
 }

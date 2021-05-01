@@ -19,9 +19,7 @@ static struct ticketlock** evt_chn_lock;
 struct lthread** vio_tasks = NULL;
 
 /* Event channel configuration */
-static enc_dev_config_t* _enc_dev_config = NULL;
 static bool _event_channel_initialized = false;
-static uint8_t _evt_channel_num;
 
 static _Atomic(bool) _vio_terminate = false;
 
@@ -55,9 +53,15 @@ static inline void vio_wait_for_host_event(
  */
 static inline int vio_signal_evt_channel(uint8_t dev_id)
 {
-    enc_evt_channel_t* evt_channel = _enc_dev_config[dev_id].enc_evt_chn;
-    evt_t* processed = &_enc_dev_config[dev_id].evt_processed;
+    enc_dev_config_t* enc_dev_config =
+        sgxlkl_enclave_state.shared_memory.enc_dev_config;
+    enc_evt_channel_t* evt_channel = enc_dev_config[dev_id].enc_evt_chn;
+    evt_t* processed =
+        &sgxlkl_enclave_state.event_channel_state[dev_id].evt_processed;
     evt_t* evt_chn = &evt_channel->enclave_evt_channel;
+
+    sgxlkl_ensure_outside(evt_channel, sizeof(enc_evt_channel_t));
+    sgxlkl_ensure_outside(evt_chn, sizeof(evt_t));
 
     evt_t cur = __atomic_load_n(evt_chn, __ATOMIC_SEQ_CST);
 
@@ -83,13 +87,16 @@ static void vio_enclave_process_host_event(uint8_t* param)
     lthread_set_funcname(lthread_self(), thread_name);
     lthread_detach();
 
-    /* release memory after extracting dev_id */
-    oe_free(param);
-
-    enc_evt_channel_t* evt_channel = _enc_dev_config[dev_id].enc_evt_chn;
-    evt_t* evt_processed = &_enc_dev_config[dev_id].evt_processed;
+    enc_dev_config_t* enc_dev_config =
+        sgxlkl_enclave_state.shared_memory.enc_dev_config;
+    enc_evt_channel_t* evt_channel = enc_dev_config[dev_id].enc_evt_chn;
+    evt_t* evt_processed =
+        &sgxlkl_enclave_state.event_channel_state[dev_id].evt_processed;
     evt_t* evt_chn = &evt_channel->enclave_evt_channel;
     evt_t cur = 0, new = 0;
+
+    sgxlkl_ensure_outside(evt_channel, sizeof(enc_evt_channel_t));
+    sgxlkl_ensure_outside(evt_chn, sizeof(evt_t));
 
     for (;;)
     {
@@ -130,42 +137,46 @@ static void vio_enclave_process_host_event(uint8_t* param)
 /*
  * Function to initialize enclave event handler
  */
-void initialize_enclave_event_channel(
-    enc_dev_config_t* enc_dev_config,
-    size_t evt_channel_num)
+void initialize_enclave_event_channels(void)
 {
-    uint8_t* dev_id = NULL;
-    _evt_channel_num = evt_channel_num;
+    enc_dev_config_t* enc_dev_config =
+        sgxlkl_enclave_state.shared_memory.enc_dev_config;
+
+    const size_t _num_channels = sgxlkl_enclave_state.num_event_channel_state;
+    SGXLKL_ASSERT(SIZE_MAX / sizeof(enc_dev_config_t) >= _num_channels);
+    sgxlkl_ensure_inside(
+        enc_dev_config, sizeof(enc_dev_config_t) * _num_channels);
 
     evt_chn_lock = (struct ticketlock**)oe_calloc_or_die(
-        evt_channel_num,
+        _num_channels,
         sizeof(struct ticketlock*),
         "Could not allocate memory for evt_chn_lock\n");
 
     vio_tasks = (struct lthread**)oe_calloc_or_die(
-        evt_channel_num,
+        _num_channels,
         sizeof(struct lthread*),
         "Could not allocate memory for vio_tasks\n");
 
-    _enc_dev_config = enc_dev_config;
-    for (int i = 0; i < evt_channel_num; i++)
+    for (int i = 0; i < _num_channels; i++)
     {
+        const enc_dev_config_t* ed_conf_i = &enc_dev_config[i];
+        const enc_evt_channel_t* ee_chan_i = ed_conf_i->enc_evt_chn;
+        sgxlkl_ensure_inside(ed_conf_i, sizeof(enc_dev_config_t));
+        sgxlkl_ensure_outside(ee_chan_i, sizeof(enc_evt_channel_t));
+        sgxlkl_ensure_outside(ee_chan_i->host_evt_channel, sizeof(evt_t));
+        sgxlkl_ensure_outside(ee_chan_i->qidx_p, sizeof(uint32_t));
+
         evt_chn_lock[i] = (struct ticketlock*)oe_calloc_or_die(
             1,
             sizeof(struct ticketlock),
             "Could not allocate memory for evt_chn_lock[%i]\n",
             i);
 
-        dev_id = (uint8_t*)oe_calloc_or_die(
-            1, sizeof(uint8_t), "Could not allocate memory for dev_id\n");
-
-        *dev_id = enc_dev_config[i].dev_id;
-
         if (lthread_create(
                 &vio_tasks[i],
                 NULL,
                 vio_enclave_process_host_event,
-                (void*)dev_id) != 0)
+                (void*)&ed_conf_i->dev_id) != 0)
         {
             oe_free(vio_tasks);
             sgxlkl_fail("Failed to create lthread for event channel\n");
@@ -185,11 +196,17 @@ void vio_terminate()
  */
 void vio_enclave_notify_enclave_event(uint8_t dev_id, uint32_t qidx)
 {
-    enc_evt_channel_t* evt_chn = _enc_dev_config[dev_id].enc_evt_chn;
+    enc_dev_config_t* enc_dev_config =
+        sgxlkl_enclave_state.shared_memory.enc_dev_config;
+    enc_evt_channel_t* evt_chn = enc_dev_config[dev_id].enc_evt_chn;
     uint32_t* qidx_p = evt_chn->qidx_p;
+    evt_t* host_evt_chn = evt_chn->host_evt_channel;
 
-    evt_t cur =
-        __atomic_fetch_add(evt_chn->host_evt_channel, 2, __ATOMIC_SEQ_CST);
+    sgxlkl_ensure_outside(evt_chn, sizeof(enc_evt_channel_t));
+    sgxlkl_ensure_outside(qidx_p, sizeof(uint32_t));
+    sgxlkl_ensure_outside(host_evt_chn, sizeof(evt_t));
+
+    evt_t cur = __atomic_fetch_add(host_evt_chn, 2, __ATOMIC_SEQ_CST);
 
     *qidx_p = qidx;
 
@@ -204,13 +221,14 @@ void vio_enclave_notify_enclave_event(uint8_t dev_id, uint32_t qidx)
 int vio_enclave_wakeup_event_channel(void)
 {
     int ret = 0;
+    const size_t _num_channels = sgxlkl_enclave_state.num_event_channel_state;
 
     /* Event channel processing not available or terminating */
     if (!_event_channel_initialized || _vio_terminate)
         return 0;
 
     /* Schedule picks up the available event channel processing */
-    for (uint8_t dev_id = 0; dev_id < _evt_channel_num; dev_id++)
+    for (uint8_t dev_id = 0; dev_id < _num_channels; dev_id++)
     {
         if (ticket_trylock(evt_chn_lock[dev_id]))
             continue;

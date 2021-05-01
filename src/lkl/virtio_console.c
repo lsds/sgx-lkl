@@ -17,6 +17,7 @@ static void lkl_deliver_irq(uint64_t dev_id)
     struct virtio_dev* dev =
         sgxlkl_enclave_state.shared_memory.virtio_console_mem;
 
+    sgxlkl_ensure_outside(dev, sizeof(struct virtio_dev));
     dev->int_status |= VIRTIO_MMIO_INT_VRING;
 
     lkl_trigger_irq(dev->irq);
@@ -28,6 +29,8 @@ static void lkl_deliver_irq(uint64_t dev_id)
 int lkl_virtio_console_add(struct virtio_dev* console)
 {
     int ret = -1;
+
+    sgxlkl_ensure_outside(console, sizeof(struct virtio_dev));
 
     int mmio_size = VIRTIO_MMIO_CONFIG + console->config_len;
 
