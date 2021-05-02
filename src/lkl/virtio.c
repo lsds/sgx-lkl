@@ -52,6 +52,12 @@ static uint32_t lkl_num_virtio_boot_devs;
 typedef void (*lkl_virtio_dev_deliver_irq)(uint64_t dev_id);
 static lkl_virtio_dev_deliver_irq virtio_deliver_irq[DEVICE_COUNT];
 
+struct virtio_dev_handle
+{
+    struct virtio_dev *dev; //shadow structure in guest memory
+    struct virtio_dev *dev_host;
+}
+
 /*
  * virtio_read_device_features: Read Device Features
  * dev : pointer to device structure
@@ -448,28 +454,26 @@ void lkl_virtio_deliver_irq(uint8_t dev_id)
 /*
  * Function to setup the virtio device setting
  */
+/**
+ * TODO Shadow structure
+ * Need to create and register dev handle here
+ * Should I create the shadow dev here along with the verification?
+ */
 int lkl_virtio_dev_setup(
     struct virtio_dev* dev,
+    struct virtio_dev* dev_host,
     int mmio_size,
     void* deliver_irq_cb)
 {
+    struct virtio_dev_handle *dev_handle;
     int avail = 0, num_bytes = 0, ret = 0;
-    dev->irq = lkl_get_free_irq("virtio");
-    dev->int_status = 0;
-    if (dev->irq < 0)
+    dev_host->irq = lkl_get_free_irq("virtio");
+    dev_host->int_status = 0;
+    if (dev_host->irq < 0)
         return 1;
 
-    /* Security Review: dev-vendor_id might cause overflow in
-     * virtio_deliver_irq[DEVICE_COUNT]
-     */
-    virtio_deliver_irq[dev->vendor_id] = deliver_irq_cb;
-    /* Security Review: pass handle instead of virtio_dev pointer to the rest of
-     * the system. 
-     */
-    /* Security Review: shadow dev->base used in guest side only. No
-     * copy-through to the host side structure
-     */
-    dev->base = register_iomem(dev, mmio_size, &virtio_ops);
+    virtio_deliver_irq[dev_host->vendor_id] = deliver_irq_cb;
+    dev_host->base = register_iomem(dev_host, mmio_size, &virtio_ops);
 
     if (!lkl_is_running())
     {
@@ -508,4 +512,27 @@ int lkl_virtio_dev_setup(
         dev->virtio_mmio_id = lkl_num_virtio_boot_devs + ret;
     }
     return 0;
+}
+
+/*
+ * Function to allocate memory for a shadow virtio dev
+ */
+struct virtio_dev* alloc_shadow_virtio_dev()
+{
+    size_t dev_size = next_pow2(sizeof(struct virtio_dev));
+
+    struct virtio_dev* dev = mmap(
+        0,
+        dev_size,
+        PROT_READ | PROT_WRITE,
+        MAP_SHARED | MAP_ANONYMOUS,
+        -1,
+        0);
+
+    if (!dev)
+    {
+        sgxlkl_error("Shadow device alloc failed\n");
+        return NULL
+    }
+    return dev;
 }
