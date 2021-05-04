@@ -43,6 +43,7 @@ struct virtio_dev
  */
 int lkl_virtio_dev_setup(
     struct virtio_dev* dev,
+    struct virtio_dev* dev_host,
     int mmio_size,
     void* virtio_req_complete);
 
@@ -56,4 +57,5 @@ void lkl_virtio_deliver_irq(uint8_t dev_id);
  * Function to allocate memory for a shadow virtio dev
  */
 struct virtio_dev* alloc_shadow_virtio_dev();
-#endif /* _LKL_LIB_VIRTIO_H */
+
+#endif //_LKL_LIB_VIRTIO_H

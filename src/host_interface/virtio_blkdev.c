@@ -111,6 +111,7 @@ int blk_device_init(
     size_t disk_index,
     int enable_swiotlb)
 {
+
     void* vq_mem = NULL;
     struct virtio_blk_dev* host_blk_device = NULL;
     size_t bdev_size = sizeof(struct virtio_blk_dev);

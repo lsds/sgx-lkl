@@ -38,7 +38,7 @@ int lkl_virtio_console_add(struct virtio_dev* console_host)
         return -1;
 
     int mmio_size = VIRTIO_MMIO_CONFIG + console_host->config_len;
-    ret = lkl_virtio_dev_setup(console,console_host, mmio_size, &lkl_deliver_irq);
+    ret = lkl_virtio_dev_setup(console, console_host, mmio_size, &lkl_deliver_irq);
 
     return ret;
 }

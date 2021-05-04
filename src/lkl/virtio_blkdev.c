@@ -47,7 +47,6 @@ int lkl_add_disks(
     size_t num_mounts)
 {
     struct virtio_dev* root_dev = alloc_shadow_virtio_dev();
-
     if (!root_dev)
         return -1;
 
@@ -65,15 +64,15 @@ int lkl_add_disks(
     for (size_t i = 0; i < num_mounts; ++i)
     {
         struct virtio_dev* dev = alloc_shadow_virtio_dev();
-
         if (!dev)
             return -1;
 
         struct virtio_dev* dev_host =
             sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem
                 [sgxlkl_enclave_state.disk_state[i + 1].host_disk_index];
+
         int mmio_size = VIRTIO_MMIO_CONFIG + dev_host->config_len;
-        registered_shadow_devs[registered_shadow_dev_idx++] = root_dev;
+        registered_shadow_devs[registered_shadow_dev_idx++] = dev;
 
         if (lkl_virtio_dev_setup(dev, dev_host, mmio_size, lkl_deliver_irq) != 0)
             return -1;

@@ -62,6 +62,7 @@ static void lkl_deliver_irq(uint64_t dev_id)
  */
 int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
 {
+    //TODO might able to delete host dev stuff later
     int ret = -1;
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev_host->config_len;
     struct virtio_dev* netdev = alloc_shadow_virtio_dev();
