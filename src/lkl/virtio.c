@@ -115,7 +115,9 @@ static int virtio_read(void* data, int offset, void* res, int size)
      * shadow structure init routine copy the content from the host structure.
      */
     uint32_t val = 0;
-    struct virtio_dev* dev = (struct virtio_dev*)data;
+    struct virtio_dev_handle* dev_handle = (struct virtio_dev_handle*)data;
+    struct virtio_dev* dev = dev_handle->dev;
+    struct virtio_dev* dev_host = dev_handle->dev_host;
 
     if (offset >= VIRTIO_MMIO_CONFIG)
     {
@@ -162,11 +164,15 @@ static int virtio_read(void* data, int offset, void* res, int size)
             break;
         /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_STATUS:
-            val = dev->int_status;
+            val = dev_host->int_status;
+            if (dev->int_status != val)
+                dev->int_status = val;
             break;
         /* Security Review: dev->status is host-read-write */
         case VIRTIO_MMIO_STATUS:
-            val = dev->status;
+            val = dev_host->status;
+            if (dev->status != val)
+                dev->status = val;
             break;
         /* Security Review: dev->config_gen should be host-write-once */
         case VIRTIO_MMIO_CONFIG_GENERATION:
@@ -255,11 +261,35 @@ static inline void set_ptr_high(_Atomic(uint64_t) * ptr, uint32_t val)
     } while (!atomic_compare_exchange_weak(ptr, &expected, desired));
 }
 
-// TODO - update host side desc and avail
 static void virtio_notify_host_device(struct virtio_dev* dev, uint32_t qidx)
 {
     uint8_t dev_id = (uint8_t)dev->vendor_id;
     vio_enclave_notify_enclave_event (dev_id, qidx);
+}
+
+static void copy_split_queue_contents(struct virtio_dev* dev, struct virtio_dev* dev_host, uint32_t qidx)
+{
+    //desc is based on num
+    //avail based on idx?
+    struct virtq* dev_q = &dev->split.queue[qidx];
+    struct virtq* dev_host_q = &dev_host->split.queue[qidx];
+    //Copy desc
+
+    for (int i = 0; i < dev_q->num; i++)
+    {
+       dev_host_q->desc[i].addr = dev_q->desc[i].addr;
+       dev_host_q->desc[i].len = dev_q->desc[i].len;
+       dev_host_q->desc[i].flags = dev_q->desc[i].flags;
+       dev_host_q->desc[i].nexr = dev_q->desc[i].next;
+    }
+
+    dev_host_q->avail->flags = dev_q->avail->flags;
+    dev_host_q->avail->idx = dev_q->avail->idx;
+
+    for (int i = 0; i < dev_q->avail->idx; i++)
+    {
+        dev_host_q->avail->ring[i] = dev_q->avail->ring[i];
+    }
 }
 
 /*
@@ -290,9 +320,12 @@ static int virtio_write(void* data, int offset, void* res, int size)
      * perform copy-through write (write to shadow structure & to host
      * structure). virtq desc and avail ring address handling is a special case.
      */
-    struct virtio_dev* dev = (struct virtio_dev*)data;
+    struct virtio_dev_handle* dev_handle = (struct virtio_dev_handle*)data;
+    struct virtio_dev* dev = dev_handle->dev;
+    struct virtio_dev* dev_host = dev_handle->dev_host;
+
     struct virtq* split_q = packed_ring ? NULL : &dev->split.queue[dev->queue_sel];
-    struct virtq_packed* packed_q = packed_ring ? &dev->packed.queue[dev->queue_sel] : NULL;
+    struct virtq_packed* packed_q = packed_ring ? &dev_host->packed.queue[dev->queue_sel] : NULL;
     uint32_t val;
     int ret = 0;
 
@@ -321,52 +354,74 @@ static int virtio_write(void* data, int offset, void* res, int size)
             if (val > 1)
                 return -LKL_EINVAL;
             dev->device_features_sel = val;
+            dev_host->device_features_sel = val;
             break;
         /* Security Review: dev->driver_features_sel should be host-read-only */
         case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
             if (val > 1)
                 return -LKL_EINVAL;
             dev->driver_features_sel = val;
+            dev_host->driver_features_sel = val;
             break;
         /* Security Review: dev->driver_features should be host-read-only */
         case VIRTIO_MMIO_DRIVER_FEATURES:
             virtio_write_driver_features(dev, val);
+            virtio_write_driver_features(dev_host, val);
             break;
         /* Security Review: dev->queue_sel should be host-read-only */
         case VIRTIO_MMIO_QUEUE_SEL:
             dev->queue_sel = val;
+            dev_host->queue_sel = val;
             break;
         /* Security Review: dev->queue[dev->queue_sel].num should be
          * host-read-only
          */
         case VIRTIO_MMIO_QUEUE_NUM:
             if (packed_ring)
+            {
                 dev->packed.queue[dev->queue_sel].num = val;
+                dev_host->packed.queue[dev->queue_sel].num = val;
+            }
             else
+            {
                 dev->split.queue[dev->queue_sel].num = val;
+                dev_host->split.queue[dev->queue_sel].num = val;
+            }
             break;
         /* Security Review: is dev->queue[dev->queue_sel].ready host-read-only?
          */
         case VIRTIO_MMIO_QUEUE_READY:
             if (packed_ring)
+            {
                 dev->packed.queue[dev->queue_sel].ready = val;
+                dev_host->packed.queue[dev->queue_sel].ready = val;
+            }
             else
+            {
                 dev->split.queue[dev->queue_sel].ready = val;
+                dev_host->split.queue[dev->queue_sel].ready = val;
+            }
             break;
         /* Security Review: guest virtio driver(s) writes to virtq desc ring and
          * avail ring in guest memory. In queue notify flow, we need to copy the
          * update to desc ring and avail ring in host memory.
          */
         case VIRTIO_MMIO_QUEUE_NOTIFY:
+            if (!packed_ring)
+            {
+                copy_split_queue_contents(dev, dev_host, val);
+            }
             virtio_notify_host_device(dev, val);
             break;
         /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_ACK:
             dev->int_status = 0;
+            dev_host->int_status = 0;
             break;
         /* Security Review: dev->status is host-read-write */
         case VIRTIO_MMIO_STATUS:
             set_status(dev, val);
+            set_status(dev_host, val);
             break;
         /* Security Review: For Split Queue, q->desc link list
          * content should be host-read-only. The Split Queue implementaiton
@@ -436,13 +491,13 @@ static int virtio_write(void* data, int offset, void* res, int size)
             if (packed_ring)
                set_ptr_low((_Atomic(uint64_t)*)&packed_q->device, val);
             else
-                set_ptr_low((_Atomic(uint64_t)*)&split_q->used, val);
+                set_ptr_low((_Atomic(uint64_t)*)&dev_host->split.queue[dev->queue_sel]->used, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_HIGH:
              if (packed_ring)
                set_ptr_high((_Atomic(uint64_t)*)&packed_q->device, val);
             else
-                set_ptr_high((_Atomic(uint64_t)*)&split_q->used, val);
+                set_ptr_high((_Atomic(uint64_t)*)&dev_host->split.queue[dev->queue_sel]->used, val);
             break;
         default:
             ret = -1;
@@ -514,11 +569,11 @@ void* copy_queue(struct virtio_dev* dev)
     }
 
     vq_mem = mmap(0,
-               vq_size,
-               PROT_READ | PROT_WRITE,
-               MAP_SHARED | MAP_ANONYMOUS,
-               -1,
-               0);
+                  vq_size,
+                  PROT_READ | PROT_WRITE,
+                  MAP_SHARED | MAP_ANONYMOUS,
+                  -1,
+                  0);
 
     if (!vq_mem)
     {
@@ -545,25 +600,25 @@ void* copy_queue(struct virtio_dev* dev)
            // Need to copy avail and desc contents to host cannot have direct access
            // In practice this won't be used as the guest side allocates to host memory
            // But if we were to upstream changes to the linux kernel tree, this would be needed
-           dest_split[i].desc = mmap(0,
-                                          vq_desc_size,
-                                          PROT_READ | PROT_WRITE,
-                                          MAP_SHARED | MAP_ANONYMOUS,
-                                          -1,
-                                          0);
-           if (!dest_split[i].desc)
+           dev->split.queue[i].desc = mmap(0,
+                                           vq_desc_size,
+                                           PROT_READ | PROT_WRITE,
+                                           MAP_SHARED | MAP_ANONYMOUS,
+                                           -1,
+                                           0);
+           if (!dev->split.queue[i].desc)
            {
                sgxlkl_error("Desc mem alloc failed\n");
                return NULL;
            }
 
-           dest_split[i].avail = mmap(0,
-                                          vq_avail_size,
-                                          PROT_READ | PROT_WRITE,
-                                          MAP_SHARED | MAP_ANONYMOUS,
-                                          -1,
-                                          0);
-           if (!dest_split[i].avail)
+           dev->split.queue[i].avail = mmap(0,
+                                            vq_avail_size,
+                                            PROT_READ | PROT_WRITE,
+                                            MAP_SHARED | MAP_ANONYMOUS,
+                                            -1,
+                                            0);
+           if (!dev->split.queue[i].avail)
            {
                sgxlkl_error("Avail mem alloc failed\n");
                return NULL;
