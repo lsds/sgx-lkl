@@ -61,6 +61,8 @@ static uint32_t lkl_num_virtio_boot_devs;
 typedef void (*lkl_virtio_dev_deliver_irq)(uint64_t dev_id);
 static lkl_virtio_dev_deliver_irq virtio_deliver_irq[DEVICE_COUNT];
 
+static virtio_dev *dev_hosts[DEVICE_COUNT];
+
 struct virtio_dev_handle
 {
     struct virtio_dev *dev; //shadow structure in guest memory
@@ -269,11 +271,8 @@ static void virtio_notify_host_device(struct virtio_dev* dev, uint32_t qidx)
 
 static void copy_split_queue_contents(struct virtio_dev* dev, struct virtio_dev* dev_host, uint32_t qidx)
 {
-    //desc is based on num
-    //avail based on idx?
     struct virtq* dev_q = &dev->split.queue[qidx];
     struct virtq* dev_host_q = &dev_host->split.queue[qidx];
-    //Copy desc
 
     for (int i = 0; i < dev_q->num; i++)
     {
@@ -517,6 +516,55 @@ static const struct lkl_iomem_ops virtio_ops = {
  */
 void lkl_virtio_deliver_irq(uint8_t dev_id)
 {
+    struct virtio_dev *dev_host = dev_hosts[dev_id];
+    int num_queues = 0;
+
+    switch(dev_host->device_id)
+    {
+        case VIRTIO_ID_NET:
+            num_queues = NET_DEV_NUM_QUEUES;
+            break;
+        case VIRTIO_ID_CONSOLE:
+            num_queues = CONSOLE_NUM_QUEUES;
+            break;
+        case VIRTIO_ID_BLOCK:
+            num_queues = BLK_DEV_NUM_QUEUES;
+            break;
+    }
+
+    //Verify descriptor len doesn't exceed bounds
+    for (int i = 0; i < num_queues; i++)
+    {
+        if (packed_ring)
+        {
+            struct virtq_packed* packed_q = dev_host->packed.queue[i];
+            for (int j = 0; j < packed_q->num; j++)
+            {
+                if (packed_q->desc[j].len >
+                    sgxlkl_enclave_state.shared_memory.virtio_swiotlb_size)
+                {
+                    sgxlkl_error("Virtio desc memory size larger than allocated bounce buffer\n");
+                    return;
+                }
+            }
+        }
+
+        else
+        {
+            struct virtq* split_q = dev_host->split.queue[i];
+            for (int j = 0; j < split_q->used->idx; j++)
+            {
+                if (split_q->used->ring[j].len >
+                    sgxlkl_enclave_state.shared_memory.virtio_swiotlb_size)
+                {
+                    sgxlkl_error("Virtio used memory size larger than allocated bounce buffer\n");
+                    return;
+                }
+            }
+        }
+    }
+
+    // Get sgxlkl_enclave_state
     if (virtio_deliver_irq[dev_id])
         virtio_deliver_irq[dev_id](dev_id);
 }
@@ -654,7 +702,6 @@ int lkl_virtio_dev_setup(
     struct virtio_dev_handle *dev_handle;
     int avail = 0, num_bytes = 0, ret = 0;
     size_t dev_handle_size = next_pow2(sizeof(struct virtio_dev_handle));
-
     dev_handle = mmap(0,
                       dev_handle_size,
                       PROT_READ | PROT_WRITE,
@@ -675,9 +722,24 @@ int lkl_virtio_dev_setup(
     dev->vendor_id = dev_host->vendor_id;
     dev->config_gen = dev_host->config_gen;
     dev->device_features = dev_host->device_features;
-    dev->config_data = dev_host->config_data;
     dev->config_len = dev_host->config_len;
     dev->int_status = dev_host->int_status;
+    if (dev->config_len != 0)
+    {
+        dev->config_data = mmap(
+            0,
+            next_pow2(dev->config_len),
+            PROT_READ | PROT_WRITE,
+            MAP_SHARED | MAP_ANONYMOUS,
+            -1,
+            0);
+        if (!dev->config_data)
+        {
+            sgxlkl_error("Failed to allocate memory for dev config data\n");
+            return -1;
+        }
+        memcpy(dev->config_data, dev_host->config_data, dev->config_len);
+    }
 
     if (packed_ring)
     {
@@ -713,6 +775,7 @@ int lkl_virtio_dev_setup(
     }
 
     virtio_deliver_irq[dev->vendor_id] = deliver_irq_cb;
+    dev_hosts[dev->vendor_id] = dev_host;
     dev->base = register_iomem(dev_handle, mmio_size, &virtio_ops);
 
     if (!lkl_is_running())
