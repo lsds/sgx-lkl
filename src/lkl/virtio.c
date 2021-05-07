@@ -61,12 +61,12 @@ static uint32_t lkl_num_virtio_boot_devs;
 typedef void (*lkl_virtio_dev_deliver_irq)(uint64_t dev_id);
 static lkl_virtio_dev_deliver_irq virtio_deliver_irq[DEVICE_COUNT];
 
-static virtio_dev *dev_hosts[DEVICE_COUNT];
+static virtio_dev* dev_hosts[DEVICE_COUNT];
 
 struct virtio_dev_handle
 {
-    struct virtio_dev *dev; //shadow structure in guest memory
-    struct virtio_dev *dev_host;
+    struct virtio_dev* dev; //shadow structure in guest memory
+    struct virtio_dev* dev_host;
 };
 
 /*
@@ -699,7 +699,7 @@ int lkl_virtio_dev_setup(
     int mmio_size,
     void* deliver_irq_cb)
 {
-    struct virtio_dev_handle *dev_handle;
+    struct virtio_dev_handle* dev_handle;
     int avail = 0, num_bytes = 0, ret = 0;
     size_t dev_handle_size = next_pow2(sizeof(struct virtio_dev_handle));
     dev_handle = mmap(0,
