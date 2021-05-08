@@ -8,8 +8,10 @@
 #include <sys/mman.h>
 #include <lkl/iomem.h>
 #include <lkl/virtio.h>
+#include <lkl/posix-host.h>
 #include <enclave/sgxlkl_t.h>
 #include <enclave/enclave_util.h>
+#include <enclave/enclave_mem.h>
 #include <shared/virtio_ring_buff.h>
 #include <stdatomic.h>
 #include "enclave/vio_enclave_event_channel.h"
@@ -61,7 +63,7 @@ static uint32_t lkl_num_virtio_boot_devs;
 typedef void (*lkl_virtio_dev_deliver_irq)(uint64_t dev_id);
 static lkl_virtio_dev_deliver_irq virtio_deliver_irq[DEVICE_COUNT];
 
-static virtio_dev* dev_hosts[DEVICE_COUNT];
+static struct virtio_dev* dev_hosts[DEVICE_COUNT];
 
 struct virtio_dev_handle
 {
@@ -120,7 +122,9 @@ static int virtio_read(void* data, int offset, void* res, int size)
     struct virtio_dev_handle* dev_handle = (struct virtio_dev_handle*)data;
     struct virtio_dev* dev = dev_handle->dev;
     struct virtio_dev* dev_host = dev_handle->dev_host;
-
+#ifdef DEBUG
+    oe_host_printf("Hi there reading, offset is: %x\n", offset);
+#endif
     if (offset >= VIRTIO_MMIO_CONFIG)
     {
         offset -= VIRTIO_MMIO_CONFIG;
@@ -279,7 +283,7 @@ static void copy_split_queue_contents(struct virtio_dev* dev, struct virtio_dev*
        dev_host_q->desc[i].addr = dev_q->desc[i].addr;
        dev_host_q->desc[i].len = dev_q->desc[i].len;
        dev_host_q->desc[i].flags = dev_q->desc[i].flags;
-       dev_host_q->desc[i].nexr = dev_q->desc[i].next;
+       dev_host_q->desc[i].next = dev_q->desc[i].next;
     }
 
     dev_host_q->avail->flags = dev_q->avail->flags;
@@ -325,6 +329,9 @@ static int virtio_write(void* data, int offset, void* res, int size)
 
     struct virtq* split_q = packed_ring ? NULL : &dev->split.queue[dev->queue_sel];
     struct virtq_packed* packed_q = packed_ring ? &dev_host->packed.queue[dev->queue_sel] : NULL;
+#ifdef DEBUG
+    oe_host_printf("Hi there, packed queue is: %p, offset is: %x\n", packed_q, offset);
+#endif
     uint32_t val;
     int ret = 0;
 
@@ -490,13 +497,13 @@ static int virtio_write(void* data, int offset, void* res, int size)
             if (packed_ring)
                set_ptr_low((_Atomic(uint64_t)*)&packed_q->device, val);
             else
-                set_ptr_low((_Atomic(uint64_t)*)&dev_host->split.queue[dev->queue_sel]->used, val);
+                set_ptr_low((_Atomic(uint64_t)*)&dev_host->split.queue[dev->queue_sel].used, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_HIGH:
              if (packed_ring)
                set_ptr_high((_Atomic(uint64_t)*)&packed_q->device, val);
             else
-                set_ptr_high((_Atomic(uint64_t)*)&dev_host->split.queue[dev->queue_sel]->used, val);
+                set_ptr_high((_Atomic(uint64_t)*)&dev_host->split.queue[dev->queue_sel].used, val);
             break;
         default:
             ret = -1;
@@ -537,7 +544,7 @@ void lkl_virtio_deliver_irq(uint8_t dev_id)
     {
         if (packed_ring)
         {
-            struct virtq_packed* packed_q = dev_host->packed.queue[i];
+            struct virtq_packed* packed_q = &dev_host->packed.queue[i];
             for (int j = 0; j < packed_q->num; j++)
             {
                 if (packed_q->desc[j].len >
@@ -551,7 +558,7 @@ void lkl_virtio_deliver_irq(uint8_t dev_id)
 
         else
         {
-            struct virtq* split_q = dev_host->split.queue[i];
+            struct virtq* split_q = &dev_host->split.queue[i];
             for (int j = 0; j < split_q->used->idx; j++)
             {
                 if (split_q->used->ring[j].len >
@@ -616,12 +623,7 @@ void* copy_queue(struct virtio_dev* dev)
         vq_size = next_pow2(num_queues * sizeof(struct virtq));
     }
 
-    vq_mem = mmap(0,
-                  vq_size,
-                  PROT_READ | PROT_WRITE,
-                  MAP_SHARED | MAP_ANONYMOUS,
-                  -1,
-                  0);
+    vq_mem = sgxlkl_host_ops.mem_alloc(vq_size);
 
     if (!vq_mem)
     {
@@ -648,24 +650,14 @@ void* copy_queue(struct virtio_dev* dev)
            // Need to copy avail and desc contents to host cannot have direct access
            // In practice this won't be used as the guest side allocates to host memory
            // But if we were to upstream changes to the linux kernel tree, this would be needed
-           dev->split.queue[i].desc = mmap(0,
-                                           vq_desc_size,
-                                           PROT_READ | PROT_WRITE,
-                                           MAP_SHARED | MAP_ANONYMOUS,
-                                           -1,
-                                           0);
+           dev->split.queue[i].desc = sgxlkl_host_ops.mem_alloc(vq_desc_size);
            if (!dev->split.queue[i].desc)
            {
                sgxlkl_error("Desc mem alloc failed\n");
                return NULL;
            }
 
-           dev->split.queue[i].avail = mmap(0,
-                                            vq_avail_size,
-                                            PROT_READ | PROT_WRITE,
-                                            MAP_SHARED | MAP_ANONYMOUS,
-                                            -1,
-                                            0);
+           dev->split.queue[i].avail = sgxlkl_host_ops.mem_alloc(vq_avail_size);
            if (!dev->split.queue[i].avail)
            {
                sgxlkl_error("Avail mem alloc failed\n");
@@ -702,12 +694,7 @@ int lkl_virtio_dev_setup(
     struct virtio_dev_handle* dev_handle;
     int avail = 0, num_bytes = 0, ret = 0;
     size_t dev_handle_size = next_pow2(sizeof(struct virtio_dev_handle));
-    dev_handle = mmap(0,
-                      dev_handle_size,
-                      PROT_READ | PROT_WRITE,
-                      MAP_SHARED | MAP_ANONYMOUS,
-                      -1,
-                      0);
+    dev_handle = sgxlkl_host_ops.mem_alloc(dev_handle_size);
 
     if (!dev_handle)
     {
@@ -726,13 +713,7 @@ int lkl_virtio_dev_setup(
     dev->int_status = dev_host->int_status;
     if (dev->config_len != 0)
     {
-        dev->config_data = mmap(
-            0,
-            next_pow2(dev->config_len),
-            PROT_READ | PROT_WRITE,
-            MAP_SHARED | MAP_ANONYMOUS,
-            -1,
-            0);
+        dev->config_data = sgxlkl_host_ops.mem_alloc(next_pow2(dev->config_len));
         if (!dev->config_data)
         {
             sgxlkl_error("Failed to allocate memory for dev config data\n");
@@ -824,13 +805,7 @@ struct virtio_dev* alloc_shadow_virtio_dev()
 {
     size_t dev_size = next_pow2(sizeof(struct virtio_dev));
 
-    struct virtio_dev* dev = mmap(
-        0,
-        dev_size,
-        PROT_READ | PROT_WRITE,
-        MAP_SHARED | MAP_ANONYMOUS,
-        -1,
-        0);
+    struct virtio_dev* dev = sgxlkl_host_ops.mem_alloc(dev_size);
 
     if (!dev)
     {
