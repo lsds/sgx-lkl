@@ -30,10 +30,13 @@ static inline struct virtio_dev* get_blkdev_instance(uint8_t blkdev_id)
  */
 static void lkl_deliver_irq(uint8_t dev_id)
 {
+    struct virtio_dev* dev_host =
+        sgxlkl_enclave_state.shared_memory.virtio_blk_dev_mem[dev_id];
+
     struct virtio_dev* dev = get_blkdev_instance(dev_id);
 
+    dev_host->int_status |= VIRTIO_MMIO_INT_VRING;
     dev->int_status |= VIRTIO_MMIO_INT_VRING;
-    // TODO might need to update int_status in host as well
 
     lkl_trigger_irq(dev->irq);
 }

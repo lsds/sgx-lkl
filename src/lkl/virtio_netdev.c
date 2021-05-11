@@ -11,20 +11,23 @@
 
 #define MAX_NET_DEVS 16
 
-static uint8_t registered_dev_idx = 0;
-static uint8_t registered_shadow_dev_idx = 0;
+struct dev_handle
+{
+    struct virtio_dev* dev_host;
+    struct virtio_dev* dev;
+};
 
-struct virtio_dev* host_devs[MAX_NET_DEVS]; //TODO may be able to delete this
-struct virtio_dev* registered_shadow_devs[MAX_NET_DEVS];
+struct dev_handle devs[MAX_NET_DEVS];
+static uint8_t registered_dev_idx = 0;
 
 /*
  * Function to get netdev instance to use its attributes
  */
-static inline struct virtio_dev* get_netdev_instance(uint8_t netdev_id)
+static inline struct dev_handle* get_netdev_instance(uint8_t netdev_id)
 {
-    for (size_t i = 0; i < registered_shadow_dev_idx; i++)
-        if (registered_shadow_devs[i]->vendor_id == netdev_id)
-            return registered_shadow_devs[i];
+    for (size_t i = 0; i < registered_dev_idx; i++)
+        if (devs[i].shadow_dev->vendor_id == netdev_id)
+            return &devs[i];
     SGXLKL_ASSERT(false);
 }
 
@@ -48,10 +51,10 @@ static int dev_register(struct virtio_dev* dev)
  */
 static void lkl_deliver_irq(uint64_t dev_id)
 {
-    struct virtio_dev* dev = get_netdev_instance(dev_id);
+    struct dev_handle* dev_pair = get_netdev_instance(dev_id);
 
-    dev->int_status |= VIRTIO_MMIO_INT_VRING;
-    // TODO might need to update int_status in host as well
+    dev_pair->dev->int_status |= VIRTIO_MMIO_INT_VRING;
+    dev_pair->dev_host->int_status |= VIRTIO_MMIO_INT_VRING;
 
     lkl_trigger_irq(dev->irq);
 }
@@ -62,7 +65,6 @@ static void lkl_deliver_irq(uint64_t dev_id)
  */
 int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
 {
-    //TODO might able to delete host dev stuff later
     int ret = -1;
     int mmio_size = VIRTIO_MMIO_CONFIG + netdev_host->config_len;
     struct virtio_dev* netdev = alloc_shadow_virtio_dev();
@@ -70,8 +72,7 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
     if (!netdev)
         return -1;
 
-    registered_shadow_devs[registered_shadow_dev_idx] = netdev;
-    host_devs[registered_dev_idx] = netdev_host;
+    devs[registered_dev_idx] = {netdev_host, netdev};
 
     if (lkl_virtio_dev_setup(netdev, netdev_host, mmio_size, &lkl_deliver_irq) != 0)
         return -1;
@@ -82,9 +83,8 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
         sgxlkl_fail("Failed to register netdev\n");
         return -1;
     }
-    registered_dev_idx++;
 
-    return registered_shadow_dev_idx++;
+    return registered_dev_idx++;
 }
 
 /*
@@ -93,7 +93,7 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
 void lkl_virtio_netdev_remove(void)
 {
     uint8_t netdev_id = 0;
-    for (netdev_id = 0; netdev_id < registered_shadow_dev_idx; netdev_id++)
+    for (netdev_id = 0; netdev_id < registered_dev_idx; netdev_id++)
     {
         sgxlkl_host_netdev_remove(netdev_id);
         int ret = lkl_netdev_get_ifindex(netdev_id);

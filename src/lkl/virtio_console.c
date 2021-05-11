@@ -16,11 +16,10 @@ static struct virtio_dev* console;
  */
 static void lkl_deliver_irq(uint64_t dev_id)
 {
-    //TODO may need to uncomment if int_status needs to be changed for host too
-    //struct virtio_dev* dev =
-    //    sgxlkl_enclave_state.shared_memory.virtio_console_mem;
+    struct virtio_dev* dev_host =
+        sgxlkl_enclave_state.shared_memory.virtio_console_mem;
 
-    //dev->int_status |= VIRTIO_MMIO_INT_VRING;
+    dev_host->int_status |= VIRTIO_MMIO_INT_VRING;
     console->int_status |= VIRTIO_MMIO_INT_VRING;
 
     lkl_trigger_irq(console->irq);
