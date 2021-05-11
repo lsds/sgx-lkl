@@ -26,7 +26,7 @@ static uint8_t registered_dev_idx = 0;
 static inline struct dev_handle* get_netdev_instance(uint8_t netdev_id)
 {
     for (size_t i = 0; i < registered_dev_idx; i++)
-        if (devs[i].shadow_dev->vendor_id == netdev_id)
+        if (devs[i].dev->vendor_id == netdev_id)
             return &devs[i];
     SGXLKL_ASSERT(false);
 }
@@ -56,7 +56,7 @@ static void lkl_deliver_irq(uint64_t dev_id)
     dev_pair->dev->int_status |= VIRTIO_MMIO_INT_VRING;
     dev_pair->dev_host->int_status |= VIRTIO_MMIO_INT_VRING;
 
-    lkl_trigger_irq(dev->irq);
+    lkl_trigger_irq(dev_pair->dev->irq);
 }
 
 /*
@@ -72,7 +72,8 @@ int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
     if (!netdev)
         return -1;
 
-    devs[registered_dev_idx] = {netdev_host, netdev};
+    devs[registered_dev_idx].dev_host = netdev_host;
+    devs[registered_dev_idx].dev = netdev;
 
     if (lkl_virtio_dev_setup(netdev, netdev_host, mmio_size, &lkl_deliver_irq) != 0)
         return -1;
