@@ -689,6 +689,12 @@ int lkl_virtio_dev_setup(
         return -1;
     }
 
+    if (dev->vendor_id >= DEVICE_COUNT)
+    {
+        sgxlkl_error("Too many devices. Only %d devices are supported\n", DEVICE_COUNT);
+        return -1;
+    }
+
     virtio_deliver_irq[dev->vendor_id] = deliver_irq_cb;
     dev_hosts[dev->vendor_id] = dev_host;
     dev->base = register_iomem(dev_handle, mmio_size, &virtio_ops);
