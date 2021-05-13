@@ -48,6 +48,7 @@ bool packed_ring = false;
 #include <openenclave/internal/print.h>
 #endif
 
+
 /* Used for notifying LKL for the list of virtio devices at bootup.
  * Currently block, network and console devices are passed */
 char lkl_virtio_devs[4096];
@@ -497,6 +498,21 @@ static const struct lkl_iomem_ops virtio_ops = {
     .write = virtio_write,
 };
 
+static int device_num_queues(int device_id)
+{
+    switch(device_id)
+    {
+        case VIRTIO_ID_NET:
+            return NET_DEV_NUM_QUEUES;
+        case VIRTIO_ID_CONSOLE:
+            return CONSOLE_NUM_QUEUES;
+        case VIRTIO_ID_BLOCK:
+            return BLK_DEV_NUM_QUEUES;
+        default:
+            return 0;
+    }
+}
+
 /*
  * lkl_virtio_deliver_irq : Deliver the irq request to device task
  * dev_id : Device id for which irq needs to be delivered.
@@ -504,20 +520,7 @@ static const struct lkl_iomem_ops virtio_ops = {
 void lkl_virtio_deliver_irq(uint8_t dev_id)
 {
     struct virtio_dev *dev_host = dev_hosts[dev_id];
-    int num_queues = 0;
-
-    switch(dev_host->device_id)
-    {
-        case VIRTIO_ID_NET:
-            num_queues = NET_DEV_NUM_QUEUES;
-            break;
-        case VIRTIO_ID_CONSOLE:
-            num_queues = CONSOLE_NUM_QUEUES;
-            break;
-        case VIRTIO_ID_BLOCK:
-            num_queues = BLK_DEV_NUM_QUEUES;
-            break;
-    }
+    int num_queues = device_num_queues(dev_host->device_id);
 
     //Verify descriptor len doesn't exceed bounds
     for (int i = 0; i < num_queues; i++)
@@ -559,26 +562,11 @@ void lkl_virtio_deliver_irq(uint8_t dev_id)
 static void* copy_queue(struct virtio_dev* dev)
 {
     void* vq_mem = NULL;
-    int num_queues = 0;
-    size_t vq_size = 0;
     struct virtq_packed* dest_packed = NULL;
     struct virtq* dest_split = NULL;
+    size_t vq_size = 0;
+    int num_queues = device_num_queues(dev->device_id);
 
-    switch (dev->device_id)
-    {
-        case VIRTIO_ID_NET:
-            num_queues = NET_DEV_NUM_QUEUES;
-            break;
-        case VIRTIO_ID_CONSOLE:
-            num_queues = CONSOLE_NUM_QUEUES;
-            break;
-        case VIRTIO_ID_BLOCK:
-            num_queues = BLK_DEV_NUM_QUEUES;
-            break;
-        default:
-            sgxlkl_error("Unsupported device, device id: %d\n", dev->device_id);
-            return NULL;
-    }
     if (packed_ring)
     {
         vq_size = next_pow2(num_queues * sizeof(struct virtq_packed));
@@ -616,6 +604,35 @@ static void* copy_queue(struct virtio_dev* dev)
     return packed_ring ? (void *) dest_packed : (void *) dest_split;
 }
 
+static bool virtqueues_in_shared_memory(struct virtio_dev* dev)
+{
+    int num_queues = device_num_queues(dev->device_id);
+
+    for (int i = 0; i < num_queues; i++)
+    {
+        if (packed_ring)
+        {
+            if((oe_is_within_enclave(&dev->packed.queue[i], sizeof(struct virtq_packed))))
+                return false;
+        }
+
+        else
+        {
+            if((oe_is_within_enclave(&dev->split.queue[i], sizeof(struct virtq))))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+static bool supported_device(struct virtio_dev* dev)
+{
+    return dev->device_id == VIRTIO_ID_NET ||
+           dev->device_id == VIRTIO_ID_CONSOLE ||
+           dev->device_id == VIRTIO_ID_BLOCK;
+}
+
 /*
  * Function to setup the virtio device setting
  */
@@ -645,6 +662,13 @@ int lkl_virtio_dev_setup(
     dev->device_features = dev_host->device_features;
     dev->config_len = dev_host->config_len;
     dev->int_status = dev_host->int_status;
+
+    if (!supported_device(dev))
+    {
+       sgxlkl_error("Unsupported device, device id: %d\n", dev->device_id);
+       return -1;
+    }
+
     if (dev->config_len != 0)
     {
         dev->config_data = sgxlkl_host_ops.mem_alloc(next_pow2(dev->config_len));
@@ -673,6 +697,12 @@ int lkl_virtio_dev_setup(
             sgxlkl_error("Failed to copy split virtqueue into shadow structure\n");
             return -1;
         }
+    }
+
+    if (!virtqueues_in_shared_memory(dev_host))
+    {
+        sgxlkl_error("Virtqueue arrays not in shared memory\n");
+        return -1;
     }
 
     dev->irq = lkl_get_free_irq("virtio");
