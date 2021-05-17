@@ -521,39 +521,7 @@ void lkl_virtio_deliver_irq(uint8_t dev_id)
 {
     struct virtio_dev *dev_host = dev_hosts[dev_id];
     int num_queues = device_num_queues(dev_host->device_id);
-
-    //Verify descriptor len doesn't exceed bounds
-    for (int i = 0; i < num_queues; i++)
-    {
-        if (packed_ring)
-        {
-            struct virtq_packed* packed_q = &dev_host->packed.queue[i];
-            for (int j = 0; j < packed_q->num; j++)
-            {
-                if (packed_q->desc[j].len >
-                    sgxlkl_enclave_state.shared_memory.virtio_swiotlb_size)
-                {
-                    sgxlkl_error("Virtio desc memory size larger than allocated bounce buffer\n");
-                    return;
-                }
-            }
-        }
-
-        else
-        {
-            struct virtq* split_q = &dev_host->split.queue[i];
-            for (int j = 0; j < split_q->used->idx; j++)
-            {
-                if (split_q->used->ring[j].len >
-                    sgxlkl_enclave_state.shared_memory.virtio_swiotlb_size)
-                {
-                    sgxlkl_error("Virtio used memory size larger than allocated bounce buffer\n");
-                    return;
-                }
-            }
-        }
-    }
-
+    
     // Get sgxlkl_enclave_state
     if (virtio_deliver_irq[dev_id])
         virtio_deliver_irq[dev_id](dev_id);
