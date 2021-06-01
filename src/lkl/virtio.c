@@ -519,9 +519,6 @@ static int device_num_queues(int device_id)
  */
 void lkl_virtio_deliver_irq(uint8_t dev_id)
 {
-    struct virtio_dev *dev_host = dev_hosts[dev_id];
-    int num_queues = device_num_queues(dev_host->device_id);
-    
     // Get sgxlkl_enclave_state
     if (virtio_deliver_irq[dev_id])
         virtio_deliver_irq[dev_id](dev_id);
