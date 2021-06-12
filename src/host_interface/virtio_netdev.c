@@ -534,6 +534,7 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     void* netdev_vq_mem = NULL;
     struct virtio_net_dev* net_dev = NULL;
     char mac[6];
+    size_t netdev_vq_size;
     // Generate a completely random MAC address
     size_t b = 0;
     while (b < sizeof(mac)) {
@@ -550,7 +551,11 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     mac[0] &= 0xfe;
 
     size_t host_netdev_size = next_pow2(sizeof(struct virtio_net_dev));
-    size_t netdev_vq_size = NUM_QUEUES * sizeof(struct virtq);
+
+    if (!packed_ring)
+        netdev_vq_size = NUM_QUEUES * sizeof(struct virtq);
+    else
+        netdev_vq_size = NUM_QUEUES * sizeof(struct virtq_packed);
     netdev_vq_size = next_pow2(netdev_vq_size);
 
     if (!_netdev_id)
@@ -589,12 +594,30 @@ int netdev_init(sgxlkl_host_state_t* host_state)
         return -1;
     }
 
-    net_dev->dev.queue = netdev_vq_mem;
-    memset(net_dev->dev.queue, 0, netdev_vq_size);
-
+    if (!packed_ring)
+    {
+        net_dev->dev.split.queue = netdev_vq_mem;
+        memset(net_dev->dev.split.queue, 0, netdev_vq_size);
+    }
+    else
+    {
+        net_dev->dev.packed.queue = netdev_vq_mem;
+        memset(net_dev->dev.packed.queue, 0, netdev_vq_size);
+    }
     /* assign the queue depth to each virt queue */
     for (int i = 0; i < NUM_QUEUES; i++)
-        net_dev->dev.queue[i].num_max = QUEUE_DEPTH;
+    {
+        if (!packed_ring)
+        {
+            net_dev->dev.split.queue[i].num_max = QUEUE_DEPTH;
+        }
+        else
+        {
+            net_dev->dev.packed.queue[i].num_max = QUEUE_DEPTH;
+            net_dev->dev.packed.queue[i].device_wrap_counter = 1;
+            net_dev->dev.packed.queue[i].driver_wrap_counter = 1;
+        }
+    }
 
     /* set net device feature */
     net_dev->dev.device_id = VIRTIO_ID_NET;
@@ -617,6 +640,10 @@ int netdev_init(sgxlkl_host_state_t* host_state)
     }
 
     net_dev->dev.device_features |= BIT(VIRTIO_NET_F_MAC);
+
+    if (packed_ring)
+        net_dev->dev.device_features |= BIT(VIRTIO_F_RING_PACKED);
+
     memcpy(net_dev->config.mac, mac, ETH_ALEN);
 
     net_dev->dev.config_data = &net_dev->config;
@@ -629,7 +656,9 @@ int netdev_init(sgxlkl_host_state_t* host_state)
      * there are available up to 64KB in total len.
      */
     if (net_dev->dev.device_features & BIT(VIRTIO_NET_F_MRG_RXBUF))
+    {
         virtio_set_queue_max_merge_len(&net_dev->dev, RX_QUEUE_IDX, 65536);
+    }
 
     /* Register the netdev fd */
     register_net_device(net_dev, host_state->net_fd);

@@ -5,16 +5,20 @@
 #include <endian.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <lkl/iomem.h>
 #include <lkl/virtio.h>
+#include <lkl/posix-host.h>
 #include <enclave/sgxlkl_t.h>
 #include <enclave/enclave_util.h>
+#include <enclave/enclave_mem.h>
 #include <shared/virtio_ring_buff.h>
+#include <shared/env.h>
 #include <stdatomic.h>
 #include "enclave/vio_enclave_event_channel.h"
 #include <linux/virtio_blk.h>
 #include <linux/virtio_mmio.h>
-
+#include <linux/virtio_ids.h>
 #include "openenclave/corelibc/oestring.h"
 
 // from inttypes.h
@@ -23,8 +27,27 @@
 #define VIRTIO_DEV_MAGIC 0x74726976
 #define VIRTIO_DEV_VERSION 2
 
+#define BLK_DEV_NUM_QUEUES 1
+#define NET_DEV_NUM_QUEUES 2
+#define CONSOLE_NUM_QUEUES 2
+
+#define BLK_DEV_QUEUE_DEPTH 32
+#define CONSOLE_QUEUE_DEPTH 32
+#define NET_DEV_QUEUE_DEPTH 128
+
 #undef BIT
 #define BIT(x) (1ULL << x)
+
+#ifdef PACKED_RING
+bool packed_ring = true;
+#else
+bool packed_ring = false;
+#endif
+
+#ifdef DEBUG
+#include <openenclave/internal/print.h>
+#endif
+
 
 /* Used for notifying LKL for the list of virtio devices at bootup.
  * Currently block, network and console devices are passed */
@@ -42,6 +65,18 @@ static uint32_t lkl_num_virtio_boot_devs;
 typedef void (*lkl_virtio_dev_deliver_irq)(uint64_t dev_id);
 static lkl_virtio_dev_deliver_irq virtio_deliver_irq[DEVICE_COUNT];
 
+static struct virtio_dev* dev_hosts[DEVICE_COUNT];
+
+/*
+ * Used for switching between the host and shadow dev structure based
+ * on the virtio_read/write request
+ */
+struct virtio_dev_handle
+{
+    struct virtio_dev* dev; //shadow structure in guest memory
+    struct virtio_dev* dev_host;
+};
+
 /*
  * virtio_read_device_features: Read Device Features
  * dev : pointer to device structure
@@ -53,6 +88,17 @@ static inline uint32_t virtio_read_device_features(struct virtio_dev* dev)
         return (uint32_t)(dev->device_features >> 32);
 
     return (uint32_t)dev->device_features;
+}
+
+/*
+ * virtio_has_feature: Return whether feature bit has been set on virtio device
+ * dev: pointer to device structure
+ * bit: feature bit
+ * return whether feature bit is set
+ */
+static bool virtio_has_feature(struct virtio_dev* dev, unsigned int bit)
+{
+    return dev->device_features & BIT(bit);
 }
 
 /*
@@ -85,7 +131,9 @@ static int virtio_read(void* data, int offset, void* res, int size)
      * shadow structure init routine copy the content from the host structure.
      */
     uint32_t val = 0;
-    struct virtio_dev* dev = (struct virtio_dev*)data;
+    struct virtio_dev_handle* dev_handle = (struct virtio_dev_handle*)data;
+    struct virtio_dev* dev = dev_handle->dev;
+    struct virtio_dev* dev_host = dev_handle->dev_host;
 
     if (offset >= VIRTIO_MMIO_CONFIG)
     {
@@ -123,18 +171,24 @@ static int virtio_read(void* data, int offset, void* res, int size)
          * host-write-once
          */
         case VIRTIO_MMIO_QUEUE_NUM_MAX:
-            val = dev->queue[dev->queue_sel].num_max;
+            val = packed_ring ? dev->packed.queue[dev->queue_sel].num_max :
+                                dev->split.queue[dev->queue_sel].num_max;
             break;
         case VIRTIO_MMIO_QUEUE_READY:
-            val = dev->queue[dev->queue_sel].ready;
+            val = packed_ring ? dev->packed.queue[dev->queue_sel].ready :
+                                dev->split.queue[dev->queue_sel].ready;
             break;
         /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_STATUS:
-            val = dev->int_status;
+            val = dev_host->int_status;
+            if (dev->int_status != val)
+                dev->int_status = val;
             break;
         /* Security Review: dev->status is host-read-write */
         case VIRTIO_MMIO_STATUS:
-            val = dev->status;
+            val = dev_host->status;
+            if (dev->status != val)
+                dev->status = val;
             break;
         /* Security Review: dev->config_gen should be host-write-once */
         case VIRTIO_MMIO_CONFIG_GENERATION:
@@ -257,9 +311,12 @@ static int virtio_write(void* data, int offset, void* res, int size)
      * perform copy-through write (write to shadow structure & to host
      * structure). virtq desc and avail ring address handling is a special case.
      */
-    struct virtio_dev* dev = (struct virtio_dev*)data;
-    /* Security Review: dev->queue_sel should be host-read-only */
-    struct virtq* q = &dev->queue[dev->queue_sel];
+    struct virtio_dev_handle* dev_handle = (struct virtio_dev_handle*)data;
+    struct virtio_dev* dev = dev_handle->dev;
+    struct virtio_dev* dev_host = dev_handle->dev_host;
+
+    struct virtq* split_q = packed_ring ? NULL : &dev_host->split.queue[dev->queue_sel];
+    struct virtq_packed* packed_q = packed_ring ? &dev_host->packed.queue[dev->queue_sel] : NULL;
     uint32_t val;
     int ret = 0;
 
@@ -288,31 +345,53 @@ static int virtio_write(void* data, int offset, void* res, int size)
             if (val > 1)
                 return -LKL_EINVAL;
             dev->device_features_sel = val;
+            dev_host->device_features_sel = val;
             break;
         /* Security Review: dev->driver_features_sel should be host-read-only */
         case VIRTIO_MMIO_DRIVER_FEATURES_SEL:
             if (val > 1)
                 return -LKL_EINVAL;
             dev->driver_features_sel = val;
+            dev_host->driver_features_sel = val;
             break;
         /* Security Review: dev->driver_features should be host-read-only */
         case VIRTIO_MMIO_DRIVER_FEATURES:
             virtio_write_driver_features(dev, val);
+            virtio_write_driver_features(dev_host, val);
             break;
         /* Security Review: dev->queue_sel should be host-read-only */
         case VIRTIO_MMIO_QUEUE_SEL:
             dev->queue_sel = val;
+            dev_host->queue_sel = val;
             break;
         /* Security Review: dev->queue[dev->queue_sel].num should be
          * host-read-only
          */
         case VIRTIO_MMIO_QUEUE_NUM:
-            dev->queue[dev->queue_sel].num = val;
+            if (packed_ring)
+            {
+                dev->packed.queue[dev->queue_sel].num = val;
+                dev_host->packed.queue[dev->queue_sel].num = val;
+            }
+            else
+            {
+                dev->split.queue[dev->queue_sel].num = val;
+                dev_host->split.queue[dev->queue_sel].num = val;
+            }
             break;
         /* Security Review: is dev->queue[dev->queue_sel].ready host-read-only?
          */
         case VIRTIO_MMIO_QUEUE_READY:
-            dev->queue[dev->queue_sel].ready = val;
+            if (packed_ring)
+            {
+                dev->packed.queue[dev->queue_sel].ready = val;
+                dev_host->packed.queue[dev->queue_sel].ready = val;
+            }
+            else
+            {
+                dev->split.queue[dev->queue_sel].ready = val;
+                dev_host->split.queue[dev->queue_sel].ready = val;
+            }
             break;
         /* Security Review: guest virtio driver(s) writes to virtq desc ring and
          * avail ring in guest memory. In queue notify flow, we need to copy the
@@ -324,10 +403,12 @@ static int virtio_write(void* data, int offset, void* res, int size)
         /* Security Review: dev->int_status is host-read-write */
         case VIRTIO_MMIO_INTERRUPT_ACK:
             dev->int_status = 0;
+            dev_host->int_status = 0;
             break;
         /* Security Review: dev->status is host-read-write */
         case VIRTIO_MMIO_STATUS:
             set_status(dev, val);
+            set_status(dev_host, val);
             break;
         /* Security Review: For Split Queue, q->desc link list
          * content should be host-read-only. The Split Queue implementaiton
@@ -346,10 +427,16 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * be required.
          */
         case VIRTIO_MMIO_QUEUE_DESC_LOW:
-            set_ptr_low((_Atomic(uint64_t)*)&q->desc, val);
+            if (packed_ring)
+                set_ptr_low((_Atomic(uint64_t)*)&packed_q->desc, val);
+            else
+                set_ptr_low((_Atomic(uint64_t)*)&split_q->desc, val);
             break;
         case VIRTIO_MMIO_QUEUE_DESC_HIGH:
-            set_ptr_high((_Atomic(uint64_t)*)&q->desc, val);
+            if (packed_ring)
+                set_ptr_high((_Atomic(uint64_t)*)&packed_q->desc, val);
+            else
+                set_ptr_high((_Atomic(uint64_t)*)&split_q->desc, val);
             break;
         /* Security Review: For Split Queue, q->avail link list content should be
          * host-read-only. The Split Queue implementaiton
@@ -364,10 +451,16 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * to it.
          */
         case VIRTIO_MMIO_QUEUE_AVAIL_LOW:
-            set_ptr_low((_Atomic(uint64_t)*)&q->avail, val);
+            if (packed_ring)
+                set_ptr_low((_Atomic(uint64_t)*)&packed_q->driver, val);
+            else
+                set_ptr_low((_Atomic(uint64_t)*)&split_q->avail, val);
             break;
         case VIRTIO_MMIO_QUEUE_AVAIL_HIGH:
-            set_ptr_high((_Atomic(uint64_t)*)&q->avail, val);
+            if (packed_ring)
+               set_ptr_high((_Atomic(uint64_t)*)&packed_q->driver, val);
+            else
+                set_ptr_high((_Atomic(uint64_t)*)&split_q->avail, val);
             break;
         /* Security Review: For Split Queue, q->used link list content should be
          * guest-read-only. The Split Queue implementaiton in guest side virtio
@@ -382,10 +475,16 @@ static int virtio_write(void* data, int offset, void* res, int size)
          * functionality.
          */
         case VIRTIO_MMIO_QUEUE_USED_LOW:
-            set_ptr_low((_Atomic(uint64_t)*)&q->used, val);
+            if (packed_ring)
+               set_ptr_low((_Atomic(uint64_t)*)&packed_q->device, val);
+            else
+                set_ptr_low((_Atomic(uint64_t)*)&split_q->used, val);
             break;
         case VIRTIO_MMIO_QUEUE_USED_HIGH:
-            set_ptr_high((_Atomic(uint64_t)*)&q->used, val);
+             if (packed_ring)
+               set_ptr_high((_Atomic(uint64_t)*)&packed_q->device, val);
+            else
+                set_ptr_high((_Atomic(uint64_t)*)&split_q->used, val);
             break;
         default:
             ret = -1;
@@ -399,14 +498,104 @@ static const struct lkl_iomem_ops virtio_ops = {
     .write = virtio_write,
 };
 
+static int device_num_queues(int device_id)
+{
+    switch(device_id)
+    {
+        case VIRTIO_ID_NET:
+            return NET_DEV_NUM_QUEUES;
+        case VIRTIO_ID_CONSOLE:
+            return CONSOLE_NUM_QUEUES;
+        case VIRTIO_ID_BLOCK:
+            return BLK_DEV_NUM_QUEUES;
+        default:
+            return 0;
+    }
+}
+
 /*
  * lkl_virtio_deliver_irq : Deliver the irq request to device task
  * dev_id : Device id for which irq needs to be delivered.
  */
 void lkl_virtio_deliver_irq(uint8_t dev_id)
 {
+    // Get sgxlkl_enclave_state
     if (virtio_deliver_irq[dev_id])
         virtio_deliver_irq[dev_id](dev_id);
+}
+
+static void* copy_queue(struct virtio_dev* dev)
+{
+    void* vq_mem = NULL;
+    struct virtq_packed* dest_packed = NULL;
+    struct virtq* dest_split = NULL;
+    size_t vq_size = 0;
+    int num_queues = device_num_queues(dev->device_id);
+
+    if (packed_ring)
+    {
+        vq_size = next_pow2(num_queues * sizeof(struct virtq_packed));
+    }
+    else
+    {
+        vq_size = next_pow2(num_queues * sizeof(struct virtq));
+    }
+
+    vq_mem = sgxlkl_host_ops.mem_alloc(vq_size);
+
+    if (!vq_mem)
+    {
+       sgxlkl_error("Queue mem alloc failed\n");
+       return NULL;
+    }
+
+    if (packed_ring)
+        dest_packed = vq_mem;
+    else
+        dest_split = vq_mem;
+
+    for (int i = 0; i < num_queues; i++)
+    {
+       if (packed_ring)
+       {
+           dest_packed[i].num_max = dev->packed.queue[i].num_max;
+       }
+
+       else
+       {
+           dest_split[i].num_max = dev->split.queue[i].num_max;
+       }
+    }
+    return packed_ring ? (void *) dest_packed : (void *) dest_split;
+}
+
+static bool virtqueues_in_shared_memory(struct virtio_dev* dev)
+{
+    int num_queues = device_num_queues(dev->device_id);
+
+    for (int i = 0; i < num_queues; i++)
+    {
+        if (packed_ring)
+        {
+            if((oe_is_within_enclave(&dev->packed.queue[i], sizeof(struct virtq_packed))))
+                return false;
+        }
+
+        else
+        {
+            if((oe_is_within_enclave(&dev->split.queue[i], sizeof(struct virtq))))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+static bool supported_device(struct virtio_dev* dev)
+{
+    return dev->device_id == VIRTIO_ID_NET ||
+           dev->device_id == VIRTIO_ID_CONSOLE ||
+           dev->device_id == VIRTIO_ID_BLOCK;
 }
 
 /*
@@ -414,26 +603,96 @@ void lkl_virtio_deliver_irq(uint8_t dev_id)
  */
 int lkl_virtio_dev_setup(
     struct virtio_dev* dev,
+    struct virtio_dev* dev_host,
     int mmio_size,
     void* deliver_irq_cb)
 {
+    struct virtio_dev_handle* dev_handle;
     int avail = 0, num_bytes = 0, ret = 0;
+    size_t dev_handle_size = next_pow2(sizeof(struct virtio_dev_handle));
+    dev_handle = sgxlkl_host_ops.mem_alloc(dev_handle_size);
+
+    if (!dev_handle)
+    {
+        sgxlkl_error("Failed to allocate memory for dev handle\n");
+        return -1;
+    }
+
+    dev_handle->dev = dev;
+    dev_handle->dev_host = dev_host;
+
+    dev->device_id = dev_host->device_id;
+    dev->vendor_id = dev_host->vendor_id;
+    dev->config_gen = dev_host->config_gen;
+    dev->device_features = dev_host->device_features;
+    dev->config_len = dev_host->config_len;
+    dev->int_status = dev_host->int_status;
+
+    if (!supported_device(dev))
+    {
+       sgxlkl_error("Unsupported device, device id: %d\n", dev->device_id);
+       return -1;
+    }
+
+    if (dev->config_len != 0)
+    {
+        dev->config_data = sgxlkl_host_ops.mem_alloc(next_pow2(dev->config_len));
+        if (!dev->config_data)
+        {
+            sgxlkl_error("Failed to allocate memory for dev config data\n");
+            return -1;
+        }
+        memcpy(dev->config_data, dev_host->config_data, dev->config_len);
+    }
+
+    if (packed_ring)
+    {
+        dev->packed.queue = copy_queue(dev_host);
+        if (!dev->packed.queue)
+        {
+            sgxlkl_error("Failed to copy packed virtqueue into shadow structure\n");
+            return -1;
+        }
+    }
+    else
+    {
+        dev->split.queue = copy_queue(dev_host);
+        if (!dev->split.queue)
+        {
+            sgxlkl_error("Failed to copy split virtqueue into shadow structure\n");
+            return -1;
+        }
+    }
+
+    if (!virtqueues_in_shared_memory(dev_host))
+    {
+        sgxlkl_error("Virtqueue arrays not in shared memory\n");
+        return -1;
+    }
+
     dev->irq = lkl_get_free_irq("virtio");
+    dev_host->irq = dev->irq;
+    dev_host->int_status = 0;
     dev->int_status = 0;
+
     if (dev->irq < 0)
         return 1;
 
-    /* Security Review: dev-vendor_id might cause overflow in
-     * virtio_deliver_irq[DEVICE_COUNT]
-     */
+    if (packed_ring && !virtio_has_feature(dev, VIRTIO_F_RING_PACKED))
+    {
+        sgxlkl_error("Device %d does not support virtio packed ring\n", dev->device_id);
+        return -1;
+    }
+
+    if (dev->vendor_id >= DEVICE_COUNT)
+    {
+        sgxlkl_error("Too many devices. Only %d devices are supported\n", DEVICE_COUNT);
+        return -1;
+    }
+
     virtio_deliver_irq[dev->vendor_id] = deliver_irq_cb;
-    /* Security Review: pass handle instead of virtio_dev pointer to the rest of
-     * the system. 
-     */
-    /* Security Review: shadow dev->base used in guest side only. No
-     * copy-through to the host side structure
-     */
-    dev->base = register_iomem(dev, mmio_size, &virtio_ops);
+    dev_hosts[dev->vendor_id] = dev_host;
+    dev->base = register_iomem(dev_handle, mmio_size, &virtio_ops);
 
     if (!lkl_is_running())
     {
@@ -472,4 +731,21 @@ int lkl_virtio_dev_setup(
         dev->virtio_mmio_id = lkl_num_virtio_boot_devs + ret;
     }
     return 0;
+}
+
+/*
+ * Function to allocate memory for a shadow virtio dev
+ */
+struct virtio_dev* alloc_shadow_virtio_dev()
+{
+    size_t dev_size = next_pow2(sizeof(struct virtio_dev));
+
+    struct virtio_dev* dev = sgxlkl_host_ops.mem_alloc(dev_size);
+
+    if (!dev)
+    {
+        sgxlkl_error("Shadow device alloc failed\n");
+        return NULL;
+    }
+    return dev;
 }

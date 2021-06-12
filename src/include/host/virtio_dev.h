@@ -9,6 +9,9 @@
 #define VIRTIO_F_VERSION_1 32
 #define VIRTIO_RING_F_EVENT_IDX 29
 #define VIRTIO_F_IOMMU_PLATFORM 33
+#define VIRTIO_F_RING_PACKED 34
+
+extern bool packed_ring;
 
 struct virtio_dev;
 
@@ -57,7 +60,15 @@ struct virtio_dev
     uint64_t driver_features;
     _Atomic(uint32_t) driver_features_sel;
     _Atomic(uint32_t) queue_sel;
-    struct virtq* queue;
+    union {
+        struct {
+            struct virtq* queue;
+        }split;
+
+        struct {
+            struct virtq_packed* queue;
+        }packed;
+    };
     uint32_t queue_notify;
     _Atomic(uint32_t) int_status;
     _Atomic(uint32_t) status;

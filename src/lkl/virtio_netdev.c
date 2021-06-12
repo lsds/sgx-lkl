@@ -11,18 +11,23 @@
 
 #define MAX_NET_DEVS 16
 
-static uint8_t registered_dev_idx = 0;
+struct dev_handle
+{
+    struct virtio_dev* dev_host;
+    struct virtio_dev* dev;
+};
 
-struct virtio_dev* registered_devs[MAX_NET_DEVS];
+struct dev_handle devs[MAX_NET_DEVS];
+static uint8_t registered_dev_idx = 0;
 
 /*
  * Function to get netdev instance to use its attributes
  */
-static inline struct virtio_dev* get_netdev_instance(uint8_t netdev_id)
+static inline struct dev_handle* get_netdev_instance(uint8_t netdev_id)
 {
     for (size_t i = 0; i < registered_dev_idx; i++)
-        if (registered_devs[i]->vendor_id == netdev_id)
-            return registered_devs[i];
+        if (devs[i].dev->vendor_id == netdev_id)
+            return &devs[i];
     SGXLKL_ASSERT(false);
 }
 
@@ -38,11 +43,6 @@ static int dev_register(struct virtio_dev* dev)
         sgxlkl_info("Too many virtio_net devices!\n");
         ret = -LKL_ENOMEM;
     }
-    else
-    {
-        /* registered_dev_idx is incremented by the caller */
-        registered_devs[registered_dev_idx] = dev;
-    }
     return ret;
 }
 
@@ -51,24 +51,31 @@ static int dev_register(struct virtio_dev* dev)
  */
 static void lkl_deliver_irq(uint64_t dev_id)
 {
-    struct virtio_dev* dev = get_netdev_instance(dev_id);
+    struct dev_handle* dev_pair = get_netdev_instance(dev_id);
 
-    dev->int_status |= VIRTIO_MMIO_INT_VRING;
+    dev_pair->dev->int_status |= VIRTIO_MMIO_INT_VRING;
+    dev_pair->dev_host->int_status |= VIRTIO_MMIO_INT_VRING;
 
-    lkl_trigger_irq(dev->irq);
+    lkl_trigger_irq(dev_pair->dev->irq);
 }
 
 /*
  * Function to add a new net device to LKL and register the cb to notify
  * frontend driver for the request completion.
  */
-int lkl_virtio_netdev_add(struct virtio_dev* netdev)
+int lkl_virtio_netdev_add(struct virtio_dev* netdev_host)
 {
     int ret = -1;
-    int mmio_size = VIRTIO_MMIO_CONFIG + netdev->config_len;
+    int mmio_size = VIRTIO_MMIO_CONFIG + netdev_host->config_len;
+    struct virtio_dev* netdev = alloc_shadow_virtio_dev();
 
-    registered_devs[registered_dev_idx] = netdev;
-    if (lkl_virtio_dev_setup(netdev, mmio_size, &lkl_deliver_irq) != 0)
+    if (!netdev)
+        return -1;
+
+    devs[registered_dev_idx].dev_host = netdev_host;
+    devs[registered_dev_idx].dev = netdev;
+
+    if (lkl_virtio_dev_setup(netdev, netdev_host, mmio_size, &lkl_deliver_irq) != 0)
         return -1;
 
     ret = dev_register(netdev);

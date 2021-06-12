@@ -3,6 +3,9 @@
 # Create a DEBUG build of SGX-LKL
 DEBUG       ?= false
 
+# Use the packed ring implementation of the virtio implementation
+PACKED_RING ?= false
+
 # Turn on debug tracing for LKL
 LKL_DEBUG   ?= false
 
@@ -122,6 +125,10 @@ ifeq ($(DEBUG),true)
   CMAKE_BUILD_TYPE=Debug
 else
   CMAKE_BUILD_TYPE=Release
+endif
+
+ifeq ($(PACKED_RING),true)
+    SGXLKL_CFLAGS_EXTRA     += -DPACKED_RING
 endif
 
 # OpenEnclave
