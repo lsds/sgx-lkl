@@ -384,7 +384,8 @@ static void virtio_req_complete_packed(struct virtio_req* req, uint32_t len)
         // new_used event old_used (X)
         // event old_used new_used (X)
         if ((used_desc_idx > event_idx && event_idx >= prev_used_desc_idx) ||
-            (used_desc_idx < prev_used_desc_idx && prev_used_desc_idx <= event_idx))
+            (used_desc_idx < prev_used_desc_idx && prev_used_desc_idx <= event_idx) ||
+            (used_desc_idx < prev_used_desc_idx && event_idx < used_desc_idx))
             send_irq = 1;
     }
 
