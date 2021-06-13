@@ -1,11 +1,23 @@
 #include <stdatomic.h>
 #include <string.h>
 
+/* Some versions of the Open Enclave headers require this macro to know that
+ * they are used in in-enclave code */
+#define OE_BUILD_ENCLAVE
+
+#include <openenclave/attestation/attester.h>
+#include <openenclave/attestation/sgx/eeid_attester.h>
+#include <openenclave/attestation/sgx/eeid_plugin.h>
 #include <openenclave/bits/eeid.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestring.h>
+#include <openenclave/corelibc/oetime.h>
 #include <openenclave/internal/globals.h>
-#include "openenclave/corelibc/oestring.h"
+
+#define MBEDTLS_PLATFORM_MEMORY
+#define MBEDTLS_HAVE_TIME
+#define MBEDTLS_PLATFORM_TIME_ALT
+#include <openenclave/3rdparty/mbedtls/platform.h>
 
 #include "enclave/enclave_oe.h"
 #include "enclave/enclave_signal.h"
@@ -15,7 +27,7 @@
 #include "shared/env.h"
 #include "shared/timer_dev.h"
 
-#define AUXV_ENTRIES 13
+#define AUXV_ENTRIES 17
 
 char* at_platform = "x86_64";
 sgxlkl_enclave_state_t sgxlkl_enclave_state = {0};
@@ -95,8 +107,29 @@ static void init_auxv(size_t* auxv, char* buf_ptr, char* pn)
     auxv[21] = (size_t)rbuf;
     auxv[22] = AT_HW_MODE;
     auxv[23] = !sgxlkl_in_sw_debug_mode();
-    auxv[24] = AT_NULL;
-    auxv[25] = 0;
+
+    auxv[24] = AT_ATT_EVIDENCE;
+    memcpy(
+        buf_ptr,
+        sgxlkl_enclave_state.evidence,
+        sgxlkl_enclave_state.evidence_size);
+    auxv[25] = (size_t)buf_ptr;
+    buf_ptr += sgxlkl_enclave_state.evidence_size;
+    auxv[26] = AT_ATT_EVIDENCE_SIZE;
+    auxv[27] = sgxlkl_enclave_state.evidence_size;
+
+    auxv[28] = AT_ATT_ENDORSEMENTS;
+    memcpy(
+        buf_ptr,
+        sgxlkl_enclave_state.endorsements,
+        sgxlkl_enclave_state.endorsements_size);
+    auxv[29] = (size_t)buf_ptr;
+    buf_ptr += sgxlkl_enclave_state.endorsements_size;
+    auxv[30] = AT_ATT_ENDORSEMENTS_SIZE;
+    auxv[31] = sgxlkl_enclave_state.endorsements_size;
+
+    auxv[32] = AT_NULL;
+    auxv[33] = 0;
 }
 
 static void _prepare_elf_stack()
@@ -145,6 +178,8 @@ static void _prepare_elf_stack()
     num_ptrs += 2 * AUXV_ENTRIES;            // auxv vector entries
     num_bytes += oe_strlen(at_platform) + 1; // AT_PLATFORM
     num_bytes += 16;                         // AT_RANDOM
+    num_bytes += state->evidence_size;
+    num_bytes += state->endorsements_size;
 
     elf64_stack_t* stack = &sgxlkl_enclave_state.elf64_stack;
     stack->data = oe_calloc_or_die(
@@ -190,7 +225,7 @@ static void _prepare_elf_stack()
     // Check that the allocated memory was correct.
     SGXLKL_ASSERT(j + 1 == num_ptrs);
     SGXLKL_ASSERT(out[j] == NULL);
-    SGXLKL_ASSERT(out[j - 4] == (char*)AT_HW_MODE);
+    SGXLKL_ASSERT(out[j - 4] == (char*)AT_ATT_ENDORSEMENTS_SIZE);
 
     oe_free(imported_env);
 }
@@ -306,6 +341,64 @@ static void _read_eeid_config()
     sgxlkl_enclave_state.config = cfg;
 }
 
+#ifndef SGXLKL_RELEASE
+#define _sgxlkl_release_fail sgxlkl_fail
+#else
+#define _sgxlkl_release_fail sgxlkl_warn
+#endif
+
+time_t ocall_time(time_t* t)
+{
+    /* oe_get_time() ocalls for the time in milliseconds in the epoch */
+    /* See also https://github.com/openenclave/openenclave/issues/3516 */
+    return oe_get_time() / 1000;
+}
+
+static void _extract_evidence()
+{
+    const void *custom_claims = NULL, *optional_parameters = NULL;
+    const size_t custom_claims_size = 0, optional_parameters_size = 0;
+
+    if (mbedtls_platform_set_calloc_free(oe_calloc, oe_free) != 0)
+        _sgxlkl_release_fail(
+            "could not register mbedTLS memory allocation functions.\n");
+
+    /* OE and mbedTLS require a (not necessarily accurate or precise) notion of
+     * time because they attempt to check certificate expiry during extraction
+     * of endorsements.
+     * Also note that mbedTLS calls gtime_r, which is not provided by OE, but it
+     * picks up sgx-lkl-musl's version, which happens to work. See also
+     * https://github.com/openenclave/openenclave/pull/3517 */
+    if (mbedtls_platform_set_time(ocall_time) != 0)
+        _sgxlkl_release_fail("could not register ocall_time for mbedTLS.\n");
+
+    if (oe_sgx_eeid_attester_initialize() != OE_OK)
+        _sgxlkl_release_fail("could not initialize EEID attester.\n");
+
+    oe_uuid_t format_id = {OE_FORMAT_UUID_SGX_EEID_ECDSA_P256};
+
+    if (oe_get_evidence(
+            &format_id,
+            OE_EVIDENCE_FLAGS_EMBED_FORMAT_ID,
+            custom_claims,
+            custom_claims_size,
+            optional_parameters,
+            optional_parameters_size,
+            &sgxlkl_enclave_state.evidence,
+            &sgxlkl_enclave_state.evidence_size,
+            &sgxlkl_enclave_state.endorsements,
+            &sgxlkl_enclave_state.endorsements_size) != OE_OK)
+        _sgxlkl_release_fail("could not extract attestation evidence.\n");
+
+    if (oe_sgx_eeid_attester_shutdown() != OE_OK)
+        _sgxlkl_release_fail("could not shut down EEID attester.\n");
+
+    sgxlkl_info(
+        "obtained EEID evidence and endorsements (%lu/%lu bytes)\n",
+        sgxlkl_enclave_state.evidence_size,
+        sgxlkl_enclave_state.endorsements_size);
+}
+
 static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
@@ -401,6 +494,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #endif
 
     _read_eeid_config();
+    _extract_evidence();
     _copy_shared_memory(shared_memory);
 
 #ifdef DEBUG
