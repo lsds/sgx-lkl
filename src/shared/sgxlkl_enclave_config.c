@@ -8,32 +8,34 @@
 #define WARN sgxlkl_host_warn
 #endif
 
+#include <openenclave/bits/defs.h>
+
 #include <json.h>
 #include <shared/oe_compat.h>
-#include <shared/env.h>
 #include <shared/sgxlkl_enclave_config.h>
 #include <shared/string_list.h>
-
-#define CHECKMEM(C) \
-    if (!C)         \
-        FAIL("out of memory\n");
+#include <shared/util.h>
 
 // Duplicate a string (including NULL)
-static int strdupz(char** to, const char* from)
+static int strdupz(
+    char** to,
+    const char* from,
+    uint8_t** bytes,
+    size_t* bytes_remaining)
 {
     if (!to)
         return 1;
     else if (!from)
-    {
         *to = NULL;
-        return 0;
-    }
     else
     {
-        size_t l = strlen(from);
-        *to = malloc(l + 1);
-        CHECKMEM(*to);
-        memcpy(*to, from, l + 1);
+        size_t sz = strlen(from) + 1;
+        if (*bytes_remaining < sz)
+            FAIL("out of memory\n");
+        memcpy(*bytes, from, sz);
+        *to = (char*)*bytes;
+        *bytes_remaining -= sz;
+        *bytes += sz;
     }
     return 0;
 }
@@ -44,6 +46,9 @@ typedef struct json_callback_data
     unsigned long index;
     string_list_t* seen;
     bool enforce_format;
+
+    uint8_t* bytes;
+    size_t bytes_remaining;
 } json_callback_data_t;
 
 static char* make_path(json_parser_t* parser)
@@ -67,8 +72,13 @@ static char* make_path(json_parser_t* parser)
         }
     }
 
-    char* r = NULL;
-    strdupz(&r, tmp);
+    size_t sz = strlen(tmp) + 1;
+    char* r = malloc(sz);
+    if (!r)
+        FAIL("out of memory\n");
+    char* t = r;
+    if (strdupz(&r, tmp, (uint8_t**)&t, &sz) != 0)
+        return NULL;
     return r;
 }
 
@@ -124,10 +134,16 @@ static char* make_path(json_parser_t* parser)
         return JSON_OK;                   \
     }
 
-#define JSTRING(PATH, DEST)                           \
-    JPATH2T(PATH, JSON_TYPE_STRING, JSON_TYPE_NULL, { \
-        if (strdupz(&(DEST), un ? un->string : NULL)) \
-            return JSON_FAILED;                       \
+#define JSTRING(PATH, DEST)                               \
+    JPATH2T(PATH, JSON_TYPE_STRING, JSON_TYPE_NULL, {     \
+        json_callback_data_t* cbd =                       \
+            (json_callback_data_t*)parser->callback_data; \
+        if (strdupz(                                      \
+                &(DEST),                                  \
+                un ? un->string : NULL,                   \
+                &cbd->bytes,                              \
+                &cbd->bytes_remaining))                   \
+            return JSON_FAILED;                           \
     });
 
 static json_result_t decode_safe_uint64_t(
@@ -229,10 +245,13 @@ static json_result_t decode_uint32_t(
             else                                                 \
             {                                                    \
                 DEST##_len = l / 2;                              \
-                DEST = calloc(1, DEST##_len);                    \
-                CHECKMEM(DEST);                                  \
+                if (data->bytes_remaining < DEST##_len)          \
+                    return JSON_OUT_OF_MEMORY;                   \
+                DEST = data->bytes;                              \
                 for (size_t i = 0; i < DEST##_len; i++)          \
                     DEST[i] = hex_to_int(un->string + 2 * i, 2); \
+                data->bytes_remaining -= DEST##_len;             \
+                data->bytes += DEST##_len;                       \
             }                                                    \
         }                                                        \
     });
@@ -243,12 +262,16 @@ static json_result_t decode_uint32_t(
 #define JU64(P, D) JPATH(P, return decode_uint64_t(parser, type, un, &D));
 #define JU32(P, D) JPATH(P, return decode_uint32_t(parser, type, un, &D));
 
-#define ALLOC_ARRAY(N, A, T)                              \
-    do                                                    \
-    {                                                     \
-        data->config->N = un->integer;                    \
-        data->config->A = calloc(un->integer, sizeof(T)); \
-        CHECKMEM(data->config->A);                        \
+#define ALLOC_ARRAY(N, A, T)                 \
+    do                                       \
+    {                                        \
+        data->config->N = un->integer;       \
+        size_t sz = un->integer * sizeof(T); \
+        if (data->bytes_remaining < sz)      \
+            return JSON_OUT_OF_MEMORY;       \
+        data->config->A = (T*)data->bytes;   \
+        data->bytes_remaining -= sz;         \
+        data->bytes += sz;                   \
     } while (0)
 
 static sgxlkl_enclave_mount_config_t* _mount(
@@ -382,13 +405,25 @@ static json_result_t json_read_callback(
 
             JSTRING("cwd", cfg->cwd);
             JPATHT("args", JSON_TYPE_STRING, {
-                strdupz(&cfg->args[i], un->string);
+                strdupz(
+                    &cfg->args[i],
+                    un->string,
+                    &data->bytes,
+                    &data->bytes_remaining);
             });
             JPATHT("env", JSON_TYPE_STRING, {
-                strdupz(&cfg->env[i], un->string);
+                strdupz(
+                    &cfg->env[i],
+                    un->string,
+                    &data->bytes,
+                    &data->bytes_remaining);
             });
             JPATHT("host_import_env", JSON_TYPE_STRING, {
-                strdupz(&cfg->host_import_env[i], un->string);
+                strdupz(
+                    &cfg->host_import_env[i],
+                    un->string,
+                    &data->bytes,
+                    &data->bytes_remaining);
             });
 
             JPATHT("exit_status", JSON_TYPE_STRING, {
@@ -430,6 +465,21 @@ static json_result_t json_read_callback(
             JBOOL("io.console", io->console);
             JBOOL("io.block", io->block);
             JBOOL("io.network", io->network);
+
+#ifndef SGXLKL_RELEASE
+            sgxlkl_trace_config_t* trace = &cfg->trace;
+            JBOOL("trace.print_app_runtime", trace->print_app_runtime);
+            JBOOL("trace.mmap", trace->mmap);
+            JBOOL("trace.signal", trace->signal);
+            JBOOL("trace.thread", trace->thread);
+            JBOOL("trace.disk", trace->disk);
+            JBOOL("trace.syscall", trace->syscall);
+            JBOOL("trace.lkl_syscall", trace->lkl_syscall);
+            JBOOL("trace.internal_syscall", trace->internal_syscall);
+            JBOOL("trace.ignored_syscall", trace->ignored_syscall);
+            JBOOL("trace.unsupported_syscall", trace->unsupported_syscall);
+            JBOOL("trace.redirect_syscall", trace->redirect_syscall);
+#endif
 
             FAIL(
                 "Invalid unknown json element '%s'; refusing to run with this "
@@ -473,37 +523,59 @@ void check_required_elements(string_list_t* seen)
     }
 }
 
-void sgxlkl_read_enclave_config(
+const sgxlkl_enclave_config_page_t* sgxlkl_read_enclave_config(
     const char* from,
-    sgxlkl_enclave_config_t* to,
-    bool enforce_format)
+    bool enforce_format,
+    size_t* num_pages_out)
 {
     // Catch modifications to sgxlkl_enclave_config_t early. If this fails,
     // the code above/below needs adjusting for the added/removed settings.
     _Static_assert(
-        sizeof(sgxlkl_enclave_config_t) == 464,
+        sizeof(sgxlkl_enclave_config_t) == 472,
         "sgxlkl_enclave_config_t size has changed");
 
     if (!from)
         FAIL("No config to read\n");
 
-    if (!to)
-        FAIL("No config to write to\n");
+    size_t num_pages = (strlen(from) / OE_PAGE_SIZE) + 1;
+    sgxlkl_enclave_config_page_t* config_page =
+#ifdef SGXLKL_ENCLAVE
+        memalign(OE_PAGE_SIZE, num_pages * OE_PAGE_SIZE);
+#else
+        malloc(num_pages * OE_PAGE_SIZE);
+#endif
 
-    *to = sgxlkl_enclave_config_default;
+#ifdef SGXLKL_ENCLAVE
+    oe_memset_s(config_page, OE_PAGE_SIZE, 0, OE_PAGE_SIZE);
+#else
+    memset(config_page, 0, OE_PAGE_SIZE);
+#endif
+
+    if (!config_page)
+        FAIL("out of memory\n");
+    config_page->config = sgxlkl_enclave_config_default;
+
+    if (num_pages_out)
+        *num_pages_out = num_pages;
 
     json_parser_t parser;
     json_parser_options_t options;
     options.allow_whitespace = !enforce_format;
     json_result_t r = JSON_UNEXPECTED;
-    json_callback_data_t callback_data = {.config = to,
-                                          .index = 0,
-                                          .seen = NULL,
-                                          .enforce_format = enforce_format};
+    size_t config_size = sizeof(sgxlkl_enclave_config_t);
+    json_callback_data_t callback_data = {
+        .config = &config_page->config,
+        .index = 0,
+        .seen = NULL,
+        .enforce_format = enforce_format,
+        .bytes = (uint8_t*)(&config_page->config) + config_size,
+        .bytes_remaining = OE_PAGE_SIZE - config_size};
 
     // parser destroys `from`, so we copy it first.
     size_t json_len = strlen(from);
     char* json_copy = malloc(sizeof(char) * (json_len + 1));
+    if (!json_copy)
+        FAIL("out of memory\n");
     memcpy(json_copy, from, json_len);
 
     json_allocator_t allocator = {.ja_malloc = malloc, .ja_free = free};
@@ -529,61 +601,15 @@ void sgxlkl_read_enclave_config(
 
     if (enforce_format)
         check_required_elements(callback_data.seen);
-    check_config(to);
+    check_config(&config_page->config);
     string_list_free(callback_data.seen, true);
+    return config_page;
 }
 
-#define NONDEFAULT_FREE(X)              \
-    if (config->X != default_config->X) \
-        free(config->X);
-
-void sgxlkl_free_enclave_config(sgxlkl_enclave_config_t* config)
+void sgxlkl_free_enclave_config_page(sgxlkl_enclave_config_page_t* config_page)
 {
-    const sgxlkl_enclave_config_t* default_config =
-        &sgxlkl_enclave_config_default;
-
-    NONDEFAULT_FREE(net_ip4);
-    NONDEFAULT_FREE(net_gw4);
-    NONDEFAULT_FREE(net_mask4);
-    NONDEFAULT_FREE(hostname);
-
-    NONDEFAULT_FREE(wg.ip);
-    for (size_t i = 0; i < config->wg.num_peers; i++)
-    {
-        free(config->wg.peers[i].key);
-        free(config->wg.peers[i].allowed_ips);
-        free(config->wg.peers[i].endpoint);
-    }
-    NONDEFAULT_FREE(wg.peers);
-
-    NONDEFAULT_FREE(kernel_cmd);
-    NONDEFAULT_FREE(sysctl);
-    NONDEFAULT_FREE(cwd);
-
-    for (size_t i = 0; i < config->num_args; i++)
-        free(config->args[i]);
-    NONDEFAULT_FREE(args);
-
-    for (size_t i = 0; i < config->num_env; i++)
-        free(config->env[i]);
-    NONDEFAULT_FREE(env);
-
-    for (size_t i = 0; i < config->num_host_import_env; i++)
-        free(config->host_import_env[i]);
-    NONDEFAULT_FREE(host_import_env);
-
-    NONDEFAULT_FREE(root.key);
-    NONDEFAULT_FREE(root.key_id);
-    NONDEFAULT_FREE(root.roothash);
-
-    for (size_t i = 0; i < config->num_mounts; i++)
-    {
-        free(config->mounts[i].key);
-        free(config->mounts[i].key_id);
-        free(config->mounts[i].roothash);
-    }
-    NONDEFAULT_FREE(mounts);
-    free(config);
+    /* frees the entire config, including all strings */
+    free(config_page);
 }
 
 bool is_encrypted(sgxlkl_enclave_mount_config_t* cfg)

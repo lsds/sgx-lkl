@@ -12,7 +12,7 @@
 #include "enclave/lthread_int.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "shared/env.h"
+#include "shared/util.h"
 
 #include "../../user/userargs.h"
 
@@ -30,6 +30,53 @@ extern struct mpmcq __scheduler_queue;
 _Noreturn void __dls3(elf64_stack_t* conf, void* tos);
 extern void init_sysconf(long nproc_conf, long nproc_onln);
 
+static void get_disk_keys()
+{
+    /* Here or earlier: get keys from remote key provider or auxv. For now we
+     * only support plaintext keys in sgxlkl_enclave_state.config, which we copy
+     * into the right places here. */
+    const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
+    sgxlkl_enclave_disk_state_t* disk_states = sgxlkl_enclave_state.disk_state;
+    if (cfg->root.key)
+    {
+        uint8_t* key = cfg->root.key;
+        size_t len = cfg->root.key_len;
+        disk_states[0].key = oe_malloc(sizeof(uint8_t) * len);
+        memcpy(disk_states[0].key, key, len);
+    }
+    for (size_t i = 0; i < cfg->num_mounts; i++)
+    {
+        if (cfg->mounts[i].key)
+        {
+            uint8_t* key = cfg->mounts[i].key;
+            size_t len = cfg->mounts[i].key_len;
+            disk_states[i + 1].key = oe_malloc(sizeof(uint8_t) * len);
+            memcpy(disk_states[i + 1].key, key, len);
+        }
+    }
+}
+
+/* Wipe copies of (currently local, in future remote) keys after we don't need
+ * them anymore, i.e. after mounting the respective file systems. */
+static void wipe_disk_keys()
+{
+    sgxlkl_enclave_disk_state_t* disk_state = sgxlkl_enclave_state.disk_state;
+    for (size_t i = 0; i < sgxlkl_enclave_state.num_disk_state; i++)
+    {
+        if (disk_state[i].key)
+        {
+            oe_memset_s(
+                disk_state[i].key,
+                disk_state[i].key_len,
+                0,
+                disk_state[i].key_len);
+            oe_free(disk_state[i].key);
+        }
+        disk_state[i].key = NULL;
+        disk_state[i].key_len = 0;
+    }
+}
+
 static void find_and_mount_disks()
 {
     const sgxlkl_enclave_config_t* cfg = sgxlkl_enclave_state.config;
@@ -41,7 +88,7 @@ static void find_and_mount_disks()
     estate->disk_state = oe_calloc(n, sizeof(sgxlkl_enclave_disk_state_t));
     estate->num_disk_state = n;
 
-    // root disk index
+    // root disk index 0
     estate->disk_state[0].host_disk_index = 0;
 
     for (int i = 0; i < cfg->num_mounts; i++)
@@ -68,7 +115,9 @@ static void find_and_mount_disks()
                 cfg_disk->destination);
     }
 
+    get_disk_keys();
     lkl_mount_disks(&cfg->root, cfg->mounts, cfg->num_mounts, cfg->cwd);
+    wipe_disk_keys();
 }
 
 static void init_wireguard_peers()
@@ -179,7 +228,8 @@ static int app_main_thread(void* args_)
 
 static int kernel_main_thread(void* args)
 {
-    __init_libc(sgxlkl_enclave_state.elf64_stack.envp,
+    __init_libc(
+        sgxlkl_enclave_state.elf64_stack.envp,
         sgxlkl_enclave_state.elf64_stack.argv[0]);
     __libc_start_init();
     a_barrier();
@@ -252,7 +302,7 @@ int __libc_init_enclave(int argc, char** argv)
     max_lthreads = next_power_of_2(max_lthreads);
 
     newmpmcq(&__scheduler_queue, max_lthreads, 0);
-    
+
     init_ethread_tp();
 
     size_t espins = cfg->espins;

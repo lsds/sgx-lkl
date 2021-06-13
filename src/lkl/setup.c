@@ -51,9 +51,9 @@
 #include "enclave/sgxlkl_t.h"
 #include "enclave/wireguard.h"
 #include "enclave/wireguard_util.h"
-#include "shared/env.h"
 #include "shared/sgxlkl_enclave_config.h"
 #include "shared/timer_dev.h"
+#include "shared/util.h"
 
 #include "openenclave/corelibc/oestring.h"
 
@@ -79,15 +79,6 @@
 
 int sethostname(const char*, size_t);
 
-int sgxlkl_trace_lkl_syscall = 0;
-int sgxlkl_trace_internal_syscall = 0;
-int sgxlkl_trace_ignored_syscall = 0;
-int sgxlkl_trace_unsupported_syscall = 0;
-int sgxlkl_trace_redirect_syscall = 0;
-int sgxlkl_trace_mmap = 0;
-int sgxlkl_trace_signal = 0;
-int sgxlkl_trace_thread = 0;
-int sgxlkl_trace_disk = 0;
 int sgxlkl_use_host_network = 0;
 int sgxlkl_mtu = 0;
 
@@ -123,7 +114,6 @@ static void lkl_prepare_rootfs(const char* dirname, int perm)
     {
         lkl_sys_chmod(dirname, perm);
     }
-
 }
 
 static void lkl_copy_blkdev_nodes(const char* srcdir, const char* dstdir)
@@ -417,13 +407,6 @@ static void* lkl_activate_crypto_disk_thread(struct lkl_crypt_device* lkl_cd)
 
     crypt_free(cd);
 
-    // The key is only needed during activation, so don't keep it around
-    // afterwards and free up space.
-    memset(lkl_cd->disk_config.key, 0, lkl_cd->disk_config.key_len);
-
-    lkl_cd->disk_config.key = NULL;
-    lkl_cd->disk_config.key_len = 0;
-
     return 0;
 }
 #endif
@@ -630,13 +613,11 @@ static void lkl_mount_disk(
     lkl_cd.readonly = disk->readonly;
     lkl_cd.disk_config = *disk;
 
-    (void)lkl_cd;
-
-    if (disk->create && disk->fresh_key)
+    if (disk->create && disk->fresh_key && !disk->key)
     {
         disk->key_len = CREATED_DISK_KEY_LENGTH / 8;
         SGXLKL_VERBOSE("Generating random disk encryption key\n");
-        disk->key = malloc(disk->key_len);
+        disk->key = oe_malloc(disk->key_len);
         if (disk->key == NULL)
             sgxlkl_fail("Could not allocate memory for disk encryption key\n");
         for (size_t i = 0; i < disk->key_len; i++)
@@ -647,16 +628,18 @@ static void lkl_mount_disk(
             disk->key[i] = rand();
     }
 
-    int lkl_trace_lkl_syscall_bak = sgxlkl_trace_lkl_syscall;
-    int lkl_trace_internal_syscall_bak = sgxlkl_trace_internal_syscall;
+    const sgxlkl_trace_config_t* tcfg = &sgxlkl_enclave_state.config->trace;
+    bool syscall_traces_enabled =
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall ||
+        sgxlkl_enclave_state.trace_enabled.internal_syscall;
 
-    if ((sgxlkl_trace_lkl_syscall || sgxlkl_trace_internal_syscall) &&
-        (disk->roothash || is_encrypted_cfg(disk)))
+    if (disk->roothash || is_encrypted_cfg(disk))
     {
-        sgxlkl_trace_lkl_syscall = 0;
-        sgxlkl_trace_internal_syscall = 0;
-        SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily "
-                       "disabling tracing to reduce noise.\n");
+        if (syscall_traces_enabled)
+            SGXLKL_VERBOSE("Disk encryption/integrity enabled: Temporarily "
+                           "disabling tracing to reduce noise.\n");
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall = false;
+        sgxlkl_enclave_state.trace_enabled.internal_syscall = false;
     }
 
     if (disk->roothash != NULL)
@@ -697,13 +680,14 @@ static void lkl_mount_disk(
         dev_str = dev_str_enc;
     }
 
-    if ((lkl_trace_lkl_syscall_bak && !sgxlkl_trace_lkl_syscall) ||
-        (lkl_trace_internal_syscall_bak && !sgxlkl_trace_internal_syscall))
+    if (disk->roothash || is_encrypted_cfg(disk))
     {
-        SGXLKL_VERBOSE(
-            "Disk encryption/integrity enabled: Re-enabling tracing.\n");
-        sgxlkl_trace_lkl_syscall = lkl_trace_lkl_syscall_bak;
-        sgxlkl_trace_internal_syscall = lkl_trace_internal_syscall_bak;
+        if (syscall_traces_enabled)
+            SGXLKL_VERBOSE(
+                "Disk encryption/integrity enabled: Re-enabling tracing.\n");
+        sgxlkl_enclave_state.trace_enabled.lkl_syscall = tcfg->lkl_syscall;
+        sgxlkl_enclave_state.trace_enabled.internal_syscall =
+            tcfg->internal_syscall;
     }
 
     if (disk->create)
@@ -856,7 +840,7 @@ void lkl_mount_disks(
     const char* cwd)
 {
 #ifdef DEBUG
-    if (sgxlkl_trace_disk)
+    if (sgxlkl_enclave_state.config->trace.disk)
         crypt_set_debug_level(CRYPT_LOG_DEBUG);
 #endif
 
@@ -1193,7 +1177,7 @@ void lkl_terminate(int exit_status)
             SGXLKL_ASSERT(false);
     }
 
-    if (getenv_bool("SGXLKL_PRINT_APP_RUNTIME", 0))
+    if (sgxlkl_enclave_state.config->trace.print_app_runtime)
     {
         struct timespec endtime, runtime;
         clock_gettime(CLOCK_MONOTONIC, &endtime);
@@ -1344,42 +1328,6 @@ void lkl_start_init()
 
     // Provide LKL host ops and virtio block device ops
     lkl_host_ops = sgxlkl_host_ops;
-
-    // TODO Make tracing options configurable via SGX-LKL config file.
-    if (getenv_bool("SGXLKL_TRACE_SYSCALL", 0))
-    {
-        sgxlkl_trace_lkl_syscall = 1;
-        sgxlkl_trace_internal_syscall = 1;
-        sgxlkl_trace_ignored_syscall = 1;
-        sgxlkl_trace_unsupported_syscall = 1;
-    }
-
-    if (getenv_bool("SGXLKL_TRACE_LKL_SYSCALL", 0))
-        sgxlkl_trace_lkl_syscall = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_INTERNAL_SYSCALL", 0))
-        sgxlkl_trace_internal_syscall = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_IGNORED_SYSCALL", 0))
-        sgxlkl_trace_ignored_syscall = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_UNSUPPORTED_SYSCALL", 0))
-        sgxlkl_trace_unsupported_syscall = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_REDIRECT_SYSCALL", 0))
-        sgxlkl_trace_redirect_syscall = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_MMAP", 0))
-        sgxlkl_trace_mmap = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_SIGNAL", 0))
-        sgxlkl_trace_signal = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_THREAD", 0))
-        sgxlkl_trace_thread = 1;
-
-    if (getenv_bool("SGXLKL_TRACE_DISK", 0))
-        sgxlkl_trace_disk = 1;
 
     if (cfg->hostnet)
         sgxlkl_use_host_network = 1;

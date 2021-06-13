@@ -20,6 +20,8 @@ typedef struct sgxlkl_enclave_disk_state
     int fd;                 /* File descriptor of the disk */
     size_t capacity;        /* Capacity of the disk */
     bool mounted;           /* Tracks whether the disk has been mounted */
+    uint8_t* key;           /* Encryption key */
+    size_t key_len;         /* Length of encryption key */
 } sgxlkl_enclave_disk_state_t;
 
 typedef struct
@@ -51,8 +53,15 @@ typedef struct sgxlkl_enclave_state
     /* Memory shared with the host */
     sgxlkl_shared_memory_t shared_memory;
 
-    /* This flag is used by the tracing macros */
-    bool verbose;
+    /* Flags to track whether tracing macros are currently enabled (initialized
+     * according to the settings in `config`; the respective traces may be
+     * disabled temporarily and this flags track the current state) */
+    struct
+    {
+        bool verbose;
+        bool lkl_syscall;
+        bool internal_syscall;
+    } trace_enabled;
 } sgxlkl_enclave_state_t;
 
 extern sgxlkl_enclave_state_t sgxlkl_enclave_state;

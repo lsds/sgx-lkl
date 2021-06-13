@@ -1,7 +1,6 @@
 #if DEBUG && VIRTIO_TEST_HOOK
 
 #include <host/virtio_debug.h>
-#include <shared/env.h>
 #include <string.h>
 
 /* Virtio debug module enables different debug options for virtio device

@@ -1,0 +1,5 @@
+{
+  "root": {
+    "image_path": "sgx-lkl-rootfs.img"
+  }
+}

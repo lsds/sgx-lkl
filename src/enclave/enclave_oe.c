@@ -12,8 +12,8 @@
 #include "enclave/enclave_util.h"
 #include "enclave/lthread.h"
 #include "enclave/lthread_int.h"
-#include "shared/env.h"
 #include "shared/timer_dev.h"
+#include "shared/util.h"
 
 #define AUXV_ENTRIES 13
 
@@ -299,11 +299,25 @@ static void _read_eeid_config()
     const oe_eeid_t* eeid = (oe_eeid_t*)__oe_get_eeid();
     const char* config_json = (const char*)eeid->data;
 
-    sgxlkl_enclave_config_t* cfg = oe_malloc(sizeof(sgxlkl_enclave_config_t));
-    if (!cfg)
-        sgxlkl_fail("out of memory, cannot allocate enclave config.\n");
-    sgxlkl_read_enclave_config(config_json, cfg, true);
-    sgxlkl_enclave_state.config = cfg;
+    size_t num_pages = 0;
+    const sgxlkl_enclave_config_page_t* cfg_pages =
+        sgxlkl_read_enclave_config(config_json, true, &num_pages);
+
+    /* Make the config pages read-only */
+    for (size_t i = 0; i < num_pages; i++)
+    {
+        int mprotect_ret;
+        sgxlkl_host_syscall_mprotect(
+            &mprotect_ret,
+            (void*)&cfg_pages[i],
+            sizeof(sgxlkl_enclave_config_t),
+            PROT_READ);
+
+        if (mprotect_ret != 0)
+            sgxlkl_warn("Could not protect memory pages for config\n");
+    }
+
+    sgxlkl_enclave_state.config = &cfg_pages->config;
 }
 
 static void _copy_shared_memory(const sgxlkl_shared_memory_t* host)
@@ -397,7 +411,7 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #ifdef DEBUG
     /* Make sure verbosity is off before loading the config (we don't know
      * whether it's enabled yet).*/
-    sgxlkl_enclave_state.verbose = false;
+    sgxlkl_enclave_state.trace_enabled.verbose = false;
 #endif
 
     _read_eeid_config();
@@ -406,7 +420,12 @@ int sgxlkl_enclave_init(const sgxlkl_shared_memory_t* shared_memory)
 #ifdef DEBUG
     // Initialise verbosity setting, so SGXLKL_VERBOSE can be used from this
     // point onwards
-    sgxlkl_enclave_state.verbose = sgxlkl_enclave_state.config->verbose;
+    sgxlkl_enclave_state.trace_enabled.verbose =
+        sgxlkl_enclave_state.config->verbose;
+    sgxlkl_enclave_state.trace_enabled.internal_syscall =
+        sgxlkl_enclave_state.config->trace.internal_syscall;
+    sgxlkl_enclave_state.trace_enabled.lkl_syscall =
+        sgxlkl_enclave_state.config->trace.lkl_syscall;
 #endif
 
     SGXLKL_VERBOSE("enter\n");

@@ -36,7 +36,6 @@ static size_t used_pages =
     0; // Tracks the number of used pages for the mmap tracing
 
 #if DEBUG
-extern int sgxlkl_trace_mmap;
 static size_t mmap_max_allocated = 0; // Maximum amount of memory used thus far
 #endif
 
@@ -139,7 +138,7 @@ void enclave_mman_init(const void* base, size_t num_pages, int _mmap_files)
 
     // Base address for range of pages available to mmap calls
     mmap_base = (char*)mmap_bitmap + (2 * bitmap_req_pages * PAGE_SIZE);
-    // Set mmap_end to one less page than we normally would to address 
+    // Set mmap_end to one less page than we normally would to address
     // https://github.com/lsds/sgx-lkl/issues/742
     mmap_end = (char*)mmap_base + (mmap_num_pages - 2) * PAGE_SIZE;
 
@@ -194,7 +193,7 @@ void* enclave_mmap(
             index_top = addr_to_index(addr) - (pages - 1);
 
 #if DEBUG
-            if (sgxlkl_trace_mmap)
+            if (sgxlkl_enclave_state.config->trace.mmap)
                 replaced_pages = bitmap_count_set_bits(
                     mmap_bitmap, mmap_num_pages, index_top, pages);
 #endif
@@ -296,7 +295,7 @@ void* enclave_mmap(
     }
 
 #if DEBUG
-    if (sgxlkl_trace_mmap)
+    if (sgxlkl_enclave_state.config->trace.mmap)
     {
         size_t requested = pages * PAGESIZE;
         size_t total = mmap_num_pages * PAGESIZE;
@@ -354,7 +353,7 @@ long enclave_munmap(void* addr, size_t length)
     ticket_unlock(&mmaplock);
 
 #if DEBUG
-    if (sgxlkl_trace_mmap)
+    if (sgxlkl_enclave_state.config->trace.mmap)
     {
         size_t requested = pages * PAGESIZE;
         size_t total = mmap_num_pages * PAGESIZE;

@@ -8,7 +8,7 @@
 #include <host/vio_host_event_channel.h>
 #include <host/virtio_console.h>
 #include <poll.h>
-#include <shared/env.h>
+#include <shared/util.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -3,13 +3,14 @@
 
 #ifdef SGXLKL_ENCLAVE
 
-/* Rewire some libc functions to oecorelibc equivalents, to avoid dependencies on
- * sgx-lkl-musl in SGX-LKL kernel space. */
+/* Rewire some libc functions to oecorelibc equivalents, to avoid dependencies
+ * on sgx-lkl-musl in SGX-LKL kernel space. */
 
 #include <openenclave/corelibc/bits/types.h>
 #include <openenclave/corelibc/oemalloc.h>
 #include <openenclave/corelibc/oestdlib.h>
 #include <openenclave/corelibc/oestring.h>
+#include <openenclave/corelibc/stdlib.h>
 #include <openenclave/internal/safecrt.h>
 
 #define malloc oe_malloc
@@ -19,6 +20,9 @@
 #define strlen oe_strlen
 #define strcmp oe_strcmp
 #define strtok_r oe_strtok_r
+#define snprintf oe_snprintf
+#define strtoul oe_strtoul
+#define memalign oe_memalign
 
 #else
 
@@ -26,6 +30,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 

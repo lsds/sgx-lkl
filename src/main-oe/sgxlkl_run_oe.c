@@ -28,13 +28,13 @@
 #include <arpa/inet.h>
 #include <netinet/ip.h>
 
+#include "host/env.h"
 #include "host/host_state.h"
 #include "host/serialize_enclave_config.h"
 #include "host/sgxlkl_host_config.h"
 #include "host/sgxlkl_params.h"
 #include "host/sgxlkl_util.h"
 #include "host/vio_host_event_channel.h"
-#include "shared/env.h"
 #include "shared/sgxlkl_enclave_config.h"
 
 #include "lkl/linux/virtio_net.h"
@@ -1488,7 +1488,9 @@ void enclave_config_from_file(const char* filename)
     if (ret < 0)
         sgxlkl_host_fail("Failed to read %s: %s.\n", filename, strerror(errno));
 
-    sgxlkl_read_enclave_config(buf, &sgxlkl_host_state.enclave_config, false);
+    const sgxlkl_enclave_config_page_t* config_page =
+        sgxlkl_read_enclave_config(buf, false, NULL);
+    sgxlkl_host_state.enclave_config = *(sgxlkl_enclave_config_t*)config_page;
 }
 
 void override_enclave_config(
