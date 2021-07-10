@@ -12,7 +12,8 @@ sudo apt-get install -y \
     redis-tools \
     expect \
     gdb \
-    shellcheck clang-format
+    shellcheck clang-format \
+    iperf3
 
 sudo python3 -m pip install "jsonschema>=3" "black==19.10b0"
 
