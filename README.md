@@ -95,6 +95,7 @@ cd sgx-lkl
 ```
 
 3. Install the Open Enclave build dependencies:
+
 ```
 cd openenclave
 sudo scripts/ansible/install-ansible.sh
@@ -103,8 +104,16 @@ sudo ansible-playbook scripts/ansible/oe-contributors-setup.yml
 
 Note that the above also installs the Intel SGX driver on the host.
 
+If the machine only offers SGX 1 support, the last line above should be 
+replaced by: 
+
+```
+sudo ansible-playbook scripts/ansible/oe-contributors-setup-sgx1.yml
+```
+
 If running on an Azure Confidential Computing (ACC) VM, which offers SGX support,
 the last line above should be replaced by:
+
 ```
 sudo ansible-playbook scripts/ansible/oe-contributors-acc-setup-no-driver.yml
 ```
